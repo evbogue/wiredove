@@ -1,0 +1,11 @@
+body {
+  background: #333;
+  color: cyan;
+  font-family: monospace;
+}
+
+textarea {
+  background: #444;
+  color: cyan;
+  width: 100%;
+}
