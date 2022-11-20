@@ -4,6 +4,7 @@ import { cachekv } from './lib/cachekv.js'
 
 const newNonce = () => nacl.randomBytes(nacl.box.nonceLength)
 
+
 export async function box (msg, dest, key) {
   const nonce = newNonce()
   const messageUint8 = new TextEncoder().encode(msg)
@@ -20,7 +21,7 @@ export async function box (msg, dest, key) {
   fullMessage.set(encrypted, nonce.length)
 
   const base64FullMessage = encode(fullMessage)
-  return dest + base64FullMessage
+  return keys.pubkey() + base64FullMessage
 }
 
 export async function unbox (msgWithNonce, pub, key) {
