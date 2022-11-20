@@ -12,7 +12,7 @@ export const compose = h('div', [
       box(date + textarea.value, keys.pubkey(), keys.privkey()).then(boxed => {
       // put it in a log or something
       })
-      const dest = window.location.hash.substring(1, 46)
+      const dest = window.location.hash.substring(1, 45)
       console.log(dest)
       //if (keys.pubkey() != dest) {
         // send it to someone else
