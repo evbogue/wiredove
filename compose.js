@@ -10,11 +10,11 @@ export const compose = h('div', [
       // send it to yourself
       const date = Date.now()
       box(date + textarea.value, keys.pubkey(), keys.privkey()).then(boxed => {
-        alert(boxed)        
+      // put it in a log or something
       })
       const dest = window.location.hash.substring(1, 46)
       console.log(dest)
-      if (keys.pubkey() != dest) {
+      //if (keys.pubkey() != dest) {
         // send it to someone else
         box(date + textarea.value, dest, keys.privkey()).then(boxed => {
           fetch('https://ntfy.sh/wiredove', {
@@ -22,7 +22,7 @@ export const compose = h('div', [
             body: 'https://wiredove.net/#' + boxed
           })
         })
-      }
+      //}
     }
   }}, ['Send'])  
 ])
