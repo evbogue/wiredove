@@ -19,7 +19,7 @@ export const compose = h('div', [
         box(date + textarea.value, dest, keys.privkey()).then(boxed => {
           fetch('https://ntfy.sh/wiredove', {
             method: 'POST', 
-            body: 'https://wiredove.net/#' + boxed
+            body: window.location.origin + '/#' + boxed
           })
         })
       //}
