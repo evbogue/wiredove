@@ -22,12 +22,16 @@ function start () {
       const msg = window.location.hash.substring(1)
       unbox(msg.substring(44), msg.substring(0, 44), keys.privkey()).then(unboxed => {
         if (unboxed) {
-          logs.add(msg)
-          render(msg, unboxed).then(rendered => {
-            if (stream.firstChild) {
-              stream.insertBefore(rendered, stream.firstChild)
-            } else {
-              stream.appendChild(rendered)
+          logs.getLog().then(log => {
+            if (!log.includes(msg)) {
+              logs.add(msg)
+              render(msg, unboxed).then(rendered => {
+                if (stream.firstChild) {
+                  stream.insertBefore(rendered, stream.firstChild)
+                } else {
+                  stream.appendChild(rendered)
+                }
+              })
             }
           })
         }
