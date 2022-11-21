@@ -32,7 +32,7 @@ function start () {
         }
       })
     }
-    setTimeout(function () {
+    //setTimeout(function () {
       logs.getLog().then(log => {
         log.forEach(mssg => {
           unbox(mssg.substring(44), mssg.substring(0, 44), keys.privkey()).then(unboxed => {
@@ -48,7 +48,7 @@ function start () {
           })
         })
       })
-    }, 1000)
+    //}, 1000)
   } else {
     setTimeout(function () { start()}, 25)
   }
