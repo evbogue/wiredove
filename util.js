@@ -8,11 +8,8 @@ const newNonce = () => nacl.randomBytes(nacl.box.nonceLength)
 export async function box (msg, dest, key) {
   const nonce = newNonce()
   const messageUint8 = new TextEncoder().encode(msg)
-  console.log(messageUint8)
-  console.log(nonce)
   const recp = decode(dest)
   const privkey = decode(key)
-  console.log(privkey)
   const encrypted = nacl.box(messageUint8, nonce, recp, privkey)
 
   const fullMessage = new Uint8Array(nonce.length + encrypted.length)
@@ -25,18 +22,14 @@ export async function box (msg, dest, key) {
 }
 
 export async function unbox (msgWithNonce, pub, key) {
-  console.log(msgWithNonce)
   const messageWithNonceAsUint8Array = decode(msgWithNonce)
   const nonce = messageWithNonceAsUint8Array.slice(0, nacl.box.nonceLength)
   const message = messageWithNonceAsUint8Array.slice(
     nacl.box.nonceLength,
     msgWithNonce.length
   )
-  console.log(nonce)
-  console.log(message)
   const pubkey = decode(pub)
   const privkey = decode(key)
-  console.log(privkey)
   const decrypted = nacl.box.open(message, nonce, pubkey, privkey)
 
   if (decrypted) {
