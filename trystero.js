@@ -36,9 +36,10 @@ export const gossip = async (hash, author) => {
       const room = values[Math.floor(Math.random() * values.length)]
       if (room.sendHash) {
         room.sendHash(hash)
-      setTimeout(() => {
-        ask()
-      }, (100 * speed)) 
+        setTimeout(() => {
+          ask()
+        }, (100 * speed))
+      } 
     }
   }
 
