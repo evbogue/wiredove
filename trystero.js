@@ -24,7 +24,15 @@ export const gossip = async (hash, author) => {
 
   let speed = 1
 
-  const ask = () => {
+  const ask = async () => {
+    const haveBlob = await bogbot.find(hash)
+    console.log(haveBlob) 
+    const havePost = await bogbot.query(hash)
+    console.log(havePost)
+    if (haveBlob || havePost && havePost[0]) {
+      console.log('removing from queue')
+      queue.delete(hash)
+    }
     if (queue.has(hash)) {
       speed++
       //if (author) {
@@ -41,7 +49,7 @@ export const gossip = async (hash, author) => {
       //}
       setTimeout(() => {
         ask()
-      }, (1000 * speed)) 
+      }, (100 * speed)) 
     }
   }
 
