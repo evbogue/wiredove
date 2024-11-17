@@ -26,27 +26,16 @@ export const gossip = async (hash, author) => {
 
   const ask = async () => {
     const haveBlob = await bogbot.find(hash)
-    console.log(haveBlob) 
     const havePost = await bogbot.query(hash)
-    console.log(havePost)
     if (haveBlob || havePost && havePost[0]) {
-      console.log('removing from queue')
       queue.delete(hash)
     }
     if (queue.has(hash)) {
       speed++
-      //if (author) {
-      //  const room = rooms.get(author)
-      //  if (room && room.sendHash) {
-      //    room.sendHash(hash)
-      //  }
-      //} else {
-        const values = [...rooms.values()]
-        const room = values[Math.floor(Math.random() * values.length)]
-        if (room.sendHash) {
-          room.sendHash(hash)
-        }
-      //}
+      const values = [...rooms.values()]
+      const room = values[Math.floor(Math.random() * values.length)]
+      if (room.sendHash) {
+        room.sendHash(hash)
       setTimeout(() => {
         ask()
       }, (100 * speed)) 
