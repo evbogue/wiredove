@@ -102,18 +102,30 @@ export const makeRoom = async (pubkey) => {
       )
       const q = await bogbot.query(hash)
       await bogbot.make(blob)
-      try {
-        const got = document.getElementById('image:' + hash)
-        if (got) { got.src = blob}
-      } catch (err) {}
+      //try {
+      //  const got = document.getElementById('image:' + hash)
+      //  if (got) { got.src = blob}
+      //} catch (err) {}
+      //try {
+      //  const got = document.getElementById(hash)
+      //  got.src = blob
+      //} catch (err) { console.log(err)} 
       try {
         const got = document.getElementById(hash)
-        try {
-          const obj = await parseYaml(blob)
-          const mark = await markdown(obj.body)
-          got.innerHTML = mark
-        } catch (err) {}
-      } catch (err) {}
+        const sel = `"img#${hash}"`
+        console.log(sel)
+        const avatarImg = document.querySelectorAll(CSS.escape(sel))
+        console.log(avatarImg)
+        const obj = await parseYaml(blob)
+        const mark = await markdown(obj.body)
+        if (obj.image) {
+          const check = await bogbot.find(obj.image)
+          if (!check) 
+          await gossip(obj.image)
+        }
+        got.innerHTML = mark
+        
+      } catch (err) { console.log(err)}
       try {queue.delete(hash)} catch (err) {}
     } 
   })
