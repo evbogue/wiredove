@@ -11,14 +11,12 @@ document.title = ownerAvatar.textContent + "'s Bog"
 export const navbar = h('navbar' , {id: 'navbar'}, [
   h('span', {style: 'float: right; margin-right: 2em;'}, [
     await currentAvatar(await bogbot.pubkey()),
-    ' | ',
-    h('a', {href: '#settings'}, ['Settings'])
+    ' (you) ',
+    h('a', {href: '#settings'}, ['⚙️'])
   ]),
   search,
   ' ',
   ownerAvatar,
-  "'s ",
-  h('a', {href: '#'}, ['Bog']), 
-  " | ",
-  h('a', {href: '#public'}, ['Public'])
+  " ",
+  h('a', {href: '#public'}, ['🏦'])
 ])
