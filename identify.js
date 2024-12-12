@@ -25,6 +25,7 @@ const nameDiv = async () => {
 
 const saveButton = async (keypair) => {
   const button = h('button', {
+    id: 'saveButton',
     onclick: async () => {
       await localStorage.setItem('keypair', keypair)
       document.location.reload()
@@ -40,6 +41,8 @@ const genDiv = async () => {
   const pubkey = h('span', {style: "background-image: linear-gradient(to right, #65d7ed, #f92772); background-clip: text; color: transparent;"})
   const button = h('button', {
     onclick: async () => {
+      const alreadyButton = document.getElementById('saveButton')
+      if (alreadyButton) { alreadyButton.remove() }
       let done = true
       const genInterval = setInterval(async _ => {
         const keypair = await bogbot.generate()
