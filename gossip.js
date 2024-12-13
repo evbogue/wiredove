@@ -1,25 +1,25 @@
 import { joinRoom } from 'https://esm.sh/gh/evbogue/bog5@38ac1c121f/lib/trystero-torrent.min.js'
-
 export const rooms = new Map()
 
 const queue = new Set()
 
-export const gossip = async (hash, author) => {
+export const gossip = async (hash) => {
   queue.add(hash)
+  console.log(queue)
 
   let speed = 1
 
   const ask = async () => {
-    const haveBlob = await bogbot.find(hash)
-    const havePost = await bogbot.query(hash)
-    if (haveBlob || havePost && havePost[0]) {
-      queue.delete(hash)
-    }
+    //const haveBlob = await bogbot.find(hash)
+    //const havePost = await bogbot.query(hash)
+    //if (haveBlob || havePost && havePost[0]) {
+    //  queue.delete(hash)
+    //}
     if (queue.has(hash)) {
       speed++
       const values = [...rooms.values()]
       const room = values[Math.floor(Math.random() * values.length)]
-      if (room.sendHash) {
+      if (room && room.sendHash) {
         room.sendHash(hash)
         setTimeout(() => {
           ask()

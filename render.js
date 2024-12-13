@@ -1,5 +1,6 @@
 import { bogbot } from 'bogbot'
 import { h } from 'h'
+import { gossip } from './gossip.js'
 
 export const render = {}
 
@@ -37,6 +38,8 @@ render.blob = async (blob) => {
       const content = await bogbot.find(opened.substring(13))
       if (content) {
         await render.blob(content)
+      } else {
+        await gossip(opened.substring(13))
       }
     } else {
       console.log('Div is not in view')
@@ -72,5 +75,4 @@ render.hash = async (hash, scroller) => {
   } else {
     await gossip(hash)
   }
-
 }
