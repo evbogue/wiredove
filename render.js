@@ -42,10 +42,10 @@ render.blob = async (blob) => {
         await gossip(opened.substring(13))
       }
     } else {
-      console.log('Div is not in view')
+      //console.log('Div is not in view')
     }
   } catch (err) {
-    console.log('Not a valid protocol message')
+    //console.log('Not a valid protocol message')
     const yaml = await bogbot.parseYaml(blob)
     if (div) {
       div.textContent = yaml.body
@@ -59,7 +59,7 @@ render.blob = async (blob) => {
         }
       })
     }
-    console.log(yaml)
+    //console.log(yaml)
   }
 }
 
