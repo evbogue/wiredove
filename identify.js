@@ -54,7 +54,7 @@ const genDiv = async () => {
       }, .000001)
     }
   }, ['Generate'])
-
+  button.click()
   const div = h('div', [
     h('span', [name]),
     ' ',
