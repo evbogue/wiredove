@@ -1,25 +1,28 @@
+import { bogbot } from 'bogbot'
 import { joinRoom } from 'https://esm.sh/gh/evbogue/bog5@38ac1c121f/lib/trystero-torrent.min.js'
+
 export const rooms = new Map()
 
 const queue = new Set()
 
 export const gossip = async (hash) => {
   queue.add(hash)
-  console.log(queue)
-
   let speed = 1
 
   const ask = async () => {
-    //const haveBlob = await bogbot.find(hash)
-    //const havePost = await bogbot.query(hash)
-    //if (haveBlob || havePost && havePost[0]) {
-    //  queue.delete(hash)
-    //}
+    const haveBlob = await bogbot.find(hash)
+    const log = await bogbot.getLog()
+    const havePost = await log.includes(hash)
+    if (haveBlob || havePost) {
+      queue.delete(hash)
+    }
     if (queue.has(hash)) {
       speed++
       const values = [...rooms.values()]
       const room = values[Math.floor(Math.random() * values.length)]
+      console.log(rooms)
       if (room && room.sendHash) {
+        console.log('Asking for ' + hash)
         room.sendHash(hash)
         setTimeout(() => {
           ask()
@@ -32,6 +35,7 @@ export const gossip = async (hash) => {
 }
 
 export const makeRoom = async (pubkey) => {
+  console.log(pubkey)
   const room = joinRoom({appId: 'wiredove1', password: 'iajwoiejfaowiejfoiwajfe'}, pubkey)
 
   console.log('Joining: ' + pubkey)
@@ -43,7 +47,7 @@ export const makeRoom = async (pubkey) => {
   room.sendBlob = sendBlob
 
   onHash(async (hash, id) => {
-
+    console.log(`Received: ${hash}`)
   }) 
 
   onBlob(async (blob, id) => {

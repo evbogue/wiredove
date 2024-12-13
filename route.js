@@ -5,7 +5,6 @@ import { composer } from './composer.js'
 import { profile } from './profile.js'
 
 export const route = async () => {
-  console.log('route')
   if (!window.location.hash) { window.location = '#'}
   const src = window.location.hash.substring(1)
   const scroller = h('div', {id: 'scroller'})
@@ -34,10 +33,7 @@ export const route = async () => {
           await render.hash(hash, scroller)
         }
       })
-      console.log(log)
-    } catch (err) {
-      console.log(err)
-    }
+    } catch (err) {}
   } if (src.length > 44) {
     const hash = await bogbot.hash(src)
     const div = h('div', {id: hash})
