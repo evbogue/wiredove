@@ -3,6 +3,7 @@ import { render } from './render.js'
 import {h} from 'h'
 import { composer } from './composer.js'
 import { profile } from './profile.js'
+import { makeRoom } from './gossip.js'
 
 export const route = async () => {
   if (!window.location.hash) { window.location = '#'}
@@ -36,6 +37,11 @@ export const route = async () => {
     } catch (err) {}
   } if (src.length > 44) {
     const hash = await bogbot.hash(src)
+    const opened = await bogbot.open(src)
+    if (opened) {
+      console.log('MAKE PUBKEY ROOM')
+      await makeRoom(src.substring(0, 44))
+    }
     const div = h('div', {id: hash})
     scroller.appendChild(div)
     await render.blob(src)  
