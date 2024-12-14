@@ -1,5 +1,6 @@
 import { bogbot } from 'bogbot'
 import { joinRoom } from 'https://esm.sh/gh/evbogue/bog5@38ac1c121f/lib/trystero-torrent.min.js'
+import { render } from './render.js'
 
 export const rooms = new Map()
 
@@ -20,7 +21,6 @@ export const gossip = async (hash) => {
       speed++
       const values = [...rooms.values()]
       const room = values[Math.floor(Math.random() * values.length)]
-      console.log(rooms)
       if (room && room.sendHash) {
         console.log('Asking for ' + hash)
         room.sendHash(hash)
@@ -31,7 +31,7 @@ export const gossip = async (hash) => {
     }
   }
 
-  ask()
+  await ask()
 }
 
 export const makeRoom = async (pubkey) => {
@@ -48,10 +48,14 @@ export const makeRoom = async (pubkey) => {
 
   onHash(async (hash, id) => {
     console.log(`Received: ${hash}`)
+    const get = await bogbot.find(hash)
+    if (get) { sendBlob(get, id)}
   }) 
 
   onBlob(async (blob, id) => {
-
+    console.log(`Recieved: ${blob}`)
+    const hash = await bogbot.make(blob)
+    await render.blob(hash)
   })
 
   room.onPeerJoin(async (id) => {
