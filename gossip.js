@@ -58,9 +58,21 @@ export const makeRoom = async (pubkey) => {
       console.log(`Recieved: ${blob}`)
       const hash = await bogbot.make(blob)
       await render.blob(hash)
+      try {
+        const opened = await bogbot.open(blob)
+        if (opened) {
+          await bogbot.add(blob)
+          await render.hash(hash)
+        }
+      } catch (err) {}
     })
 
     room.onPeerJoin(async (id) => {
+      const previous = localStorage.getItem('previous')
+      if (previous) {
+        const msg = await bogbot.find(previous)
+        room.sendBlob(msg)
+      }
       console.log(id + ' joined the room ' + pubkey)
     })
 
