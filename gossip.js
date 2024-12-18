@@ -37,7 +37,6 @@ export const gossip = async (hash) => {
 export const blast = async (blob) => {
   if (rooms.size) {
     rooms.forEach(room => {
-      console.log('BLASTING: ' + room) 
       room.sendBlob(blob)
     })
   }
