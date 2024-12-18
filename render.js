@@ -59,7 +59,9 @@ render.blob = async (blob) => {
           node.src = image
         }
         if (yaml.previous) {
-          
+          console.log(yaml.previous)
+          const check = await bogbot.find(yaml.previous)
+          if (!check) { console.log('GOSSIPING' + yaml.previous); gossip(yaml.previous) }
         }
       })
     }
