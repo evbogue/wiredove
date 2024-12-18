@@ -39,12 +39,14 @@ export const route = async () => {
     const hash = await bogbot.hash(src)
     const opened = await bogbot.open(src)
     if (opened) {
-      console.log('MAKE PUBKEY ROOM')
       await makeRoom(src.substring(0, 44))
     }
-    const div = h('div', {id: hash})
-    scroller.appendChild(div)
-    await render.blob(src)  
+    const check = document.getElementById(hash)
+    if (!check) {
+      const div = h('div', {id: hash}, [])
+      scroller.appendChild(div)
+      await render.blob(src)  
+    }
   }
 }
 

@@ -55,16 +55,22 @@ export const makeRoom = async (pubkey) => {
     }) 
 
     onBlob(async (blob, id) => {
-      console.log(`Recieved: ${blob}`)
+      console.log(`Received: ${blob}`)
       const hash = await bogbot.make(blob)
-      await render.blob(hash)
       try {
+        await render.blob(blob)
         const opened = await bogbot.open(blob)
         if (opened) {
           await bogbot.add(blob)
-          await render.hash(hash)
+          const check = document.getElementById(hash)
+          if (!check) {
+            await render.hash(hash, document.getElementById('scroller'))
+          }
         }
-      } catch (err) {}
+      } catch (err) { 
+        await render.blob(blob)
+        //console.log(err)
+      }
     })
 
     room.onPeerJoin(async (id) => {

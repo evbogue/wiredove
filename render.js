@@ -18,7 +18,7 @@ render.blob = async (blob) => {
     setInterval(async () => {
       ts.textContent = await bogbot.human(opened.substring(0, 13))
     }, 1000)
-    if (div) {
+    if (div && !div.firstChild) {
       const img = await bogbot.visual(blob.substring(0, 44))
       img.id = 'image'
       img.style = 'width: 30px; height: 30px; float: left; margin-right: 5px; object-fit: cover;'
@@ -33,7 +33,7 @@ render.blob = async (blob) => {
       div.appendChild(img)
       div.appendChild(name)
       div.appendChild(right)      
-      const contentDiv = h('div', {id: opened.substring(13)})
+      const contentDiv = h('div', {id: opened.substring(13)}, ['\n'])
       div.appendChild(contentDiv)
       const content = await bogbot.find(opened.substring(13))
       if (content) {
@@ -55,24 +55,25 @@ render.blob = async (blob) => {
         }
         if (yaml.image && node.id === 'image') {
           const image = await bogbot.find(yaml.image)
+          if (!image) { gossip(yaml.image)}
           node.src = image
         }
       })
     }
-    //console.log(yaml)
   }
 }
 
 render.hash = async (hash, scroller) => {
-  const div = h('div', {id: hash}) 
+  const makeSure = document.getElementById(hash)
+  if (!makeSure) {
+    const div = h('div', {id: hash}) 
+    scroller.insertBefore(div, scroller.firstChild)
+    const sig = await bogbot.find(hash)
 
-  scroller.insertBefore(div, scroller.firstChild)
-
-  const sig = await bogbot.find(hash)
-
-  if (sig) {
-    await render.blob(sig)
-  } else {
-    await gossip(hash)
+    if (sig) {
+      await render.blob(sig)
+    } else {
+      await gossip(hash)
+    }
   }
 }
