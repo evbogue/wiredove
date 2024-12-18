@@ -58,6 +58,9 @@ render.blob = async (blob) => {
           if (!image) { gossip(yaml.image)}
           node.src = image
         }
+        if (yaml.previous) {
+          
+        }
       })
     }
   }

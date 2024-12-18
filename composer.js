@@ -1,5 +1,6 @@
 import { bogbot } from 'bogbot'
 import { render } from './render.js'
+import { blast } from './gossip.js'
 
 export const composer = async () => {
   const div = document.createElement('div')
@@ -18,6 +19,8 @@ export const composer = async () => {
     ta.value = ''
     const scroller = document.getElementById('scroller')
     await render.hash(published, scroller)
+    const signed = await bogbot.find(published)
+    await blast(signed)
   }
   
   div.appendChild(b)
