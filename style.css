@@ -52,3 +52,23 @@ a:hover img {
   border: 1px solid #f92772;
 }
 
+.message {
+  padding: .75ex;
+  background: #3e3d31;
+  border: 1px solid #4f4e3f;
+  margin-top: 7px;
+}
+
+.pubkey { 
+  background-image: linear-gradient(to right, #65d7ed, #f92772); 
+  background-clip: text; 
+  color: transparent;
+}
+
+.avatar {
+  height: 33px; 
+  width: 33px; 
+  float: left; 
+  margin-right: 5px; 
+  object-fit: cover
+}

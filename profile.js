@@ -8,7 +8,6 @@ export const nameDiv = async () => {
     placeholder: name || 'Name yourself'
   })
 
-
   const namerDiv = h('div', [
     namer,
     h('button', {onclick: async () => {
@@ -23,16 +22,19 @@ export const nameDiv = async () => {
   return namerDiv
 }
 
-export const profile = async () => {
-  const div = h('div')
+export const nameSpan = async () => {
+  const span = h('a', {href: await bogbot.pubkey()}, [await localStorage.getItem('name') || await bogbot.pubkey().substring(0, 10)])
+  return span
+}
 
+export const avatarSpan = async () => {
   const avatarImg = await bogbot.visual(await bogbot.pubkey())
 
   const existingImage = await localStorage.getItem('image')
   
   if (existingImage) { avatarImg.src = await bogbot.find(existingImage)}
 
-  avatarImg.style = 'height: 30px; width: 30px; float: left; margin-right: 5px; object-fit: cover;'
+  avatarImg.classList = 'avatar'
 
   avatarImg.onclick = () => {uploader.click()}
 
@@ -82,12 +84,20 @@ export const profile = async () => {
     reader.readAsDataURL(file)
   })
 
+  const span = h('span', [
+    avatarImg,
+    uploader
+  ]) 
 
-  div.appendChild(uploader)
+  return span
+}
 
-  div.appendChild(avatarImg)
+export const profile = async () => {
+  const div = h('div')
 
-  div.appendChild(h('div', [await bogbot.pubkey()]))
+  div.appendChild(await avatarSpan())
+
+  div.appendChild(h('div', {classList: 'pubkey' }, [await bogbot.pubkey()]))
 
   div.appendChild(await nameDiv())
   return div

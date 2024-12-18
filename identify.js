@@ -38,7 +38,7 @@ const saveButton = async (keypair) => {
 const genDiv = async () => {
   const initial = await bogbot.generate()
   const name = await localStorage.getItem('name')
-  const pubkey = h('span', {style: "background-image: linear-gradient(to right, #65d7ed, #f92772); background-clip: text; color: transparent;"})
+  const pubkey = h('span', {classList: 'pubkey'})
   const button = h('button', {
     onclick: async () => {
       const alreadyButton = document.getElementById('saveButton')

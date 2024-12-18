@@ -21,7 +21,7 @@ render.blob = async (blob) => {
     if (div && !div.firstChild) {
       const img = await bogbot.visual(blob.substring(0, 44))
       img.id = 'image'
-      img.style = 'width: 30px; height: 30px; float: left; margin-right: 5px; object-fit: cover;'
+      img.classList = 'avatar'
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name'}, [blob.substring(0, 10)])
       const permalink = h('a', {href: '#' + blob}, [' [Link] '])
       const hashlink = h('a', {href: '#' + hash}, [ts])
@@ -71,7 +71,7 @@ render.blob = async (blob) => {
 render.hash = async (hash, scroller) => {
   const makeSure = document.getElementById(hash)
   if (!makeSure) {
-    const div = h('div', {id: hash}) 
+    const div = h('div', {id: hash, classList: 'message'}) 
     scroller.insertBefore(div, scroller.firstChild)
     const sig = await bogbot.find(hash)
 

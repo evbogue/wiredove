@@ -14,7 +14,6 @@ export const route = async () => {
   if (src === '') {
     const controls = h('div', {id: 'controls'})
     document.body.insertBefore(controls, scroller)
-    controls.appendChild(await profile()) 
     controls.appendChild(await composer()) 
     const log = await bogbot.getLog()
     log.forEach(async (hash) => {
@@ -43,7 +42,7 @@ export const route = async () => {
     }
     const check = document.getElementById(hash)
     if (!check) {
-      const div = h('div', {id: hash}, [])
+      const div = h('div', {id: hash, classList: 'message'}, [])
       scroller.appendChild(div)
       await render.blob(src)  
     }
