@@ -57,6 +57,16 @@ a:hover img {
   background: #3e3d31;
   border: 1px solid #4f4e3f;
   margin-top: 7px;
+  min-height: 35px;
+}
+
+.message, .message > * {
+  animation: fadein .5s;
+}
+
+@keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 .pubkey { 
