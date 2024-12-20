@@ -43,7 +43,7 @@ export const route = async () => {
     }
     const check = document.getElementById(hash)
     if (!check) {
-      const div = h('div', {id: hash, classList: 'message'}, [])
+      const div = h('div', {id: hash}, [])
       scroller.appendChild(div)
       await render.blob(src)  
     }
