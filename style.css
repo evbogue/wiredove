@@ -13,7 +13,7 @@ body {
   font-family: "Noto Sans", sans-serif;
   width: 860px; margin-right: auto; margin-left: auto;
   max-width: 100%;
-  margin-top: 55px;
+  margin-top: 45px;
 }
 
 @media only screen and (max-width: 680px) {
