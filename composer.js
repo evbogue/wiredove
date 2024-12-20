@@ -8,8 +8,8 @@ export const composer = async () => {
   const textarea = h('textarea', {placeholder: 'Write a message'})
 
   const button = h('button', {onclick: async () => {
-    const published = await bogbot.compose(ta.value)
-    ta.value = ''
+    const published = await bogbot.compose(textarea.value)
+    textarea.value = ''
     const scroller = document.getElementById('scroller')
     await render.hash(published, scroller)
     const signed = await bogbot.find(published)
