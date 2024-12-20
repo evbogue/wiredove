@@ -22,16 +22,19 @@ render.blob = async (blob) => {
       const img = await bogbot.visual(blob.substring(0, 44))
       img.id = 'image'
       img.classList = 'avatar'
-      const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name'}, [blob.substring(0, 10)])
-      const permalink = h('a', {href: '#' + blob}, [' [Link] '])
-      const hashlink = h('a', {href: '#' + hash}, [ts])
+      const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink'}, [blob.substring(0, 10)])
+      const permalink = h('a', {href: '#' + blob}, ['📤'])
+      const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
       const right = h('span', {style: 'float: right;'}, [
-        hashlink,
-        ' ',
         permalink
       ])
       div.appendChild(img)
+      const meta = h('span', [
+        ' • ',
+        hashlink
+      ])
       div.appendChild(name)
+      div.appendChild(meta)
       div.appendChild(right)      
       const contentDiv = h('div', {id: opened.substring(13)}, ['\n'])
       div.appendChild(contentDiv)

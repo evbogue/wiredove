@@ -5,29 +5,24 @@ import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js' 
 
 export const composer = async () => {
-  const div = h('div', {classList: 'message'}, [
-    await avatarSpan(),
-    await nameSpan()
-  ])
+  const textarea = h('textarea', {placeholder: 'Write a message'})
 
-  const ta = h('textarea', {placeholder: 'Write a message'})
-  
-  div.appendChild(ta)
-  
-  const b = document.createElement('button')
-  
-  b.textContent = 'Sign'
-  
-  b.onclick = async () => {
+  const button = h('button', {onclick: async () => {
     const published = await bogbot.compose(ta.value)
     ta.value = ''
     const scroller = document.getElementById('scroller')
     await render.hash(published, scroller)
     const signed = await bogbot.find(published)
     await blast(signed)
-  }
-  
-  div.appendChild(b)
+  }}, ['Send'])
+
+  const div = h('div', {classList: 'message'}, [
+    await avatarSpan(),
+    await nameSpan(),
+    h('div', {classList: 'pubkey'}, [await bogbot.pubkey()]),
+    textarea,
+    button
+  ])
 
   return div
 }

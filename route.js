@@ -9,6 +9,7 @@ export const route = async () => {
   if (!window.location.hash) { window.location = '#'}
   const src = window.location.hash.substring(1)
   const scroller = h('div', {id: 'scroller'})
+
   document.body.appendChild(scroller)
   //scroller.appendChild(h('div', [src]))
   if (src === '') {

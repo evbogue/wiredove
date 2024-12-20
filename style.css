@@ -1,9 +1,19 @@
+.noto-sans-<uniquifier> {
+  font-family: "Noto Sans", serif;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+  font-variation-settings:
+    "wdth" 100;
+}
+
 body {
   background: #272822;
   color: #e8e8e2;
-  font-family: sans-serif;
+  font-family: "Noto Sans", sans-serif;
   width: 860px; margin-right: auto; margin-left: auto;
   max-width: 100%;
+  margin-top: 55px;
 }
 
 @media only screen and (max-width: 680px) {
@@ -25,7 +35,7 @@ button:hover {
 
 textarea, input {
   font-size: 1em;
-  font-family: sans-serif;
+  font-family: "Noto Sans", sans-serif;
   border: 1px solid #4f4e3f;
   background: #4f4e3f;
   color: #f5f5f5;
@@ -52,11 +62,24 @@ a:hover img {
   border: 1px solid #f92772;
 }
 
+#navbar {
+  padding-top: .5em;
+  padding-left: 1em;
+  padding-bottom: .5em;
+  position: fixed;
+  width: 100%;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  background: #3e3d31;
+  border-bottom: 1px solid #4f4e3f;
+}
+
 .message {
   padding: .75ex;
   background: #3e3d31;
   border: 1px solid #4f4e3f;
-  margin-top: 7px;
+  margin-top: -1px;
   min-height: 35px;
 }
 
@@ -76,9 +99,13 @@ a:hover img {
 }
 
 .avatar {
-  height: 33px; 
-  width: 33px; 
-  float: left; 
+  height: 45px; 
+  width: 45px; 
+  float: left;
+  border-radius: 100%; 
   margin-right: 5px; 
   object-fit: cover
 }
+
+.avatarlink { font-weight: 600; color: #ccc;}
+.unstyled { color: #ccc;}
