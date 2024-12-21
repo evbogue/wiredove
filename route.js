@@ -3,7 +3,7 @@ import { render } from './render.js'
 import {h} from 'h'
 import { composer } from './composer.js'
 import { profile } from './profile.js'
-import { makeRoom } from './gossip.js'
+import { makeRoom, gossip } from './gossip.js'
 
 export const route = async () => {
   if (!window.location.hash) { window.location = '#'}
@@ -24,16 +24,20 @@ export const route = async () => {
 
   if (src.length === 44) {
     console.log(src)
-    try { 
+    try {
+      let got = false
       const log = await bogbot.getLog()
       log.forEach(async (hash) => {
         const found = await bogbot.find(hash)
         const author = found.substring(0, 44)
         const posthash = await bogbot.hash(found)
+        
         if (posthash === src || author === src) {
+          got = true 
           await render.hash(hash, scroller)
         }
       })
+      if (!got) { await gossip(src)}
     } catch (err) {}
   } if (src.length > 44) {
     const hash = await bogbot.hash(src)

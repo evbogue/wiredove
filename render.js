@@ -19,7 +19,7 @@ render.blob = async (blob) => {
       img.id = 'image'
       img.classList = 'avatar'
       const contentDiv = h('div', {id: opened.substring(13)}, ['\n'])
-      const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink'}, [blob.substring(0, 10)])
+      const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
       const permalink = h('a', {href: '#' + blob}, ['📤'])
       const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
       const right = h('span', {style: 'float: right;'}, [ permalink])
@@ -41,38 +41,32 @@ render.blob = async (blob) => {
       const src = document.location.hash.substring(1)
 
       if (src === '' || src === hash || src === blob.substring(0, 44) || src === blob) {
-        console.log(src + ' is correct place to render.')
         div.appendChild(messageDiv)
-      } else {
-        console.log(src + ' is not correct place to render.')
-      }
-    } else {
-      console.log('Div is not in view')
-    }
+      } 
+    } 
+    
   } catch (err) {
     setTimeout(async () => {
-
-    console.log('Not a valid protocol message')
-    const yaml = await bogbot.parseYaml(blob)
-    const div = await document.getElementById(hash)
-    if (div) {
-      div.textContent = yaml.body
-      div.parentNode.childNodes.forEach(async (node) => {
-        if (yaml.name && node.id === 'name') {
-          node.textContent = yaml.name
-        }
-        if (yaml.image && node.id === 'image') {
-          const image = await bogbot.find(yaml.image)
-          if (!image) { gossip(yaml.image)}
-          node.src = image
-        }
-        if (yaml.previous) {
-          console.log(yaml.previous)
-          const check = await bogbot.find(yaml.previous)
-          if (!check) { console.log('GOSSIPING' + yaml.previous); gossip(yaml.previous) }
-        }
-      })
-    }
+      const yaml = await bogbot.parseYaml(blob)
+      const div = await document.getElementById(hash)
+      if (div) {
+        div.textContent = yaml.body
+        div.parentNode.childNodes.forEach(async (node) => {
+          if (yaml.name && node.id === 'name') {
+            node.textContent = yaml.name
+          }
+          if (yaml.image && node.id === 'image') {
+            const image = await bogbot.find(yaml.image)
+            if (!image) { gossip(yaml.image)}
+            node.src = image
+          }
+          if (yaml.previous) {
+            console.log(yaml.previous)
+            const check = await bogbot.find(yaml.previous)
+            if (!check) { console.log('GOSSIPING' + yaml.previous); gossip(yaml.previous) }
+          }
+        })
+      }
     }, 100)
   }
 }
