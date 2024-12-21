@@ -25,8 +25,11 @@ export const gossip = async (hash) => {
         console.log('Asking for ' + hash)
         room.sendHash(hash)
         setTimeout(() => {
+          if (speed === 100) {
+            queue.delete(hash)
+          }
           ask()
-        }, (100 * speed))
+        }, (1000 * speed))
       }
     }
   }
