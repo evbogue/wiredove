@@ -6,8 +6,9 @@ export const render = {}
 
 render.blob = async (blob) => {
   const hash = await bogbot.hash(blob)
-  try {
-    const opened = await bogbot.open(blob)
+
+  const opened = await bogbot.open(blob)
+  if (opened) {
     await bogbot.add(blob)
     const ts = h('span', [await bogbot.human(opened.substring(0, 13))])
     setInterval(async () => {
@@ -44,8 +45,7 @@ render.blob = async (blob) => {
         div.appendChild(messageDiv)
       } 
     } 
-    
-  } catch (err) {
+  } else {
     setTimeout(async () => {
       const yaml = await bogbot.parseYaml(blob)
       const div = await document.getElementById(hash)
@@ -63,12 +63,16 @@ render.blob = async (blob) => {
           if (yaml.previous) {
             console.log(yaml.previous)
             const check = await bogbot.find(yaml.previous)
-            if (!check) { console.log('GOSSIPING' + yaml.previous); gossip(yaml.previous) }
+            if (!check) { 
+              console.log('GOSSIPING' + yaml.previous)
+              gossip(yaml.previous)
+              //div.parentNode.after(h('div', {id: yaml.previous})) 
+            }
           }
         })
       }
-    }, 100)
-  }
+    }, 50)
+  } 
 }
 
 render.hash = async (hash, scroller) => {

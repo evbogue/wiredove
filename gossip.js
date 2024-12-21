@@ -49,7 +49,7 @@ export const makeRoom = async (pubkey) => {
   const get = rooms.get(pubkey)
 
   if (!get) {
-    const room = joinRoom({appId: 'wiredove1', password: 'iajwoiejfaowiejfoiwajfe'}, pubkey)
+    const room = joinRoom({appId: 'wiredovetestnet', password: 'iajwoiejfaowiejfoiwajfe'}, pubkey)
 
     console.log('Joining: ' + pubkey)
 
@@ -85,11 +85,11 @@ export const makeRoom = async (pubkey) => {
     })
 
     room.onPeerJoin(async (id) => {
-      const previous = localStorage.getItem('previous')
-      if (previous) {
-        const msg = await bogbot.find(previous)
-        room.sendBlob(msg)
-      }
+      //const previous = localStorage.getItem('previous')
+      //if (previous) {
+      //  const msg = await bogbot.find(previous)
+      //  room.sendBlob(msg)
+      //}
       console.log(id + ' joined the room ' + pubkey)
     })
 
