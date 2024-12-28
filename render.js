@@ -21,16 +21,16 @@ render.blob = async (blob) => {
       img.classList = 'avatar'
       const contentDiv = h('div', {id: opened.substring(13)}, ['\n'])
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
-      const permalink = h('a', {href: '#' + blob}, ['📤'])
+      const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
       const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
-      const right = h('span', {style: 'float: right;'}, [ permalink])
+      const right = h('span', {style: 'float: right;'}, [hashlink])
+      const controlsDiv = h('div', {style: 'margin-top: 5px; text-align: right;'}, [permalink])
       const messageDiv = h('div', {classList: 'message'}, [
         right,
         img,
         name,
-        ' • ',
-        hashlink,
-        contentDiv
+        contentDiv,
+        controlsDiv
       ])
       const content = await bogbot.find(opened.substring(13))
       if (content) {

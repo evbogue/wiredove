@@ -1,12 +1,3 @@
-.noto-sans-<uniquifier> {
-  font-family: "Noto Sans", serif;
-  font-optical-sizing: auto;
-  font-weight: <weight>;
-  font-style: normal;
-  font-variation-settings:
-    "wdth" 100;
-}
-
 body {
   background: #272822;
   color: #e8e8e2;
@@ -62,6 +53,8 @@ a:hover img {
   border: 1px solid #f92772;
 }
 
+.material-symbols-outlined { color: #ccc; vertical-align: middle;}
+
 #navbar {
   padding-top: .5em;
   padding-left: 1em;
@@ -98,14 +91,20 @@ a:hover img {
   color: transparent;
 }
 
-.avatar {
-  height: 45px; 
-  width: 45px; 
+.avatar, .avatar_small {
   float: left;
   border-radius: 100%; 
   margin-right: 5px; 
-  object-fit: cover
+  object-fit: cover;
+  border: 1px solid #4f4e3f;
 }
+
+.avatar {
+  height: 45px; 
+  width: 45px; 
+}
+
+.avatar_small { height: 28px; width: 28px;}
 
 .avatarlink { font-weight: 600; color: #ccc;}
 .unstyled { color: #ccc;}

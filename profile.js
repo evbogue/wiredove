@@ -27,6 +27,18 @@ export const nameSpan = async () => {
   return span
 }
 
+export const imageSpan = async () => {
+  const avatarImg = await bogbot.visual(await bogbot.pubkey())
+
+  const existingImage = await localStorage.getItem('image')
+
+  if (existingImage) { avatarImg.src = await bogbot.find(existingImage)}
+
+  avatarImg.classList = 'avatar_small'
+  
+  return avatarImg
+}
+
 export const avatarSpan = async () => {
   const avatarImg = await bogbot.visual(await bogbot.pubkey())
 
