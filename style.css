@@ -1,8 +1,8 @@
 body {
-  background: #272822;
-  color: #e8e8e2;
+  background: #333;
+  color: #ccc;
   font-family: "Noto Sans", sans-serif;
-  width: 860px; margin-right: auto; margin-left: auto;
+  width: 680px; margin-right: auto; margin-left: auto;
   max-width: 100%;
   margin-top: 45px;
 }
@@ -13,23 +13,32 @@ body {
 
 button {
   font-size: .85em;
-  background: #4f4e3f;
+  background: #444;
   color: #ddd;
   border: none;
-  padding: .25em .5em .25em .5em;
+  padding: .5em .7em .5em .7em;
+  border-radius: 25%;
 }
 
 button:hover {
-  background: #5a5841;
+  background: #333;
   cursor: pointer;
 }
 
 textarea, input {
   font-size: 1em;
   font-family: "Noto Sans", sans-serif;
-  border: 1px solid #4f4e3f;
-  background: #4f4e3f;
+  border: none;
+  background: transparent;
   color: #f5f5f5;
+}
+
+textarea:hover, textarea:focus, input:hover, input:focus, {
+  background: transparent;
+}
+
+textarea:focus, input:focus {
+  outline: none !important;
 }
 
 textarea {
@@ -64,16 +73,20 @@ a:hover img {
   z-index: 1;
   top: 0;
   left: 0;
-  background: #3e3d31;
-  border-bottom: 1px solid #4f4e3f;
+  background: #333;
+  border-bottom: 1px solid #444;
 }
 
 .message {
-  padding: .75ex;
-  background: #3e3d31;
-  border: 1px solid #4f4e3f;
+  padding: .75em;
+  background: #333;
+  border: 1px solid #444;
   margin-top: -1px;
   min-height: 35px;
+}
+
+.message:hover {
+  background: #444;
 }
 
 .message, .message > * {
@@ -94,7 +107,7 @@ a:hover img {
 .avatar, .avatar_small {
   float: left;
   border-radius: 100%; 
-  margin-right: 5px; 
+  margin-right: 10px; 
   object-fit: cover;
   border: 1px solid #4f4e3f;
 }
