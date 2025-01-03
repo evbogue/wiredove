@@ -1,6 +1,7 @@
 import { bogbot } from 'bogbot'
 import { h } from 'h'
 import { gossip } from './gossip.js'
+import { composer } from './composer.js'
 
 export const render = {}
 
@@ -9,7 +10,6 @@ render.blob = async (blob) => {
 
   const opened = await bogbot.open(blob)
   if (opened) {
-    await bogbot.add(blob)
     const ts = h('span', [await bogbot.human(opened.substring(0, 13))])
     setInterval(async () => {
       ts.textContent = await bogbot.human(opened.substring(0, 13))
@@ -19,12 +19,22 @@ render.blob = async (blob) => {
       const img = await bogbot.visual(blob.substring(0, 44))
       img.id = 'image'
       img.classList = 'avatar'
-      const contentDiv = h('div', {id: opened.substring(13)}, ['\n'])
+      const contentDiv = h('div', {id: opened.substring(13), style: 'margin-left: 58px;'}, ['\n'])
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
-      const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
+      const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Share'])
       const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
       const right = h('span', {style: 'float: right;'}, [hashlink])
-      const controlsDiv = h('div', {style: 'margin-top: 5px; text-align: right;'}, [permalink])
+      const reply = h('a', {
+        classList: 'material-symbols-outlined', 
+        onclick: async () => { 
+          messageDiv.parentNode.appendChild(await composer(opened))
+        }
+      }, ['Chat_Bubble'])
+
+      const controlsDiv = h('div', {style: 'margin-top: 5px; margin-left: 58px;'}, [
+        permalink,
+        reply
+      ])
       const messageDiv = h('div', {
           onclick: () => { window.location.hash = hash},
           classList: 'message'

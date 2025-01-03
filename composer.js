@@ -7,7 +7,7 @@ import { avatarSpan, nameSpan } from './profile.js'
 export const composer = async () => {
   const textarea = h('textarea', {placeholder: 'Write a message'})
 
-  const button = h('button', {onclick: async () => {
+  const button = h('a', {classList: 'material-symbols-outlined', style: 'float: right;', onclick: async () => {
     const published = await bogbot.compose(textarea.value)
     textarea.value = ''
     const scroller = document.getElementById('scroller')
@@ -21,7 +21,13 @@ export const composer = async () => {
     await nameSpan(),
     h('div', {classList: 'pubkey'}, [await bogbot.pubkey()]),
     textarea,
-    button
+    h('div', [
+      h('a', {classList: 'material-symbols-outlined', onclick: () => {
+          div.parentNode.removeChild(div)
+        }
+      }, ['Cancel']),
+      button
+    ])
   ])
 
   return div
