@@ -25,7 +25,10 @@ render.blob = async (blob) => {
       const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
       const right = h('span', {style: 'float: right;'}, [hashlink])
       const controlsDiv = h('div', {style: 'margin-top: 5px; text-align: right;'}, [permalink])
-      const messageDiv = h('div', {classList: 'message'}, [
+      const messageDiv = h('div', {
+          onclick: () => { window.location.hash = hash},
+          classList: 'message'
+        }, [
         right,
         img,
         name,
@@ -76,16 +79,15 @@ render.blob = async (blob) => {
 }
 
 render.hash = async (hash, scroller) => {
-  const makeSure = document.getElementById(hash)
-  if (!makeSure) {
+  if (!await document.getElementById(hash)) {
     const div = h('div', {id: hash}) 
     scroller.insertBefore(div, scroller.firstChild)
     const sig = await bogbot.find(hash)
 
     if (sig) {
       await render.blob(sig)
-    } else {
-      await gossip(hash)
-    }
+    } //else {
+      //await gossip(hash)
+    //}
   }
 }

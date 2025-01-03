@@ -17,7 +17,7 @@ button {
   color: #ddd;
   border: none;
   padding: .5em .7em .5em .7em;
-  border-radius: 25%;
+  border-radius: 15px;
 }
 
 button:hover {
@@ -83,6 +83,7 @@ a:hover img {
   border: 1px solid #444;
   margin-top: -1px;
   min-height: 35px;
+  cursor: pointer;
 }
 
 .message:hover {
