@@ -28,7 +28,7 @@ export const route = async () => {
       let got = false
       const log = await bogbot.getLog()
       log.forEach(async (hash) => {
-        const found = await bogbot.find(hash)
+        const found = await bogbot.get(hash)
         const author = found.substring(0, 44)
         const posthash = await bogbot.hash(found)
         
