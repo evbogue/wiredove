@@ -2,7 +2,7 @@ import { h } from 'h'
 import { bogbot } from 'bogbot'
 
 export const nameDiv = async () => {
-  const name = await localStorage.getItem('name')
+  const name = await bogbot.get('name')
 
   const namer = h('input', {
     placeholder: name || 'Name yourself'
@@ -13,7 +13,7 @@ export const nameDiv = async () => {
     h('button', {onclick: async () => {
       if (namer.value) {
         namer.placeholder = namer.value
-        localStorage.setItem('name', namer.value)
+        await bogbot.put('name', namer.value)
         namer.value = ''
       }
     }}, ['Save'])
@@ -23,16 +23,16 @@ export const nameDiv = async () => {
 }
 
 export const nameSpan = async () => {
-  const span = h('a', {href: '#' + await bogbot.pubkey(), classList: 'avatarlink'}, [await localStorage.getItem('name') || await bogbot.pubkey().substring(0, 10)])
+  const span = h('a', {href: '#' + await bogbot.pubkey(), classList: 'avatarlink'}, [await bogbot.get('name') || await bogbot.pubkey().substring(0, 10)])
   return span
 }
 
 export const imageSpan = async () => {
   const avatarImg = await bogbot.visual(await bogbot.pubkey())
 
-  const existingImage = await localStorage.getItem('image')
+  const existingImage = await bogbot.get('image')
 
-  if (existingImage) { avatarImg.src = await bogbot.find(existingImage)}
+  if (existingImage) { avatarImg.src = await bogbot.get(existingImage)}
 
   avatarImg.classList = 'avatar_small'
   
@@ -42,9 +42,9 @@ export const imageSpan = async () => {
 export const avatarSpan = async () => {
   const avatarImg = await bogbot.visual(await bogbot.pubkey())
 
-  const existingImage = await localStorage.getItem('image')
+  const existingImage = await bogbot.get('image')
   
-  if (existingImage) { avatarImg.src = await bogbot.find(existingImage)}
+  if (existingImage) { avatarImg.src = await bogbot.get(existingImage)}
 
   avatarImg.classList = 'avatar'
 
@@ -83,12 +83,12 @@ export const avatarSpan = async () => {
           const croppedImage = canvas.toDataURL()
           avatarImg.src = croppedImage
           const hash = await bogbot.make(croppedImage)
-          localStorage.setItem('image', hash)
+          await bogbot.put('image', hash)
         } else {
           const croppedImage = canvas.toDataURL()
           avatarImg.src = img.src
           const hash = await bogbot.make(img.src)
-          localStorage.setItem('image', hash)
+          await bogbot.put('image', hash)
         }
       }
       img.src = e.target.result

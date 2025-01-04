@@ -11,7 +11,7 @@ export const gossip = async (hash) => {
   let speed = 1
 
   const ask = async () => {
-    const haveBlob = await bogbot.find(hash)
+    const haveBlob = await bogbot.get(hash)
     const log = await bogbot.getLog()
     const havePost = await log.includes(hash)
     if (haveBlob || havePost) {
@@ -61,7 +61,7 @@ export const makeRoom = async (pubkey) => {
 
     onHash(async (hash, id) => {
       console.log(`Received: ${hash}`)
-      const get = await bogbot.find(hash)
+      const get = await bogbot.get(hash)
       if (get) { sendBlob(get, id)}
     }) 
 
@@ -85,11 +85,6 @@ export const makeRoom = async (pubkey) => {
     })
 
     room.onPeerJoin(async (id) => {
-      //const previous = localStorage.getItem('previous')
-      //if (previous) {
-      //  const msg = await bogbot.find(previous)
-      //  room.sendBlob(msg)
-      //}
       console.log(id + ' joined the room ' + pubkey)
     })
 

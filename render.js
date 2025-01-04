@@ -49,7 +49,7 @@ render.blob = async (blob) => {
         contentDiv,
         controlsDiv
       ])
-      const content = await bogbot.find(opened.substring(13))
+      const content = await bogbot.get(opened.substring(13))
       if (content) {
         await render.blob(content)
       } else {
@@ -73,13 +73,13 @@ render.blob = async (blob) => {
             node.textContent = yaml.name
           }
           if (yaml.image && node.id === 'image') {
-            const image = await bogbot.find(yaml.image)
+            const image = await bogbot.get(yaml.image)
             if (!image) { gossip(yaml.image)}
             node.src = image
           }
           if (yaml.previous) {
             console.log(yaml.previous)
-            const check = await bogbot.find(yaml.previous)
+            const check = await bogbot.get(yaml.previous)
             if (!check) { 
               console.log('GOSSIPING' + yaml.previous)
               gossip(yaml.previous)
@@ -96,7 +96,7 @@ render.hash = async (hash, scroller) => {
   if (!await document.getElementById(hash)) {
     const div = h('div', {id: hash}) 
     scroller.insertBefore(div, scroller.firstChild)
-    const sig = await bogbot.find(hash)
+    const sig = await bogbot.get(hash)
 
     if (sig) {
       await render.blob(sig)

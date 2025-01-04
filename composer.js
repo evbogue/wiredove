@@ -12,7 +12,7 @@ export const composer = async () => {
     textarea.value = ''
     const scroller = document.getElementById('scroller')
     await render.hash(published, scroller)
-    const signed = await bogbot.find(published)
+    const signed = await bogbot.get(published)
     await blast(signed)
   }}, ['Send'])
 

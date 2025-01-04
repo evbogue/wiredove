@@ -8,7 +8,7 @@ export const connect = async () => {
 
   for (const hash of log) {
     try {
-      const sig = await bogbot.find(hash)
+      const sig = await bogbot.get(hash)
       if (sig) {
         const opened = await bogbot.open(sig)
         pubkeys.add(sig.substring(0, 44))

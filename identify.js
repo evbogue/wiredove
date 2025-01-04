@@ -2,7 +2,7 @@ import {h} from 'h'
 import {bogbot} from 'bogbot'
 
 const nameDiv = async () => {
-  const name = await localStorage.getItem('name')
+  const name = await bogbot.get('name')
 
   const namer = h('input', {
     placeholder: name || 'Name yourself'
@@ -13,7 +13,7 @@ const nameDiv = async () => {
     h('button', {onclick: async () => {
       if (namer.value) {
         namer.placeholder = namer.value
-        localStorage.setItem('name', namer.value)
+        await bogbot.put('name', namer.value)
         namer.value = ''
         namerDiv.replaceWith(await genDiv())
       }
@@ -27,7 +27,7 @@ const saveButton = async (keypair) => {
   const button = h('button', {
     id: 'saveButton',
     onclick: async () => {
-      await localStorage.setItem('keypair', keypair)
+      await bogbot.put('keypair', keypair)
       document.location.reload()
     }
   }, ['Save'])
@@ -37,7 +37,7 @@ const saveButton = async (keypair) => {
 
 export const genDiv = async () => {
   const initial = await bogbot.generate()
-  const name = await localStorage.getItem('name')
+  const name = await bogbot.get('name')
   const pubkey = h('span', {classList: 'pubkey'})
   const button = h('button', {
     onclick: async () => {

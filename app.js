@@ -3,6 +3,8 @@ import { route } from './route.js'
 import { connect } from './connect.js'
 import { navbar } from './navbar.js'
 
+await bogbot.start('wiredovedbversion1')
+
 document.body.appendChild(await navbar())
 
 if (await bogbot.keypair()) {
