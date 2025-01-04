@@ -23,7 +23,11 @@ render.blob = async (blob) => {
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
       const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Share'])
       const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
-      const right = h('span', {style: 'float: right;'}, [hashlink])
+      const right = h('span', {style: 'float: right;'}, [
+        h('span', {classList: 'pubkey'}, [blob.substring(0, 10)]),
+        ' ',
+        hashlink
+      ])
       const reply = h('a', {
         classList: 'material-symbols-outlined', 
         onclick: async () => { 

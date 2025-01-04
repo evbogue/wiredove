@@ -16,10 +16,9 @@ export const composer = async () => {
     await blast(signed)
   }}, ['Send'])
 
-  const div = h('div', {classList: 'message'}, [
-    await avatarSpan(),
-    await nameSpan(),
-    h('div', {classList: 'pubkey'}, [await bogbot.pubkey()]),
+  const pubkey = await bogbot.pubkey()
+
+  const textareaDiv = h('div', {style: 'margin-left: 57px;'}, [
     textarea,
     h('div', [
       h('a', {classList: 'material-symbols-outlined', onclick: () => {
@@ -28,6 +27,13 @@ export const composer = async () => {
       }, ['Cancel']),
       button
     ])
+  ])
+
+  const div = h('div', {classList: 'message'}, [
+    h('span', {classList: 'pubkey', style: 'float: right;'}, [pubkey.substring(0, 10)]),
+    await avatarSpan(),
+    await nameSpan(),
+    textareaDiv,
   ])
 
   return div
