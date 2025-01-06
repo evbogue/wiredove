@@ -16,9 +16,9 @@ export const route = async () => {
     const controls = h('div', {id: 'controls'})
     document.body.insertBefore(controls, scroller)
     controls.appendChild(await composer()) 
-    const log = await bogbot.getLog()
-    log.forEach(async (hash) => {
-      await render.hash(hash, scroller)
+    const log = await bogbot.query()
+    log.forEach(async (msg) => {
+      await render.hash(msg.hash, scroller)
     })
   }
 
@@ -26,24 +26,31 @@ export const route = async () => {
     console.log(src)
     try {
       let got = false
-      const log = await bogbot.getLog()
-      log.forEach(async (hash) => {
-        const found = await bogbot.get(hash)
-        const author = found.substring(0, 44)
-        const posthash = await bogbot.hash(found)
-        
-        if (posthash === src || author === src) {
-          got = true 
-          await render.hash(hash, scroller)
-        }
+      const log = await bogbot.query(src)
+      console.log(log)
+      log.forEach(async (msg) => {
+        got = true
+        await render.hash(msg.hash, scroller)
       })
+      //const log = await bogbot.getLog()
+      //log.forEach(async (hash) => {
+      //  const found = await bogbot.get(hash)
+      //  const author = found.substring(0, 44)
+      //  const posthash = await bogbot.hash(found)
+      //  
+      //  if (posthash === src || author === src) {
+      //    got = true 
+      //    await render.hash(hash, scroller)
+      //  }
+      //})
       if (!got) { await gossip(src)}
-    } catch (err) {}
+    } catch (err) { console.log(err)}
   } if (src.length > 44) {
     const hash = await bogbot.hash(src)
     const opened = await bogbot.open(src)
     if (opened) {
       await makeRoom(src.substring(0, 44))
+      await bogbot.add(opened)
     }
     const check = document.getElementById(hash)
     if (!check) {

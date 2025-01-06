@@ -86,6 +86,7 @@ export const makeRoom = async (pubkey) => {
 
     room.onPeerJoin(async (id) => {
       console.log(id + ' joined the room ' + pubkey)
+      room.sendHash(pubkey)
     })
 
     room.onPeerLeave(id => {
