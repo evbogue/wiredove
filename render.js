@@ -71,6 +71,18 @@ render.blob = async (blob) => {
       const yaml = await bogbot.parseYaml(blob)
       const div = await document.getElementById(hash)
       if (div) {
+        if (yaml.replyHash) {
+          const replyDiv = h('div')
+          const replySymbol = h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left'])
+          const author = h('a', {href: '#' + yaml.replyAuthor}, [yaml.replyAuthor.substring(0, 10)])
+          const replyContent = h('a', {href: '#' + yaml.replyHash}, [yaml.replyHash.substring(0, 10)])
+          replyDiv.appendChild(author)
+          if (yaml.replyName) { author.textContent = yaml.replyName}
+          if (yaml.replyBody) { replyContent.textContent = yaml.replyBody.substring(0, 10) + '...'}
+          replyDiv.appendChild(replySymbol)
+          replyDiv.appendChild(replyContent)
+          div.parentNode.insertBefore(replyDiv, div)
+        }
         div.textContent = yaml.body
         div.parentNode.childNodes.forEach(async (node) => {
           if (yaml.name && node.id === 'name') {
