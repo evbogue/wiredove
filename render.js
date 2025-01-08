@@ -54,13 +54,17 @@ render.blob = async (blob) => {
         controlsDiv
       ])
       const content = await bogbot.get(opened.substring(13))
+      const src = document.location.hash.substring(1)
       if (content) {
+        const yaml = await bogbot.parseYaml(content)
+        if (src === yaml.replyAuthor || src === yaml.replyHash) {
+          div.appendChild(messageDiv)
+        }
         await render.blob(content)
       } else {
         await gossip(opened.substring(13))
       }
 
-      const src = document.location.hash.substring(1)
 
       if (src === '' || src === hash || src === blob.substring(0, 44) || src === blob) {
         div.appendChild(messageDiv)
@@ -108,16 +112,15 @@ render.blob = async (blob) => {
   } 
 }
 
-render.hash = async (hash, scroller) => {
+render.hash = async (hash) => {
   if (!await document.getElementById(hash)) {
     const div = h('div', {id: hash}) 
-    scroller.insertBefore(div, scroller.firstChild)
     const sig = await bogbot.get(hash)
 
     if (sig) {
-      await render.blob(sig)
-    } //else {
-      //await gossip(hash)
-    //}
+      console.log(sig)
+      render.blob(sig)
+    }
+    return div
   }
 }

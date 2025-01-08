@@ -18,7 +18,8 @@ export const route = async () => {
     controls.appendChild(await composer()) 
     const log = await bogbot.query()
     log.forEach(async (msg) => {
-      await render.hash(msg.hash, scroller)
+      const div = await render.hash(msg.hash)
+      scroller.insertBefore(div, scroller.firstChild)
     })
   }
 
@@ -30,7 +31,8 @@ export const route = async () => {
       console.log(log)
       log.forEach(async (msg) => {
         got = true
-        await render.hash(msg.hash, scroller)
+        const div = await render.hash(msg.hash, scroller)
+        scroller.insertBefore(div, scroller.firstChild)
       })
       //const log = await bogbot.getLog()
       //log.forEach(async (hash) => {

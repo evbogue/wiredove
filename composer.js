@@ -41,9 +41,11 @@ export const composer = async (sig) => {
     const published = await bogbot.compose(textarea.value, obj)
     textarea.value = ''
     const scroller = document.getElementById('scroller')
-    await render.hash(published, scroller)
     const signed = await bogbot.get(published)
     await blast(signed)
+    const hashDiv = await render.hash(published)
+    div.parentNode.appendChild(hashDiv)
+    div.remove()
   }}, ['Send'])
 
   const pubkey = await bogbot.pubkey()
