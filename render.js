@@ -32,6 +32,28 @@ render.blob = async (blob) => {
         ' ',
         hashlink
       ])
+
+      const num = h('span')
+
+      const log = await bogbot.getOpenedLog()
+      const src = document.location.hash.substring(1)
+ 
+      let nume = 0
+      log.forEach(async msg => {
+        const yaml = await bogbot.parseYaml(msg.text)
+
+        if (yaml.replyHash === hash) {
+          console.log(msg)
+          ++nume
+          console.log(nume)
+          num.textContent = nume
+          if (src === hash) {
+            const replyDiv = await render.hash(msg.hash)
+            div.parentNode.appendChild(replyDiv)
+          }
+        } 
+      })
+
       const reply = h('a', {
         classList: 'material-symbols-outlined', 
         onclick: async () => { 
@@ -41,7 +63,9 @@ render.blob = async (blob) => {
 
       const controlsDiv = h('div', {style: 'margin-top: 5px; margin-left: 58px;'}, [
         permalink,
-        reply
+        reply,
+        ' ',
+        num
       ])
       const messageDiv = h('div', {
           onclick: () => { window.location.hash = hash},
@@ -54,7 +78,6 @@ render.blob = async (blob) => {
         controlsDiv
       ])
       const content = await bogbot.get(opened.substring(13))
-      const src = document.location.hash.substring(1)
       if (content) {
         const yaml = await bogbot.parseYaml(content)
         if (src === yaml.replyAuthor || src === yaml.replyHash) {

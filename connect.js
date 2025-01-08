@@ -4,7 +4,7 @@ import { makeRoom } from './gossip.js'
 const pubkeys = new Set()
 
 export const connect = async () => {
-  const log = await bogbot.getLog()
+  const log = await bogbot.getHashLog()
 
   for (const hash of log) {
     try {

@@ -12,7 +12,7 @@ export const gossip = async (hash) => {
 
   const ask = async () => {
     const haveBlob = await bogbot.get(hash)
-    const log = await bogbot.getLog()
+    const log = await bogbot.getHashLog()
     const havePost = await log.includes(hash)
     if (haveBlob || havePost) {
       queue.delete(hash)
