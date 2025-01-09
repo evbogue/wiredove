@@ -102,7 +102,6 @@ a:hover img {
 }
 
 .avatar, .avatar_small {
-  float: left;
   border-radius: 100%; 
   margin-right: 10px; 
   object-fit: cover;

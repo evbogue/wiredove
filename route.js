@@ -1,9 +1,10 @@
-import {bogbot} from 'bogbot'
+import { bogbot } from 'bogbot'
 import { render } from './render.js'
-import {h} from 'h'
+import { h } from 'h'
 import { composer } from './composer.js'
 import { profile } from './profile.js'
 import { makeRoom, gossip } from './gossip.js'
+import { settings } from './settings.js'
 
 export const route = async () => {
   if (!window.location.hash) { window.location = '#'}
@@ -11,40 +12,35 @@ export const route = async () => {
   const scroller = h('div', {id: 'scroller'})
 
   document.body.appendChild(scroller)
-  //scroller.appendChild(h('div', [src]))
+
   if (src === '') {
     const controls = h('div', {id: 'controls'})
     document.body.insertBefore(controls, scroller)
     controls.appendChild(await composer()) 
     const log = await bogbot.query()
-    log.forEach(async (msg) => {
-      const div = await render.hash(msg.hash)
-      scroller.insertBefore(div, scroller.firstChild)
-    })
+    if (log) {
+      log.forEach(async (msg) => {
+        const div = await render.hash(msg.hash)
+        scroller.insertBefore(div, scroller.firstChild)
+      })
+    }
+  }
+
+  if (src === 'settings') {
+    scroller.appendChild(await settings())
   }
 
   if (src.length === 44) {
-    console.log(src)
     try {
       let got = false
       const log = await bogbot.query(src)
-      console.log(log)
-      log.forEach(async (msg) => {
-        got = true
-        const div = await render.hash(msg.hash, scroller)
-        scroller.insertBefore(div, scroller.firstChild)
-      })
-      //const log = await bogbot.getLog()
-      //log.forEach(async (hash) => {
-      //  const found = await bogbot.get(hash)
-      //  const author = found.substring(0, 44)
-      //  const posthash = await bogbot.hash(found)
-      //  
-      //  if (posthash === src || author === src) {
-      //    got = true 
-      //    await render.hash(hash, scroller)
-      //  }
-      //})
+      if (log) {
+        log.forEach(async (msg) => {
+          got = true
+          const div = await render.hash(msg.hash, scroller)
+          scroller.insertBefore(div, scroller.firstChild)
+        })
+      }
       if (!got) { await gossip(src)}
     } catch (err) { console.log(err)}
   } if (src.length > 44) {

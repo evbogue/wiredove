@@ -19,6 +19,7 @@ render.blob = async (blob) => {
       const img = await bogbot.visual(blob.substring(0, 44))
       img.id = 'image'
       img.classList = 'avatar'
+      img.style = 'float: left;'
       const contentDiv = h('div', {id: opened.substring(13), style: 'margin-left: 58px;'}, ['\n'])
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
       const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Share'])
@@ -43,9 +44,7 @@ render.blob = async (blob) => {
         const yaml = await bogbot.parseYaml(msg.text)
 
         if (yaml.replyHash === hash) {
-          console.log(msg)
           ++nume
-          console.log(nume)
           num.textContent = nume
           if (src === hash) {
             const replyDiv = await render.hash(msg.hash)
@@ -121,10 +120,8 @@ render.blob = async (blob) => {
             node.src = image
           }
           if (yaml.previous) {
-            console.log(yaml.previous)
             const check = await bogbot.get(yaml.previous)
             if (!check) { 
-              console.log('GOSSIPING' + yaml.previous)
               gossip(yaml.previous)
               //div.parentNode.after(h('div', {id: yaml.previous})) 
             }
@@ -141,7 +138,6 @@ render.hash = async (hash) => {
     const sig = await bogbot.get(hash)
 
     if (sig) {
-      console.log(sig)
       render.blob(sig)
     }
     return div

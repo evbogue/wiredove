@@ -57,7 +57,7 @@ export const composer = async (sig) => {
 
   const div = h('div', {classList: 'message'}, [
     h('span', {classList: 'pubkey', style: 'float: right;'}, [pubkey.substring(0, 10), ' ', cancel]),
-    await avatarSpan(),
+    h('span', {style: 'float: left;'}, [await avatarSpan()]),
     await nameSpan(),
     replyDiv,
     textareaDiv,
