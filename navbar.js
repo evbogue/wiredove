@@ -19,7 +19,7 @@ export const navbar = async () => {
         }
       }, ['Edit_Square']),
       ' ',
-      h('a', {href: '#settings', classList: 'material-symbols-outlined'}, ['Settings'])
+      h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 25px;'}, ['Settings'])
     ]
   )
 

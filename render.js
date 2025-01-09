@@ -27,8 +27,8 @@ render.blob = async (blob) => {
       const right = h('span', {style: 'float: right;'}, [
         h('span', {classList: 'pubkey'}, [blob.substring(0, 10)]),
         ' ',
-        h('code', {classList: 'material-symbols-outlined', onclick: async () => {
-          contentDiv.appendChild(h('div', [await bogbot.get(opened.substring(13))]))
+        h('span', {classList: 'material-symbols-outlined', onclick: async () => {
+          contentDiv.appendChild(h('pre', [await bogbot.get(opened.substring(13))]))
         }}, ['Code']),
         ' ',
         hashlink

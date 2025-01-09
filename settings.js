@@ -22,7 +22,14 @@ const editKey = async () => {
         window.location.hash = '#'
         location.reload()
       }
-    }, ['Delete key'])
+    }, ['Delete key']),
+    h('button', {
+      onclick: async () => {
+        await bogbot.clear()
+        window.location.hash = '#'
+        location.reload()
+      }
+    }, ['Delete everything'])
   ])
   return span
 } 
