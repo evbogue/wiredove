@@ -79,7 +79,6 @@ a:hover img {
   border: 1px solid #444;
   margin-top: -1px;
   min-height: 35px;
-  cursor: pointer;
 }
 
 .message:hover {

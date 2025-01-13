@@ -36,9 +36,15 @@ export const composer = async (sig) => {
     }
   }, ['Cancel'])
 
+  const replyObj = {}
+
+  if (sig) {
+    replyObj.reply = await bogbot.hash(sig)
+    replyObj.replyto = sig.substring(0, 44)
+  }
 
   const button = h('button', {classList: 'material-symbols-outlined', style: 'margin-left: auto; margin-right: 0px; display: block;', onclick: async () => {
-    const published = await bogbot.compose(textarea.value, obj)
+    const published = await bogbot.compose(textarea.value, replyObj)
     textarea.value = ''
     const scroller = document.getElementById('scroller')
     const signed = await bogbot.get(published)
@@ -56,7 +62,7 @@ export const composer = async (sig) => {
   ])
 
   const div = h('div', {classList: 'message'}, [
-    h('span', {classList: 'pubkey', style: 'float: right;'}, [pubkey.substring(0, 10), ' ', cancel]),
+    h('span', {style: 'float: right;'}, [h('code', {classList: 'pubkey'}, [pubkey.substring(0, 10)]), ' ', cancel]),
     h('span', {style: 'float: left;'}, [await avatarSpan()]),
     await nameSpan(),
     replyDiv,
