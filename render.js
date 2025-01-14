@@ -25,7 +25,7 @@ render.blob = async (blob) => {
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
       const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Share'])
       const qrcode = h('div')
-      const qr = h('a', {classList: onclick: () => {
+      const qr = h('a', {onclick: () => {
         if (!qrcode.firstChild) {
           new QRCode(qrcode, {
             text: location.href + hash,
