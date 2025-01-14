@@ -24,6 +24,22 @@ render.blob = async (blob) => {
       const contentDiv = h('div', {id: opened.substring(13), style: 'margin-left: 58px;'}, ['\n'])
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
       const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Share'])
+      const qrcode = h('div')
+      const qr = h('a', {classList: onclick: () => {
+        if (!qrcode.firstChild) {
+          new QRCode(qrcode, {
+            text: location.href + hash,
+            width: 560,
+            height: 560,
+            colorDark: "#f5f5f5",
+            colorLight: "#333"
+          })
+        } 
+        if (qrcode.firstChild) {
+          qrcode.removeChild(qrcode.firstChild)
+        }  
+      }, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Qr_Code'])
+   
       const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
       const right = h('span', {style: 'float: right;'}, [
         h('code', {classList: 'pubkey'}, [blob.substring(0, 10)]),
@@ -62,10 +78,12 @@ render.blob = async (blob) => {
       }, ['Chat_Bubble'])
 
       const controlsDiv = h('div', {style: 'margin-top: 5px; margin-left: 58px;'}, [
+        qr,
         permalink,
         reply,
         ' ',
-        num
+        num,
+        qrcode
       ])
       const messageDiv = h('div', {
           //onclick: () => { window.location.hash = hash},
