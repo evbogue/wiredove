@@ -3,6 +3,7 @@ import { render } from './render.js'
 import { blast } from './gossip.js'
 import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js' 
+import { ntfy } from './ntfy.js' 
 
 export const composer = async (sig) => {
   const obj = {}
@@ -49,6 +50,7 @@ export const composer = async (sig) => {
     const scroller = document.getElementById('scroller')
     const signed = await bogbot.get(published)
     await blast(signed)
+    await ntfy(signed)
     const hashDiv = await render.hash(published)
     div.parentNode.appendChild(hashDiv)
     div.remove()
