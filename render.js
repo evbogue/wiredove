@@ -28,7 +28,7 @@ render.blob = async (blob) => {
       const qr = h('a', {onclick: () => {
         if (!qrcode.firstChild) {
           new QRCode(qrcode, {
-            text: location.href + hash,
+            text: location.href + blob,
             width: 560,
             height: 560,
             colorDark: "#f5f5f5",
