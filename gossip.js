@@ -6,6 +6,14 @@ export const rooms = new Map()
 
 const queue = new Set()
 
+const getLatest = async (pubkey) => {
+  const openedlog = await bogbot.getOpenedLog()
+  openedlog.forEach(msg => {
+    if (msg.author === pubkey)
+      return msg.sig
+  }) 
+}
+
 export const gossip = async (hash) => {
   queue.add(hash)
   let speed = 1
@@ -29,7 +37,7 @@ export const gossip = async (hash) => {
             queue.delete(hash)
           }
           ask()
-        }, (1000 * speed))
+        }, (100 * speed))
       }
     }
   }
@@ -45,7 +53,7 @@ export const blast = async (blob) => {
   }
 }
 
-export const makeRoom = async (pubkey) => {
+export const makeRoom = async (pubkey, pubkeys) => {
   const get = rooms.get(pubkey)
 
   if (!get) {
@@ -63,6 +71,10 @@ export const makeRoom = async (pubkey) => {
       console.log(`Received: ${hash}`)
       const get = await bogbot.get(hash)
       if (get) { sendBlob(get, id)}
+      if (pubkeys && pubkeys.has(hash)) {
+        console.log('this is a pubkey')
+        await getLatest(hash)
+      }
     }) 
 
     onBlob(async (blob, id) => {
@@ -86,7 +98,12 @@ export const makeRoom = async (pubkey) => {
 
     room.onPeerJoin(async (id) => {
       console.log(id + ' joined the room ' + pubkey)
-      room.sendHash(pubkey)
+      if (pubkeys && pubkeys.size > 0) {
+        pubkeys.forEach(async (key) => {
+          room.sendHash(key)
+          room.sendBlob(await getLatest(key))
+        })
+      }
     })
 
     room.onPeerLeave(id => {

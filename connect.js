@@ -4,21 +4,17 @@ import { makeRoom } from './gossip.js'
 const pubkeys = new Set()
 
 export const connect = async () => {
-  const log = await bogbot.getHashLog()
+  const log = await bogbot.getOpenedLog()
+  const pubkey = await bogbot.pubkey()
+  pubkeys.add(pubkey)
 
-  for (const hash of log) {
-    try {
-      const sig = await bogbot.get(hash)
-      if (sig) {
-        const opened = await bogbot.open(sig)
-        pubkeys.add(sig.substring(0, 44))
-      }
-    } catch (err) { console.log(err)}
+  for (const msg of log) {
+    pubkeys.add(msg.author)
   }
 
   if (pubkeys.size > 0) {
     pubkeys.forEach(async pubkey => {
-      await makeRoom(pubkey)
+      await makeRoom(pubkey, pubkeys)
     })
   }
 }
