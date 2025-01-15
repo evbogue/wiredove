@@ -24,20 +24,23 @@ render.blob = async (blob) => {
       const contentDiv = h('div', {id: opened.substring(13), style: 'margin-left: 58px;'}, ['\n'])
       const name = h('a', {href: '#' + blob.substring(0, 44), id: 'name', classList: 'avatarlink', title: blob.substring(0, 44)}, [blob.substring(0, 10)])
       const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Share'])
-      const qrcode = h('div')
+      const qrcode = h('canvas', {style: 'display: none;'})
+      let show = true
       const qr = h('a', {onclick: () => {
-        if (!qrcode.firstChild) {
-          new QRCode(qrcode, {
-            text: location.href + blob,
-            width: 1024,
-            height: 1024,
-            colorDark: "#ccc",
-            colorLight: "#333"
+        if (show === true) {
+          const q = new QRious({
+            element: qrcode,
+            value: location.href + blob,
+            background: '#444',
+            foreground: '#f5f5f5',
+            size: 500,
           })
-        } 
-        if (qrcode.firstChild) {
-          qrcode.removeChild(qrcode.firstChild)
-        }  
+          qrcode.style = 'display: block; margin-left: auto; margin-right: auto;'
+          show = false
+        } else { 
+          qrcode.style = 'display: none;'
+          show = true
+        }
       }, classList: 'material-symbols-outlined', style: 'float: right;'}, ['Qr_Code'])
    
       const hashlink = h('a', {href: '#' + hash, classList: 'unstyled'}, [ts])
