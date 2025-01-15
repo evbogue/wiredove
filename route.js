@@ -48,7 +48,7 @@ export const route = async () => {
     const opened = await bogbot.open(src)
     if (opened) {
       await makeRoom(src.substring(0, 44))
-      await bogbot.add(opened)
+      await bogbot.add(src)
     }
     const check = document.getElementById(hash)
     if (!check) {
