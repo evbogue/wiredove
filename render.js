@@ -29,9 +29,9 @@ render.blob = async (blob) => {
         if (!qrcode.firstChild) {
           new QRCode(qrcode, {
             text: location.href + blob,
-            width: 255,
-            height: 255,
-            colorDark: "#f5f5f5",
+            width: 1024,
+            height: 1024,
+            colorDark: "#ccc",
             colorLight: "#333"
           })
         } 
