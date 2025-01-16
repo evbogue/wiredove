@@ -44,14 +44,16 @@ render.meta = async (blob, opened, hash, div) => {
     ts,
   ])
 
+  const contentHash = opened.substring(13)
+
   const img = await bogbot.visual(author)
   img.classList = 'avatar'
-  img.id = 'image'
+  img.id = 'image' + contentHash
   img.style = 'float: left;'
 
-  const name = h('span', {id: 'name', classList: 'avatarlink'}, [author.substring(0, 10)])
+  const name = h('span', {id: 'name' + contentHash, classList: 'avatarlink'}, [author.substring(0, 10)])
 
-  const content = h('span', {id: opened.substring(13), classList: 'material-symbols-outlined'}, ['Notes'])
+  const content = h('span', {id: contentHash, classList: 'material-symbols-outlined'}, ['Notes'])
 
   const meta = h('span', [
     right,
@@ -65,11 +67,11 @@ render.meta = async (blob, opened, hash, div) => {
   ])
 
   div.appendChild(meta)
-  const getContent = await bogbot.get(opened.substring(13))
+  const getContent = await bogbot.get(contentHash)
   if (getContent) {
-    await render.content(opened.substring(13), getContent, content)
+    await render.content(contentHash, getContent, content)
   } else {
-    await gossip(opened.substring(13))
+    await gossip(contentHash)
   }
 } 
 
@@ -107,12 +109,34 @@ render.comments = async (hash, blob, div) => {
 }
 
 render.content = async (hash, blob, div) => {
+  const contentHash = await bogbot.hash(blob)
   if (!div.childNodes[1]) {
     const yaml = await bogbot.parseYaml(blob)
-    console.log(yaml) 
     if (yaml && yaml.body) {
       div.classList = ''
       div.textContent = yaml.body
+
+      if (yaml.image) {
+        const get = document.getElementById('image' + contentHash)
+        if (get) {
+          const image = await bogbot.get(yaml.image)
+          if (image) {
+            get.src = image
+          } else { gossip(yaml.image)}
+        }
+      }
+
+      if (yaml.name) {
+        const get = document.getElementById('name' + contentHash)
+        if (get) { get.textContent = yaml.name}
+      }
+
+      if (yaml.previous) {
+        const check = await bogbot.get(yaml.previous)
+        if (!check) {
+          gossip(yaml.previous)
+        }
+      }
     }
   }
 }
@@ -160,26 +184,6 @@ render.blob = async (blob) => {
   //        } 
   //        div.parentNode.insertBefore(replyDiv, div)
   //      }
-  //      div.textContent = yaml.body
-  //      div.parentNode.childNodes.forEach(async (node) => {
-  //        if (yaml.name && node.id === 'name') {
-  //          node.textContent = yaml.name
-  //        }
-  //        if (yaml.image && node.id === 'image') {
-  //          const image = await bogbot.get(yaml.image)
-  //          if (!image) { gossip(yaml.image)}
-  //          node.src = image
-  //        }
-  //        if (yaml.previous) {
-  //          const check = await bogbot.get(yaml.previous)
-  //          if (!check) { 
-  //            gossip(yaml.previous)
-  //          }
-  //        }
-  //      })
-  //    }
-  //  }, 100)
-  //} 
 }
 
 render.hash = async (hash) => {
