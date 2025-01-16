@@ -87,6 +87,8 @@ img {width: 95%; margin: 1em;}
   background: #444;
 }
 
+.reply { border-left: 5px solid #444;}
+
 .message, .message > * {
   animation: fadein .5s;
 }
@@ -107,6 +109,7 @@ img {width: 95%; margin: 1em;}
   margin: 0px;
   margin-right: 10px; 
   object-fit: cover;
+  vertical-align: top;
   border: 1px solid #4f4e3f;
 }
 

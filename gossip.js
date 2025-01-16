@@ -82,24 +82,28 @@ export const makeRoom = async (pubkey, pubkeys) => {
     onBlob(async (blob, id) => {
       console.log(`Received: ${blob}`)
       const hash = await bogbot.make(blob)
-      try {
-        await render.blob(blob)
-        const opened = await bogbot.open(blob)
-        if (opened) {
-          await bogbot.add(blob)
-          const check = document.getElementById(hash)
-          if (!check) {
-            const rendered = await render.hash(hash)
-            const scroller = document.getElementById('scroller')
-            const src = window.location.hash.substring(1)
-            if (src === '' || src === hash || src === opened.author) {
-              scroller.insertBefore(rendered, scroller.firstChild)
+      const get = await bogbot.get(hash)
+
+      if (!get) {
+        try {
+          await render.blob(blob)
+          const opened = await bogbot.open(blob)
+          if (opened) {
+            await bogbot.add(blob)
+            const check = document.getElementById(hash)
+            if (!check) {
+              const rendered = await render.hash(hash)
+              const scroller = document.getElementById('scroller')
+              const src = window.location.hash.substring(1)
+              if (src === '' || src === hash || src === opened.author) {
+                scroller.insertBefore(rendered, scroller.firstChild)
+              }
             }
           }
+        } catch (err) { 
+          await render.blob(blob)
+          //console.log(err)
         }
-      } catch (err) { 
-        await render.blob(blob)
-        //console.log(err)
       }
     })
 
