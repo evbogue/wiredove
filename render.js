@@ -68,6 +68,8 @@ render.meta = async (blob, opened, hash, div) => {
   const getContent = await bogbot.get(opened.substring(13))
   if (getContent) {
     await render.content(opened.substring(13), getContent, content)
+  } else {
+    await gossip(opened.substring(13))
   }
 } 
 

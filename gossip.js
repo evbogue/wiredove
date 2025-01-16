@@ -83,7 +83,6 @@ export const makeRoom = async (pubkey, pubkeys) => {
       console.log(`Received: ${blob}`)
       const hash = await bogbot.make(blob)
       const get = await bogbot.get(hash)
-
       if (!get) {
         try {
           await render.blob(blob)
