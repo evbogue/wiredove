@@ -8,10 +8,12 @@ const queue = new Set()
 
 const getLatest = async (pubkey) => {
   const openedlog = await bogbot.getOpenedLog()
-  openedlog.forEach(msg => {
-    if (msg.author === pubkey)
+  const reversedlog = openedlog.slice().reverse()
+  for (const msg of reversedlog) {
+    if (msg.author == pubkey) {
       return msg.sig
-  }) 
+    }
+  } 
 }
 
 export const gossip = async (hash) => {
@@ -72,8 +74,8 @@ export const makeRoom = async (pubkey, pubkeys) => {
       const get = await bogbot.get(hash)
       if (get) { sendBlob(get, id)}
       if (pubkeys && pubkeys.has(hash)) {
-        console.log('this is a pubkey')
-        await getLatest(hash)
+        const latest = await getLatest(hash)
+        if (latest) { room.sendBlob(latest)}
       }
     }) 
 
@@ -87,7 +89,12 @@ export const makeRoom = async (pubkey, pubkeys) => {
           await bogbot.add(blob)
           const check = document.getElementById(hash)
           if (!check) {
-            await render.hash(hash, document.getElementById('scroller'))
+            const rendered = await render.hash(hash)
+            const scroller = document.getElementById('scroller')
+            const src = window.location.hash.substring(1)
+            if (src === '' || src === hash || src === opened.author) {
+              scroller.insertBefore(rendered, scroller.firstChild)
+            }
           }
         }
       } catch (err) { 
@@ -101,7 +108,10 @@ export const makeRoom = async (pubkey, pubkeys) => {
       if (pubkeys && pubkeys.size > 0) {
         pubkeys.forEach(async (key) => {
           room.sendHash(key)
-          room.sendBlob(await getLatest(key))
+          const latest = await getLatest(key)
+          if (latest) {
+            room.sendBlob(latest)
+          }
         })
       }
     })
