@@ -20,7 +20,7 @@ The previous message hash is included in each message to make it easy to sync a 
 
 Trystero uses legacy Internet infrastructure to bootstrap WebRTC connections. In this case we're using the Bittorrent DHT to negotiate connections. Wiredove will create Trystero rooms for each author that we have knowledge of. Only using public keys to connect makes it possible for multiple network graphs to exist without necessarily overlapping.
 
-We might create a main room to announce new public keys as they join the network.
+Since there are not many active peers at the moment I've set up an ntfy channel to broadcast new messages. https://ntfy.sh/wiredove -- subscribe using the ntfy app to get push notifications when there are new messages.
 
 ### URL embeds
 
