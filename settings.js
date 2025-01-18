@@ -34,6 +34,28 @@ const editKey = async () => {
   return span
 } 
 
+const didweb = async () => {
+  const input = h('input', {placeholder: 'https://yourwebsite.com/'})
+  const get = await bogbot.get('didweb')
+  if (get) {input.placeholder = get}
+
+  return h('div', [
+    input,
+    h('button', {onclick: async () => {
+      if (input.value) {
+        const check = await fetch(input.value + '/keys', {
+          method: 'get',
+          mode: 'no-cors',
+          headers: {
+            'Access-Control-Allow-Origin' : '*'
+          }
+        })
+        if (check) { console.log(await check.text()) }
+      }
+    }}, ['Verify'])
+  ])
+}
+
 export const settings = async () => {
   const div = h('div', {classList: 'message'}, [
     h('p', ['Upload photo']),
@@ -41,6 +63,9 @@ export const settings = async () => {
     h('hr'),
     h('p', ['New name']),
     await nameDiv(),
+    h('hr'),
+    h('p', ['Did:web']),
+    await didweb(),
     h('hr'),
     h('p', ['Import Keypair']),
     await editKey()
