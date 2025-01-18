@@ -62,6 +62,7 @@ render.meta = async (blob, opened, hash, div) => {
       name,
     ]),
     h('br'),
+    h('div', {id: 'reply' + contentHash}),
     content,
     qrcode
   ])
@@ -137,6 +138,27 @@ render.content = async (hash, blob, div) => {
           gossip(yaml.previous)
         }
       }
+
+      if (yaml.reply || yaml.replyHash) {
+        if (yaml.replyHash) { yaml.reply = yaml.replyHash}
+        try {
+          const get = document.getElementById('reply' + contentHash)
+          const query = await bogbot.query(yaml.reply)
+          console.log(query)
+          const replyYaml = await bogbot.parseYaml(query[0].text)
+          console.log(replyYaml)
+          const replyDiv = h('div', [
+            h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
+            ' ',
+            h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
+            ' ',
+            h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 10) || query[0].hash.substring(0, 10)])
+          ])
+          get.appendChild(replyDiv)
+        } catch (err) {
+          console.log(err)
+        }
+      }
     }
   }
 }
@@ -147,8 +169,6 @@ render.blob = async (blob) => {
   const div = await document.getElementById(hash)
 
   const opened = await bogbot.open(blob)
-
-  console.log(opened)  
 
   if (opened && div && !div.childNodes[1]) {
     await render.meta(blob, opened, hash, div)
@@ -192,7 +212,6 @@ render.hash = async (hash) => {
     const sig = await bogbot.get(hash)
 
     if (sig) {
-      console.log('we have it')
       render.blob(sig)
     }
     return div

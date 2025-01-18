@@ -32,7 +32,7 @@ export const gossip = async (hash) => {
       const values = [...rooms.values()]
       const room = values[Math.floor(Math.random() * values.length)]
       if (room && room.sendHash) {
-        console.log('Asking for ' + hash)
+        //console.log('Asking for ' + hash)
         room.sendHash(hash)
         setTimeout(() => {
           if (speed === 100) {
@@ -61,7 +61,7 @@ export const makeRoom = async (pubkey, pubkeys) => {
   if (!get) {
     const room = joinRoom({appId: 'wiredovetestnet', password: 'iajwoiejfaowiejfoiwajfe'}, pubkey)
 
-    console.log('Joining: ' + pubkey)
+    //console.log('Joining: ' + pubkey)
 
     const [ sendHash, onHash ] = room.makeAction('hash')
     const [ sendBlob, onBlob ] = room.makeAction('blob')
@@ -70,7 +70,7 @@ export const makeRoom = async (pubkey, pubkeys) => {
     room.sendBlob = sendBlob
 
     onHash(async (hash, id) => {
-      console.log(`Received: ${hash}`)
+      //console.log(`Received: ${hash}`)
       const get = await bogbot.get(hash)
       if (get) { sendBlob(get, id)}
       if (pubkeys && pubkeys.has(hash)) {
@@ -80,7 +80,7 @@ export const makeRoom = async (pubkey, pubkeys) => {
     }) 
 
     onBlob(async (blob, id) => {
-      console.log(`Received: ${blob}`)
+      //console.log(`Received: ${blob}`)
       const hash = await bogbot.make(blob)
       const get = await bogbot.get(hash)
       if (!get) {
@@ -107,7 +107,7 @@ export const makeRoom = async (pubkey, pubkeys) => {
     })
 
     room.onPeerJoin(async (id) => {
-      console.log(id + ' joined the room ' + pubkey)
+      //console.log(id + ' joined the room ' + pubkey)
       if (pubkeys && pubkeys.size > 0) {
         pubkeys.forEach(async (key) => {
           room.sendHash(key)
@@ -120,7 +120,7 @@ export const makeRoom = async (pubkey, pubkeys) => {
     })
 
     room.onPeerLeave(id => {
-      console.log(id + ' left the room ' + pubkey)
+      //console.log(id + ' left the room ' + pubkey)
     })
 
     rooms.set(pubkey, room)

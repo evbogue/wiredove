@@ -6,6 +6,8 @@ Try it: https://wiredove.net/
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
+If you're familiar with Bluesky you can think of Wiredove as a PDS (personal data server) for the Bog5 protocol. If you're familiar with Secure-Scuttlebot then you can think of Wiredove as a pub that exists in your web browser.
+
 ### Bog5 protocol messages
 
 Bog5 is the latest iteration of the Bogbook protocol, but the 5th version aims to be as simple and extensible as possible by simply signing timestamped hashes. These hashes retrieve Yaml documents that contain an author's name, image hash, and the author's previous post. 
