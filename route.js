@@ -50,9 +50,9 @@ export const route = async () => {
       await makeRoom(src.substring(0, 44))
       await bogbot.add(src)
     }
-    const check = document.getElementById(hash)
+    const check = await document.getElementById(hash)
     if (!check) {
-      const div = h('div', {id: hash}, [])
+      const div = h('div', {id: hash, classList: 'message'})
       scroller.appendChild(div)
       await render.blob(src)  
     }
