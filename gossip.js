@@ -89,10 +89,10 @@ export const makeRoom = async (pubkey, pubkeys) => {
           const opened = await bogbot.open(blob)
           if (opened) {
             await bogbot.add(blob)
-            const check = document.getElementById(hash)
+            const check = await document.getElementById(hash)
             if (!check) {
               const rendered = await render.hash(hash)
-              const scroller = document.getElementById('scroller')
+              const scroller = await document.getElementById('scroller')
               const src = window.location.hash.substring(1)
               if (src === '' || src === hash || src === opened.author) {
                 scroller.insertBefore(rendered, scroller.firstChild)
