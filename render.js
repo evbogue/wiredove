@@ -118,7 +118,7 @@ render.content = async (hash, blob, div) => {
       div.textContent = yaml.body
 
       if (yaml.image) {
-        const get = document.getElementById('image' + contentHash)
+        const get = await document.getElementById('image' + contentHash)
         if (get) {
           const image = await bogbot.get(yaml.image)
           if (image) {
@@ -128,7 +128,7 @@ render.content = async (hash, blob, div) => {
       }
 
       if (yaml.name) {
-        const get = document.getElementById('name' + contentHash)
+        const get = await document.getElementById('name' + contentHash)
         if (get) { get.textContent = yaml.name}
       }
 
@@ -142,7 +142,7 @@ render.content = async (hash, blob, div) => {
       if (yaml.reply || yaml.replyHash) {
         if (yaml.replyHash) { yaml.reply = yaml.replyHash}
         try {
-          const get = document.getElementById('reply' + contentHash)
+          const get = await document.getElementById('reply' + contentHash)
           const query = await bogbot.query(yaml.reply)
           console.log(query)
           const replyYaml = await bogbot.parseYaml(query[0].text)
@@ -176,34 +176,6 @@ render.blob = async (blob) => {
   } else if (div) {
     await render.content(hash, blob, div)
   }
-
-  //} else {
-  //  setTimeout(async () => {
-  //    const yaml = await bogbot.parseYaml(blob)
-  //    const div = await document.getElementById(hash)
-  //    if (div) {
-  //      if (yaml.replyHash || yaml.reply) {
-  //        if (yaml.replyHash) { yaml.reply = yaml.replyHash }
-  //        const replyAuthor = h('span')
-  //        const replyContent = h('a', {href: '#' + yaml.reply}, [yaml.reply.substring(0, 10)])
-  //        const replySymbol = h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left'])
-  //        const replyDiv = h('div', [replyAuthor, ' ', replySymbol, ' ', replyContent])
-  //        const getMsg = await bogbot.get(yaml.reply)
-  //        if (getMsg) {
-  //          const link = h('a', {href: '#' + getMsg.substring(0, 44)}, [getMsg.substring(0, 10)])
-  //          replyAuthor.appendChild(link)
-  //          const opened = await bogbot.open(getMsg)
-  //          const content = await bogbot.get(opened.substring(13))
-  //          const replyYaml = await bogbot.parseYaml(content)
-  //          if (replyYaml && replyYaml.name) {
-  //            link.textContent = replyYaml.name
-  //          }
-  //          if (replyYaml && replyYaml.body) {
-  //            replyContent.textContent = replyYaml.body.substring(0, 10) + '...'
-  //          }
-  //        } 
-  //        div.parentNode.insertBefore(replyDiv, div)
-  //      }
 }
 
 render.hash = async (hash) => {
