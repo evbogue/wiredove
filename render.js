@@ -5,7 +5,6 @@ import { composer } from './composer.js'
 
 export const render = {}
 
-
 render.meta = async (blob, opened, hash, div) => {
   const ts = h('a', {href: '#' + hash}, [await bogbot.human(opened.substring(0, 13))])
   setInterval(async () => {ts.textContent = await bogbot.human(opened.substring(0, 13))}, 1000)
@@ -144,9 +143,7 @@ render.content = async (hash, blob, div) => {
         try {
           const get = await document.getElementById('reply' + contentHash)
           const query = await bogbot.query(yaml.reply)
-          console.log(query)
           const replyYaml = await bogbot.parseYaml(query[0].text)
-          console.log(replyYaml)
           const replyDiv = h('div', [
             h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
             ' ',
