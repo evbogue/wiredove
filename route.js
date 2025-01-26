@@ -5,6 +5,7 @@ import { composer } from './composer.js'
 import { profile } from './profile.js'
 import { makeRoom, gossip } from './gossip.js'
 import { settings } from './settings.js'
+import { archive } from './archive.js'
 
 export const route = async () => {
   if (!window.location.hash) { window.location = '#'}

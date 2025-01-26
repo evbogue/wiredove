@@ -100,7 +100,7 @@ export const makeRoom = async (pubkey, pubkeys) => {
             }
           }
         } catch (err) { 
-          await render.blob(blob)
+          //await render.blob(blob)
           //console.log(err)
         }
       }
