@@ -2,6 +2,7 @@ import { bogbot } from 'bogbot'
 import { h } from 'h'
 import { gossip } from './gossip.js'
 import { composer } from './composer.js'
+import { archive } from './archive.js'
 
 export const render = {}
 
@@ -15,6 +16,24 @@ render.meta = async (blob, opened, hash, div) => {
   const qrcode = h('canvas', {style: 'display: none;'})
 
   let show = true
+
+  const archiver = h('span')
+
+  const unread = h('a', {
+    onclick: async () => {
+      archive.add(hash)
+      div.remove()
+    },
+    classList: 'material-symbols-outlined'
+  }, ['Check'])
+
+  console.log(await archive.get())
+
+  //const matchar = await archive.get(hash)
+
+  //if (!matchar[0]) {
+  //  archiver.appendChild(unread)
+  //}
 
   const qr = h('a', {onclick: () => {
     if (show === true) {
@@ -35,6 +54,8 @@ render.meta = async (blob, opened, hash, div) => {
 
   const right = h('span', {style: 'float: right;'}, [
     h('code', {classList: 'pubkey'}, [author.substring(0, 10)]),
+    ' ',
+    archiver,
     ' ',
     permalink,
     ' ',
@@ -143,17 +164,19 @@ render.content = async (hash, blob, div) => {
         try {
           const get = await document.getElementById('reply' + contentHash)
           const query = await bogbot.query(yaml.reply)
-          const replyYaml = await bogbot.parseYaml(query[0].text)
-          const replyDiv = h('div', [
-            h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
-            ' ',
-            h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
-            ' ',
-            h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 10) || query[0].hash.substring(0, 10)])
-          ])
-          get.appendChild(replyDiv)
+          if (get && query && query[0]) {
+            const replyYaml = await bogbot.parseYaml(query[0].text)
+            const replyDiv = h('div', [
+              h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
+              ' ',
+              h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
+              ' ',
+              h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 10) || query[0].hash.substring(0, 10)])
+            ])
+            get.appendChild(replyDiv)
+          }
         } catch (err) {
-          console.log(err)
+          //console.log(err)
         }
       }
     }
