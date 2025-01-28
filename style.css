@@ -104,6 +104,11 @@ img {width: 95%; margin: 1em;}
   color: transparent;
 }
 
+iframe {
+  width: 100%;
+  border: 1px solid #444;
+}
+
 .avatar, .avatar_small {
   border-radius: 100%; 
   margin: 0px;

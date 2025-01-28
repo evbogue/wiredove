@@ -3,6 +3,7 @@ import { h } from 'h'
 import { gossip } from './gossip.js'
 import { composer } from './composer.js'
 import { archive } from './archive.js'
+import { markdown } from './markdown.js'
 
 export const render = {}
 
@@ -135,7 +136,7 @@ render.content = async (hash, blob, div) => {
     const yaml = await bogbot.parseYaml(blob)
     if (yaml && yaml.body) {
       div.classList = ''
-      div.textContent = yaml.body
+      div.innerHTML = await markdown(yaml.body)
 
       if (yaml.image) {
         const get = await document.getElementById('image' + contentHash)
