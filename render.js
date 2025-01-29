@@ -2,7 +2,6 @@ import { bogbot } from 'bogbot'
 import { h } from 'h'
 import { gossip } from './gossip.js'
 import { composer } from './composer.js'
-import { archive } from './archive.js'
 import { markdown } from './markdown.js'
 
 export const render = {}
@@ -22,19 +21,23 @@ render.meta = async (blob, opened, hash, div) => {
 
   const unread = h('a', {
     onclick: async () => {
-      archive.add(hash)
+      await bogbot.put('archived' + hash, hash)
       div.remove()
     },
     classList: 'material-symbols-outlined'
   }, ['Check'])
 
-  console.log(await archive.get())
+  const read = h('a', {
+    onclick: async () => {
+      await bogbot.rm('archived' + hash)
+      div.remove()
+    },
+    classList: 'material-symbols-outlined'
+  }, ['Close'])
 
-  //const matchar = await archive.get(hash)
-
-  //if (!matchar[0]) {
-  //  archiver.appendChild(unread)
-  //}
+  if (await bogbot.get('archived' + hash)) {
+    archiver.appendChild(read)
+  } else { archiver.appendChild(unread)}
 
   const qr = h('a', {onclick: () => {
     if (show === true) {

@@ -5,7 +5,6 @@ import { composer } from './composer.js'
 import { profile } from './profile.js'
 import { makeRoom, gossip } from './gossip.js'
 import { settings } from './settings.js'
-import { archive } from './archive.js'
 
 export const route = async () => {
   if (!window.location.hash) { window.location = '#'}
@@ -21,8 +20,10 @@ export const route = async () => {
     const log = await bogbot.query()
     if (log) {
       log.forEach(async (msg) => {
-        const div = await render.hash(msg.hash)
-        scroller.insertBefore(div, scroller.firstChild)
+        if (!await bogbot.get('archived' + msg.hash)) {
+          const div = await render.hash(msg.hash)
+          scroller.insertBefore(div, scroller.firstChild)
+        }
       })
     }
   }
