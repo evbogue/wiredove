@@ -22,9 +22,8 @@ export const gossip = async (hash) => {
 
   const ask = async () => {
     const haveBlob = await bogbot.get(hash)
-    const log = await bogbot.getHashLog()
-    const havePost = await log.includes(hash)
-    if (haveBlob || havePost) {
+    if (haveBlob) {
+      await bogbot.add(haveBlob)
       queue.delete(hash)
     }
     if (queue.has(hash)) {
@@ -32,7 +31,6 @@ export const gossip = async (hash) => {
       const values = [...rooms.values()]
       const room = values[Math.floor(Math.random() * values.length)]
       if (room && room.sendHash) {
-        //console.log('Asking for ' + hash)
         room.sendHash(hash)
         setTimeout(() => {
           if (speed === 100) {
@@ -48,10 +46,8 @@ export const gossip = async (hash) => {
 }
 
 export const blast = async (blob) => {
-  if (rooms.size) {
-    rooms.forEach(room => {
-      room.sendBlob(blob)
-    })
+  for (const [key, room] of rooms) {
+    room.sendBlob(blob)
   }
 }
 
@@ -60,9 +56,6 @@ export const makeRoom = async (pubkey, pubkeys) => {
 
   if (!get) {
     const room = joinRoom({appId: 'wiredovetestnet', password: 'iajwoiejfaowiejfoiwajfe'}, pubkey)
-
-    //console.log('Joining: ' + pubkey)
-
     const [ sendHash, onHash ] = room.makeAction('hash')
     const [ sendBlob, onBlob ] = room.makeAction('blob')
 
@@ -81,33 +74,14 @@ export const makeRoom = async (pubkey, pubkeys) => {
 
     onBlob(async (blob, id) => {
       //console.log(`Received: ${blob}`)
-      const hash = await bogbot.make(blob)
-      const get = await bogbot.get(hash)
-      if (!get) {
-        try {
-          await render.blob(blob)
-          const opened = await bogbot.open(blob)
-          if (opened) {
-            await bogbot.add(blob)
-            const check = await document.getElementById(hash)
-            if (!check) {
-              const rendered = await render.hash(hash)
-              const scroller = await document.getElementById('scroller')
-              const src = window.location.hash.substring(1)
-              if (src === '' || src === hash || src === opened.author) {
-                scroller.insertBefore(rendered, scroller.firstChild)
-              }
-            }
-          }
-        } catch (err) { 
-          //await render.blob(blob)
-          //console.log(err)
-        }
-      }
+      //const hash = await bogbot.make(blob)
+      await render.shouldWe(blob)
+      await bogbot.add(blob)
+      await render.blob(blob)
     })
 
     room.onPeerJoin(async (id) => {
-      //console.log(id + ' joined the room ' + pubkey)
+      console.log(id + ' joined the room ' + pubkey)
       if (pubkeys && pubkeys.size > 0) {
         pubkeys.forEach(async (key) => {
           room.sendHash(key)

@@ -11,6 +11,8 @@ body {
   width: 100%; 
 }
 
+p { margin: 0;}
+
 button {
   font-size: .85em;
   background: #444;

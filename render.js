@@ -117,6 +117,7 @@ render.comments = async (hash, blob, div) => {
         const replyDiv = await render.hash(msg.hash)
         replyDiv.classList = 'message reply'
         div.after(replyDiv)
+        await render.blob(await bogbot.get(msg.hash))
       }
     }
   })
@@ -124,7 +125,9 @@ render.comments = async (hash, blob, div) => {
   const reply = h('a', {
     classList: 'material-symbols-outlined',
     onclick: async () => {
-      div.after(await composer(blob))
+      if (await bogbot.pubkey()) {
+        div.after(await composer(blob))
+      }
     }
   }, ['Chat_Bubble'])
 
@@ -135,56 +138,56 @@ render.comments = async (hash, blob, div) => {
 
 render.content = async (hash, blob, div) => {
   const contentHash = await bogbot.hash(blob)
-  if (!div.childNodes[1]) {
-    const yaml = await bogbot.parseYaml(blob)
-    if (yaml && yaml.body) {
-      div.classList = ''
-      div.innerHTML = await markdown(yaml.body)
+  const yaml = await bogbot.parseYaml(blob)
 
-      if (yaml.image) {
-        const get = await document.getElementById('image' + contentHash)
-        if (get) {
-          const image = await bogbot.get(yaml.image)
-          if (image) {
-            get.src = image
-          } else { gossip(yaml.image)}
-        }
+  if (yaml && yaml.body) {
+    div.classList = ''
+    div.innerHTML = await markdown(yaml.body)
+
+    if (yaml.image) {
+      const get = await document.getElementById('image' + contentHash)
+      if (get) {
+        const image = await bogbot.get(yaml.image)
+        if (image) {
+          get.src = image
+        } else { gossip(yaml.image)}
       }
+    }
 
-      if (yaml.name) {
-        const get = await document.getElementById('name' + contentHash)
-        if (get) { get.textContent = yaml.name}
+    if (yaml.name) {
+      const get = await document.getElementById('name' + contentHash)
+      if (get) { get.textContent = yaml.name}
+    }
+
+    if (yaml.previous) {
+      const check = await bogbot.query(yaml.previous)
+      if (!check[0]) {
+        await gossip(yaml.previous)
       }
+    }
 
-      if (yaml.previous) {
-        const check = await bogbot.get(yaml.previous)
-        if (!check) {
-          gossip(yaml.previous)
+    if (yaml.reply || yaml.replyHash) {
+      if (yaml.replyHash) { yaml.reply = yaml.replyHash}
+      try {
+        const get = await document.getElementById('reply' + contentHash)
+        const query = await bogbot.query(yaml.reply)
+        if (get && query && query[0]) {
+          const replyYaml = await bogbot.parseYaml(query[0].text)
+          const replyDiv = h('div', [
+            h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
+            ' ',
+            h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
+            ' ',
+            h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 10) || query[0].hash.substring(0, 10)])
+          ])
+          get.appendChild(replyDiv)
         }
-      }
-
-      if (yaml.reply || yaml.replyHash) {
-        if (yaml.replyHash) { yaml.reply = yaml.replyHash}
-        try {
-          const get = await document.getElementById('reply' + contentHash)
-          const query = await bogbot.query(yaml.reply)
-          if (get && query && query[0]) {
-            const replyYaml = await bogbot.parseYaml(query[0].text)
-            const replyDiv = h('div', [
-              h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
-              ' ',
-              h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
-              ' ',
-              h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 10) || query[0].hash.substring(0, 10)])
-            ])
-            get.appendChild(replyDiv)
-          }
-        } catch (err) {
-          //console.log(err)
-        }
+      } catch (err) {
+        //console.log(err)
       }
     }
   }
+  
 }
 
 render.blob = async (blob) => {
@@ -197,19 +200,39 @@ render.blob = async (blob) => {
   if (opened && div && !div.childNodes[1]) {
     await render.meta(blob, opened, hash, div)
     await render.comments(hash, blob, div)
-  } else if (div) {
+  } else if (div && !div.childNodes[1]) {
     await render.content(hash, blob, div)
+  }
+}
+
+render.shouldWe = async (blob) => {
+  const opened = await bogbot.open(blob)
+
+  if (opened) {
+    const src = window.location.hash.substring(1)
+    const hash = await bogbot.hash(blob)
+    const msg = await bogbot.get(opened.substring(13))
+    const yaml = await bogbot.parseYaml(msg)
+    // this should detect whether the syncing message is newer or older and place the msg in the right spot
+    if (blob.substring(0, 44) === src || hash === src || yaml.author === src || src === '') {
+      const scroller = document.getElementById('scroller')
+      const div = await render.hash(hash)
+      if (div) {
+        scroller.insertBefore(div, scroller.firstChild)
+        await render.blob(blob)
+      }
+    }
   }
 }
 
 render.hash = async (hash) => {
   if (!await document.getElementById(hash)) {
     const div = h('div', {id: hash, classList: 'message'}) 
-    const sig = await bogbot.get(hash)
+    //const sig = await bogbot.get(hash)
 
-    if (sig) {
-      render.blob(sig)
-    }
+    //if (sig) {
+    //  render.blob(sig)
+    //}
     return div
   }
 }

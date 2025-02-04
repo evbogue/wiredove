@@ -49,11 +49,18 @@ export const composer = async (sig) => {
     textarea.value = ''
     const scroller = document.getElementById('scroller')
     const signed = await bogbot.get(published)
+    const opened = await bogbot.open(signed)
+
+    const blob = await bogbot.get(opened.substring(13))
+    console.log(blob)
     await blast(signed)
+    await blast(blob)
     await ntfy(signed)
-    const hashDiv = await render.hash(published)
-    div.parentNode.appendChild(hashDiv)
-    div.remove()
+    await ntfy(blob)
+    const hash = await bogbot.hash(signed)
+    div.id = hash
+    await render.blob(signed)
+    composerDiv.remove()
   }}, ['Send'])
 
   const pubkey = await bogbot.pubkey()
@@ -63,7 +70,7 @@ export const composer = async (sig) => {
     button
   ])
 
-  const div = h('div', {classList: 'message'}, [
+  const composerDiv = h('div', [
     h('span', {style: 'float: right;'}, [h('code', {classList: 'pubkey'}, [pubkey.substring(0, 10)]), ' ', cancel]),
     h('span', {style: 'float: left;'}, [await avatarSpan()]),
     await nameSpan(),
@@ -71,5 +78,12 @@ export const composer = async (sig) => {
     textareaDiv,
   ])
 
+  const div = h('div', {classList: 'message'}, [
+    composerDiv
+  ])
+
+  if (sig) { div.classList = 'message reply'}
+
   return div
+  
 }

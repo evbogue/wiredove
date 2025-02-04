@@ -2,6 +2,28 @@ import { h } from 'h'
 import { bogbot } from 'bogbot'
 import { nameDiv, avatarSpan } from './profile.js'
 
+export const importKey = async () => {
+  const textarea = h('textarea', {placeholder: 'Keypair'})
+
+  const button = h('button', {
+    onclick: async () => {
+      const trashkey = await bogbot.generate()
+      if (textarea.value && textarea.value.length === trashkey.length) {
+        await bogbot.put('keypair', textarea.value)
+        window.location.hash = '#'
+        location.reload()
+      } else { alert('Invalid Keypair')}
+    }
+  }, ['Import key'])
+
+  const div = h('div', {classList: 'message'}, [
+    textarea, 
+    button
+  ]) 
+
+  return div 
+} 
+
 const editKey = async () => {
   const textarea = h('textarea', [await bogbot.keypair()])
   const span = h('span', [

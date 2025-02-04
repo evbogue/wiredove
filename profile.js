@@ -23,7 +23,8 @@ export const nameDiv = async () => {
 }
 
 export const nameSpan = async () => {
-  const span = h('a', {href: '#' + await bogbot.pubkey(), classList: 'avatarlink'}, [await bogbot.get('name') || await bogbot.pubkey().substring(0, 10)])
+  const pubkey = await bogbot.pubkey()
+  const span = h('a', {href: '#' + pubkey, classList: 'avatarlink'}, [await bogbot.get('name') || pubkey.substring(0, 10)])
   return span
 }
 

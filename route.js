@@ -4,32 +4,37 @@ import { h } from 'h'
 import { composer } from './composer.js'
 import { profile } from './profile.js'
 import { makeRoom, gossip } from './gossip.js'
-import { settings } from './settings.js'
+import { settings, importKey } from './settings.js'
 
 export const route = async () => {
-  if (!window.location.hash) { window.location = '#'}
   const src = window.location.hash.substring(1)
   const scroller = h('div', {id: 'scroller'})
 
   document.body.appendChild(scroller)
 
   if (src === '') {
-    const controls = h('div', {id: 'controls'})
-    document.body.insertBefore(controls, scroller)
-    controls.appendChild(await composer()) 
     const log = await bogbot.query()
     if (log) {
       log.forEach(async (msg) => {
         if (!await bogbot.get('archived' + msg.hash)) {
           const div = await render.hash(msg.hash)
           scroller.insertBefore(div, scroller.firstChild)
+          const sig = await bogbot.get(msg.hash)
+          if (sig) { await render.blob(sig)}
         }
       })
+    }
+    if (await bogbot.pubkey()) {
+      scroller.insertBefore(await composer(), scroller.firstChild) 
     }
   }
 
   if (src === 'settings') {
-    scroller.appendChild(await settings())
+    if (await bogbot.pubkey()) {
+      scroller.appendChild(await settings())
+    } else {
+      scroller.appendChild(await importKey())
+    }
   }
 
   if (src.length === 44) {
@@ -40,7 +45,11 @@ export const route = async () => {
         log.forEach(async (msg) => {
           got = true
           const div = await render.hash(msg.hash, scroller)
-          scroller.insertBefore(div, scroller.firstChild)
+          if (div) {
+            scroller.insertBefore(div, scroller.firstChild)
+            const sig = await bogbot.get(msg.hash)
+            if (sig) { await render.blob(sig)}
+          }
         })
       }
       if (!got) { await gossip(src)}
@@ -63,9 +72,7 @@ export const route = async () => {
 
 window.onhashchange = async () => {
   const scroller = document.getElementById('scroller')
-  const controls = document.getElementById('controls')
   if (scroller) { scroller.parentNode.removeChild(scroller) }
-  if (controls) { controls.parentNode.removeChild(controls) }
   await route()
 }
 
