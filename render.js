@@ -207,8 +207,10 @@ render.blob = async (blob) => {
 
 render.shouldWe = async (blob) => {
   const opened = await bogbot.open(blob)
-
-  if (opened) {
+  const hash = await bogbot.hash(blob)
+  const already = await bogbot.get(hash)
+  if (!already) {await bogbot.make(blob)}
+  if (opened && !already) {
     const src = window.location.hash.substring(1)
     const hash = await bogbot.hash(blob)
     const msg = await bogbot.get(opened.substring(13))
