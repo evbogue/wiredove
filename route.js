@@ -71,8 +71,9 @@ export const route = async () => {
 }
 
 window.onhashchange = async () => {
-  const scroller = document.getElementById('scroller')
-  if (scroller) { scroller.parentNode.removeChild(scroller) }
+  while (document.getElementById('scroller')) {
+    document.getElementById('scroller').remove()
+  }
   await route()
 }
 
