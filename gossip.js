@@ -82,15 +82,19 @@ export const makeRoom = async (pubkey, pubkeys) => {
 
     room.onPeerJoin(async (id) => {
       console.log(id + ' joined the room ' + pubkey)
-      if (pubkeys && pubkeys.size > 0) {
-        pubkeys.forEach(async (key) => {
-          room.sendHash(key)
-          const latest = await getLatest(key)
-          if (latest) {
-            room.sendBlob(latest)
-          }
-        })
+      const latest = await getLatest(pubkey)
+      if (latest) {
+        setTimeout(() => {room.sendBlob(latest)}, 1000)
       }
+      //if (pubkeys && pubkeys.size > 0) {
+      //  pubkeys.forEach(async (key) => {
+      //    room.sendHash(key)
+      //    const latest = await getLatest(key)
+      //    if (latest) {
+      //      room.sendBlob(latest)
+      //    }
+      //  })
+      //}
     })
 
     room.onPeerLeave(id => {
