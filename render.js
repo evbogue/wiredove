@@ -46,9 +46,9 @@ render.meta = async (blob, opened, hash, div) => {
         value: location.href + blob,
         background: '#444',
         foreground: '#f5f5f5',
-        size: 1024
+        size: 525
       })
-      qrcode.style = 'display: block; margin-left: auto; margin-right: auto; width: 100%;'
+      qrcode.style = 'display: block; margin-left: auto; margin-right: auto; width: 80%; margin-top: 1em; margin-bottom: 1em;'
       show = false
     } else {
       qrcode.style = 'display: none;'
