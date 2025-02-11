@@ -44,11 +44,11 @@ render.meta = async (blob, opened, hash, div) => {
       const q = new QRious({
         element: qrcode,
         value: location.href + blob,
-        background: '#444',
-        foreground: '#f5f5f5',
+        background: '#f5f5f5',
+        foreground: '#444',
         size: 525
       })
-      qrcode.style = 'display: block; margin-left: auto; margin-right: auto; width: 80%; margin-top: 1em; margin-bottom: 1em;'
+      qrcode.style = 'display: block; margin-left: auto; margin-right: auto; width: 50%; margin-top: 1em; margin-bottom: 1em;'
       show = false
     } else {
       qrcode.style = 'display: none;'
@@ -56,14 +56,33 @@ render.meta = async (blob, opened, hash, div) => {
     }
   }, classList: 'material-symbols-outlined'}, ['Qr_Code'])
 
+  const rawDiv = h('div')
+
+  let rawshow = true
+
+  const contentBlob = await bogbot.get(opened.substring(13))
+  const rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + contentBlob])
+
+  const raw = h('a', {classList: 'material-symbols-outlined', onclick: async () => {
+    if (rawshow) {
+      rawDiv.appendChild(rawContent)
+      rawshow = false
+    } else {
+      rawContent.parentNode.removeChild(rawContent)
+      rawshow = true
+    }
+  }}, ['Code'])
+
   const right = h('span', {style: 'float: right;'}, [
-    h('code', {classList: 'pubkey'}, [author.substring(0, 10)]),
+    h('code', {classList: 'pubkey'}, [author.substring(0, 6)]),
     ' ',
     archiver,
     ' ',
     permalink,
     ' ',
     qr,
+    ' ',
+    raw,
     ' ',
     ts,
   ])
@@ -77,7 +96,7 @@ render.meta = async (blob, opened, hash, div) => {
 
   const name = h('span', {id: 'name' + contentHash, classList: 'avatarlink'}, [author.substring(0, 10)])
 
-  const content = h('span', {id: contentHash, classList: 'material-symbols-outlined'}, ['Notes'])
+  const content = h('div', {id: contentHash, classList: 'material-symbols-outlined, content'}, ['Notes'])
 
   const meta = h('span', [
     right,
@@ -88,7 +107,8 @@ render.meta = async (blob, opened, hash, div) => {
     h('br'),
     h('div', {id: 'reply' + contentHash}),
     content,
-    qrcode
+    qrcode,
+    rawDiv
   ])
 
   div.appendChild(meta)
@@ -141,7 +161,7 @@ render.content = async (hash, blob, div) => {
   const yaml = await bogbot.parseYaml(blob)
 
   if (yaml && yaml.body) {
-    div.classList = ''
+    div.classList = 'content'
     div.innerHTML = await markdown(yaml.body)
 
     if (yaml.image) {
@@ -187,7 +207,6 @@ render.content = async (hash, blob, div) => {
       }
     }
   }
-  
 }
 
 render.blob = async (blob) => {

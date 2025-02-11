@@ -44,7 +44,7 @@ export const composer = async (sig) => {
     replyObj.replyto = sig.substring(0, 44)
   }
 
-  const button = h('button', {classList: 'material-symbols-outlined', style: 'margin-left: auto; margin-right: 0px; display: block;', onclick: async () => {
+  const button = h('button', {style: 'margin-left: auto; margin-right: 0px; display: block;', onclick: async () => {
     const published = await bogbot.compose(textarea.value, replyObj)
     textarea.value = ''
     const scroller = document.getElementById('scroller')
@@ -65,13 +65,13 @@ export const composer = async (sig) => {
 
   const pubkey = await bogbot.pubkey()
 
-  const textareaDiv = h('div', {style: 'margin-left: 57px;'}, [
+  const textareaDiv = h('div', [
     textarea,
     button
   ])
 
   const composerDiv = h('div', [
-    h('span', {style: 'float: right;'}, [h('code', {classList: 'pubkey'}, [pubkey.substring(0, 10)]), ' ', cancel]),
+    h('span', {style: 'float: right;'}, [h('code', {classList: 'pubkey'}, [pubkey.substring(0, 6)]), ' ', cancel]),
     h('span', {style: 'float: left;'}, [await avatarSpan()]),
     await nameSpan(),
     replyDiv,

@@ -68,6 +68,18 @@ export const route = async () => {
       await render.blob(src)  
     }
   }
+  setTimeout(() => {
+    hljs.highlightAll()
+  }, 100)
+  //const codes = document.getElementsByTagName('code')
+  //for (let i = 0; i < codes.length; i++) {
+  //  hljs.highlightBlock(codes[i])
+  //}
+  //const pres = document.getElementsByTagName('pre')
+  //for (let i = 0; i < pres.length; i++) {
+  //  hljs.highlightBlock(pres[i])
+  //}
+
 }
 
 window.onhashchange = async () => {

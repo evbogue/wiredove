@@ -36,20 +36,34 @@ renderer.link = function (href, title, text) {
     href  = '#' + href
     return marked.Renderer.prototype.link.call(this, href, title, text);
   } else {
-    return marked.Renderer.prototype.link.call(this, href, title, text);
+    const num = Math.random()
+    const m = marked.Renderer.prototype.link.call(this, href, title, text)
+    const qr = ` <a class="material-symbols-outlined" onclick="
+      console.log(${num})
+      const get = document.getElementById(${num})
+      get.style = 'display: block; margin-left: auto; margin-right: auto; width: 50%; margin-top: 1em; margin-bottom: 1em;'
+      new QRious({
+        element: document.getElementById(${num}),
+        value: '${href}',
+        background: '#f5f5f5',
+        foreground: '#444',
+        size: 525
+      })">Qr_Code</a><canvas style="display: none;" id=${num}></canvas>`
+    return m + qr
   }
 }
 
-renderer.image = async function (src, unknown, title) {
-  if (src.length === 44) {
-    const file = await bogbot.find(src)
-    if (file) {
-      const div = document.getElementById(src)
-      div.src = file
-    } 
-    return '<div><img id="' + src + '" title="' + title + '" class="thumb" /></div>'
-  }
-}
+// this does not work
+//renderer.image = async function (src, unknown, title) {
+//  if (src.length === 44) {
+//    const file = await bogbot.find(src)
+//    if (file) {
+//      const div = document.getElementById(src)
+//      div.src = file
+//    } 
+//    return '<div><img id="' + src + '" title="' + title + '" class="thumb" /></div>'
+//  }
+//}
 
 marked.setOptions({
   renderer: renderer
