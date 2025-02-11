@@ -45,10 +45,9 @@ export const gossip = async (hash) => {
   await ask()
 }
 
-export const blast = async (blob) => {
-  for (const [key, room] of rooms) {
-    room.sendBlob(blob)
-  }
+export const blast = async (pubkey, blob) => {
+  const room = rooms.get(pubkey) 
+  room.sendBlob(blob)
 }
 
 export const makeRoom = async (pubkey, pubkeys) => {

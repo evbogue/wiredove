@@ -44,6 +44,8 @@ export const composer = async (sig) => {
     replyObj.replyto = sig.substring(0, 44)
   }
 
+  const pubkey = await bogbot.pubkey()
+
   const button = h('button', {style: 'margin-left: auto; margin-right: 0px; display: block;', onclick: async () => {
     const published = await bogbot.compose(textarea.value, replyObj)
     textarea.value = ''
@@ -53,8 +55,8 @@ export const composer = async (sig) => {
 
     const blob = await bogbot.get(opened.substring(13))
     console.log(blob)
-    await blast(signed)
-    await blast(blob)
+    await blast(pubkey, signed)
+    await blast(pubkey, blob)
     await ntfy(signed)
     await ntfy(blob)
     const hash = await bogbot.hash(signed)
@@ -62,8 +64,6 @@ export const composer = async (sig) => {
     await render.blob(signed)
     composerDiv.remove()
   }}, ['Send'])
-
-  const pubkey = await bogbot.pubkey()
 
   const textareaDiv = h('div', [
     textarea,
