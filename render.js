@@ -96,7 +96,7 @@ render.meta = async (blob, opened, hash, div) => {
 
   const name = h('span', {id: 'name' + contentHash, classList: 'avatarlink'}, [author.substring(0, 10)])
 
-  const content = h('div', {id: contentHash, classList: 'material-symbols-outlined, content'}, ['Notes'])
+  const content = h('div', {id: contentHash, classList: 'material-symbols-outlined content'}, ['Notes'])
 
   const meta = h('span', [
     right,
