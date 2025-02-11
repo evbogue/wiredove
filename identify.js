@@ -41,17 +41,22 @@ export const genDiv = async () => {
   const pubkey = h('span', {classList: 'pubkey'})
   const button = h('button', {
     onclick: async () => {
-      const alreadyButton = document.getElementById('saveButton')
-      if (alreadyButton) { alreadyButton.remove() }
-      let done = true
-      const genInterval = setInterval(async _ => {
-        const keypair = await bogbot.generate()
-        pubkey.textContent = keypair.substring(0, 10)
-        if (keypair.substring(0, 2).toUpperCase() === name.substring(0, 2).toUpperCase()) {
-          clearInterval(genInterval)
-          pubkey.after(await saveButton(keypair))
-        }
-      }, .000001)
+      if (name.length > 1) {
+        const alreadyButton = document.getElementById('saveButton')
+        if (alreadyButton) { alreadyButton.remove() }
+        let done = true
+        const genInterval = setInterval(async _ => {
+          const keypair = await bogbot.generate()
+          pubkey.textContent = keypair.substring(0, 10)
+          if (keypair.substring(0, 2).toUpperCase() === name.substring(0, 2).toUpperCase()) {
+            clearInterval(genInterval)
+            pubkey.after(await saveButton(keypair))
+          }
+        }, .000001)
+      } else {
+        await bogbot.put('keypair', initial)
+        document.location.reload()
+      }
     }
   }, ['Generate'])
   button.click()
