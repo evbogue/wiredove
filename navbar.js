@@ -26,6 +26,8 @@ export const navbar = async () => {
       ' ',
       await composeButton(),
       ' ',
+      h('a', {href: '#archive', classList: 'material-symbols-outlined'}, ['Archive']),
+      ' ',
       h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 25px;'}, ['Settings']),
       h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 5px;'}, ['Folder_Data'])
     ]

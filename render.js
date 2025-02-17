@@ -22,7 +22,7 @@ render.meta = async (blob, opened, hash, div) => {
   const unread = h('a', {
     onclick: async () => {
       await bogbot.put('archived' + hash, hash)
-      div.remove()
+      meta.remove()
     },
     classList: 'material-symbols-outlined'
   }, ['Check'])
@@ -30,7 +30,7 @@ render.meta = async (blob, opened, hash, div) => {
   const read = h('a', {
     onclick: async () => {
       await bogbot.rm('archived' + hash)
-      div.remove()
+      meta.remove()
     },
     classList: 'material-symbols-outlined'
   }, ['Close'])
@@ -98,7 +98,7 @@ render.meta = async (blob, opened, hash, div) => {
 
   const content = h('div', {id: contentHash, classList: 'material-symbols-outlined content'}, ['Notes'])
 
-  const meta = h('span', [
+  const meta = h('div', {id: div.id, classList: div.classList}, [
     right,
     h('a', {href: '#' + author}, [
       img,
@@ -111,10 +111,12 @@ render.meta = async (blob, opened, hash, div) => {
     rawDiv
   ])
 
-  div.appendChild(meta)
+  div.parentNode.replaceChild(meta, div)
+  //div.appendChild(meta)
   const getContent = await bogbot.get(contentHash)
   if (getContent) {
     await render.content(contentHash, getContent, content)
+    await render.comments(hash, blob, meta)
   } else {
     await gossip(contentHash)
   }
@@ -193,12 +195,12 @@ render.content = async (hash, blob, div) => {
         const query = await bogbot.query(yaml.reply)
         if (get && query && query[0]) {
           const replyYaml = await bogbot.parseYaml(query[0].text)
-          const replyDiv = h('div', [
-            h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
-            ' ',
+          const replyDiv = h('div', {classList: 'breadcrumbs'}, [
             h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
             ' ',
-            h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 10) || query[0].hash.substring(0, 10)])
+            h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
+            ' | ',
+            h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 24) || query[0].hash.substring(0, 10)])
           ])
           get.appendChild(replyDiv)
         }
@@ -218,7 +220,7 @@ render.blob = async (blob) => {
 
   if (opened && div && !div.childNodes[1]) {
     await render.meta(blob, opened, hash, div)
-    await render.comments(hash, blob, div)
+    //await render.comments(hash, blob, div)
   } else if (div && !div.childNodes[1]) {
     await render.content(hash, blob, div)
   }
@@ -251,11 +253,6 @@ render.shouldWe = async (blob) => {
 render.hash = async (hash) => {
   if (!await document.getElementById(hash)) {
     const div = h('div', {id: hash, classList: 'message'}) 
-    //const sig = await bogbot.get(hash)
-
-    //if (sig) {
-    //  render.blob(sig)
-    //}
     return div
   }
 }

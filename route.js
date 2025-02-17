@@ -18,7 +18,7 @@ export const route = async () => {
       log.forEach(async (msg) => {
         if (!await bogbot.get('archived' + msg.hash)) {
           const div = await render.hash(msg.hash)
-          scroller.insertBefore(div, scroller.firstChild)
+          await scroller.insertBefore(div, scroller.firstChild)
           const sig = await bogbot.get(msg.hash)
           if (sig) { await render.blob(sig)}
         }
@@ -28,6 +28,20 @@ export const route = async () => {
       scroller.insertBefore(await composer(), scroller.firstChild) 
     }
   }
+
+  if (src === 'archive') {
+    const log = await bogbot.query()
+    if (log) {
+      log.forEach(async (msg) => {
+        if (await bogbot.get('archived' + msg.hash)) {
+          const div = await render.hash(msg.hash)
+          await scroller.insertBefore(div, scroller.firstChild)
+          const sig = await bogbot.get(msg.hash)
+          if (sig) { await render.blob(sig)}
+        }
+      })
+    }
+  } 
 
   if (src === 'settings') {
     if (await bogbot.pubkey()) {
@@ -71,15 +85,6 @@ export const route = async () => {
   setTimeout(() => {
     hljs.highlightAll()
   }, 100)
-  //const codes = document.getElementsByTagName('code')
-  //for (let i = 0; i < codes.length; i++) {
-  //  hljs.highlightBlock(codes[i])
-  //}
-  //const pres = document.getElementsByTagName('pre')
-  //for (let i = 0; i < pres.length; i++) {
-  //  hljs.highlightBlock(pres[i])
-  //}
-
 }
 
 window.onhashchange = async () => {
