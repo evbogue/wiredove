@@ -5,6 +5,7 @@ import { composer } from './composer.js'
 import { profile } from './profile.js'
 import { makeRoom, gossip } from './gossip.js'
 import { settings, importKey } from './settings.js'
+import { adder } from './adder.js'
 
 export const route = async () => {
   const src = window.location.hash.substring(1)
@@ -14,36 +15,40 @@ export const route = async () => {
 
   if (src === '') {
     const log = await bogbot.query()
+    const newlog = []
     if (log) {
-      log.forEach(async (msg) => {
+      for (const msg of log) {
         if (!await bogbot.get('archived' + msg.hash)) {
-          const div = await render.hash(msg.hash)
-          await scroller.insertBefore(div, scroller.firstChild)
-          const sig = await bogbot.get(msg.hash)
-          if (sig) { await render.blob(sig)}
+          newlog.push(msg)
         }
-      })
-    }
-    if (await bogbot.pubkey()) {
-      scroller.insertBefore(await composer(), scroller.firstChild) 
+      }
+      adder(newlog, src, scroller)
     }
   }
 
-  if (src === 'archive') {
+  else if (src === 'archive') {
     const log = await bogbot.query()
     if (log) {
-      log.forEach(async (msg) => {
+      const newlog = []
+      for (const msg of log) {
         if (await bogbot.get('archived' + msg.hash)) {
-          const div = await render.hash(msg.hash)
-          await scroller.insertBefore(div, scroller.firstChild)
-          const sig = await bogbot.get(msg.hash)
-          if (sig) { await render.blob(sig)}
+          newlog.push(msg)
         }
-      })
+      }
+      adder(newlog, src, scroller)
     }
+    //if (log) {
+    //  log.forEach(async (msg) => {
+    //      const div = await render.hash(msg.hash)
+    //      await scroller.insertBefore(div, scroller.firstChild)
+    //      const sig = await bogbot.get(msg.hash)
+    //      if (sig) { await render.blob(sig)}
+    //    }
+    //  })
+    //}
   } 
 
-  if (src === 'settings') {
+  else if (src === 'settings') {
     if (await bogbot.pubkey()) {
       scroller.appendChild(await settings())
     } else {
@@ -51,24 +56,33 @@ export const route = async () => {
     }
   }
 
-  if (src.length === 44) {
+  else if (src.length < 44) {
     try {
-      let got = false
+      const ar = await fetch('https://pub.wiredove.net/' + src).then(r => r.json())
+      if (ar) { localStorage.setItem(src, JSON.stringify(ar))}
+      console.log(ar)
+      let query = []
+      for (const pubkey of ar) {
+        await makeRoom(pubkey)
+        const q = await bogbot.query(pubkey)
+        if (q) {
+          query.push(...q)
+        }
+      }
+      await query.sort((a, b) => a.ts - b.ts)
+      //console.log(query)
+      adder(query, src, scroller)
+    } catch (err) {console.log(err)}
+  }
+  else if (src.length === 44) {
+    try {
       const log = await bogbot.query(src)
       if (log) {
-        log.forEach(async (msg) => {
-          got = true
-          const div = await render.hash(msg.hash, scroller)
-          if (div) {
-            scroller.insertBefore(div, scroller.firstChild)
-            const sig = await bogbot.get(msg.hash)
-            if (sig) { await render.blob(sig)}
-          }
-        })
+        adder(log, src, scroller)
       }
-      if (!got) { await gossip(src)}
     } catch (err) { console.log(err)}
-  } if (src.length > 44) {
+  } 
+  else if (src.length > 44) {
     const hash = await bogbot.hash(src)
     const opened = await bogbot.open(src)
     if (opened) {

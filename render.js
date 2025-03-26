@@ -235,11 +235,19 @@ render.shouldWe = async (blob) => {
   }
   if (opened && !already) {
     const src = window.location.hash.substring(1)
+    const al = []
+    const aliases = localStorage.getItem(src)
+    console.log(aliases)
+    if (aliases) {
+      const parse = JSON.parse(aliases)
+      al.push(...parse)
+      console.log(al)
+    }
     const hash = await bogbot.hash(blob)
     const msg = await bogbot.get(opened.substring(13))
     const yaml = await bogbot.parseYaml(msg)
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
-    if (blob.substring(0, 44) === src || hash === src || yaml.author === src || src === '') {
+    if (blob.substring(0, 44) === src || hash === src || yaml.author === src || src === '' || al.includes(blob.substring(0, 44))) {
       const scroller = document.getElementById('scroller')
       const div = await render.hash(hash)
       if (div) {
