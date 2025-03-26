@@ -9,8 +9,9 @@ await bogbot.start('wiredovedbversion1')
 
 document.body.appendChild(await navbar())
 
+await route()
+
 if (await bogbot.keypair()) {
-  await route()
   await connect()
 }
 
