@@ -4,6 +4,7 @@ import { blast } from './gossip.js'
 import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js' 
 import { ntfy } from './ntfy.js' 
+import { send } from './connect.js'
 
 export const composer = async (sig) => {
   const obj = {}
@@ -59,6 +60,8 @@ export const composer = async (sig) => {
     await blast(pubkey, blob)
     await ntfy(signed)
     await ntfy(blob)
+    await send(signed)
+    await send(blob)
     const hash = await bogbot.hash(signed)
     div.id = hash
     await render.blob(signed)
