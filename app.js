@@ -10,8 +10,8 @@ await bogbot.start('wiredovedbversion1')
 document.body.appendChild(await navbar())
 
 await route()
-
-if (await bogbot.keypair()) {
-  await connect()
-}
-
+await bogbot.query()
+await connect()
+//await bogbot.keypair().then(async (pubkey) => {
+//  if (pubkey) { await connect()}
+//})

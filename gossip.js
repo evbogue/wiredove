@@ -1,6 +1,7 @@
 import { bogbot } from 'bogbot'
 import { joinRoom } from 'https://esm.sh/gh/evbogue/bog5@38ac1c121f/lib/trystero-torrent.min.js'
 import { render } from './render.js'
+import { send } from './connect.js'
 
 export const rooms = new Map()
 
@@ -28,6 +29,7 @@ export const gossip = async (hash) => {
     }
     if (queue.has(hash)) {
       speed++
+      send(hash)
       const values = [...rooms.values()]
       const room = values[Math.floor(Math.random() * values.length)]
       if (room && room.sendHash) {
@@ -37,7 +39,7 @@ export const gossip = async (hash) => {
             queue.delete(hash)
           }
           ask()
-        }, (100 * speed))
+        }, (1000 * speed))
       }
     }
   }
@@ -47,7 +49,9 @@ export const gossip = async (hash) => {
 
 export const blast = async (pubkey, blob) => {
   const room = rooms.get(pubkey) 
-  room.sendBlob(blob)
+  if (room) {
+    room.sendBlob(blob)
+  }
 }
 
 export const makeRoom = async (pubkey, pubkeys) => {
