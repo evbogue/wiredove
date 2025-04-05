@@ -2,7 +2,6 @@ import { bogbot } from 'bogbot'
 import { makeRoom } from './gossip.js'
 import { render } from './render.js'
 
-const pubkeys = new Set()
 await bogbot.start('wiredovedbversion1')
 
 const pubs = new Set()
@@ -47,19 +46,11 @@ const startWs = async (pub) => {
 export const connect = async () => {
   await startWs('wss://pub.wiredove.net')
   //await startWs('ws://localhost:9000')
-
-  const log = await bogbot.getOpenedLog()
   const pubkey = await bogbot.pubkey()
-  if (pubkey) {
-    pubkeys.add(pubkey)
-  }
-  for (const msg of log) {
-    pubkeys.add(msg.author)
-  }
-
-  if (pubkeys.size > 0) {
-    pubkeys.forEach(async pubkey => {
-      await makeRoom(pubkey, pubkeys)
-    })
+  const pubkeys = await bogbot.getPubkeys()
+  if (pubkeys) {
+    for (const p of pubkeys) {
+      await makeRoom(pubkey, pubkeys)    
+    }
   }
 }
