@@ -47,13 +47,13 @@ const startWs = async (pub) => {
 
 export const connect = async () => {
   await startWs('wss://pub.wiredove.net')
+  await makeRoom('wiredovev1')    
   //await startWs('ws://localhost:9000')
-  const pubkey = await bogbot.pubkey()
-  const pubkeys = await bogbot.getPubkeys()
-  if (pubkeys) {
-    for (const p of pubkeys) {
-      console.log(p)
-      await makeRoom(p)    
-    }
-  }
+  //const pubkeys = await bogbot.getPubkeys()
+  //if (pubkeys) {
+  //  for (const p of pubkeys) {
+  //    console.log(p)
+  //    await makeRoom(p)    
+  //  }
+  //}
 }
