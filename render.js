@@ -164,7 +164,10 @@ render.content = async (hash, blob, div) => {
 
   if (yaml && yaml.body) {
     div.classList = 'content'
-    div.innerHTML = await markdown(yaml.body)
+    let html = await markdown(yaml.body)
+    if (yaml.reply) { html = "<span class='material-symbols-outlined'>Subdirectory_Arrow_left</span><a href='#" + yaml.reply  + "'> " + yaml.reply.substring(0, 10) + "...</a>" + html }
+
+    div.innerHTML = html
 
     if (yaml.image) {
       const get = await document.getElementById('image' + contentHash)
@@ -188,26 +191,26 @@ render.content = async (hash, blob, div) => {
       }
     }
 
-    if (yaml.reply || yaml.replyHash) {
-      if (yaml.replyHash) { yaml.reply = yaml.replyHash}
-      try {
-        const get = await document.getElementById('reply' + contentHash)
-        const query = await bogbot.query(yaml.reply)
-        if (get && query && query[0]) {
-          const replyYaml = await bogbot.parseYaml(query[0].text)
-          const replyDiv = h('div', {classList: 'breadcrumbs'}, [
-            h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
-            ' ',
-            h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
-            ' | ',
-            h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 24) || query[0].hash.substring(0, 10)])
-          ])
-          get.appendChild(replyDiv)
-        }
-      } catch (err) {
-        //console.log(err)
-      }
-    }
+    //if (yaml.reply || yaml.replyHash) {
+    //  if (yaml.replyHash) { yaml.reply = yaml.replyHash}
+    //  try {
+    //    const get = await document.getElementById('reply' + contentHash)
+    //    const query = await bogbot.query(yaml.reply)
+    //    if (get && query && query[0]) {
+    //      const replyYaml = await bogbot.parseYaml(query[0].text)
+    //      const replyDiv = h('div', {classList: 'breadcrumbs'}, [
+    //        h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left']),
+    //        ' ',
+    //        h('a', {href: '#' + query[0].author}, [replyYaml.name || query[0].author.substring(0, 10)]), 
+    //        ' | ',
+    //        h('a', {href: '#' + query[0].hash}, [replyYaml.body.substring(0, 24) || query[0].hash.substring(0, 10)])
+    //      ])
+    //      get.appendChild(replyDiv)
+    //    }
+    //  } catch (err) {
+    //    //console.log(err)
+    //  }
+    //}
   }
 }
 
