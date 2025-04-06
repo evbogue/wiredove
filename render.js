@@ -111,7 +111,7 @@ render.meta = async (blob, opened, hash, div) => {
     rawDiv
   ])
 
-  div.parentNode.replaceChild(meta, div)
+  div.replaceWith(meta)
   //div.appendChild(meta)
   const getContent = await bogbot.get(contentHash)
   if (getContent) {
@@ -237,7 +237,6 @@ render.shouldWe = async (blob) => {
     const src = window.location.hash.substring(1)
     const al = []
     const aliases = localStorage.getItem(src)
-    console.log(aliases)
     if (aliases) {
       const parse = JSON.parse(aliases)
       al.push(...parse)
