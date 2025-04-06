@@ -46,8 +46,8 @@ const startWs = async (pub) => {
 }
 
 export const connect = async () => {
-  //await startWs('wss://pub.wiredove.net')
-  await startWs('ws://localhost:9000')
+  await startWs('wss://pub.wiredove.net')
+  //await startWs('ws://localhost:9000')
   const pubkey = await bogbot.pubkey()
   const pubkeys = await bogbot.getPubkeys()
   if (pubkeys) {
