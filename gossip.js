@@ -8,7 +8,6 @@ export const rooms = new Map()
 const queue = new Set()
 
 export const gossip = async (hash) => {
-  queue.add(hash)
   let speed = 1
 
   const ask = async () => {
@@ -19,7 +18,6 @@ export const gossip = async (hash) => {
     }
     if (queue.has(hash)) {
       speed++
-      send(hash)
       const values = [...rooms.values()]
       const room = values[Math.floor(Math.random() * values.length)]
       if (room && room.sendHash) {
@@ -29,12 +27,16 @@ export const gossip = async (hash) => {
             queue.delete(hash)
           }
           ask()
-        }, (1000 * speed))
+        }, (10000 * speed))
       }
     }
   }
-
-  await ask()
+  if (!queue.has(hash)) {
+    send(hash)
+    // prevent dupes
+    queue.add(hash)
+    await ask()
+  }
 }
 
 export const blast = async (pubkey, blob) => {
