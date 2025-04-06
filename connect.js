@@ -52,7 +52,8 @@ export const connect = async () => {
   const pubkeys = await bogbot.getPubkeys()
   if (pubkeys) {
     for (const p of pubkeys) {
-      await makeRoom(p, pubkeys)    
+      console.log(p)
+      await makeRoom(p)    
     }
   }
 }
