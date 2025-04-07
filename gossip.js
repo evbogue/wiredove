@@ -1,5 +1,5 @@
 import { bogbot } from 'bogbot'
-import { joinRoom } from './trystero-torrent.min.js'
+import { joinRoom } from './trystero-torrent2.min.js'
 import { render } from './render.js'
 import { send } from './connect.js'
 
