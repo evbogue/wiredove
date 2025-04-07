@@ -3,12 +3,16 @@ import { bogbot } from 'bogbot'
 
 const addPosts = async (posts, div) => {
   for (const post of posts) {
-    const rendered = await render.hash(post.hash)
-    div.appendChild(rendered)
-    const sig = await bogbot.get(post.hash)
     try {
+      const rendered = await render.hash(post.hash)
+      div.appendChild(rendered)
+      const sig = await bogbot.get(post.hash)
       await render.blob(sig)
-    } catch (err) {}
+    } catch (err) {
+      console.log(err)
+      console.log(post)
+      console.log(posts)
+    }
   }
 }
 
