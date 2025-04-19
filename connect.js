@@ -21,22 +21,37 @@ const startWs = async (pub) => {
     const p = await bogbot.getPubkeys()
     for (const pub of p) {
       ws.send(pub)
+      const latest = await bogbot.getLatest(pub)
+      if (latest.text) {
+        ws.send(latest.text)
+      } else {
+        const blob = await bogbot.get(latest.opened.substring(13))
+        if (blob) {ws.send(blob)}
+      }
+      ws.send(latest.sig)
     }
-    //const log = await bogbot.query()
-    //if (log) { 
-    //  for (const msg of log) {
-    //    ws.send(msg.sig)
-    //    ws.send(msg.text)
-    //    //ws.send(msg.hash)
-    //    //ws.send(msg.opened.substring(13))
-    //  }
-    //}
+    const log = await bogbot.query()
+    if (log) { 
+      for (const msg of log) {
+        ws.send(msg.sig)
+        ws.send(msg.text)
+        if (!msg.text) { ws.send(await bogbot.get(msg.opened.substring(13)))}
+      }
+    }
   }
 
   ws.onmessage = async (m) => {
-    await render.shouldWe(m.data)
-    await bogbot.add(m.data)
-    await render.blob(m.data)
+    if (m.data.length === 44) {
+      console.log('NEEDS' + m.data)
+      const blob = await bogbot.get(m.data)
+      if (blob) {
+        ws.send(blob)
+      }
+    } else {  
+      await render.shouldWe(m.data)
+      await bogbot.add(m.data)
+      await render.blob(m.data)
+    }
   }
 
   ws.onclose = async () => {
@@ -46,7 +61,7 @@ const startWs = async (pub) => {
 }
 
 export const connect = async () => {
-  await startWs('wss://pub.wiredove.net')
+  await startWs('wss://pub.wiredove.net/')
   await makeRoom('wiredovev1')    
   //await startWs('ws://localhost:9000')
   //const pubkeys = await bogbot.getPubkeys()
