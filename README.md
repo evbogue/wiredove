@@ -2,7 +2,7 @@
 
 A work-in-progress experimental distributed social networking application built on at the [Bog5 Protocol](https://github.com/evbogue/bog5) for message authentication and [Trystero](https://github.com/dmotz/trystero) for multiplayer serverless collaboration.
 
-Try it: https://wiredove.net/
+Try it at: https://wiredove.net/
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
