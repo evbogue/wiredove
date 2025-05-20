@@ -6,6 +6,7 @@ import { profile } from './profile.js'
 import { makeRoom, gossip } from './gossip.js'
 import { settings, importKey } from './settings.js'
 import { adder } from './adder.js'
+import { importBlob } from './import.js'
 
 export const route = async () => {
   const src = window.location.hash.substring(1)
@@ -54,6 +55,10 @@ export const route = async () => {
     } else {
       scroller.appendChild(await importKey())
     }
+  }
+
+  else if (src === 'import') {
+    scroller.appendChild(await importBlob())
   }
 
   else if (src.length < 44) {

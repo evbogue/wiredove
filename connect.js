@@ -42,7 +42,7 @@ const startWs = async (pub) => {
 
   ws.onmessage = async (m) => {
     if (m.data.length === 44) {
-      console.log('NEEDS' + m.data)
+      //console.log('NEEDS' + m.data)
       const blob = await bogbot.get(m.data)
       if (blob) {
         ws.send(blob)

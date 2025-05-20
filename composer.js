@@ -5,6 +5,7 @@ import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js' 
 import { ntfy } from './ntfy.js' 
 import { send } from './connect.js'
+import { markdown } from './markdown.js'
 
 export const composer = async (sig) => {
   const obj = {}
@@ -47,7 +48,7 @@ export const composer = async (sig) => {
 
   const pubkey = await bogbot.pubkey()
 
-  const button = h('button', {style: 'margin-left: auto; margin-right: 0px; display: block;', onclick: async () => {
+  const publishButton = h('button', {style: 'margin-left: auto; margin-right: 0px;', onclick: async () => {
     const published = await bogbot.compose(textarea.value, replyObj)
     textarea.value = ''
     const scroller = document.getElementById('scroller')
@@ -66,11 +67,28 @@ export const composer = async (sig) => {
     div.id = hash
     await render.blob(signed)
     composerDiv.remove()
-  }}, ['Send'])
+  }}, ['Publish'])
+
+  const previewButton = h('button', {style: 'margin-left: auto; margin-right: 0px;', onclick: async () => {
+    textareaDiv.style = 'display: none;'
+    previewDiv.style = 'display: block;'
+    content.innerHTML = await markdown(textarea.value)
+  }}, ['Preview'])
 
   const textareaDiv = h('div', [
     textarea,
-    button
+    previewButton
+  ])
+
+  const content = h('div')
+
+  const previewDiv = h('div', {style: 'display: none;'}, [
+    content,
+    h('button', {style: 'margin-left: auto; margin-right: 0px;', onclick: () => { 
+     textareaDiv.style = 'display: block;'
+     previewDiv.style = 'display: none;'
+    }}, ['Cancel']),
+    publishButton
   ])
 
   const composerDiv = h('div', [
@@ -79,6 +97,7 @@ export const composer = async (sig) => {
     await nameSpan(),
     replyDiv,
     textareaDiv,
+    previewDiv
   ])
 
   const div = h('div', {classList: 'message'}, [
