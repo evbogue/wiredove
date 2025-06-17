@@ -31,14 +31,14 @@ const startWs = async (pub) => {
       ws.send(latest.sig)
     }
     //below sends everything in the client to a dovepub pds server 
-    //const log = await bogbot.query()
-    //if (log) { 
-    //  for (const msg of log) {
-    //    ws.send(msg.sig)
-    //    ws.send(msg.text)
-    //    if (!msg.text) { ws.send(await bogbot.get(msg.opened.substring(13)))}
-    //  }
-    //}
+    const log = await bogbot.query()
+    if (log) { 
+      for (const msg of log) {
+        ws.send(msg.sig)
+        ws.send(msg.text)
+        if (!msg.text) { ws.send(await bogbot.get(msg.opened.substring(13)))}
+      }
+    }
   }
 
   ws.onmessage = async (m) => {
