@@ -1,6 +1,6 @@
 import { bogbot } from 'bogbot'
 import { h } from 'h'
-import { gossip } from './gossip.js'
+import { send } from './send.js'
 import { composer } from './composer.js'
 import { markdown } from './markdown.js'
 
@@ -118,7 +118,7 @@ render.meta = async (blob, opened, hash, div) => {
     await render.content(contentHash, getContent, content)
     await render.comments(hash, blob, meta)
   } else {
-    await gossip(contentHash)
+    await send(contentHash)
   }
 } 
 
@@ -175,7 +175,7 @@ render.content = async (hash, blob, div) => {
         const image = await bogbot.get(yaml.image)
         if (image) {
           get.src = image
-        } else { gossip(yaml.image)}
+        } else { send(yaml.image)}
       }
     }
 
@@ -187,7 +187,7 @@ render.content = async (hash, blob, div) => {
     if (yaml.previous) {
       const check = await bogbot.query(yaml.previous)
       if (!check[0]) {
-        await gossip(yaml.previous)
+        await send(yaml.previous)
       }
     }
 

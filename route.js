@@ -3,10 +3,11 @@ import { render } from './render.js'
 import { h } from 'h'
 import { composer } from './composer.js'
 import { profile } from './profile.js'
-import { makeRoom, gossip } from './gossip.js'
+import { makeRoom } from './gossip.js'
 import { settings, importKey } from './settings.js'
 import { adder } from './adder.js'
 import { importBlob } from './import.js'
+import { send } from './send.js'
 
 export const route = async () => {
   const src = window.location.hash.substring(1)
@@ -68,7 +69,6 @@ export const route = async () => {
       console.log(ar)
       let query = []
       for (const pubkey of ar) {
-        await makeRoom(pubkey)
         const q = await bogbot.query(pubkey)
         if (q) {
           query.push(...q)
@@ -82,8 +82,11 @@ export const route = async () => {
   else if (src.length === 44) {
     try {
       const log = await bogbot.query(src)
-      if (log) {
+      if (log && log[0]) {
         adder(log, src, scroller)
+      } else {
+        console.log('we do not have it')
+        await send(src) 
       }
     } catch (err) { console.log(err)}
   } 

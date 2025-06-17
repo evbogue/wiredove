@@ -1,10 +1,9 @@
 import { bogbot } from 'bogbot'
 import { render } from './render.js'
-import { blast } from './gossip.js'
 import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js' 
 import { ntfy } from './ntfy.js' 
-import { send } from './connect.js'
+import { send } from './send.js'
 import { markdown } from './markdown.js'
 
 export const composer = async (sig) => {
@@ -56,9 +55,6 @@ export const composer = async (sig) => {
     const opened = await bogbot.open(signed)
 
     const blob = await bogbot.get(opened.substring(13))
-    console.log(blob)
-    await blast(pubkey, signed)
-    await blast(pubkey, blob)
     await ntfy(signed)
     await ntfy(blob)
     await send(signed)
