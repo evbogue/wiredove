@@ -12,6 +12,7 @@ document.body.appendChild(await navbar())
 await route()
 await bogbot.query()
 await connect()
+
 //await bogbot.keypair().then(async (pubkey) => {
 //  if (pubkey) { await connect()}
 //})
