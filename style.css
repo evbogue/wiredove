@@ -118,7 +118,8 @@ img {width: 95%; margin: 1em;}
   border: 1px solid #f5f5f5;
   margin-top: 5px;
   min-height: 35px;
-  border-radius: 5px
+  border-radius: 5px;
+  overflow: hidden;
 }
 
 .message:hover {

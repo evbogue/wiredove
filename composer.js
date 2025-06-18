@@ -47,7 +47,7 @@ export const composer = async (sig) => {
 
   const pubkey = await bogbot.pubkey()
 
-  const publishButton = h('button', {style: 'margin-left: auto; margin-right: 0px;', onclick: async () => {
+  const publishButton = h('button', {style: 'float: right;', onclick: async () => {
     const published = await bogbot.compose(textarea.value, replyObj)
     textarea.value = ''
     const scroller = document.getElementById('scroller')
@@ -65,7 +65,7 @@ export const composer = async (sig) => {
     composerDiv.remove()
   }}, ['Publish'])
 
-  const previewButton = h('button', {style: 'margin-left: auto; margin-right: 0px;', onclick: async () => {
+  const previewButton = h('button', {style: 'float: right;', onclick: async () => {
     textareaDiv.style = 'display: none;'
     previewDiv.style = 'display: block;'
     content.innerHTML = await markdown(textarea.value)
@@ -80,7 +80,7 @@ export const composer = async (sig) => {
 
   const previewDiv = h('div', {style: 'display: none;'}, [
     content,
-    h('button', {style: 'margin-left: auto; margin-right: 0px;', onclick: () => { 
+    h('button', {style: 'float: right;', onclick: () => { 
      textareaDiv.style = 'display: block;'
      previewDiv.style = 'display: none;'
     }}, ['Cancel']),
