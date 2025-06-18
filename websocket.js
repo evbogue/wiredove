@@ -52,7 +52,6 @@ export const makeWs = async (pub) => {
       }
     } else {
       await render.shouldWe(m.data)
-      await bogbot.make(m.data)
       await bogbot.add(m.data)
       await render.blob(m.data)
     }

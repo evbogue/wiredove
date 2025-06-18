@@ -34,7 +34,6 @@ export const makeRoom = async (pubkey) => {
     onBlob(async (blob, id) => {
       console.log(`Received: ${blob}`)
       await render.shouldWe(blob)
-      await bogbot.make(blob)
       await bogbot.add(blob)
       await render.blob(blob)
     })
