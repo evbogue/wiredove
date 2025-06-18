@@ -69,6 +69,7 @@ export const route = async () => {
       console.log(ar)
       let query = []
       for (const pubkey of ar) {
+        await send(pubkey)
         const q = await bogbot.query(pubkey)
         if (q) {
           query.push(...q)
