@@ -253,7 +253,8 @@ render.shouldWe = async (blob) => {
       const scroller = document.getElementById('scroller')
       const div = await render.hash(hash)
       if (div) {
-        scroller.insertBefore(div, scroller.firstChild)
+        scroller.appendChild(div)
+        //scroller.insertBefore(div, scroller.firstChild)
         await render.blob(blob)
       }
     }
