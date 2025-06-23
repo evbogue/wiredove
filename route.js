@@ -81,7 +81,7 @@ export const route = async () => {
     } catch (err) {console.log(err)}
   } 
 
-  else if (src.length === 44 || src.startsWith('?')) {
+  else if (src.length === 44) {
     try {
       const log = await bogbot.query(src)
       if (log && log[0]) {
@@ -92,6 +92,14 @@ export const route = async () => {
       }
     } catch (err) { console.log(err)}
   } 
+  else if (src.startsWith('?')) {
+    try {
+      const log = await bogbot.query(src)
+      if (log && log[0] && log != '') {
+        adder(log, src, scroller)
+      }
+    } catch (err) {}
+  }
   else if (src.length > 44) {
     const hash = await bogbot.hash(src)
     const opened = await bogbot.open(src)
@@ -114,6 +122,12 @@ export const route = async () => {
 window.onhashchange = async () => {
   while (document.getElementById('scroller')) {
     document.getElementById('scroller').remove()
+  }
+  if (window.location.hash === '#?') {
+    const search = document.getElementById('search')
+    search.value = ''
+    search.classList = 'material-symbols-outlined'
+    window.location.hash = ''
   }
   await route()
 }
