@@ -62,7 +62,7 @@ export const route = async () => {
     scroller.appendChild(await importBlob())
   }
 
-  else if (src.length < 44) {
+  else if (src.length < 44 & !src.startsWith('?')) {
     try {
       const ar = await fetch('https://pub.wiredove.net/' + src).then(r => r.json())
       if (ar) { localStorage.setItem(src, JSON.stringify(ar))}
@@ -79,8 +79,9 @@ export const route = async () => {
       //console.log(query)
       adder(query, src, scroller)
     } catch (err) {console.log(err)}
-  }
-  else if (src.length === 44) {
+  } 
+
+  else if (src.length === 44 || src.startsWith('?')) {
     try {
       const log = await bogbot.query(src)
       if (log && log[0]) {
