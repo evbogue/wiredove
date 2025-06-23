@@ -18,7 +18,8 @@ export const importKey = async () => {
 
   const div = h('div', {classList: 'message'}, [
     textarea, 
-    button
+    button,
+    deleteEverything
   ]) 
 
   return div 
@@ -45,16 +46,18 @@ const editKey = async () => {
         location.reload()
       }
     }, ['Delete key']),
-    h('button', {
-      onclick: async () => {
-        await bogbot.clear()
-        window.location.hash = '#'
-        location.reload()
-      }
-    }, ['Delete everything'])
   ])
   return span
 } 
+
+const deleteEverything = h('button', {
+  onclick: async () => {
+    await bogbot.clear()
+    window.location.hash = '#'
+    location.reload()
+  }
+}, ['Delete everything'])
+
 
 //const didweb = async () => {
 //  const input = h('input', {placeholder: 'https://yourwebsite.com/'})
@@ -90,7 +93,8 @@ export const settings = async () => {
     //await didweb(),
     //h('hr'),
     h('p', ['Import Keypair']),
-    await editKey()
+    await editKey(),
+    deleteEverything
   ])
 
   return div
