@@ -13,7 +13,7 @@ render.meta = async (blob, opened, hash, div) => {
 
   const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
 
-  const qrcode = h('canvas', {style: 'display: none;'})
+  const qrcode = h('div', {id: 'qr' + hash, style: 'width: 50%; margin-right: auto; margin-left: auto;'})
 
   let show = true
 
@@ -40,19 +40,13 @@ render.meta = async (blob, opened, hash, div) => {
   } else { archiver.appendChild(unread)}
 
   const qr = h('a', {onclick: () => {
-    if (show === true) {
-      const q = new QRious({
-        element: qrcode,
-        value: location.href + blob,
-        background: '#f5f5f5',
-        foreground: '#444',
-        size: 525
+    if (!qrcode.firstChild) {
+      const q = new QRCode('qr' + hash, {
+        text: location.href + blob,
       })
-      qrcode.style = 'display: block; margin-left: auto; margin-right: auto; width: 50%; margin-top: 1em; margin-bottom: 1em;'
-      show = false
     } else {
-      qrcode.style = 'display: none;'
-      show = true
+      qrcode.firstChild.remove()
+      qrcode.firstChild.remove()
     }
   }, classList: 'material-symbols-outlined'}, ['Qr_Code'])
 
