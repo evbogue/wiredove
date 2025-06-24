@@ -4,9 +4,17 @@ import { render} from './render.js'
 const pubs = new Set()
 
 export const sendWs = async (msg) => {
-  pubs.forEach(pub => {
-    pub.send(msg)
-  })
+  if (pubs.size) {
+    pubs.forEach(pub => {
+      pub.send(msg)
+    })
+  } else {
+    setTimeout(async () => {
+      pubs.forEach(pub => {
+        pub.send(msg)
+      })
+    }, 1000)
+  }
 }
 
 export const makeWs = async (pub) => {
