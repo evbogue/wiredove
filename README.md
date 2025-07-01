@@ -4,9 +4,21 @@ A work-in-progress experimental distributed social networking application built 
 
 Try it at: https://wiredove.net/
 
+For new message notifications subscribe via https://ntfy.sh/wiredove
+
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
 If you're familiar with Bluesky you can think of Wiredove as a PDS (personal data server) for the Bog5 protocol. If you're familiar with Secure-Scuttlebot then you can think of Wiredove as a pub that exists in your web browser.
+
+### Pub directory server
+
+Bog5 protocol messages can be long, to make up for this we use a centralized directory to easily sync a users many public keys.
+
+Here's an example JSON server: https://pub.wiredove.net/ev
+
+Try it out in your browser: https://wiredove.net/#ev
+
+The code for this is at https://github.com/evbogue/dovepub
 
 ### Bog5 protocol messages
 
@@ -26,7 +38,7 @@ Since there are not many active peers at the moment I've set up an ntfy channel 
 
 Bog5 messages are as short as they can be, so it can be possible to relay messages using URL embeds. Open opening the below link, Wiredove will open a Trystero room for the author of the message and attempt to sync the message if any peer is available in that room. 
 
-https://wiredove.net/#eV1TUbuPIw+0F1ynylaktIIKukdYEaXcZOyEF6pIUaw=XJss1AlAZ9xWeNTP2fKlSHIKMERRIAOhhMLGQqLzx94eC0MnnlXZQ4C4dG905nws1YEO5B006lXVeYVAyGkoCTE3MzY3MTM3OTY1MjJibUI3TitBU2EzTElML0t1UFhqR2dvZXovdEY5dHhWQzIxVktaSC9ZajVjPQ==
+https://wiredove.net/#evSFOKnXaF9ZWSsff8bVfXP6+XnGZUj8XNp6bca590k=+MmR4IUxD/w26xkn4VoIkNr3zPXQ+mV6DED3+FuglngiX5f6gube5chIDsSGN6vZQWptg4i0BiScx9NQzINnBjE3NDgyODA1MDY0NTd3TTQvbHJWRGZFcDc2dDhNRjhwVzAwb0tWeGZDY21DdzNJMmVHWEVUaDZZPQ==
 
 Questions? ev@evbogue.com
 
