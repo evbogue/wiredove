@@ -98,19 +98,20 @@ render.meta = async (blob, opened, hash, div) => {
       img,
       name,
     ]),
-    h('br'),
-    h('div', {id: 'reply' + contentHash}),
-    content,
-    qrcode,
-    rawDiv
+    h('div', {style: 'margin-left: 43px;'}, [
+      h('div', {id: 'reply' + contentHash}),
+      content,
+      qrcode,
+      rawDiv
+    ])
   ])
 
   div.replaceWith(meta)
   //div.appendChild(meta)
+  await render.comments(hash, blob, meta)
   const getContent = await bogbot.get(contentHash)
   if (getContent) {
     await render.content(contentHash, getContent, content)
-    await render.comments(hash, blob, meta)
   } else {
     await send(contentHash)
   }
@@ -147,7 +148,7 @@ render.comments = async (hash, blob, div) => {
     }
   }, ['Chat_Bubble'])
 
-  div.appendChild(h('div', [
+  div.appendChild(h('div', {style: 'margin-left: 43px;'}, [
     reply, ' ', num
   ]))
 }
@@ -215,9 +216,10 @@ render.blob = async (blob) => {
 
   const opened = await bogbot.open(blob)
 
-  if (opened && div && !div.childNodes[1]) {
+  if (opened && div) {
     await render.meta(blob, opened, hash, div)
     //await render.comments(hash, blob, div)
+    console.log('render comments')
   } else if (div && !div.childNodes[1]) {
     await render.content(hash, blob, div)
   }
