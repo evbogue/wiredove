@@ -76,15 +76,15 @@ export const composer = async (sig) => {
     previewButton
   ])
 
-  const content = h('div')
+  const content = h('div', {style: 'margin-left: 43px;'})
 
   const previewDiv = h('div', {style: 'display: none;'}, [
     content,
+    publishButton,
     h('button', {style: 'float: right;', onclick: () => { 
      textareaDiv.style = 'display: block;'
      previewDiv.style = 'display: none;'
-    }}, ['Cancel']),
-    publishButton
+    }}, ['Cancel'])
   ])
 
   const composerDiv = h('div', [
