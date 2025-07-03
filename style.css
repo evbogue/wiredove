@@ -68,7 +68,7 @@ textarea, input {
   background: #fff;
   color: #555;
   padding: 5px;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075)
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
 }
 
 textarea:hover, textarea:focus, input:hover, input:focus, {
@@ -83,6 +83,7 @@ textarea {
   margin-top: 5px;
   margin-bottom: 5px;
   width: 99%;
+  height: 150px;
 }
 
 a {
@@ -140,8 +141,8 @@ img {width: 95%; margin: 1em;}
 }
 
 .pubkey {
-  color: #9da0a4; 
-  font-weight: bold;
+  color: #9da0a4;
+  font-family: monospace;
 }
 
 iframe {
