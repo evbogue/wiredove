@@ -72,7 +72,7 @@ render.meta = async (blob, opened, hash, div) => {
   }}, ['Code'])
 
   const right = h('span', {style: 'float: right;'}, [
-    h('code', {classList: 'pubkey'}, [author.substring(0, 6)]),
+    h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
     ' ',
     archiver,
     ' ',
@@ -219,10 +219,9 @@ render.blob = async (blob) => {
 
   const opened = await bogbot.open(blob)
 
-  if (opened && div) {
+  if (opened && div && !div.childNodes[1]) {
     await render.meta(blob, opened, hash, div)
     //await render.comments(hash, blob, div)
-    console.log('render comments')
   } else if (div && !div.childNodes[1]) {
     await render.content(hash, blob, div)
   }
