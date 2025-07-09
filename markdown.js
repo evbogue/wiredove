@@ -36,20 +36,8 @@ renderer.link = function (href, title, text) {
     href  = '#' + href
     return marked.Renderer.prototype.link.call(this, href, title, text);
   } else {
-    const num = Math.random()
     const m = marked.Renderer.prototype.link.call(this, href, title, text)
-    const qr = ` <a class="material-symbols-outlined" onclick="
-      console.log(${num})
-      const get = document.getElementById(${num})
-      get.style = 'display: block; margin-left: auto; margin-right: auto; width: 50%; margin-top: 1em; margin-bottom: 1em;'
-      new QRious({
-        element: document.getElementById(${num}),
-        value: '${href}',
-        background: '#f5f5f5',
-        foreground: '#444',
-        size: 525
-      })">Qr_Code</a><canvas style="display: none;" id=${num}></canvas>`
-    return m + qr
+    return m
   }
 }
 
