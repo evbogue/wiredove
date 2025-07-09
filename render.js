@@ -6,14 +6,29 @@ import { markdown } from './markdown.js'
 
 export const render = {}
 
+render.qr = async (hash, blob) => {
+    const qrcode = h('span', {id: 'qr' + hash, style: 'width: 50%; margin-right: auto; margin-left: auto;'})
+
+  const link = h('a', {onclick: () => {
+    if (!qrcode.firstChild) {
+      const q = new QRCode('qr' + hash, {
+        text: location.href + blob,
+      })
+    } else {
+      qrcode.firstChild.remove()
+      qrcode.firstChild.remove()
+    }
+  }, classList: 'material-symbols-outlined'}, ['Qr_Code'])
+
+  return h('span', [link, qrcode])
+}
+
 render.meta = async (blob, opened, hash, div) => {
   const ts = h('a', {href: '#' + hash}, [await bogbot.human(opened.substring(0, 13))])
   setInterval(async () => {ts.textContent = await bogbot.human(opened.substring(0, 13))}, 1000)
   const author = blob.substring(0, 44)
 
   const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
-
-  const qrcode = h('div', {id: 'qr' + hash, style: 'width: 50%; margin-right: auto; margin-left: auto;'})
 
   let show = true
 
@@ -39,17 +54,6 @@ render.meta = async (blob, opened, hash, div) => {
     archiver.appendChild(read)
   } else { archiver.appendChild(unread)}
 
-  const qr = h('a', {onclick: () => {
-    if (!qrcode.firstChild) {
-      const q = new QRCode('qr' + hash, {
-        text: location.href + blob,
-      })
-    } else {
-      qrcode.firstChild.remove()
-      qrcode.firstChild.remove()
-    }
-  }, classList: 'material-symbols-outlined'}, ['Qr_Code'])
-
   const rawDiv = h('div')
 
   let rawshow = true
@@ -74,11 +78,11 @@ render.meta = async (blob, opened, hash, div) => {
     ' ',
     permalink,
     ' ',
-    qr,
-    ' ',
     raw,
     ' ',
     ts,
+    ' ',
+    await render.qr(hash, blob),
   ])
 
   const contentHash = opened.substring(13)
@@ -101,7 +105,6 @@ render.meta = async (blob, opened, hash, div) => {
     h('div', {style: 'margin-left: 43px;'}, [
       h('div', {id: 'reply' + contentHash}),
       content,
-      qrcode,
       rawDiv
     ])
   ])
