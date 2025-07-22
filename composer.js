@@ -71,7 +71,7 @@ export const composer = async (sig) => {
     content.innerHTML = await markdown(textarea.value)
   }}, ['Preview'])
 
-  const textareaDiv = h('div', [
+  const textareaDiv = h('div', {classList: 'composer'}, [
     textarea,
     previewButton
   ])
@@ -88,7 +88,7 @@ export const composer = async (sig) => {
   ])
 
   const composerDiv = h('div', [
-    h('span', {style: 'float: right;'}, [h('code', {classList: 'pubkey'}, [pubkey.substring(0, 6)]), ' ', cancel]),
+    h('span', {style: 'float: right;'}, [h('span', {classList: 'pubkey'}, [pubkey.substring(0, 6)]), ' ', cancel]),
     h('span', {style: 'float: left;'}, [await avatarSpan()]),
     await nameSpan(),
     replyDiv,
