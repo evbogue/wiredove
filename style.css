@@ -137,6 +137,7 @@ img {width: 95%; margin: 1em;}
   button { color: #ccc; background: #333; border: 1px solid #444;}
   button:hover { background: #222;}
   hr { border: 1px solid #333;}
+  pre, code { background: #333; color: #f5f5f5;}
 }
 
 .content {margin-top: 5px;} 
