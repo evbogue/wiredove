@@ -140,6 +140,7 @@ img {width: 95%; margin: 1em;}
   button:hover { background: #222;}
   hr { border: 1px solid #333;}
   pre, code { background: #333; color: #f5f5f5;}
+  a {color: #50afe4;}
 }
 
 .content {margin-top: 5px;} 
