@@ -86,12 +86,12 @@ textarea {
 }
 
 a {
-  color: #0b9dbd;
+  color: #FF6600;
   text-decoration: none;
 }
 
 a:hover {
-  color: #005580;
+  color: #555;
 }
 
 img {width: 95%; margin: 1em;}
