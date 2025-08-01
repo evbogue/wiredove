@@ -86,12 +86,13 @@ textarea {
 }
 
 a {
-  color: #FF6600;
+  color: #000;
   text-decoration: none;
 }
 
 a:hover {
-  color: #555;
+  color: #111;
+  text-decoration: underline;
 }
 
 img {width: 95%; margin: 1em;}
@@ -128,7 +129,7 @@ img {width: 95%; margin: 1em;}
 @media (prefers-color-scheme: dark) {
   body { 
     background-color: #181818;
-    color: #fcfcfc;
+    color: #ccc;
   }
   #navbar {  background-color: rgba(24,24,24,0.2); }
   .message { background-color: #222; border: 1px solid #1e1e1e;}
@@ -140,6 +141,8 @@ img {width: 95%; margin: 1em;}
   button:hover { background: #222;}
   hr { border: 1px solid #333;}
   pre, code { background: #333; color: #f5f5f5;}
+  a {color:#fff;}
+  a:hover {color:#f5f5f5;}
 }
 
 .content {margin-top: 5px;} 
