@@ -1,0 +1,13 @@
+{
+  "name": "Wiredove",
+  "start_url": ".",
+  "description": "A replicated social network",
+  "icons": [
+    { 
+      "src": "./dove512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "display": "standalone"
+}
