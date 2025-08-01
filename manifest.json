@@ -4,7 +4,7 @@
   "description": "A replicated social network",
   "icons": [
     { 
-      "src": "./dove512x512.png",
+      "src": "./dove.png",
       "sizes": "512x512",
       "type": "image/png"
     }
