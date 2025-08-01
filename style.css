@@ -86,13 +86,12 @@ textarea {
 }
 
 a {
-  color: #000;
+  color: #2a7dfe;
   text-decoration: none;
 }
 
 a:hover {
-  color: #111;
-  text-decoration: underline;
+  color: #8d82fe;
 }
 
 img {width: 95%; margin: 1em;}
@@ -141,8 +140,6 @@ img {width: 95%; margin: 1em;}
   button:hover { background: #222;}
   hr { border: 1px solid #333;}
   pre, code { background: #333; color: #f5f5f5;}
-  a {color:#fff;}
-  a:hover {color:#f5f5f5;}
 }
 
 .content {margin-top: 5px;} 

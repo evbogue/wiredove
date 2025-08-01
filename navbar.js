@@ -37,7 +37,7 @@ export const navbar = async () => {
   const div = h('div', 
     {id: 'navbar'},
     [
-      h('a', {href: '#', classList: 'material-symbols-outlined'}, [h('img', {src: './doveorange_sm.png', classList: 'avatar_small'})]),
+      h('a', {href: '#', classList: 'material-symbols-outlined'}, [h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})]),
       ' ',
       await composeButton(),
       ' ',
