@@ -32,10 +32,12 @@ const searchInput = h('input', {
 })
 
 export const navbar = async () => {
+  const span = h('span', {style: 'margin-left: 5px; margin-right: 25px; float: right;'})
+
   const div = h('div', 
     {id: 'navbar'},
     [
-      h('a', {href: '#', classList: 'material-symbols-outlined'}, ['Home']),
+      h('a', {href: '#', classList: 'material-symbols-outlined'}, [h('img', {src: './dove.png', classList: 'avatar_small'})]),
       ' ',
       await composeButton(),
       ' ',
@@ -43,8 +45,10 @@ export const navbar = async () => {
       //' ',
       h('a', {href: '#archive', classList: 'material-symbols-outlined'}, ['Archive']),
       ' ',
-      h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 25px;'}, ['Settings']),
-      h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 5px;'}, ['Folder_Data']),
+      span,
+      ' ',
+      h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'float: right; margin-top: 3px;'}, ['Settings']),
+      h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 5px; margin-top: 3px;'}, ['Folder_Data']),
       searchInput,
     ]
   )
@@ -52,7 +56,7 @@ export const navbar = async () => {
   if (!await bogbot.keypair()) {
     div.appendChild(await identify())
   } else {
-    div.appendChild(h('a', {href: '#' + await bogbot.pubkey(), style: 'float: left;'}, [await imageSpan()]))
+    span.appendChild(h('a', {href: '#' + await bogbot.pubkey()},[await imageSpan()]))
   }
 
   return div
