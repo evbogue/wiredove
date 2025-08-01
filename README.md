@@ -1,8 +1,8 @@
 # Wiredove 
 
-![Wiredove Logo](dove.png)
+![Wiredove Logo](dove_sm.png)
 
-![Aproto Logo](doveorange.png)
+![Aproto Logo](doveorange_sm.png)
 
 A work-in-progress experimental distributed social networking application built on at the [Bog5 Protocol](https://github.com/evbogue/bog5) for message authentication and [Trystero](https://github.com/dmotz/trystero) for multiplayer serverless collaboration.
 
