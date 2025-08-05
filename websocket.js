@@ -38,10 +38,20 @@ export const makeWs = async (pub) => {
     //below sends everything in the client to a dovepub pds server
     const log = await bogbot.query()
     if (log) {
+      const ar = []
       for (const msg of log) {
         ws.send(msg.sig)
         if (msg.text) {
           ws.send(msg.text)
+          const yaml = await bogbot.parseYaml(msg.text)
+          //console.log(yaml)
+          if (yaml.image && !ar.includes(yaml.image)) {
+            const get = await bogbot.get(yaml.image)
+            if (get) {
+              ws.send(get)
+              ar.push(yaml.image)
+            }
+          }
         }
         if (!msg.text) {
           const get = await bogbot.get(msg.opened.substring(13))
