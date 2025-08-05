@@ -1,4 +1,4 @@
-//import { bogbot } from 'bogbot'
+import { bogbot } from 'bogbot'
 import { makeRoom } from './gossip.js'
 import { makeWs} from './websocket.js'
 
