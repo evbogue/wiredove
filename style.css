@@ -98,6 +98,14 @@ img {width: 95%; margin: 1em;}
 
 .material-symbols-outlined { color: #666; vertical-align: middle; font-size: 18px; cursor: pointer;}
 
+iframe {
+  width: 100%;
+  border: 1px solid #e4e4e4;
+  border-radius: 5px;
+  margin-top: 5px;
+  height: 275px;
+}
+
 #navbar {
   padding-top: .5em;
   padding-left: 1em;
@@ -157,14 +165,6 @@ img {width: 95%; margin: 1em;}
 .pubkey {
   color: #9da0a4;
   font-family: monospace;
-}
-
-iframe {
-  width: 100%;
-  border: 1px solid #e4e4e4;
-  border-radius: 5px;
-  margin-top: 5px;
-  height: 275px;
 }
 
 .avatar, .avatar_small {
