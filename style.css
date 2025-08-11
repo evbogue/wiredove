@@ -134,7 +134,7 @@ img {width: 95%; margin: 1em;}
   .message { background-color: #222; border: 1px solid #1e1e1e;}
   .message:hover { border: 1px solid #333;}
 
-  textarea, input { background: #222; color: #f5f5f5; border: 1px solid #222;}
+  textarea, input, iframe { background: #222; color: #f5f5f5; border: 1px solid #222;}
 
   button { color: #ccc; background: #333; border: 1px solid #444;}
   button:hover { background: #222;}
