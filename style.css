@@ -115,7 +115,8 @@ iframe {
   z-index: 1;
   top: 0;
   left: 0;
-  background-color: rgba(242,242,242,0.5);
+  background-color: rgba(248,248,248,0.5);
+  border-bottom: 1px solid #eee;
   backdrop-filter: blur(10px);
 }
 
@@ -138,7 +139,7 @@ iframe {
     background-color: #181818;
     color: #ccc;
   }
-  #navbar {  background-color: rgba(24,24,24,0.2); }
+  #navbar {  background-color: rgba(34,34,34,0.5); border-bottom: 1px solid #333; }
   .message { background-color: #222; border: 1px solid #1e1e1e;}
   .message:hover { border: 1px solid #333;}
 
