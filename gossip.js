@@ -1,4 +1,4 @@
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 import { joinRoom } from './trystero-torrent.min.js'
 import { render }  from './render.js'
 
@@ -25,16 +25,16 @@ export const makeRoom = async (pubkey) => {
 
     onHash(async (hash, id) => {
       console.log(`Received: ${hash}`)
-      const get = await bogbot.get(hash)
+      const get = await apds.get(hash)
       if (get) { sendBlob(get, id)}
-      const latest = await bogbot.getLatest(hash)
+      const latest = await apds.getLatest(hash)
       if (latest) { sendBlob(latest.sig)}
     }) 
 
     onBlob(async (blob, id) => {
       console.log(`Received: ${blob}`)
       await render.shouldWe(blob)
-      await bogbot.add(blob)
+      await apds.add(blob)
       await render.blob(blob)
     })
 

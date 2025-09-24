@@ -1,5 +1,5 @@
 import { h } from 'h'
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 import { marked } from 'https://esm.sh/gh/evbogue/bog5@de70376265/lib/marked.esm.js'
 
 const renderer = new marked.Renderer()
@@ -44,7 +44,7 @@ renderer.link = function (href, title, text) {
 // this does not work
 //renderer.image = async function (src, unknown, title) {
 //  if (src.length === 44) {
-//    const file = await bogbot.find(src)
+//    const file = await apds.find(src)
 //    if (file) {
 //      const div = document.getElementById(src)
 //      div.src = file

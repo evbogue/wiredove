@@ -1,8 +1,8 @@
 import {h} from 'h'
-import {bogbot} from 'bogbot'
+import {apds} from 'apds'
 
 const nameDiv = async () => {
-  const name = await bogbot.get('name')
+  const name = await apds.get('name')
 
   const namer = h('input', {
     placeholder: name || 'Name yourself'
@@ -13,7 +13,7 @@ const nameDiv = async () => {
     h('button', {onclick: async () => {
       if (namer.value) {
         namer.placeholder = namer.value
-        await bogbot.put('name', namer.value)
+        await apds.put('name', namer.value)
         namer.value = ''
         namerDiv.replaceWith(await genDiv())
       }
@@ -27,7 +27,7 @@ const saveButton = async (keypair) => {
   const button = h('button', {
     id: 'saveButton',
     onclick: async () => {
-      await bogbot.put('keypair', keypair)
+      await apds.put('keypair', keypair)
       document.location.reload()
     }
   }, ['Save'])
@@ -36,8 +36,8 @@ const saveButton = async (keypair) => {
 } 
 
 export const genDiv = async () => {
-  const initial = await bogbot.generate()
-  const name = await bogbot.get('name')
+  const initial = await apds.generate()
+  const name = await apds.get('name')
   const pubkey = h('span', {classList: 'pubkey'})
   const button = h('button', {
     onclick: async () => {
@@ -46,7 +46,7 @@ export const genDiv = async () => {
         if (alreadyButton) { alreadyButton.remove() }
         let done = true
         const genInterval = setInterval(async _ => {
-          const keypair = await bogbot.generate()
+          const keypair = await apds.generate()
           pubkey.textContent = keypair.substring(0, 10)
           if (keypair.substring(0, 2).toUpperCase() === name.substring(0, 2).toUpperCase()) {
             clearInterval(genInterval)
@@ -54,7 +54,7 @@ export const genDiv = async () => {
           }
         }, .000001)
       } else {
-        await bogbot.put('keypair', initial)
+        await apds.put('keypair', initial)
         document.location.reload()
       }
     }
@@ -86,7 +86,7 @@ export const identify = async () => {
   const div1 = h('span', [start])
 
 
-  if (!await bogbot.pubkey()) {
+  if (!await apds.pubkey()) {
     span.appendChild(div1)    
   }
   return span

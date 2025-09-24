@@ -1,5 +1,5 @@
 import { h } from 'h'
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 
 export const importBlob = async () => {
   const textarea = h('textarea', {placeholder: 'Import a bog5 message or blob'})
@@ -8,11 +8,11 @@ export const importBlob = async () => {
     onclick: async () => {
       if (textarea.value) {
         try {
-          const blob = await bogbot.make(textarea.value)
-          const msg = await bogbot.open(textarea.value)
-          window.location.hash = await bogbot.hash(textarea.value)
+          const blob = await apds.make(textarea.value)
+          const msg = await apds.open(textarea.value)
+          window.location.hash = await apds.hash(textarea.value)
           if (msg) {
-            await bogbot.add(textarea.value)
+            await apds.add(textarea.value)
           }
         } catch (err) {
         }

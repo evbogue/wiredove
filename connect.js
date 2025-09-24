@@ -1,8 +1,8 @@
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 import { makeRoom } from './gossip.js'
 import { makeWs} from './websocket.js'
 
-await bogbot.start('wiredovedbversion1')
+await apds.start('wiredovedbversion1')
 
 export const connect = async () => {
   await makeWs('wss://pub.wiredove.net/')

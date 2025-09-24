@@ -1,4 +1,4 @@
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 import { render } from './render.js'
 import { h } from 'h'
 import { composer } from './composer.js'
@@ -16,11 +16,11 @@ export const route = async () => {
   document.body.appendChild(scroller)
 
   if (src === '') {
-    const log = await bogbot.query()
+    const log = await apds.query()
     const newlog = []
     if (log) {
       for (const msg of log) {
-        if (!await bogbot.get('archived' + msg.hash)) {
+        if (!await apds.get('archived' + msg.hash)) {
           newlog.push(msg)
         }
       }
@@ -29,11 +29,11 @@ export const route = async () => {
   }
 
   else if (src === 'archive') {
-    const log = await bogbot.query()
+    const log = await apds.query()
     if (log) {
       const newlog = []
       for (const msg of log) {
-        if (await bogbot.get('archived' + msg.hash)) {
+        if (await apds.get('archived' + msg.hash)) {
           newlog.push(msg)
         }
       }
@@ -43,7 +43,7 @@ export const route = async () => {
     //  log.forEach(async (msg) => {
     //      const div = await render.hash(msg.hash)
     //      await scroller.insertBefore(div, scroller.firstChild)
-    //      const sig = await bogbot.get(msg.hash)
+    //      const sig = await apds.get(msg.hash)
     //      if (sig) { await render.blob(sig)}
     //    }
     //  })
@@ -51,7 +51,7 @@ export const route = async () => {
   } 
 
   else if (src === 'settings') {
-    if (await bogbot.pubkey()) {
+    if (await apds.pubkey()) {
       scroller.appendChild(await settings())
     } else {
       scroller.appendChild(await importKey())
@@ -70,7 +70,7 @@ export const route = async () => {
       let query = []
       for (const pubkey of ar) {
         await send(pubkey)
-        const q = await bogbot.query(pubkey)
+        const q = await apds.query(pubkey)
         if (q) {
           query.push(...q)
         }
@@ -83,7 +83,7 @@ export const route = async () => {
 
   else if (src.length === 44) {
     try {
-      const log = await bogbot.query(src)
+      const log = await apds.query(src)
       if (log && log[0]) {
         adder(log, src, scroller)
       } else {
@@ -94,18 +94,18 @@ export const route = async () => {
   } 
   else if (src.startsWith('?')) {
     try {
-      const log = await bogbot.query(src)
+      const log = await apds.query(src)
       if (log && log[0] && log != '') {
         adder(log, src, scroller)
       }
     } catch (err) {}
   }
   else if (src.length > 44) {
-    const hash = await bogbot.hash(src)
-    const opened = await bogbot.open(src)
+    const hash = await apds.hash(src)
+    const opened = await apds.open(src)
     if (opened) {
       await makeRoom(src.substring(0, 44))
-      await bogbot.add(src)
+      await apds.add(src)
     }
     const check = await document.getElementById(hash)
     if (!check) {

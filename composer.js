@@ -1,4 +1,4 @@
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 import { render } from './render.js'
 import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js' 
@@ -9,11 +9,11 @@ import { markdown } from './markdown.js'
 export const composer = async (sig) => {
   const obj = {}
   if (sig) {
-    const hash = await bogbot.hash(sig)
+    const hash = await apds.hash(sig)
     obj.replyHash = hash
     obj.replyAuthor = sig.substring(0, 44)
-    const opened = await bogbot.open(sig)
-    const msg = await bogbot.parseYaml(await bogbot.get(opened.substring(13)))
+    const opened = await apds.open(sig)
+    const msg = await apds.parseYaml(await apds.get(opened.substring(13)))
     if (msg.name) { obj.replyName = msg.name }
     if (msg.body) {obj.replyBody = msg.body}
   }
@@ -41,25 +41,25 @@ export const composer = async (sig) => {
   const replyObj = {}
 
   if (sig) {
-    replyObj.reply = await bogbot.hash(sig)
+    replyObj.reply = await apds.hash(sig)
     replyObj.replyto = sig.substring(0, 44)
   }
 
-  const pubkey = await bogbot.pubkey()
+  const pubkey = await apds.pubkey()
 
   const publishButton = h('button', {style: 'float: right;', onclick: async () => {
-    const published = await bogbot.compose(textarea.value, replyObj)
+    const published = await apds.compose(textarea.value, replyObj)
     textarea.value = ''
     const scroller = document.getElementById('scroller')
-    const signed = await bogbot.get(published)
-    const opened = await bogbot.open(signed)
+    const signed = await apds.get(published)
+    const opened = await apds.open(signed)
 
-    const blob = await bogbot.get(opened.substring(13))
+    const blob = await apds.get(opened.substring(13))
     await ntfy(signed)
     await ntfy(blob)
     await send(signed)
     await send(blob)
-    const hash = await bogbot.hash(signed)
+    const hash = await apds.hash(signed)
     div.id = hash
     await render.blob(signed)
     composerDiv.remove()

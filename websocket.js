@@ -1,4 +1,4 @@
-import {bogbot} from 'bogbot'
+import {apds} from 'apds'
 import { render} from './render.js'
 
 const pubs = new Set()
@@ -23,30 +23,30 @@ export const makeWs = async (pub) => {
   ws.onopen = async () => {
     console.log('OPEN')
     pubs.add(ws)
-    const p = await bogbot.getPubkeys()
+    const p = await apds.getPubkeys()
     for (const pub of p) {
       ws.send(pub)
-      const latest = await bogbot.getLatest(pub)
+      const latest = await apds.getLatest(pub)
       if (latest.text) {
         ws.send(latest.text)
       } else {
-        const blob = await bogbot.get(latest.opened.substring(13))
+        const blob = await apds.get(latest.opened.substring(13))
         if (blob) {ws.send(blob)}
       }
       ws.send(latest.sig)
     }
     //below sends everything in the client to a dovepub pds server
-    const log = await bogbot.query()
+    const log = await apds.query()
     if (log) {
       const ar = []
       for (const msg of log) {
         ws.send(msg.sig)
         if (msg.text) {
           ws.send(msg.text)
-          const yaml = await bogbot.parseYaml(msg.text)
+          const yaml = await apds.parseYaml(msg.text)
           //console.log(yaml)
           if (yaml.image && !ar.includes(yaml.image)) {
-            const get = await bogbot.get(yaml.image)
+            const get = await apds.get(yaml.image)
             if (get) {
               ws.send(get)
               ar.push(yaml.image)
@@ -54,7 +54,7 @@ export const makeWs = async (pub) => {
           }
         }
         if (!msg.text) {
-          const get = await bogbot.get(msg.opened.substring(13))
+          const get = await apds.get(msg.opened.substring(13))
           if (get) {ws.send(get)}
         }
       }
@@ -64,13 +64,13 @@ export const makeWs = async (pub) => {
   ws.onmessage = async (m) => {
     if (m.data.length === 44) {
       //console.log('NEEDS' + m.data)
-      const blob = await bogbot.get(m.data)
+      const blob = await apds.get(m.data)
       if (blob) {
         ws.send(blob)
       }
     } else {
       await render.shouldWe(m.data)
-      await bogbot.add(m.data)
+      await apds.add(m.data)
       await render.blob(m.data)
     }
   }

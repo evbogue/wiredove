@@ -1,11 +1,11 @@
 import { h } from 'h'
 import { identify } from './identify.js'
 import { imageSpan } from './profile.js'
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 import { composer } from './composer.js'
 
 const composeButton = async () => {
-  if (await bogbot.pubkey()) {
+  if (await apds.pubkey()) {
     return h('a', {href: '#',
       classList: 'material-symbols-outlined',
       onclick: async (e) => {
@@ -53,10 +53,10 @@ export const navbar = async () => {
     ]
   )
 
-  if (!await bogbot.keypair()) {
+  if (!await apds.keypair()) {
     div.appendChild(await identify())
   } else {
-    span.appendChild(h('a', {href: '#' + await bogbot.pubkey()},[await imageSpan()]))
+    span.appendChild(h('a', {href: '#' + await apds.pubkey()},[await imageSpan()]))
   }
 
   return div

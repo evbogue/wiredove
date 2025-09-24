@@ -1,8 +1,8 @@
 import { h } from 'h' 
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 
 export const nameDiv = async () => {
-  const name = await bogbot.get('name')
+  const name = await apds.get('name')
 
   const namer = h('input', {
     placeholder: name || 'Name yourself'
@@ -13,7 +13,7 @@ export const nameDiv = async () => {
     h('button', {onclick: async () => {
       if (namer.value) {
         namer.placeholder = namer.value
-        await bogbot.put('name', namer.value)
+        await apds.put('name', namer.value)
         namer.value = ''
       }
     }}, ['Save'])
@@ -23,17 +23,17 @@ export const nameDiv = async () => {
 }
 
 export const nameSpan = async () => {
-  const pubkey = await bogbot.pubkey()
-  const span = h('a', {href: '#' + pubkey, classList: 'avatarlink'}, [await bogbot.get('name') || pubkey.substring(0, 10)])
+  const pubkey = await apds.pubkey()
+  const span = h('a', {href: '#' + pubkey, classList: 'avatarlink'}, [await apds.get('name') || pubkey.substring(0, 10)])
   return span
 }
 
 export const imageSpan = async () => {
-  const avatarImg = await bogbot.visual(await bogbot.pubkey())
+  const avatarImg = await apds.visual(await apds.pubkey())
 
-  const existingImage = await bogbot.get('image')
+  const existingImage = await apds.get('image')
 
-  if (existingImage) { avatarImg.src = await bogbot.get(existingImage)}
+  if (existingImage) { avatarImg.src = await apds.get(existingImage)}
 
   avatarImg.classList = 'avatar_small'
   
@@ -41,11 +41,11 @@ export const imageSpan = async () => {
 }
 
 export const avatarSpan = async () => {
-  const avatarImg = await bogbot.visual(await bogbot.pubkey())
+  const avatarImg = await apds.visual(await apds.pubkey())
 
-  const existingImage = await bogbot.get('image')
+  const existingImage = await apds.get('image')
   
-  if (existingImage) { avatarImg.src = await bogbot.get(existingImage)}
+  if (existingImage) { avatarImg.src = await apds.get(existingImage)}
 
   avatarImg.classList = 'avatar'
 
@@ -83,13 +83,13 @@ export const avatarSpan = async () => {
           ctx.drawImage(img, 0, 0, width, height, 0, 0, cropWidth, cropHeight)
           const croppedImage = canvas.toDataURL()
           avatarImg.src = croppedImage
-          const hash = await bogbot.make(croppedImage)
-          await bogbot.put('image', hash)
+          const hash = await apds.make(croppedImage)
+          await apds.put('image', hash)
         } else {
           const croppedImage = canvas.toDataURL()
           avatarImg.src = img.src
-          const hash = await bogbot.make(img.src)
-          await bogbot.put('image', hash)
+          const hash = await apds.make(img.src)
+          await apds.put('image', hash)
         }
       }
       img.src = e.target.result
@@ -110,7 +110,7 @@ export const profile = async () => {
 
   div.appendChild(await avatarSpan())
 
-  div.appendChild(h('div', {classList: 'pubkey' }, [await bogbot.pubkey()]))
+  div.appendChild(h('div', {classList: 'pubkey' }, [await apds.pubkey()]))
 
   div.appendChild(await nameDiv())
   return div

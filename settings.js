@@ -1,5 +1,5 @@
 import { h } from 'h'
-import { bogbot } from 'bogbot'
+import { apds } from 'apds'
 import { nameDiv, avatarSpan } from './profile.js'
 
 export const importKey = async () => {
@@ -7,9 +7,9 @@ export const importKey = async () => {
 
   const button = h('button', {
     onclick: async () => {
-      const trashkey = await bogbot.generate()
+      const trashkey = await apds.generate()
       if (textarea.value && textarea.value.length === trashkey.length) {
-        await bogbot.put('keypair', textarea.value)
+        await apds.put('keypair', textarea.value)
         window.location.hash = '#'
         location.reload()
       } else { alert('Invalid Keypair')}
@@ -26,14 +26,14 @@ export const importKey = async () => {
 } 
 
 const editKey = async () => {
-  const textarea = h('textarea', [await bogbot.keypair()])
+  const textarea = h('textarea', [await apds.keypair()])
   const span = h('span', [
     textarea,
     h('button', {
       onclick: async () => {
-        const keypair = await bogbot.keypair()
+        const keypair = await apds.keypair()
         if (textarea.value.length === keypair.length) {
-          await bogbot.put('keypair', textarea.value)
+          await apds.put('keypair', textarea.value)
           window.location.hash = '#'
           location.reload()
         } else { alert('Invalid Keypair')}
@@ -41,7 +41,7 @@ const editKey = async () => {
     }, ['Import key']),
     h('button', {
       onclick: async () => {
-        await bogbot.deletekey()
+        await apds.deletekey()
         window.location.hash = '#'
         location.reload()
       }
@@ -52,7 +52,7 @@ const editKey = async () => {
 
 const deleteEverything = h('button', {
   onclick: async () => {
-    await bogbot.clear()
+    await apds.clear()
     window.location.hash = '#'
     location.reload()
   }
@@ -61,7 +61,7 @@ const deleteEverything = h('button', {
 
 //const didweb = async () => {
 //  const input = h('input', {placeholder: 'https://yourwebsite.com/'})
-//  const get = await bogbot.get('didweb')
+//  const get = await apds.get('didweb')
 //  if (get) {input.placeholder = get}
 //
 //  return h('div', [
