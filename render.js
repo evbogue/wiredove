@@ -156,6 +156,8 @@ render.comments = async (hash, blob, div) => {
   ]))
 }
 
+const cache = new Map()
+
 render.content = async (hash, blob, div) => {
   const contentHash = await apds.hash(blob)
   const yaml = await apds.parseYaml(blob)
@@ -170,10 +172,15 @@ render.content = async (hash, blob, div) => {
     if (yaml.image) {
       const get = await document.getElementById('image' + contentHash)
       if (get) {
-        const image = await apds.get(yaml.image)
-        if (image) {
-          get.src = image
-        } else { send(yaml.image)}
+        if (cache.get(yaml.image)) {
+          get.src = cache.get(yaml.image)
+        } else {
+          const image = await apds.get(yaml.image)
+          cache.set(yaml.image, image)
+          if (image) {
+            get.src = image
+          } else { send(yaml.image)}
+        }
       }
     }
 
