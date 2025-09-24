@@ -225,13 +225,16 @@ render.blob = async (blob) => {
   const div = await document.getElementById(hash)
 
   const opened = await apds.open(blob)
-
+  const getimg = await document.getElementById('image' + hash)
   if (opened && div && !div.childNodes[1]) {
     await render.meta(blob, opened, hash, div)
     //await render.comments(hash, blob, div)
   } else if (div && !div.childNodes[1]) {
     await render.content(hash, blob, div)
   }
+  if (getimg) {
+    getimg.src = blob
+  } 
 }
 
 render.shouldWe = async (blob) => {
