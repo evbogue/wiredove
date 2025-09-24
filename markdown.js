@@ -1,6 +1,7 @@
 import { h } from 'h'
 import { apds } from 'apds'
 import { marked } from 'https://esm.sh/gh/evbogue/bog5@de70376265/lib/marked.esm.js'
+import { send } from './send.js'
 
 const renderer = new marked.Renderer()
 
@@ -41,17 +42,19 @@ renderer.link = function (href, title, text) {
   }
 }
 
-// this does not work
-//renderer.image = async function (src, unknown, title) {
-//  if (src.length === 44) {
-//    const file = await apds.find(src)
-//    if (file) {
-//      const div = document.getElementById(src)
-//      div.src = file
-//    } 
-//    return '<div><img id="' + src + '" title="' + title + '" class="thumb" /></div>'
-//  }
-//}
+renderer.image = function (src, unknown, title) {
+  if (src.length === 44) {
+    apds.get(src).then(async (img) => {
+      if (img) {
+        const image = document.getElementById('image'+src)
+        image.src = img
+      } else {
+        send(src)
+      }
+    })
+    return `<img id="image${src}" />`
+  }
+}
 
 marked.setOptions({
   renderer: renderer

@@ -5,6 +5,7 @@ import { avatarSpan, nameSpan } from './profile.js'
 import { ntfy } from './ntfy.js' 
 import { send } from './send.js'
 import { markdown } from './markdown.js'
+import { imgUpload } from './upload.js'
 
 export const composer = async (sig) => {
   const obj = {}
@@ -93,7 +94,8 @@ export const composer = async (sig) => {
     await nameSpan(),
     replyDiv,
     textareaDiv,
-    previewDiv
+    previewDiv,
+    await imgUpload(textarea)
   ])
 
   const div = h('div', {classList: 'message'}, [
