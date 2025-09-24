@@ -2,8 +2,6 @@
 
 ![Wiredove Logo](dove_sm.png)
 
-![ANProto Logo](doveorange_sm.png)
-
 A work-in-progress experimental distributed social networking application built on [ANProto](https://anproto.com/)'s for message authentication, [apds](https://apds.anproto.com/) for message distribution, and [Trystero](https://github.com/dmotz/trystero) for multiplayer serverless collaboration.
 
 Try it at: https://wiredove.net/
