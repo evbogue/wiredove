@@ -49,7 +49,7 @@ renderer.image = function (src, unknown, title) {
         const image = document.getElementById('image'+src)
         image.src = img
       } else {
-        send(src)
+        await send(src)
       }
     })
     return `<img id="image${src}" />`
