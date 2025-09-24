@@ -2,21 +2,29 @@
 
 ![Wiredove Logo](dove_sm.png)
 
-![Aproto Logo](doveorange_sm.png)
+![ANProto Logo](doveorange_sm.png)
 
-A work-in-progress experimental distributed social networking application built on at the [Bog5 Protocol](https://github.com/evbogue/bog5) for message authentication and [Trystero](https://github.com/dmotz/trystero) for multiplayer serverless collaboration.
+A work-in-progress experimental distributed social networking application built on [ANProto](https://anproto.com/)'s for message authentication, [apds](https://apds.anproto.com/) for message distribution, and [Trystero](https://github.com/dmotz/trystero) for multiplayer serverless collaboration.
 
 Try it at: https://wiredove.net/
 
-For new message notifications subscribe via https://ntfy.sh/wiredove
+For new message notifications subscribe via https://ntfy.sh/wiredove since Wiredove doesn't have in-app notifications yet.
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
-If you're familiar with Bluesky you can think of Wiredove as a PDS (personal data server) for the Bog5 protocol. If you're familiar with Secure-Scuttlebot then you can think of Wiredove as a pub that exists in your web browser.
+### Comparisons
 
-### Pub directory server
+WIP
 
-Bog5 protocol messages can be long, to make up for this we use a centralized directory to easily sync a users many public keys.
+Compare to Bluesky's ATProto
+
+Compare to Nostr
+
+Compare to Secure-Scuttlebot
+
+### ANProto directory
+
+ANProto protocol messages are long enough to not be memorable, to bust thru Zooko's triangle]] we can deploy centralized directory services that map usernames to arrays of keypairs. 
 
 Here's an example JSON server: https://pub.wiredove.net/ev
 
@@ -24,9 +32,9 @@ Try it out in your browser: https://wiredove.net/#ev
 
 The code for this is at https://github.com/evbogue/dovepub
 
-### Bog5 protocol messages
+### ANProto messages
 
-Bog5 is the latest iteration of the Bogbook protocol, but the 5th version aims to be as simple and extensible as possible by simply signing timestamped hashes. These hashes retrieve Yaml documents that contain an author's name, image hash, and the author's previous post. 
+[](https://anproto.com/)  is the latest iteration of the Bogbook protocol, but the 5.1th version aims to be as simple and extensible as possible by simply signing timestamped hashes. These hashes retrieve Yaml documents that contain an author's name, image hash, and the author's previous post. A bonus is that ANProto is no longer called Bogbook, which was a hilarious name but not the best look on marketing materials. 
 
 In this version we've opted to include the avatar name in every post due to previous attempts at impersonation attacks. You can now easily see an author's name and image and how they change over the history of their posts so if someone starts off as 'anonymous commenter' and then switches their name to 'ev' you can see this occur in the feed history. It is also easy to confirm the public key of the post and authenticate whether the messages arrived from approved public keys.
 
@@ -40,7 +48,7 @@ Since there are not many active peers at the moment I've set up an ntfy channel 
 
 ### URL embeds
 
-Bog5 messages are as short as they can be, so it can be possible to relay messages using URL embeds. Open opening the below link, Wiredove will open a Trystero room for the author of the message and attempt to sync the message if any peer is available in that room. 
+ANProto messages are as short as they can be, so it can be possible to relay messages using URL embeds. Open opening the below link, Wiredove will open a Trystero room for the author of the message and attempt to sync the message if any peer is available in that room. 
 
 https://wiredove.net/#evSFOKnXaF9ZWSsff8bVfXP6+XnGZUj8XNp6bca590k=+MmR4IUxD/w26xkn4VoIkNr3zPXQ+mV6DED3+FuglngiX5f6gube5chIDsSGN6vZQWptg4i0BiScx9NQzINnBjE3NDgyODA1MDY0NTd3TTQvbHJWRGZFcDc2dDhNRjhwVzAwb0tWeGZDY21DdzNJMmVHWEVUaDZZPQ==
 
