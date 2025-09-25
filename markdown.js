@@ -46,13 +46,13 @@ renderer.image = function (src, unknown, title) {
   if (src.length === 44) {
     apds.get(src).then(async (img) => {
       if (img) {
-        const image = document.getElementById('image'+src)
+        const image = document.getElementById('inlineimage'+src)
         image.src = img
       } else {
         await send(src)
       }
     })
-    return `<img id="image${src}" />`
+    return `<img id="inlineimage${src}" />`
   }
 }
 
