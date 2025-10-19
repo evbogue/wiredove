@@ -6,7 +6,9 @@ export let chan
 
 export const sendTry = (m) => {
   if (chan) {
-    if (m.length === 44) { chan.sendHash(m)} else {
+    if (m.length === 44) { 
+      chan.sendHash(m)} 
+    else {
       chan.sendBlob(m)
     }
   } else {
@@ -33,6 +35,7 @@ export const makeRoom = async (pubkey) => {
 
     onBlob(async (blob, id) => {
       console.log(`Received: ${blob}`)
+      await apds.make(blob)
       await render.shouldWe(blob)
       await apds.add(blob)
       await render.blob(blob)
