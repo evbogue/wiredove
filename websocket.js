@@ -36,29 +36,29 @@ export const makeWs = async (pub) => {
       ws.send(latest.sig)
     }
     //below sends everything in the client to a dovepub pds server
-    const log = await apds.query()
-    if (log) {
-      const ar = []
-      for (const msg of log) {
-        ws.send(msg.sig)
-        if (msg.text) {
-          ws.send(msg.text)
-          const yaml = await apds.parseYaml(msg.text)
-          //console.log(yaml)
-          if (yaml.image && !ar.includes(yaml.image)) {
-            const get = await apds.get(yaml.image)
-            if (get) {
-              ws.send(get)
-              ar.push(yaml.image)
-            }
-          }
-        }
-        if (!msg.text) {
-          const get = await apds.get(msg.opened.substring(13))
-          if (get) {ws.send(get)}
-        }
-      }
-    }
+    //const log = await apds.query()
+    //if (log) {
+    //  const ar = []
+    //  for (const msg of log) {
+    //    ws.send(msg.sig)
+    //    if (msg.text) {
+    //      ws.send(msg.text)
+    //      const yaml = await apds.parseYaml(msg.text)
+    //      //console.log(yaml)
+    //      if (yaml.image && !ar.includes(yaml.image)) {
+    //        const get = await apds.get(yaml.image)
+    //        if (get) {
+    //          ws.send(get)
+    //          ar.push(yaml.image)
+    //        }
+    //      }
+    //    }
+    //    if (!msg.text) {
+    //      const get = await apds.get(msg.opened.substring(13))
+    //      if (get) {ws.send(get)}
+    //    }
+    //  }
+    //}
   }
 
   ws.onmessage = async (m) => {
@@ -70,6 +70,7 @@ export const makeWs = async (pub) => {
       }
     } else {
       await render.shouldWe(m.data)
+      await apds.make(m.data)
       await apds.add(m.data)
       await render.blob(m.data)
     }
