@@ -163,6 +163,8 @@ iframe {
     to   { opacity: 1; }
 }
 
+.reply { margin-left: 1em; }
+
 .pubkey {
   color: #9da0a4;
   font-family: monospace;

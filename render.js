@@ -121,24 +121,25 @@ render.meta = async (blob, opened, hash, div) => {
 } 
 
 render.comments = async (hash, blob, div) => {
-  const num = h('span')
+  //const num = h('span')
 
   const log = await apds.getOpenedLog()
   const src = document.location.hash.substring(1)
 
-  let nume = 0
+  //let nume = 0
   log.forEach(async msg => {
     const yaml = await apds.parseYaml(msg.text)
     if (yaml.replyHash) { yaml.reply = yaml.replyHash}
     if (yaml.reply === hash) {
-      ++nume
-      num.textContent = nume
-      if (src === yaml.reply) {
-        const replyDiv = await render.hash(msg.hash)
-        replyDiv.classList = 'message reply'
-        div.after(replyDiv)
+      //++nume
+      //num.textContent = nume
+      //if (src === yaml.reply) {
+        const replyContain = h('div', {classList: 'reply'}, [
+          await render.hash(msg.hash)
+        ])
+        div.after(replyContain)
         await render.blob(await apds.get(msg.hash))
-      }
+      //}
     }
   })
 
@@ -152,7 +153,7 @@ render.comments = async (hash, blob, div) => {
   }, ['Chat_Bubble'])
 
   div.appendChild(h('div', {style: 'margin-left: 43px;'}, [
-    reply, ' ', num
+    reply
   ]))
 }
 
