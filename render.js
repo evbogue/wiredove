@@ -221,7 +221,7 @@ render.content = async (hash, blob, div) => {
 
 render.blob = async (blob) => {
   const hash = await apds.hash(blob)
-
+  
   const div = await document.getElementById(hash)
 
   const opened = await apds.open(blob)
@@ -260,8 +260,8 @@ render.shouldWe = async (blob) => {
       const scroller = document.getElementById('scroller')
       const div = await render.hash(hash)
       if (div) {
-        scroller.appendChild(div)
-        //scroller.insertBefore(div, scroller.firstChild)
+        //scroller.appendChild(div)
+        scroller.insertBefore(div, scroller.firstChild)
         await render.blob(blob)
       }
     }
