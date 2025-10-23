@@ -32,28 +32,6 @@ render.meta = async (blob, opened, hash, div) => {
 
   let show = true
 
-  const archiver = h('span')
-
-  const unread = h('a', {
-    onclick: async () => {
-      await apds.put('archived' + hash, hash)
-      meta.remove()
-    },
-    classList: 'material-symbols-outlined'
-  }, ['Check'])
-
-  const read = h('a', {
-    onclick: async () => {
-      await apds.rm('archived' + hash)
-      meta.remove()
-    },
-    classList: 'material-symbols-outlined'
-  }, ['Close'])
-
-  if (await apds.get('archived' + hash)) {
-    archiver.appendChild(read)
-  } else { archiver.appendChild(unread)}
-
   const rawDiv = h('div')
 
   let rawshow = true
@@ -74,15 +52,13 @@ render.meta = async (blob, opened, hash, div) => {
   const right = h('span', {style: 'float: right;'}, [
     h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
     ' ',
-    archiver,
+    await render.qr(hash, blob),
     ' ',
     permalink,
     ' ',
     raw,
     ' ',
     ts,
-    ' ',
-    await render.qr(hash, blob),
   ])
 
   const contentHash = opened.substring(13)
@@ -261,8 +237,8 @@ render.shouldWe = async (blob) => {
       const scroller = document.getElementById('scroller')
       const div = await render.hash(hash)
       if (div) {
-        //scroller.appendChild(div)
-        scroller.insertBefore(div, scroller.firstChild)
+        scroller.appendChild(div)
+        //scroller.insertBefore(div, scroller.firstChild)
         await render.blob(blob)
       }
     }

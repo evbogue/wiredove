@@ -32,7 +32,7 @@ const searchInput = h('input', {
 })
 
 export const navbar = async () => {
-  const span = h('span', {style: 'margin-left: 5px; margin-right: 25px; float: right;'})
+  const span = h('span', {style: 'margin-left: 5px; float: right;'})
 
   const div = h('div', 
     {id: 'navbar'},
@@ -40,10 +40,6 @@ export const navbar = async () => {
       h('a', {href: '#', classList: 'material-symbols-outlined'}, [h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})]),
       ' ',
       await composeButton(),
-      ' ',
-      //h('a', {href: '#import', classList: 'material-symbols-outlined'}, ['Post_Add']),
-      //' ',
-      h('a', {href: '#archive', classList: 'material-symbols-outlined'}, ['Archive']),
       ' ',
       span,
       ' ',

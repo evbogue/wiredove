@@ -110,8 +110,9 @@ iframe {
   padding-top: .5em;
   padding-left: 1em;
   padding-bottom: .5em;
+  padding-right: 5em;
   position: fixed;
-  width: 100%;
+  width: 98.5%;
   z-index: 1;
   top: 0;
   left: 0;

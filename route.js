@@ -17,38 +17,11 @@ export const route = async () => {
 
   if (src === '') {
     const log = await apds.query()
-    const newlog = []
-    if (log) {
-      for (const msg of log) {
-        if (!await apds.get('archived' + msg.hash)) {
-          newlog.push(msg)
-        }
-      }
-      adder(newlog, src, scroller)
+    if (log && log[0]) {
+      log.sort((a,b) => a.ts - b.ts)
+      adder(log, src, scroller)
     }
   }
-
-  else if (src === 'archive') {
-    const log = await apds.query()
-    if (log) {
-      const newlog = []
-      for (const msg of log) {
-        if (await apds.get('archived' + msg.hash)) {
-          newlog.push(msg)
-        }
-      }
-      adder(newlog, src, scroller)
-    }
-    //if (log) {
-    //  log.forEach(async (msg) => {
-    //      const div = await render.hash(msg.hash)
-    //      await scroller.insertBefore(div, scroller.firstChild)
-    //      const sig = await apds.get(msg.hash)
-    //      if (sig) { await render.blob(sig)}
-    //    }
-    //  })
-    //}
-  } 
 
   else if (src === 'settings') {
     if (await apds.pubkey()) {
@@ -75,8 +48,6 @@ export const route = async () => {
           query.push(...q)
         }
       }
-      await query.sort((a, b) => a.ts - b.ts)
-      //console.log(query)
       adder(query, src, scroller)
     } catch (err) {console.log(err)}
   } 
@@ -85,6 +56,7 @@ export const route = async () => {
     try {
       const log = await apds.query(src)
       if (log && log[0]) {
+        log.sort((a,b) => a.ts - b.ts)
         adder(log, src, scroller)
       } else {
         console.log('we do not have it')
@@ -96,6 +68,7 @@ export const route = async () => {
     try {
       const log = await apds.query(src)
       if (log && log[0] && log != '') {
+        log.sort((a,b) => a.ts - b.ts)
         adder(log, src, scroller)
       }
     } catch (err) {}
@@ -104,7 +77,7 @@ export const route = async () => {
     const hash = await apds.hash(src)
     const opened = await apds.open(src)
     if (opened) {
-      await makeRoom(src.substring(0, 44))
+      //await makeRoom(src.substring(0, 44))
       await apds.add(src)
     }
     const check = await document.getElementById(hash)
