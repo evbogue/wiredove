@@ -35,6 +35,7 @@ export const makeRoom = async (pubkey) => {
 
     onBlob(async (blob, id) => {
       console.log(`Received: ${blob}`)
+      //await process(blob) <-- trystero and ws should use the same process function
       await apds.make(blob)
       await render.shouldWe(blob)
       await apds.add(blob)
@@ -43,6 +44,8 @@ export const makeRoom = async (pubkey) => {
 
     room.onPeerJoin(async (id) => {
       console.log(id + ' joined the room ' + pubkey)
+      const latest = await apds.getLatest(await apds.pubkey()) 
+      if (latest) { sendblob(latest.sig) }
     })
 
     room.onPeerLeave(id => {
