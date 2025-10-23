@@ -36,8 +36,13 @@ const sync = h('a', {
   style: 'float: right; margin-top: 3px;',
   classList: 'material-symbols-outlined',
   onclick: async (e) => {
+    sync.remove()
+    const remotelog = await fetch('https://pub.wiredove.net/').then(l => l.json())
+    for (const m of remotelog) {
+      await apds.add(m.sig)
+      await apds.make(m.text)
+    }
     const log = await apds.query()
-    console.log(log)
     if (log) {
       const ar = []
       for (const msg of log) {
@@ -58,7 +63,10 @@ const sync = h('a', {
           if (get) {sendWs(get)}
         }
       }
-    }}
+    }
+    window.location.hash = 'whut'
+    window.location.hash = ''
+  }
 }, ['Autorenew'])
 
 export const navbar = async () => {
