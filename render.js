@@ -233,7 +233,7 @@ render.shouldWe = async (blob) => {
     const msg = await apds.get(opened.substring(13))
     const yaml = await apds.parseYaml(msg)
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
-    if (blob.substring(0, 44) === src || hash === src || yaml.author === src || src === '' || al.includes(blob.substring(0, 44))) {
+    if (blob.substring(0, 44) === src || hash === src || yaml.author === src || al.includes(blob.substring(0, 44))) {
       const scroller = document.getElementById('scroller')
       const div = await render.hash(hash)
       if (div) {
@@ -242,6 +242,15 @@ render.shouldWe = async (blob) => {
         await render.blob(blob)
       }
     }
+    if (src === '') {
+      const scroller = document.getElementById('scroller')
+      const div = await render.hash(hash)
+      if (div) {
+        //scroller.appendChild(div)
+        scroller.insertBefore(div, scroller.firstChild)
+        await render.blob(blob)
+      }
+    } 
   }
 }
 
