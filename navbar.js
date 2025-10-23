@@ -3,6 +3,7 @@ import { identify } from './identify.js'
 import { imageSpan } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
+import { sendWs } from './websocket.js' 
 
 const composeButton = async () => {
   if (await apds.pubkey()) {
@@ -31,6 +32,35 @@ const searchInput = h('input', {
   }
 })
 
+const sync = h('a', {
+  style: 'float: right; margin-top: 3px;',
+  classList: 'material-symbols-outlined',
+  onclick: async (e) => {
+    const log = await apds.query()
+    console.log(log)
+    if (log) {
+      const ar = []
+      for (const msg of log) {
+        sendWs(msg.sig)
+        if (msg.text) {
+          sendWs(msg.text)
+          const yaml = await apds.parseYaml(msg.text)
+          if (yaml.image && !ar.includes(yaml.image)) {
+            const get = await apds.get(yaml.image)
+            if (get) {
+              sendWs(get)
+              ar.push(yaml.image)
+            }
+          }
+        }
+        if (!msg.text) {
+          const get = await apds.get(msg.opened.substring(13))
+          if (get) {sendWs(get)}
+        }
+      }
+    }}
+}, ['Autorenew'])
+
 export const navbar = async () => {
   const span = h('span', {style: 'margin-left: 5px; float: right;'})
 
@@ -44,6 +74,7 @@ export const navbar = async () => {
       span,
       ' ',
       h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'float: right; margin-top: 3px;'}, ['Settings']),
+      sync,
       h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 5px; margin-top: 3px;'}, ['Folder_Data']),
       searchInput,
     ]
