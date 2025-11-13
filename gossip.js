@@ -45,7 +45,7 @@ export const makeRoom = async (pubkey) => {
     room.onPeerJoin(async (id) => {
       console.log(id + ' joined the room ' + pubkey)
       const latest = await apds.getLatest(await apds.pubkey()) 
-      if (latest) { sendblob(latest.sig) }
+      if (latest) { sendBlob(latest.sig) }
     })
 
     room.onPeerLeave(id => {
