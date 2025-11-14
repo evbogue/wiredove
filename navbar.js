@@ -37,7 +37,7 @@ const sync = h('a', {
   classList: 'material-symbols-outlined',
   onclick: async (e) => {
     sync.remove()
-    const remotelog = await fetch('https://pub.wiredove.net/').then(l => l.json())
+    const remotelog = await fetch('https://pub.wiredove.net/all').then(l => l.json())
     for (const m of remotelog) {
       await apds.add(m.sig)
       await apds.make(m.text)
