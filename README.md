@@ -10,6 +10,28 @@ For new message notifications subscribe via https://ntfy.sh/wiredove since Wired
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
+### Running with Docker
+
+Build the image from the project root:
+
+```bash
+docker build -t wiredove .
+```
+
+Or use Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Run the container and expose it on port 8000:
+
+```bash
+docker run --rm -p 8000:8000 wiredove
+```
+
+Then open `http://localhost:8000` in your browser.
+
 ### Comparisons
 
 WIP
