@@ -3,16 +3,33 @@ import { joinRoom } from './trystero-torrent.min.js'
 import { render }  from './render.js'
 
 export let chan
+const gossipQueue = []
+
+let roomReadyResolver
+const createRoomReady = () => new Promise(resolve => {
+  roomReadyResolver = resolve
+})
+export let roomReady = createRoomReady()
+
+const sendOverChan = (m) => {
+  if (m.length === 44) {
+    chan.sendHash(m)
+  } else {
+    chan.sendBlob(m)
+  }
+}
+
+const flushGossipQueue = () => {
+  while (gossipQueue.length && chan) {
+    sendOverChan(gossipQueue.shift())
+  }
+}
 
 export const sendTry = (m) => {
   if (chan) {
-    if (m.length === 44) { 
-      chan.sendHash(m)} 
-    else {
-      chan.sendBlob(m)
-    }
+    sendOverChan(m)
   } else {
-    setTimeout(() => {sendTry(m)}, 1000)
+    gossipQueue.push(m)
   }
 }
 
@@ -53,5 +70,9 @@ export const makeRoom = async (pubkey) => {
     })
 
     chan = room
+    roomReadyResolver?.()
+    flushGossipQueue()
   }
+
+  return roomReady
 }

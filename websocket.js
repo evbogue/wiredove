@@ -2,18 +2,31 @@ import {apds} from 'apds'
 import { render} from './render.js'
 
 const pubs = new Set()
+const wsQueue = []
+
+let wsReadyResolver
+const createWsReadyPromise = () => new Promise(resolve => {
+  wsReadyResolver = resolve
+})
+export let wsReady = createWsReadyPromise()
+
+const deliverWs = (msg) => {
+  pubs.forEach(pub => {
+    pub.send(msg)
+  })
+}
+
+const flushWsQueue = () => {
+  while (wsQueue.length) {
+    deliverWs(wsQueue.shift())
+  }
+}
 
 export const sendWs = async (msg) => {
   if (pubs.size) {
-    pubs.forEach(pub => {
-      pub.send(msg)
-    })
+    deliverWs(msg)
   } else {
-    setTimeout(async () => {
-      pubs.forEach(pub => {
-        pub.send(msg)
-      })
-    }, 1000)
+    wsQueue.push(msg)
   }
 }
 
@@ -23,6 +36,8 @@ export const makeWs = async (pub) => {
   ws.onopen = async () => {
     console.log('OPEN')
     pubs.add(ws)
+    wsReadyResolver?.()
+    flushWsQueue()
     const p = await apds.getPubkeys()
     for (const pub of p) {
       ws.send(pub)
@@ -79,6 +94,10 @@ export const makeWs = async (pub) => {
   ws.onclose = async () => {
     console.log('CLOSED')
     pubs.delete(ws)
+    if (!pubs.size) {
+      wsReady = createWsReadyPromise()
+    }
   }
-}
 
+  return wsReady
+}

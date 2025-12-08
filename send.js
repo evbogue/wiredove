@@ -3,6 +3,6 @@ import { sendTry } from './gossip.js'
 
 export const send = async (m) => {
   console.log('SENDING' + m)
-  await sendWs(m)
-  await sendTry(m)
+  sendWs(m)
+  sendTry(m)
 }
