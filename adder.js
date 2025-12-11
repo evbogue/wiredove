@@ -3,7 +3,7 @@ import { apds } from 'apds'
 
 const addPosts = async (posts, div) => {
   for (const post of posts) {
-    div.appendChild(await render.hash(post.hash))
+    div.appendChild(render.hash(post.hash))
     setTimeout(async () => {
       const sig = await apds.get(post.hash)
       await render.blob(sig)
@@ -30,4 +30,3 @@ export const adder = (log, src, div) => {
     }
   }
 }
-

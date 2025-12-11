@@ -6,7 +6,7 @@ import { markdown } from './markdown.js'
 
 export const render = {}
 
-render.qr = async (hash, blob, target) => {
+render.qr = (hash, blob, target) => {
   const link = h('a', {
     onclick: () => {
       const qrTarget = target || document.getElementById('qr-target' + hash)
@@ -37,9 +37,18 @@ render.qr = async (hash, blob, target) => {
 }
 
 render.meta = async (blob, opened, hash, div) => {
-  const ts = h('a', {href: '#' + hash}, [await apds.human(opened.substring(0, 13))])
-  setInterval(async () => {ts.textContent = await apds.human(opened.substring(0, 13))}, 1000)
+  const timestamp = opened.substring(0, 13)
+  const contentHash = opened.substring(13)
   const author = blob.substring(0, 44)
+
+  const [humanTime, contentBlob, img] = await Promise.all([
+    apds.human(timestamp),
+    apds.get(contentHash),
+    apds.visual(author)
+  ])
+
+  const ts = h('a', {href: '#' + hash}, [humanTime])
+  setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
 
   const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
 
@@ -49,11 +58,13 @@ render.meta = async (blob, opened, hash, div) => {
 
   let rawshow = true
 
-  const contentBlob = await apds.get(opened.substring(13))
-  const rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + contentBlob])
+  let rawContent
 
   const raw = h('a', {classList: 'material-symbols-outlined', onclick: async () => {
     if (rawshow) {
+      if (!rawContent) {
+        rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + (contentBlob || '')])
+      }
       rawDiv.appendChild(rawContent)
       rawshow = false
     } else {
@@ -67,7 +78,7 @@ render.meta = async (blob, opened, hash, div) => {
   const right = h('span', {style: 'float: right;'}, [
     h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
     ' ',
-    await render.qr(hash, blob, qrTarget),
+    render.qr(hash, blob, qrTarget),
     ' ',
     permalink,
     ' ',
@@ -76,9 +87,6 @@ render.meta = async (blob, opened, hash, div) => {
     ts,
   ])
 
-  const contentHash = opened.substring(13)
-
-  const img = await apds.visual(author)
   img.classList = 'avatar'
   img.id = 'image' + contentHash
   img.style = 'float: left;'
@@ -102,14 +110,11 @@ render.meta = async (blob, opened, hash, div) => {
   ])
 
   div.replaceWith(meta)
-  //div.appendChild(meta)
-  await render.comments(hash, blob, meta)
-  const getContent = await apds.get(contentHash)
-  if (getContent) {
-    await render.content(contentHash, getContent, content)
-  } else {
-    await send(contentHash)
-  }
+  const comments = render.comments(hash, blob, meta)
+  await Promise.all([
+    comments,
+    contentBlob ? render.content(contentHash, contentBlob, content) : send(contentHash)
+  ])
 } 
 
 render.comments = async (hash, blob, div) => {
@@ -127,7 +132,7 @@ render.comments = async (hash, blob, div) => {
       num.textContent = nume
       //if (src === yaml.reply) {
         const replyContain = h('div', {classList: 'reply'}, [
-          await render.hash(msg.hash)
+          render.hash(msg.hash)
         ])
         div.after(replyContain)
         await render.blob(await apds.get(msg.hash))
@@ -152,8 +157,11 @@ render.comments = async (hash, blob, div) => {
 const cache = new Map()
 
 render.content = async (hash, blob, div) => {
-  const contentHash = await apds.hash(blob)
-  const yaml = await apds.parseYaml(blob)
+  const contentHashPromise = hash ? Promise.resolve(hash) : apds.hash(blob)
+  const [contentHash, yaml] = await Promise.all([
+    contentHashPromise,
+    apds.parseYaml(blob)
+  ])
 
   if (yaml && yaml.body) {
     div.classList = 'content'
@@ -163,7 +171,7 @@ render.content = async (hash, blob, div) => {
     div.innerHTML = html
 
     if (yaml.image) {
-      const get = await document.getElementById('image' + contentHash)
+      const get = document.getElementById('image' + contentHash)
       if (get) {
         if (cache.get(yaml.image)) {
           get.src = cache.get(yaml.image)
@@ -178,7 +186,7 @@ render.content = async (hash, blob, div) => {
     }
 
     if (yaml.name) {
-      const get = await document.getElementById('name' + contentHash)
+      const get = document.getElementById('name' + contentHash)
       if (get) { get.textContent = yaml.name}
     }
 
@@ -213,12 +221,14 @@ render.content = async (hash, blob, div) => {
 }
 
 render.blob = async (blob) => {
-  const hash = await apds.hash(blob)
+  const [hash, opened] = await Promise.all([
+    apds.hash(blob),
+    apds.open(blob)
+  ])
   
-  const div = await document.getElementById(hash)
+  const div = document.getElementById(hash)
 
-  const opened = await apds.open(blob)
-  const getimg = await document.getElementById('inlineimage' + hash)
+  const getimg = document.getElementById('inlineimage' + hash)
   if (opened && div && !div.childNodes[1]) {
     await render.meta(blob, opened, hash, div)
     //await render.comments(hash, blob, div)
@@ -230,8 +240,10 @@ render.blob = async (blob) => {
 }
 
 render.shouldWe = async (blob) => {
-  const opened = await apds.open(blob)
-  const hash = await apds.hash(blob)
+  const [opened, hash] = await Promise.all([
+    apds.open(blob),
+    apds.hash(blob)
+  ])
   const already = await apds.get(hash)
   if (!already) {
     await apds.make(blob)
@@ -245,13 +257,12 @@ render.shouldWe = async (blob) => {
       al.push(...parse)
       console.log(al)
     }
-    const hash = await apds.hash(blob)
     const msg = await apds.get(opened.substring(13))
     const yaml = await apds.parseYaml(msg)
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
     if (blob.substring(0, 44) === src || hash === src || yaml.author === src || al.includes(blob.substring(0, 44))) {
       const scroller = document.getElementById('scroller')
-      const div = await render.hash(hash)
+      const div = render.hash(hash)
       if (div) {
         scroller.appendChild(div)
         //scroller.insertBefore(div, scroller.firstChild)
@@ -260,7 +271,7 @@ render.shouldWe = async (blob) => {
     }
     if (src === '') {
       const scroller = document.getElementById('scroller')
-      const div = await render.hash(hash)
+      const div = render.hash(hash)
       if (div) {
         //scroller.appendChild(div)
         scroller.insertBefore(div, scroller.firstChild)
@@ -270,8 +281,8 @@ render.shouldWe = async (blob) => {
   }
 }
 
-render.hash = async (hash) => {
-  if (!await document.getElementById(hash)) {
+render.hash = (hash) => {
+  if (!document.getElementById(hash)) {
     const div = h('div', {id: hash, classList: 'message'}) 
     return div
   }
