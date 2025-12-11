@@ -6,21 +6,34 @@ import { markdown } from './markdown.js'
 
 export const render = {}
 
-render.qr = async (hash, blob) => {
-    const qrcode = h('span', {id: 'qr' + hash, style: 'width: 50%; margin-right: auto; margin-left: auto;'})
+render.qr = async (hash, blob, target) => {
+  const link = h('a', {
+    onclick: () => {
+      const qrTarget = target || document.getElementById('qr-target' + hash)
+      if (!qrTarget) { return }
+      if (!qrTarget.firstChild) {
+        const canvas = document.createElement('canvas')
+        qrTarget.appendChild(canvas)
+        const darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        const background = darkMode ? '#222' : '#f8f8f8'
+        const foreground = darkMode ? '#ccc' : '#444'
+        new QRious({
+          element: canvas,
+          value: location.href + blob,
+          size: 400,
+          background,
+          foreground,
+        })
+      } else {
+        while (qrTarget.firstChild) {
+          qrTarget.firstChild.remove()
+        }
+      }
+    },
+    classList: 'material-symbols-outlined'
+  }, ['Qr_Code'])
 
-  const link = h('a', {onclick: () => {
-    if (!qrcode.firstChild) {
-      const q = new QRCode('qr' + hash, {
-        text: location.href + blob,
-      })
-    } else {
-      qrcode.firstChild.remove()
-      qrcode.firstChild.remove()
-    }
-  }, classList: 'material-symbols-outlined'}, ['Qr_Code'])
-
-  return h('span', [link, qrcode])
+  return link
 }
 
 render.meta = async (blob, opened, hash, div) => {
@@ -49,10 +62,12 @@ render.meta = async (blob, opened, hash, div) => {
     }
   }}, ['Code'])
 
+  const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; max-width: 400px;'})
+
   const right = h('span', {style: 'float: right;'}, [
     h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
     ' ',
-    await render.qr(hash, blob),
+    await render.qr(hash, blob, qrTarget),
     ' ',
     permalink,
     ' ',
@@ -82,7 +97,8 @@ render.meta = async (blob, opened, hash, div) => {
       h('div', {id: 'reply' + contentHash}),
       content,
       rawDiv
-    ])
+    ]),
+    qrTarget
   ])
 
   div.replaceWith(meta)
