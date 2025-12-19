@@ -102,7 +102,7 @@ export const composer = async (sig) => {
     composerDiv
   ])
 
-  if (sig) { div.classList = 'message reply'}
+  if (sig) { div.className = 'message reply'}
 
   return div
   
