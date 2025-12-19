@@ -6,7 +6,6 @@ import { ntfy } from './ntfy.js'
 import { send } from './send.js'
 import { markdown } from './markdown.js'
 import { imgUpload } from './upload.js'
-import { lookup } from './lookup.js'
 
 export const composer = async (sig) => {
   const obj = {}
@@ -63,15 +62,6 @@ export const composer = async (sig) => {
     await send(signed)
     await send(blob)
     const hash = await apds.hash(signed)
-
-    const msg = {
-      hash,
-      sig: signed,
-      text: blob,
-      author: signed.substring(0, 44),
-      opened
-    }
-    await lookup.process(msg)
 
     const images = blob.match(/!\[.*?\]\((.*?)\)/g)
     if (images) {
