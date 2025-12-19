@@ -35,7 +35,11 @@ export const composer = async (sig) => {
   const textarea = h('textarea', {placeholder: 'Write a message'})
 
   const cancel = h('a', {classList: 'material-symbols-outlined', onclick: () => {
-      overlay.remove()
+      if (sig) {
+        div.remove()
+      } else {
+        overlay.remove()
+      }
     }
   }, ['Cancel'])
 
@@ -122,7 +126,10 @@ export const composer = async (sig) => {
     composerDiv
   ])
 
-  if (sig) { div.className = 'message reply'}
+  if (sig) { 
+    div.className = 'message reply'
+    div.id = 'reply-composer-' + obj.replyHash
+  }
 
   const overlay = h('div', {
     classList: 'modal-overlay',

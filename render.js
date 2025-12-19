@@ -143,6 +143,7 @@ render.comments = async (hash, blob, div) => {
   const reply = h('a', {
     classList: 'material-symbols-outlined',
     onclick: async () => {
+      if (document.getElementById('reply-composer-' + hash)) { return }
       if (await apds.pubkey()) {
         div.after(await composer(blob))
       }
