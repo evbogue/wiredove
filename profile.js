@@ -1,6 +1,9 @@
 import { h } from 'h' 
 import { apds } from 'apds'
 
+const cache = new Map()
+setInterval(() => { cache.clear() }, 60000)
+
 export const nameDiv = async () => {
   const name = await apds.get('name')
 
@@ -33,7 +36,15 @@ export const imageSpan = async () => {
 
   const existingImage = await apds.get('image')
 
-  if (existingImage) { avatarImg.src = await apds.get(existingImage)}
+  if (existingImage) { 
+    if (cache.get(existingImage)) {
+      avatarImg.src = cache.get(existingImage)
+    } else {
+      const src = await apds.get(existingImage)
+      avatarImg.src = src
+      cache.set(existingImage, src)
+    }
+  }
 
   avatarImg.classList = 'avatar_small'
   
@@ -45,7 +56,15 @@ export const avatarSpan = async () => {
 
   const existingImage = await apds.get('image')
   
-  if (existingImage) { avatarImg.src = await apds.get(existingImage)}
+  if (existingImage) { 
+    if (cache.get(existingImage)) {
+      avatarImg.src = cache.get(existingImage)
+    } else {
+      const src = await apds.get(existingImage)
+      avatarImg.src = src
+      cache.set(existingImage, src)
+    }
+  }
 
   avatarImg.classList = 'avatar'
 
@@ -85,11 +104,13 @@ export const avatarSpan = async () => {
           avatarImg.src = croppedImage
           const hash = await apds.make(croppedImage)
           await apds.put('image', hash)
+          cache.set(hash, croppedImage)
         } else {
           const croppedImage = canvas.toDataURL()
           avatarImg.src = img.src
           const hash = await apds.make(img.src)
           await apds.put('image', hash)
+          cache.set(hash, img.src)
         }
       }
       img.src = e.target.result
