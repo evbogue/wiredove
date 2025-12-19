@@ -233,10 +233,14 @@ render.blob = async (blob) => {
     await render.meta(blob, opened, hash, div)
     //await render.comments(hash, blob, div)
   } else if (div && !div.childNodes[1]) {
-    const content = h('div', {classList: 'content'})
-    const wrapper = h('div', {id: div.id, classList: 'message'}, [content])
-    div.replaceWith(wrapper)
-    await render.content(hash, blob, content)
+    if (div.className.includes('content')) {
+      await render.content(hash, blob, div)
+    } else {
+      const content = h('div', {classList: 'content'})
+      const wrapper = h('div', {id: div.id, classList: 'message'}, [content])
+      div.replaceWith(wrapper)
+      await render.content(hash, blob, content)
+    }
   } else if (getimg) {
     getimg.src = blob
   } 
