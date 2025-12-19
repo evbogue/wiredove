@@ -131,6 +131,10 @@ iframe {
   overflow: hidden;
 }
 
+.premessage {
+  min-height: 35px;
+}
+
 .message:hover {
   border: 1px solid #eee;
 }

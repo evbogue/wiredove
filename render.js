@@ -87,7 +87,7 @@ render.meta = async (blob, opened, hash, div) => {
     ts,
   ])
 
-  img.classList = 'avatar'
+  img.className = 'avatar'
   img.id = 'image' + contentHash
   img.style = 'float: left;'
 
@@ -95,7 +95,7 @@ render.meta = async (blob, opened, hash, div) => {
 
   const content = h('div', {id: contentHash, classList: 'material-symbols-outlined content'}, ['Notes'])
 
-  const meta = h('div', {id: div.id, classList: div.classList}, [
+  const meta = h('div', {id: div.id, classList: 'message'}, [
     right,
     h('a', {href: '#' + author}, [
       img,
@@ -164,7 +164,7 @@ render.content = async (hash, blob, div) => {
   ])
 
   if (yaml && yaml.body) {
-    div.classList = 'content'
+    div.className = 'content'
     let html = await markdown(yaml.body)
     if (yaml.reply) { html = "<span class='material-symbols-outlined'>Subdirectory_Arrow_left</span><a href='#" + yaml.reply  + "'> " + yaml.reply.substring(0, 10) + "...</a>" + html }
 
@@ -233,7 +233,10 @@ render.blob = async (blob) => {
     await render.meta(blob, opened, hash, div)
     //await render.comments(hash, blob, div)
   } else if (div && !div.childNodes[1]) {
-    await render.content(hash, blob, div)
+    const content = h('div', {classList: 'content'})
+    const wrapper = h('div', {id: div.id, classList: 'message'}, [content])
+    div.replaceWith(wrapper)
+    await render.content(hash, blob, content)
   } else if (getimg) {
     getimg.src = blob
   } 
@@ -283,7 +286,7 @@ render.shouldWe = async (blob) => {
 
 render.hash = (hash) => {
   if (!document.getElementById(hash)) {
-    const div = h('div', {id: hash, classList: 'message'}) 
+    const div = h('div', {id: hash, className: 'premessage'}) 
     return div
   }
 }
