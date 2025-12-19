@@ -35,7 +35,7 @@ export const composer = async (sig) => {
   const textarea = h('textarea', {placeholder: 'Write a message'})
 
   const cancel = h('a', {classList: 'material-symbols-outlined', onclick: () => {
-      div.parentNode.removeChild(div)
+      overlay.remove()
     }
   }, ['Cancel'])
 
@@ -48,10 +48,11 @@ export const composer = async (sig) => {
 
   const pubkey = await apds.pubkey()
 
-  const publishButton = h('button', {style: 'float: right;', onclick: async () => {
+  const publishButton = h('button', {style: 'float: right;', onclick: async (e) => {
+    e.target.disabled = true
+    e.target.textContent = 'Publishing...'
     const published = await apds.compose(textarea.value, replyObj)
     textarea.value = ''
-    const scroller = document.getElementById('scroller')
     const signed = await apds.get(published)
     const opened = await apds.open(signed)
 
@@ -61,9 +62,19 @@ export const composer = async (sig) => {
     await send(signed)
     await send(blob)
     const hash = await apds.hash(signed)
-    div.id = hash
-    await render.blob(signed)
-    composerDiv.remove()
+
+    if (sig) {
+      div.id = hash
+      await render.blob(signed)
+    } else {
+      const scroller = document.getElementById('scroller')
+      const placeholder = render.hash(hash)
+      if (placeholder) {
+        scroller.insertBefore(placeholder, scroller.firstChild)
+        await render.blob(signed)
+      }
+      overlay.remove()
+    }
   }}, ['Publish'])
 
   const previewButton = h('button', {style: 'float: right;', onclick: async () => {
@@ -98,12 +109,23 @@ export const composer = async (sig) => {
     await imgUpload(textarea)
   ])
 
-  const div = h('div', {classList: 'message'}, [
+  const div = h('div', {classList: 'message modal-content'}, [
     composerDiv
   ])
 
   if (sig) { div.className = 'message reply'}
 
-  return div
+  const overlay = h('div', {
+    classList: 'modal-overlay',
+    onclick: (e) => {
+      if (e.target === overlay) {
+        overlay.remove()
+      }
+    }
+  }, [div])
+
+  if (sig) { return div }
+
+  return overlay
   
 }

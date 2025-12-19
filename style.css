@@ -196,3 +196,23 @@ iframe {
 .avatarlink { font-weight: 600;}
 .unstyled { color: #ccc;}
 .hljs { padding: 10px; border-radius: 5px; background: #555; color: #f2f2f2;} 
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  width: 90%;
+  max-width: 600px;
+  z-index: 1001;
+}

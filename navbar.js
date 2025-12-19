@@ -12,8 +12,7 @@ const composeButton = async () => {
       onclick: async (e) => {
         e.preventDefault()
         const compose = await composer()
-        const scroller = document.getElementById('scroller')
-        scroller.insertBefore(compose, scroller.firstChild)
+        document.body.appendChild(compose)
       }
     }, ['Edit_Square'])
   } else { return h('span')}
