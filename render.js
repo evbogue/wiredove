@@ -3,6 +3,7 @@ import { h } from 'h'
 import { send } from './send.js'
 import { composer } from './composer.js'
 import { markdown } from './markdown.js'
+import { lookup } from './lookup.js'
 
 export const render = {}
 
@@ -120,14 +121,11 @@ render.meta = async (blob, opened, hash, div) => {
 render.comments = async (hash, blob, div) => {
   const num = h('span')
 
-  const log = await apds.getOpenedLog()
+  const replies = await lookup.get(hash)
   const src = document.location.hash.substring(1)
 
   let nume = 0
-  log.forEach(async msg => {
-    const yaml = await apds.parseYaml(msg.text)
-    if (yaml.replyHash) { yaml.reply = yaml.replyHash}
-    if (yaml.reply === hash) {
+  replies.forEach(async msg => {
       ++nume
       num.textContent = nume
       //if (src === yaml.reply) {
@@ -137,7 +135,6 @@ render.comments = async (hash, blob, div) => {
         div.after(replyContain)
         await render.blob(await apds.get(msg.hash))
       //}
-    }
   })
 
   const reply = h('a', {
@@ -266,6 +263,16 @@ render.shouldWe = async (blob) => {
     }
     const msg = await apds.get(opened.substring(13))
     const yaml = await apds.parseYaml(msg)
+    
+    const message = {
+      hash,
+      sig: blob,
+      text: msg,
+      author: blob.substring(0, 44),
+      opened
+    }
+    await lookup.process(message)
+
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
     if (blob.substring(0, 44) === src || hash === src || yaml.author === src || al.includes(blob.substring(0, 44))) {
       const scroller = document.getElementById('scroller')

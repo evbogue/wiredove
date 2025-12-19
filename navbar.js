@@ -4,6 +4,7 @@ import { imageSpan } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
 import { sendWs } from './websocket.js' 
+import { lookup } from './lookup.js' 
 
 const composeButton = async () => {
   if (await apds.pubkey()) {
@@ -41,6 +42,7 @@ const sync = h('a', {
       await apds.add(m.sig)
       await apds.make(m.text)
     }
+    await lookup.build()
     const log = await apds.query()
     if (log) {
       const ar = []
