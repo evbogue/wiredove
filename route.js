@@ -8,6 +8,7 @@ import { settings, importKey } from './settings.js'
 import { adder } from './adder.js'
 import { importBlob } from './import.js'
 import { send } from './send.js'
+import { noteInterest } from './sync.js'
 
 export const route = async () => {
   const src = window.location.hash.substring(1)
@@ -42,6 +43,7 @@ export const route = async () => {
       console.log(ar)
       let query = []
       for (const pubkey of ar) {
+        noteInterest(pubkey)
         await send(pubkey)
         const q = await apds.query(pubkey)
         if (q) {
@@ -54,6 +56,7 @@ export const route = async () => {
 
   else if (src.length === 44) {
     try {
+      noteInterest(src)
       const log = await apds.query(src)
       if (log && log[0]) {
         log.sort((a,b) => a.ts - b.ts)
@@ -76,6 +79,7 @@ export const route = async () => {
   else if (src.length > 44) {
     const hash = await apds.hash(src)
     const opened = await apds.open(src)
+    noteInterest(src.substring(0, 44))
     if (opened) {
       //await makeRoom(src.substring(0, 44))
       await apds.add(src)
@@ -104,4 +108,3 @@ window.onhashchange = async () => {
   }
   await route()
 }
-

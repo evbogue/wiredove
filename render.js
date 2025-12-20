@@ -3,6 +3,7 @@ import { h } from 'h'
 import { send } from './send.js'
 import { composer } from './composer.js'
 import { markdown } from './markdown.js'
+import { noteSeen } from './sync.js'
 
 export const render = {}
 
@@ -257,6 +258,7 @@ render.shouldWe = async (blob) => {
     await apds.make(blob)
   }
   if (opened && !already) {
+    noteSeen(blob.substring(0, 44))
     const src = window.location.hash.substring(1)
     const al = []
     const aliases = localStorage.getItem(src)
