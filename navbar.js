@@ -38,8 +38,10 @@ const sync = h('a', {
     sync.remove()
     const remotelog = await fetch('https://pub.wiredove.net/all').then(l => l.json())
     for (const m of remotelog) {
-      await apds.add(m.sig)
-      await apds.make(m.text)
+      if (m && m.sig) {
+        await apds.add(m.sig)
+        await apds.make(m.text)
+      }
     }
     const log = await apds.query()
     if (log) {
@@ -54,6 +56,19 @@ const sync = h('a', {
             if (get) {
               sendWs(get)
               ar.push(yaml.image)
+            }
+          }
+          if (yaml.body) {
+            const images = yaml.body.match(/!\[.*?\]\((.*?)\)/g)
+            if (images) {
+              for (const image of images) {
+                const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
+                const imgBlob = await apds.get(src)
+                if (imgBlob && !ar.includes(src)) { 
+                  sendWs(imgBlob) 
+                  ar.push(src)
+                }
+              }
             }
           }
         }
