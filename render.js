@@ -50,6 +50,38 @@ const applyProfile = async (contentHash, yaml) => {
   }
 }
 
+const summarizeBody = (body, maxLen = 50) => {
+  if (!body) { return '' }
+  const single = body.replace(/\s+/g, ' ').trim()
+  if (single.length <= maxLen) { return single }
+  return single.substring(0, maxLen) + '...'
+}
+
+const fetchEditSnippet = async (editHash) => {
+  if (!editHash) { return '' }
+  const signed = await apds.get(editHash)
+  if (!signed) { return '' }
+  const opened = await apds.open(signed)
+  if (!opened || opened.length < 14) { return '' }
+  const content = await apds.get(opened.substring(13))
+  if (!content) { return '' }
+  const yaml = await apds.parseYaml(content)
+  return yaml && yaml.body ? summarizeBody(yaml.body) : ''
+}
+
+const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
+  const safeName = name || (author ? author.substring(0, 10) : 'Someone')
+  const safeSnippet = snippet || 'message'
+  const nameEl = author
+    ? h('a', {href: '#' + author, id: nameId, classList: 'avatarlink'}, [safeName])
+    : h('span', {id: nameId, classList: 'avatarlink'}, [safeName])
+  return h('span', {classList: 'edit-summary'}, [
+    nameEl,
+    ' edited ',
+    h('a', {href: '#' + editHash}, [safeSnippet])
+  ])
+}
+
 const ensureOriginalMessage = async (targetHash) => {
   if (!targetHash) { return }
   const existing = document.getElementById(targetHash)
@@ -235,6 +267,76 @@ render.meta = async (blob, opened, hash, div) => {
     apds.visual(author)
   ])
 
+  if (contentBlob) {
+    const yaml = await apds.parseYaml(contentBlob)
+    if (yaml && yaml.edit) {
+      await ensureOriginalMessage(yaml.edit)
+      render.invalidateEdits(yaml.edit)
+      await render.refreshEdits(yaml.edit, { forceLatest: true })
+
+      const ts = h('a', {href: '#' + hash}, [humanTime])
+      setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
+
+      const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
+      const rawDiv = h('div')
+      let rawshow = true
+      let rawContent
+      const raw = h('a', {classList: 'material-symbols-outlined', onclick: async () => {
+        if (rawshow) {
+          if (!rawContent) {
+            rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + (contentBlob || '')])
+          }
+          rawDiv.appendChild(rawContent)
+          rawshow = false
+        } else {
+          rawContent.parentNode.removeChild(rawContent)
+          rawshow = true
+        }
+      }}, ['Code'])
+
+      const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; max-width: 400px;'})
+      const right = h('span', {style: 'float: right;'}, [
+        h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
+        ' ',
+        render.qr(hash, blob, qrTarget),
+        ' ',
+        permalink,
+        ' ',
+        raw,
+        ' ',
+        ts,
+      ])
+
+      img.className = 'avatar'
+      img.id = 'image' + contentHash
+      img.style = 'float: left;'
+
+      const name = h('span', {id: 'name' + contentHash, classList: 'avatarlink'}, [author.substring(0, 10)])
+      const snippet = await fetchEditSnippet(yaml.edit)
+      const summary = buildEditSummaryLine({
+        name: yaml.name,
+        editHash: yaml.edit,
+        author,
+        nameId: 'name' + contentHash,
+        snippet
+      })
+
+      const meta = h('div', {id: div.id, classList: 'message'}, [
+        right,
+        h('a', {href: '#' + author}, [img]),
+        h('div', {style: 'margin-left: 43px;'}, [
+          summary,
+          rawDiv
+        ]),
+        qrTarget
+      ])
+
+      div.replaceWith(meta)
+      await applyProfile(contentHash, yaml)
+      return
+    }
+  }
+
   const ts = h('a', {href: '#' + hash}, [humanTime])
   setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
 
@@ -401,9 +503,15 @@ render.content = async (hash, blob, div, messageHash) => {
   if (yaml && yaml.edit) {
     await ensureOriginalMessage(yaml.edit)
     await render.refreshEdits(yaml.edit, { forceLatest: true })
-    if (messageHash) {
-      const msgDiv = document.getElementById(messageHash)
-      if (msgDiv) { msgDiv.remove() }
+    const snippet = await fetchEditSnippet(yaml.edit)
+    const summary = h('div', {id: messageHash || div.id, classList: 'message'}, [
+      buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit, snippet })
+    ])
+    const msgDiv = messageHash ? document.getElementById(messageHash) : null
+    if (msgDiv) {
+      msgDiv.replaceWith(summary)
+    } else {
+      div.replaceWith(summary)
     }
     return
   }
@@ -469,8 +577,6 @@ render.blob = async (blob) => {
         await ensureOriginalMessage(yaml.edit)
         render.invalidateEdits(yaml.edit)
         await render.refreshEdits(yaml.edit, { forceLatest: true })
-        if (div) { div.remove() }
-        return
       }
     }
   }
@@ -519,7 +625,6 @@ render.shouldWe = async (blob) => {
       await ensureOriginalMessage(yaml.edit)
       render.invalidateEdits(yaml.edit)
       await render.refreshEdits(yaml.edit, { forceLatest: true })
-      return
     }
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
     if (blob.substring(0, 44) === src || hash === src || yaml.author === src || al.includes(blob.substring(0, 44))) {
