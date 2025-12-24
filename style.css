@@ -131,6 +131,25 @@ iframe {
   overflow: hidden;
 }
 
+.message.edit-message {
+  padding: .75em .75em 0 .75em;
+}
+
+.message > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.message > a .avatar {
+  float: none;
+}
+
+.message > a .avatarlink {
+  line-height: 33px;
+  display: inline-block;
+}
+
 .premessage {
   min-height: 35px;
 }
@@ -214,12 +233,35 @@ iframe {
   font-family: monospace;
 }
 
+.edit-summary {
+  display: inline-flex;
+  align-items: center;
+  line-height: 33px;
+  min-height: 33px;
+  gap: 4px;
+}
+
+.edit-summary-verb {
+  font-weight: 400;
+}
+
+.edit-summary-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edit-summary-row .avatar {
+  margin-right: 0;
+}
+
 .avatar, .avatar_small {
   border-radius: 100%; 
   margin: 0px;
   margin-right: 10px; 
   object-fit: cover;
   vertical-align: top;
+  display: block;
 }
 
 .avatar {

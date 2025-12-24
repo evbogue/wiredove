@@ -87,7 +87,7 @@ const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
     : h('span', {id: nameId, classList: 'avatarlink'}, [safeName])
   return h('span', {classList: 'edit-summary'}, [
     nameEl,
-    ' edited ',
+    h('span', {classList: 'edit-summary-verb'}, ['edited']),
     h('a', {href: '#' + editHash}, [safeSnippet])
   ])
 }
@@ -322,7 +322,6 @@ render.meta = async (blob, opened, hash, div) => {
       img.id = 'image' + contentHash
       img.style = 'float: left;'
 
-      const name = h('span', {id: 'name' + contentHash, classList: 'avatarlink'}, [author.substring(0, 10)])
       const snippet = await fetchEditSnippet(yaml.edit)
       const summary = buildEditSummaryLine({
         name: yaml.name,
@@ -331,14 +330,15 @@ render.meta = async (blob, opened, hash, div) => {
         nameId: 'name' + contentHash,
         snippet
       })
-
-      const meta = h('div', {id: div.id, classList: 'message'}, [
-        right,
+      const summaryRow = h('div', {classList: 'edit-summary-row'}, [
         h('a', {href: '#' + author}, [img]),
-        h('div', {style: 'margin-left: 43px;'}, [
-          summary,
-          rawDiv
-        ]),
+        summary
+      ])
+
+      const meta = h('div', {id: div.id, classList: 'message edit-message'}, [
+        right,
+        summaryRow,
+        rawDiv,
         qrTarget
       ])
 
@@ -527,27 +527,47 @@ render.content = async (hash, blob, div, messageHash) => {
         nameId: 'name' + contentHash,
         snippet
       })
-      const replyDiv = msgDiv.querySelector('#reply' + contentHash)
-      if (replyDiv) { replyDiv.remove() }
-      div.replaceWith(summary)
-      const actions = msgDiv.querySelector('.message-actions')
-      if (actions) { actions.remove() }
-      if (author) {
-        const authorLink = msgDiv.querySelector('a[href="#' + author + '"]')
-        if (authorLink) {
-          const avatar = authorLink.querySelector('img')
-          if (avatar) {
-            while (authorLink.firstChild) { authorLink.removeChild(authorLink.firstChild) }
-            authorLink.appendChild(avatar)
+      const summaryRow = h('div', {classList: 'edit-summary-row'}, [summary])
+
+      const avatarImg = msgDiv.querySelector('img.avatar')
+      const avatarLink = avatarImg ? avatarImg.parentNode : null
+      if (avatarLink && avatarImg) {
+        while (avatarLink.firstChild) { avatarLink.removeChild(avatarLink.firstChild) }
+        avatarLink.appendChild(avatarImg)
+        summaryRow.insertBefore(avatarLink, summaryRow.firstChild)
+      }
+
+      const marginDiv = msgDiv.querySelector('div[style*="margin-left: 43px"]')
+      let rawDiv = null
+      if (marginDiv) {
+        for (const child of Array.from(marginDiv.children)) {
+          if (child.tagName === 'DIV' && !child.id && !child.className) {
+            rawDiv = child
+            break
           }
         }
+        marginDiv.remove()
       }
+      if (!rawDiv) { rawDiv = h('div') }
+
+      const right = msgDiv.querySelector('span[style*="float: right"]')
+      const qrTarget = msgDiv.querySelector('#qr-target' + messageHash)
+      msgDiv.classList.add('edit-message')
+      while (msgDiv.firstChild) { msgDiv.removeChild(msgDiv.firstChild) }
+      if (right) { msgDiv.appendChild(right) }
+      msgDiv.appendChild(summaryRow)
+      msgDiv.appendChild(rawDiv)
+      if (qrTarget) { msgDiv.appendChild(qrTarget) }
+
       await applyProfile(contentHash, yaml)
       return
     }
     div.className = 'content'
     while (div.firstChild) { div.firstChild.remove() }
-    div.appendChild(buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit, snippet }))
+    const summaryRow = h('div', {classList: 'edit-summary-row'}, [
+      buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit, snippet })
+    ])
+    div.appendChild(summaryRow)
     return
   }
 
