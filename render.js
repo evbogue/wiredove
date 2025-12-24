@@ -69,6 +69,16 @@ const fetchEditSnippet = async (editHash) => {
   return yaml && yaml.body ? summarizeBody(yaml.body) : ''
 }
 
+const syncPrevious = (yaml) => {
+  if (!yaml || !yaml.previous) { return }
+  void (async () => {
+    const check = await apds.query(yaml.previous)
+    if (!check[0]) {
+      await send(yaml.previous)
+    }
+  })()
+}
+
 const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
   const safeName = name || (author ? author.substring(0, 10) : 'Someone')
   const safeSnippet = snippet || 'message'
@@ -273,6 +283,7 @@ render.meta = async (blob, opened, hash, div) => {
       await ensureOriginalMessage(yaml.edit)
       render.invalidateEdits(yaml.edit)
       await render.refreshEdits(yaml.edit, { forceLatest: true })
+      syncPrevious(yaml)
 
       const ts = h('a', {href: '#' + hash}, [humanTime])
       setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
@@ -503,6 +514,7 @@ render.content = async (hash, blob, div, messageHash) => {
   if (yaml && yaml.edit) {
     await ensureOriginalMessage(yaml.edit)
     await render.refreshEdits(yaml.edit, { forceLatest: true })
+    syncPrevious(yaml)
     const snippet = await fetchEditSnippet(yaml.edit)
     const summary = h('div', {id: messageHash || div.id, classList: 'message'}, [
       buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit, snippet })
