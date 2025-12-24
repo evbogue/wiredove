@@ -176,6 +176,44 @@ iframe {
   font-family: monospace;
 }
 
+.edit-nav {
+  font-family: monospace;
+  font-size: 1em;
+}
+
+.edit-nav-btn {
+  color: #777;
+  margin: 0 2px;
+  cursor: pointer;
+}
+
+.edit-nav-btn.disabled {
+  color: #bbb;
+  cursor: default;
+  pointer-events: none;
+}
+
+.edit-nav-index {
+  color: #888;
+  margin: 0 2px;
+}
+
+.message-actions {
+  margin-top: 6px;
+}
+
+.message-actions-reply {
+  float: left;
+}
+
+.message-actions-edit {
+  float: right;
+}
+
+.edit-hint {
+  font-family: monospace;
+}
+
 .avatar, .avatar_small {
   border-radius: 100%; 
   margin: 0px;

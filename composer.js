@@ -7,8 +7,9 @@ import { send } from './send.js'
 import { markdown } from './markdown.js'
 import { imgUpload } from './upload.js'
 
-export const composer = async (sig) => {
+export const composer = async (sig, options = {}) => {
   const obj = {}
+  const isEdit = !!options.editHash && !sig
   if (sig) {
     const hash = await apds.hash(sig)
     obj.replyHash = hash
@@ -19,20 +20,28 @@ export const composer = async (sig) => {
     if (msg.body) {obj.replyBody = msg.body}
   }
 
-  const replyDiv = h('div')
+  const contextDiv = h('div')
 
   if (obj.replyHash) {
     const replySymbol = h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left'])
     const author = h('a', {href: '#' + obj.replyAuthor}, [obj.replyAuthor.substring(0, 10)])
     const replyContent = h('a', {href: '#' + obj.replyHash}, [obj.replyHash.substring(0, 10)])
-    replyDiv.appendChild(author)
+    contextDiv.appendChild(author)
     if (obj.replyName) { author.textContent = obj.replyName}
     if (obj.replyBody) { replyContent.textContent = obj.replyBody.substring(0, 10) + '...'}
-    replyDiv.appendChild(replySymbol)
-    replyDiv.appendChild(replyContent)
+    contextDiv.appendChild(replySymbol)
+    contextDiv.appendChild(replyContent)
+  }
+
+  if (isEdit) {
+    const editSymbol = h('span', {classList: 'material-symbols-outlined'}, ['Edit'])
+    const editTarget = h('a', {href: '#' + options.editHash}, [options.editHash.substring(0, 10)])
+    contextDiv.appendChild(editSymbol)
+    contextDiv.appendChild(editTarget)
   }
 
   const textarea = h('textarea', {placeholder: 'Write a message'})
+  if (isEdit && typeof options.editBody === 'string') { textarea.value = options.editBody }
 
   const cancel = h('a', {classList: 'material-symbols-outlined', onclick: () => {
       if (sig) {
@@ -48,6 +57,9 @@ export const composer = async (sig) => {
   if (sig) {
     replyObj.reply = await apds.hash(sig)
     replyObj.replyto = sig.substring(0, 44)
+  }
+  if (isEdit) {
+    replyObj.edit = options.editHash
   }
 
   const pubkey = await apds.pubkey()
@@ -74,6 +86,13 @@ export const composer = async (sig) => {
         const imgBlob = await apds.get(src)
         if (imgBlob) { await send(imgBlob) }
       }
+    }
+
+    if (isEdit) {
+      render.invalidateEdits(options.editHash)
+      await render.refreshEdits(options.editHash, { forceLatest: true })
+      overlay.remove()
+      return
     }
 
     if (sig) {
@@ -116,7 +135,7 @@ export const composer = async (sig) => {
     h('span', {style: 'float: right;'}, [h('span', {classList: 'pubkey'}, [pubkey.substring(0, 6)]), ' ', cancel]),
     h('span', {style: 'float: left;'}, [await avatarSpan()]),
     await nameSpan(),
-    replyDiv,
+    contextDiv,
     textareaDiv,
     previewDiv,
     await imgUpload(textarea)

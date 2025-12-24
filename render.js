@@ -6,6 +6,149 @@ import { markdown } from './markdown.js'
 import { noteSeen } from './sync.js'
 
 export const render = {}
+const cache = new Map()
+const editsCache = new Map()
+const EDIT_CACHE_TTL_MS = 5000
+
+const editState = new Map()
+
+const getEditState = (hash) => {
+  if (!editState.has(hash)) {
+    editState.set(hash, { currentIndex: null, userNavigated: false })
+  }
+  return editState.get(hash)
+}
+
+const renderBody = async (body, replyHash) => {
+  let html = body ? await markdown(body) : ''
+  if (replyHash) {
+    html = "<span class='material-symbols-outlined'>Subdirectory_Arrow_left</span><a href='#" +
+      replyHash + "'> " + replyHash.substring(0, 10) + "...</a>" + html
+  }
+  return html
+}
+
+const applyProfile = async (contentHash, yaml) => {
+  if (yaml.image) {
+    const get = document.getElementById('image' + contentHash)
+    if (get) {
+      if (cache.get(yaml.image)) {
+        get.src = cache.get(yaml.image)
+      } else {
+        const image = await apds.get(yaml.image)
+        cache.set(yaml.image, image)
+        if (image) {
+          get.src = image
+        } else { send(yaml.image) }
+      }
+    }
+  }
+
+  if (yaml.name) {
+    const get = document.getElementById('name' + contentHash)
+    if (get) { get.textContent = yaml.name }
+  }
+}
+
+const parseOpenedTimestamp = (opened) => {
+  if (!opened || opened.length < 13) { return 0 }
+  const ts = Number.parseInt(opened.substring(0, 13), 10)
+  return Number.isNaN(ts) ? 0 : ts
+}
+
+const fetchEditsForMessage = async (hash, author) => {
+  if (!author) { return [] }
+  const cached = editsCache.get(hash)
+  const now = Date.now()
+  if (cached && now - cached.at < EDIT_CACHE_TTL_MS) {
+    return cached.edits
+  }
+  const log = await apds.query(author)
+  if (!log) { return [] }
+  const edits = []
+  for (const msg of log) {
+    let text = msg.text
+    if (!text && msg.opened) {
+      text = await apds.get(msg.opened.substring(13))
+    }
+    if (!text) { continue }
+    const yaml = await apds.parseYaml(text)
+    if (yaml && yaml.edit === hash) {
+      const ts = msg.ts || parseOpenedTimestamp(msg.opened)
+      edits.push({ hash: msg.hash, author: msg.author || author, ts, yaml })
+    }
+  }
+  edits.sort((a, b) => a.ts - b.ts)
+  editsCache.set(hash, { at: now, edits })
+  return edits
+}
+
+render.registerMessage = (hash, data) => {
+  const state = getEditState(hash)
+  Object.assign(state, data)
+}
+
+render.invalidateEdits = (hash) => {
+  editsCache.delete(hash)
+}
+
+render.stepEdit = async (hash, delta) => {
+  const state = getEditState(hash)
+  if (!state.baseYaml) { return }
+  const edits = (await fetchEditsForMessage(hash, state.author))
+    .filter(edit => !state.author || edit.author === state.author)
+  const total = edits.length + 1
+  if (total <= 1) { return }
+  const nextIndex = Math.max(0, Math.min((state.currentIndex ?? total - 1) + delta, total - 1))
+  state.currentIndex = nextIndex
+  state.userNavigated = true
+  await render.refreshEdits(hash)
+}
+
+render.refreshEdits = async (hash, options = {}) => {
+  const state = getEditState(hash)
+  if (!state.baseYaml || !state.contentDiv) { return }
+  const edits = (await fetchEditsForMessage(hash, state.author))
+    .filter(edit => !state.author || edit.author === state.author)
+  if (!edits.length) {
+    if (state.editNav) { state.editNav.wrap.style.display = 'none' }
+    if (state.editedHint) { state.editedHint.style.display = 'none' }
+    return
+  }
+
+  const total = edits.length + 1
+  const latestIndex = total - 1
+  if (options.forceLatest || (!state.userNavigated && state.currentIndex === null)) {
+    state.currentIndex = latestIndex
+  }
+  if (state.currentIndex === null) { state.currentIndex = latestIndex }
+  state.currentIndex = Math.max(0, Math.min(state.currentIndex, latestIndex))
+
+  if (state.editNav) {
+    state.editNav.wrap.style.display = 'inline'
+    state.editNav.index.textContent = (state.currentIndex + 1) + '/' + total
+    state.editNav.left.classList.toggle('disabled', state.currentIndex === 0)
+    state.editNav.right.classList.toggle('disabled', state.currentIndex === latestIndex)
+  }
+
+  const currentEdit = state.currentIndex > 0 ? edits[state.currentIndex - 1] : null
+  const hintEdit = currentEdit || edits[edits.length - 1]
+  if (state.editedHint) {
+    const hintTs = hintEdit.ts ? hintEdit.ts.toString() : state.baseTimestamp
+    state.editedHint.textContent = hintTs ? 'edit: ' + await apds.human(hintTs) : 'edit'
+    state.editedHint.style.display = 'inline'
+  }
+
+  const baseReply = state.baseYaml.reply || state.baseYaml.replyHash
+  const bodySource = currentEdit && currentEdit.yaml && currentEdit.yaml.body
+    ? currentEdit.yaml.body
+    : state.baseYaml.body
+  state.currentBody = bodySource
+  state.contentDiv.innerHTML = await renderBody(bodySource, baseReply)
+  if (!currentEdit) {
+    await applyProfile(state.contentHash, state.baseYaml)
+  }
+}
 
 render.qr = (hash, blob, target) => {
   const link = h('a', {
@@ -37,6 +180,34 @@ render.qr = (hash, blob, target) => {
   return link
 }
 
+const buildEditNav = (hash) => {
+  const left = h('a', {
+    classList: 'material-symbols-outlined edit-nav-btn',
+    onclick: async (e) => {
+      e.preventDefault()
+      await render.stepEdit(hash, -1)
+    }
+  }, ['Chevron_Left'])
+
+  const index = h('span', {classList: 'edit-nav-index'}, [''])
+
+  const right = h('a', {
+    classList: 'material-symbols-outlined edit-nav-btn',
+    onclick: async (e) => {
+      e.preventDefault()
+      await render.stepEdit(hash, 1)
+    }
+  }, ['Chevron_Right'])
+
+  const wrap = h('span', {classList: 'edit-nav', style: 'display: none;'}, [
+    left,
+    index,
+    right
+  ])
+
+  return { wrap, left, right, index }
+}
+
 render.meta = async (blob, opened, hash, div) => {
   const timestamp = opened.substring(0, 13)
   const contentHash = opened.substring(13)
@@ -52,6 +223,19 @@ render.meta = async (blob, opened, hash, div) => {
   setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
 
   const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
+
+  const pubkey = await apds.pubkey()
+  const canEdit = pubkey && pubkey === author
+  const editButton = canEdit ? h('a', {
+    classList: 'material-symbols-outlined',
+    onclick: async (e) => {
+      e.preventDefault()
+      const state = getEditState(hash)
+      const body = state.currentBody || state.baseYaml?.body || ''
+      const overlay = await composer(null, { editHash: hash, editBody: body })
+      document.body.appendChild(overlay)
+    }
+  }, ['Edit']) : null
 
   let show = true
 
@@ -75,6 +259,8 @@ render.meta = async (blob, opened, hash, div) => {
   }}, ['Code'])
 
   const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; max-width: 400px;'})
+  const editedHint = h('span', {classList: 'edit-hint', style: 'display: none;'}, [''])
+  const editNav = buildEditNav(hash)
 
   const right = h('span', {style: 'float: right;'}, [
     h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
@@ -96,6 +282,19 @@ render.meta = async (blob, opened, hash, div) => {
 
   const content = h('div', {id: contentHash, classList: 'material-symbols-outlined content'}, ['Notes'])
 
+  const replySlot = h('span', {classList: 'message-actions-reply'})
+  const editControls = h('span', {classList: 'message-actions-edit'}, [
+    editButton || '',
+    editButton ? ' ' : '',
+    editedHint,
+    ' ',
+    editNav.wrap
+  ])
+  const actionsRow = h('div', {classList: 'message-actions'}, [
+    replySlot,
+    editControls
+  ])
+
   const meta = h('div', {id: div.id, classList: 'message'}, [
     right,
     h('a', {href: '#' + author}, [
@@ -105,20 +304,29 @@ render.meta = async (blob, opened, hash, div) => {
     h('div', {style: 'margin-left: 43px;'}, [
       h('div', {id: 'reply' + contentHash}),
       content,
-      rawDiv
+      rawDiv,
+      actionsRow
     ]),
     qrTarget
   ])
 
   div.replaceWith(meta)
-  const comments = render.comments(hash, blob, meta)
+  render.registerMessage(hash, {
+    author,
+    baseTimestamp: timestamp,
+    contentHash,
+    contentDiv: content,
+    editedHint,
+    editNav
+  })
+  const comments = render.comments(hash, blob, meta, actionsRow)
   await Promise.all([
     comments,
-    contentBlob ? render.content(contentHash, contentBlob, content) : send(contentHash)
+    contentBlob ? render.content(contentHash, contentBlob, content, hash) : send(contentHash)
   ])
 } 
 
-render.comments = async (hash, blob, div) => {
+render.comments = async (hash, blob, div, actionsRow) => {
   const num = h('span')
 
   const log = await apds.getOpenedLog()
@@ -151,52 +359,59 @@ render.comments = async (hash, blob, div) => {
     }
   }, ['Chat_Bubble'])
 
-  div.appendChild(h('div', {style: 'margin-left: 43px;'}, [
-    reply, ' ', num
-  ]))
+  if (actionsRow) {
+    const slot = actionsRow.querySelector('.message-actions-reply')
+    if (slot) {
+      slot.appendChild(reply)
+      slot.appendChild(h('span', [' ']))
+      slot.appendChild(num)
+    }
+  } else {
+    const target = h('div', {style: 'margin-left: 43px;'})
+    target.appendChild(reply)
+    target.appendChild(h('span', [' ']))
+    target.appendChild(num)
+    div.appendChild(target)
+  }
 }
 
-const cache = new Map()
-
-render.content = async (hash, blob, div) => {
+render.content = async (hash, blob, div, messageHash) => {
   const contentHashPromise = hash ? Promise.resolve(hash) : apds.hash(blob)
   const [contentHash, yaml] = await Promise.all([
     contentHashPromise,
     apds.parseYaml(blob)
   ])
 
+  if (yaml && yaml.edit) {
+    await render.refreshEdits(yaml.edit, { forceLatest: true })
+    if (messageHash) {
+      const msgDiv = document.getElementById(messageHash)
+      if (msgDiv) { msgDiv.remove() }
+    }
+    return
+  }
+
   if (yaml && yaml.body) {
     div.className = 'content'
-    let html = await markdown(yaml.body)
-    if (yaml.reply) { html = "<span class='material-symbols-outlined'>Subdirectory_Arrow_left</span><a href='#" + yaml.reply  + "'> " + yaml.reply.substring(0, 10) + "...</a>" + html }
-
-    div.innerHTML = html
-
-    if (yaml.image) {
-      const get = document.getElementById('image' + contentHash)
-      if (get) {
-        if (cache.get(yaml.image)) {
-          get.src = cache.get(yaml.image)
-        } else {
-          const image = await apds.get(yaml.image)
-          cache.set(yaml.image, image)
-          if (image) {
-            get.src = image
-          } else { send(yaml.image)}
-        }
-      }
-    }
-
-    if (yaml.name) {
-      const get = document.getElementById('name' + contentHash)
-      if (get) { get.textContent = yaml.name}
-    }
+    if (yaml.replyHash) { yaml.reply = yaml.replyHash }
+    div.innerHTML = await renderBody(yaml.body, yaml.reply)
+    await applyProfile(contentHash, yaml)
 
     if (yaml.previous) {
       const check = await apds.query(yaml.previous)
       if (!check[0]) {
         await send(yaml.previous)
       }
+    }
+
+    if (messageHash) {
+      render.registerMessage(messageHash, {
+        baseYaml: yaml,
+        contentHash,
+        contentDiv: div,
+        currentBody: yaml.body
+      })
+      await render.refreshEdits(messageHash)
     }
 
     //if (yaml.reply || yaml.replyHash) {
@@ -229,6 +444,18 @@ render.blob = async (blob) => {
   ])
   
   const div = document.getElementById(hash)
+  if (opened) {
+    const content = await apds.get(opened.substring(13))
+    if (content) {
+      const yaml = await apds.parseYaml(content)
+      if (yaml && yaml.edit) {
+        render.invalidateEdits(yaml.edit)
+        await render.refreshEdits(yaml.edit, { forceLatest: true })
+        if (div) { div.remove() }
+        return
+      }
+    }
+  }
 
   const getimg = document.getElementById('inlineimage' + hash)
   if (opened && div && !div.childNodes[1]) {
@@ -236,12 +463,12 @@ render.blob = async (blob) => {
     //await render.comments(hash, blob, div)
   } else if (div && !div.childNodes[1]) {
     if (div.className.includes('content')) {
-      await render.content(hash, blob, div)
+      await render.content(hash, blob, div, null)
     } else {
       const content = h('div', {classList: 'content'})
       const wrapper = h('div', {id: div.id, classList: 'message'}, [content])
       div.replaceWith(wrapper)
-      await render.content(hash, blob, content)
+      await render.content(hash, blob, content, null)
     }
   } else if (getimg) {
     getimg.src = blob
@@ -268,7 +495,13 @@ render.shouldWe = async (blob) => {
       console.log(al)
     }
     const msg = await apds.get(opened.substring(13))
+    if (!msg) { return }
     const yaml = await apds.parseYaml(msg)
+    if (yaml && yaml.edit) {
+      render.invalidateEdits(yaml.edit)
+      await render.refreshEdits(yaml.edit, { forceLatest: true })
+      return
+    }
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
     if (blob.substring(0, 44) === src || hash === src || yaml.author === src || al.includes(blob.substring(0, 44))) {
       const scroller = document.getElementById('scroller')
