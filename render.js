@@ -50,6 +50,22 @@ const applyProfile = async (contentHash, yaml) => {
   }
 }
 
+const ensureOriginalMessage = async (targetHash) => {
+  if (!targetHash) { return }
+  const existing = document.getElementById(targetHash)
+  const scroller = document.getElementById('scroller')
+  if (!existing && scroller) {
+    const placeholder = render.hash(targetHash)
+    if (placeholder) {
+      scroller.appendChild(placeholder)
+    }
+  }
+  const have = await apds.get(targetHash)
+  if (!have) {
+    await send(targetHash)
+  }
+}
+
 const parseOpenedTimestamp = (opened) => {
   if (!opened || opened.length < 13) { return 0 }
   const ts = Number.parseInt(opened.substring(0, 13), 10)
@@ -383,6 +399,7 @@ render.content = async (hash, blob, div, messageHash) => {
   ])
 
   if (yaml && yaml.edit) {
+    await ensureOriginalMessage(yaml.edit)
     await render.refreshEdits(yaml.edit, { forceLatest: true })
     if (messageHash) {
       const msgDiv = document.getElementById(messageHash)
@@ -449,6 +466,7 @@ render.blob = async (blob) => {
     if (content) {
       const yaml = await apds.parseYaml(content)
       if (yaml && yaml.edit) {
+        await ensureOriginalMessage(yaml.edit)
         render.invalidateEdits(yaml.edit)
         await render.refreshEdits(yaml.edit, { forceLatest: true })
         if (div) { div.remove() }
@@ -498,6 +516,7 @@ render.shouldWe = async (blob) => {
     if (!msg) { return }
     const yaml = await apds.parseYaml(msg)
     if (yaml && yaml.edit) {
+      await ensureOriginalMessage(yaml.edit)
       render.invalidateEdits(yaml.edit)
       await render.refreshEdits(yaml.edit, { forceLatest: true })
       return
