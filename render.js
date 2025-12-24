@@ -516,15 +516,38 @@ render.content = async (hash, blob, div, messageHash) => {
     await render.refreshEdits(yaml.edit, { forceLatest: true })
     syncPrevious(yaml)
     const snippet = await fetchEditSnippet(yaml.edit)
-    const summary = h('div', {id: messageHash || div.id, classList: 'message'}, [
-      buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit, snippet })
-    ])
     const msgDiv = messageHash ? document.getElementById(messageHash) : null
-    if (msgDiv) {
-      msgDiv.replaceWith(summary)
-    } else {
+    if (msgDiv && div && div.parentNode) {
+      const state = getEditState(messageHash)
+      const author = state && state.author ? state.author : null
+      const summary = buildEditSummaryLine({
+        name: yaml.name,
+        editHash: yaml.edit,
+        author,
+        nameId: 'name' + contentHash,
+        snippet
+      })
+      const replyDiv = msgDiv.querySelector('#reply' + contentHash)
+      if (replyDiv) { replyDiv.remove() }
       div.replaceWith(summary)
+      const actions = msgDiv.querySelector('.message-actions')
+      if (actions) { actions.remove() }
+      if (author) {
+        const authorLink = msgDiv.querySelector('a[href="#' + author + '"]')
+        if (authorLink) {
+          const avatar = authorLink.querySelector('img')
+          if (avatar) {
+            while (authorLink.firstChild) { authorLink.removeChild(authorLink.firstChild) }
+            authorLink.appendChild(avatar)
+          }
+        }
+      }
+      await applyProfile(contentHash, yaml)
+      return
     }
+    div.className = 'content'
+    while (div.firstChild) { div.firstChild.remove() }
+    div.appendChild(buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit, snippet }))
     return
   }
 
