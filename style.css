@@ -11,7 +11,7 @@ body {
 
 blockquote { border-left: 5px solid #f5f5f5; margin-left: none; padding-left: 10px; color: #777; }
 
-p, h1, h2, h3, h4, h5, h6 { margin-top: 5px; margin-bottom: 5px;}
+p, h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 5px;}
 
 pre {
   //color: #dd1144;
@@ -265,8 +265,8 @@ iframe {
 }
 
 .avatar {
-  height: 33px; 
-  width: 33px; 
+  height: 25px; 
+  width: 25px; 
 }
 
 .avatar_small { height: 25px; width: 25px;}

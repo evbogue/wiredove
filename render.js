@@ -28,6 +28,51 @@ const renderBody = async (body, replyHash) => {
   return html
 }
 
+const buildRawControls = (blob, opened, contentBlob) => {
+  const rawDiv = h('div', {classList: 'message-raw'})
+  let rawshow = true
+  let rawContent
+
+  const raw = h('a', {classList: 'material-symbols-outlined', onclick: async () => {
+    if (rawshow) {
+      if (!rawContent) {
+        rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + (contentBlob || '')])
+      }
+      rawDiv.appendChild(rawContent)
+      rawshow = false
+    } else {
+      rawContent.parentNode.removeChild(rawContent)
+      rawshow = true
+    }
+  }}, ['Code'])
+
+  return { raw, rawDiv }
+}
+
+const queueEditRefresh = (editHash) => {
+  if (!editHash) { return }
+  void (async () => {
+    await ensureOriginalMessage(editHash)
+    render.invalidateEdits(editHash)
+    await render.refreshEdits(editHash, { forceLatest: true })
+  })()
+}
+
+const buildRightMeta = ({ author, hash, blob, qrTarget, raw, ts }) => {
+  const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
+  return h('span', {classList: 'message-meta', style: 'float: right;'}, [
+    h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
+    ' ',
+    render.qr(hash, blob, qrTarget),
+    ' ',
+    permalink,
+    ' ',
+    raw,
+    ' ',
+    ts,
+  ])
+}
+
 const applyProfile = async (contentHash, yaml) => {
   if (yaml.image) {
     const get = document.getElementById('image' + contentHash)
@@ -79,6 +124,16 @@ const syncPrevious = (yaml) => {
   })()
 }
 
+const updateEditSnippet = (editHash, summaryEl) => {
+  if (!editHash || !summaryEl) { return }
+  void (async () => {
+    const snippet = await fetchEditSnippet(editHash)
+    if (!snippet) { return }
+    const link = summaryEl.querySelector('.edit-summary-link')
+    if (link) { link.textContent = snippet }
+  })()
+}
+
 const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
   const safeName = name || (author ? author.substring(0, 10) : 'Someone')
   const safeSnippet = snippet || 'message'
@@ -88,8 +143,31 @@ const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
   return h('span', {classList: 'edit-summary'}, [
     nameEl,
     h('span', {classList: 'edit-summary-verb'}, ['edited']),
-    h('a', {href: '#' + editHash}, [safeSnippet])
+    h('a', {href: '#' + editHash, classList: 'edit-summary-link'}, [safeSnippet])
   ])
+}
+
+const buildEditSummaryRow = ({ avatarLink, summary }) => {
+  const children = []
+  if (avatarLink) { children.push(avatarLink) }
+  children.push(summary)
+  return h('div', {classList: 'edit-summary-row'}, children)
+}
+
+const buildEditMessageShell = ({ id, right, summaryRow, rawDiv, qrTarget }) => {
+  return h('div', {id, classList: 'message edit-message'}, [
+    right,
+    summaryRow,
+    rawDiv,
+    qrTarget
+  ])
+}
+
+const extractMetaNodes = (msgDiv) => {
+  const right = msgDiv.querySelector('.message-meta')
+  const rawDiv = msgDiv.querySelector('.message-raw') || h('div', {classList: 'message-raw'})
+  const qrTarget = msgDiv.querySelector('.qr-target')
+  return { right, rawDiv, qrTarget }
 }
 
 const ensureOriginalMessage = async (targetHash) => {
@@ -280,67 +358,38 @@ render.meta = async (blob, opened, hash, div) => {
   if (contentBlob) {
     const yaml = await apds.parseYaml(contentBlob)
     if (yaml && yaml.edit) {
-      await ensureOriginalMessage(yaml.edit)
-      render.invalidateEdits(yaml.edit)
-      await render.refreshEdits(yaml.edit, { forceLatest: true })
+      queueEditRefresh(yaml.edit)
       syncPrevious(yaml)
 
       const ts = h('a', {href: '#' + hash}, [humanTime])
       setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
 
-      const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
-      const rawDiv = h('div')
-      let rawshow = true
-      let rawContent
-      const raw = h('a', {classList: 'material-symbols-outlined', onclick: async () => {
-        if (rawshow) {
-          if (!rawContent) {
-            rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + (contentBlob || '')])
-          }
-          rawDiv.appendChild(rawContent)
-          rawshow = false
-        } else {
-          rawContent.parentNode.removeChild(rawContent)
-          rawshow = true
-        }
-      }}, ['Code'])
-
       const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; max-width: 400px;'})
-      const right = h('span', {style: 'float: right;'}, [
-        h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
-        ' ',
-        render.qr(hash, blob, qrTarget),
-        ' ',
-        permalink,
-        ' ',
-        raw,
-        ' ',
-        ts,
-      ])
+      const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
+      const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
 
       img.className = 'avatar'
       img.id = 'image' + contentHash
       img.style = 'float: left;'
 
-      const snippet = await fetchEditSnippet(yaml.edit)
       const summary = buildEditSummaryLine({
         name: yaml.name,
         editHash: yaml.edit,
         author,
         nameId: 'name' + contentHash,
-        snippet
       })
-      const summaryRow = h('div', {classList: 'edit-summary-row'}, [
-        h('a', {href: '#' + author}, [img]),
+      updateEditSnippet(yaml.edit, summary)
+      const summaryRow = buildEditSummaryRow({
+        avatarLink: h('a', {href: '#' + author}, [img]),
         summary
-      ])
-
-      const meta = h('div', {id: div.id, classList: 'message edit-message'}, [
+      })
+      const meta = buildEditMessageShell({
+        id: div.id,
         right,
         summaryRow,
         rawDiv,
         qrTarget
-      ])
+      })
 
       div.replaceWith(meta)
       await applyProfile(contentHash, yaml)
@@ -350,8 +399,6 @@ render.meta = async (blob, opened, hash, div) => {
 
   const ts = h('a', {href: '#' + hash}, [humanTime])
   setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
-
-  const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
 
   const pubkey = await apds.pubkey()
   const canEdit = pubkey && pubkey === author
@@ -366,42 +413,12 @@ render.meta = async (blob, opened, hash, div) => {
     }
   }, ['Edit']) : null
 
-  let show = true
-
-  const rawDiv = h('div')
-
-  let rawshow = true
-
-  let rawContent
-
-  const raw = h('a', {classList: 'material-symbols-outlined', onclick: async () => {
-    if (rawshow) {
-      if (!rawContent) {
-        rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + (contentBlob || '')])
-      }
-      rawDiv.appendChild(rawContent)
-      rawshow = false
-    } else {
-      rawContent.parentNode.removeChild(rawContent)
-      rawshow = true
-    }
-  }}, ['Code'])
+  const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
 
   const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; max-width: 400px;'})
   const editedHint = h('span', {classList: 'edit-hint', style: 'display: none;'}, [''])
   const editNav = buildEditNav(hash)
-
-  const right = h('span', {style: 'float: right;'}, [
-    h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
-    ' ',
-    render.qr(hash, blob, qrTarget),
-    ' ',
-    permalink,
-    ' ',
-    raw,
-    ' ',
-    ts,
-  ])
+  const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
 
   img.className = 'avatar'
   img.id = 'image' + contentHash
@@ -430,7 +447,7 @@ render.meta = async (blob, opened, hash, div) => {
       img,
       name,
     ]),
-    h('div', {style: 'margin-left: 43px;'}, [
+    h('div', {classList: 'message-body', style: 'margin-left: 35px;'}, [
       h('div', {id: 'reply' + contentHash}),
       content,
       rawDiv,
@@ -512,10 +529,8 @@ render.content = async (hash, blob, div, messageHash) => {
   ])
 
   if (yaml && yaml.edit) {
-    await ensureOriginalMessage(yaml.edit)
-    await render.refreshEdits(yaml.edit, { forceLatest: true })
+    queueEditRefresh(yaml.edit)
     syncPrevious(yaml)
-    const snippet = await fetchEditSnippet(yaml.edit)
     const msgDiv = messageHash ? document.getElementById(messageHash) : null
     if (msgDiv && div && div.parentNode) {
       const state = getEditState(messageHash)
@@ -525,33 +540,17 @@ render.content = async (hash, blob, div, messageHash) => {
         editHash: yaml.edit,
         author,
         nameId: 'name' + contentHash,
-        snippet
       })
-      const summaryRow = h('div', {classList: 'edit-summary-row'}, [summary])
-
+      updateEditSnippet(yaml.edit, summary)
       const avatarImg = msgDiv.querySelector('img.avatar')
       const avatarLink = avatarImg ? avatarImg.parentNode : null
       if (avatarLink && avatarImg) {
         while (avatarLink.firstChild) { avatarLink.removeChild(avatarLink.firstChild) }
         avatarLink.appendChild(avatarImg)
-        summaryRow.insertBefore(avatarLink, summaryRow.firstChild)
       }
 
-      const marginDiv = msgDiv.querySelector('div[style*="margin-left: 43px"]')
-      let rawDiv = null
-      if (marginDiv) {
-        for (const child of Array.from(marginDiv.children)) {
-          if (child.tagName === 'DIV' && !child.id && !child.className) {
-            rawDiv = child
-            break
-          }
-        }
-        marginDiv.remove()
-      }
-      if (!rawDiv) { rawDiv = h('div') }
-
-      const right = msgDiv.querySelector('span[style*="float: right"]')
-      const qrTarget = msgDiv.querySelector('#qr-target' + messageHash)
+      const summaryRow = buildEditSummaryRow({ avatarLink, summary })
+      const { right, rawDiv, qrTarget } = extractMetaNodes(msgDiv)
       msgDiv.classList.add('edit-message')
       while (msgDiv.firstChild) { msgDiv.removeChild(msgDiv.firstChild) }
       if (right) { msgDiv.appendChild(right) }
@@ -564,9 +563,10 @@ render.content = async (hash, blob, div, messageHash) => {
     }
     div.className = 'content'
     while (div.firstChild) { div.firstChild.remove() }
-    const summaryRow = h('div', {classList: 'edit-summary-row'}, [
-      buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit, snippet })
-    ])
+    const summaryRow = buildEditSummaryRow({
+      summary: buildEditSummaryLine({ name: yaml.name, editHash: yaml.edit })
+    })
+    updateEditSnippet(yaml.edit, summaryRow)
     div.appendChild(summaryRow)
     return
   }
@@ -629,9 +629,7 @@ render.blob = async (blob) => {
     if (content) {
       const yaml = await apds.parseYaml(content)
       if (yaml && yaml.edit) {
-        await ensureOriginalMessage(yaml.edit)
-        render.invalidateEdits(yaml.edit)
-        await render.refreshEdits(yaml.edit, { forceLatest: true })
+        queueEditRefresh(yaml.edit)
       }
     }
   }
@@ -677,9 +675,7 @@ render.shouldWe = async (blob) => {
     if (!msg) { return }
     const yaml = await apds.parseYaml(msg)
     if (yaml && yaml.edit) {
-      await ensureOriginalMessage(yaml.edit)
-      render.invalidateEdits(yaml.edit)
-      await render.refreshEdits(yaml.edit, { forceLatest: true })
+      queueEditRefresh(yaml.edit)
     }
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
     if (blob.substring(0, 44) === src || hash === src || yaml.author === src || al.includes(blob.substring(0, 44))) {
