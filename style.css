@@ -135,19 +135,36 @@ iframe {
   padding: .75em .75em 0 .75em;
 }
 
-.message > a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
+.message-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-.message > a .avatar {
+.message-main > a {
+  display: inline-flex;
+  align-items: center;
+}
+
+.message-main .avatar {
   float: none;
 }
 
-.message > a .avatarlink {
+.message-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.message-stack .avatarlink {
   line-height: 33px;
   display: inline-block;
+}
+
+.message-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .premessage {
@@ -245,28 +262,18 @@ iframe {
   font-weight: 400;
 }
 
-.edit-summary-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.edit-summary-row .avatar {
-  margin-right: 0;
-}
-
 .avatar, .avatar_small {
   border-radius: 100%; 
   margin: 0px;
-  margin-right: 10px; 
+  margin-right: 0px; 
   object-fit: cover;
   vertical-align: top;
   display: block;
 }
 
 .avatar {
-  height: 25px; 
-  width: 25px; 
+  height: 35px; 
+  width: 35px; 
 }
 
 .avatar_small { height: 25px; width: 25px;}

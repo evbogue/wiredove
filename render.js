@@ -148,10 +148,11 @@ const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
 }
 
 const buildEditSummaryRow = ({ avatarLink, summary }) => {
-  const children = []
-  if (avatarLink) { children.push(avatarLink) }
-  children.push(summary)
-  return h('div', {classList: 'edit-summary-row'}, children)
+  const stack = h('div', {classList: 'message-stack'}, [summary])
+  return h('div', {classList: 'message-main'}, [
+    avatarLink || '',
+    stack
+  ])
 }
 
 const buildEditMessageShell = ({ id, right, summaryRow, rawDiv, qrTarget }) => {
@@ -443,15 +444,17 @@ render.meta = async (blob, opened, hash, div) => {
 
   const meta = h('div', {id: div.id, classList: 'message'}, [
     right,
-    h('a', {href: '#' + author}, [
-      img,
-      name,
-    ]),
-    h('div', {classList: 'message-body', style: 'margin-left: 35px;'}, [
-      h('div', {id: 'reply' + contentHash}),
-      content,
-      rawDiv,
-      actionsRow
+    h('div', {classList: 'message-main'}, [
+      h('a', {href: '#' + author}, [img]),
+      h('div', {classList: 'message-stack'}, [
+        h('a', {href: '#' + author}, [name]),
+        h('div', {classList: 'message-body'}, [
+          h('div', {id: 'reply' + contentHash}),
+          content,
+          rawDiv,
+          actionsRow
+        ])
+      ])
     ]),
     qrTarget
   ])
