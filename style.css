@@ -156,6 +156,7 @@ iframe {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 
 .message-stack .avatarlink {
@@ -246,14 +247,21 @@ iframe {
 
 .message-actions {
   margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
 }
 
 .message-actions-reply {
-  float: left;
 }
 
 .message-actions-edit {
-  float: right;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
 }
 
 .edit-hint {
