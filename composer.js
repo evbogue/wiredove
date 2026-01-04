@@ -120,7 +120,7 @@ export const composer = async (sig, options = {}) => {
     previewButton
   ])
 
-  const content = h('div', {style: 'margin-left: 43px;'})
+  const content = h('div')
 
   const previewDiv = h('div', {style: 'display: none;'}, [
     content,
@@ -131,14 +131,28 @@ export const composer = async (sig, options = {}) => {
     }}, ['Cancel'])
   ])
 
-  const composerDiv = h('div', [
-    h('span', {style: 'float: right;'}, [h('span', {classList: 'pubkey'}, [pubkey.substring(0, 6)]), ' ', cancel]),
-    h('span', {style: 'float: left;'}, [await avatarSpan()]),
-    await nameSpan(),
+  const meta = h('span', {classList: 'message-meta'}, [
+    h('span', {classList: 'pubkey'}, [pubkey.substring(0, 6)]),
+    ' ',
+    cancel,
+  ])
+
+  const bodyWrap = h('div', {classList: 'message-body'}, [
     contextDiv,
     textareaDiv,
     previewDiv,
     await imgUpload(textarea)
+  ])
+
+  const composerDiv = h('div', [
+    meta,
+    h('div', {classList: 'message-main'}, [
+      h('span', [await avatarSpan()]),
+      h('div', {classList: 'message-stack'}, [
+        await nameSpan(),
+        bodyWrap
+      ])
+    ])
   ])
 
   const div = h('div', {classList: 'message modal-content'}, [
