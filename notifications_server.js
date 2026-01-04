@@ -177,17 +177,29 @@ export async function createNotificationsService(options = {}) {
       try {
         latestJson = JSON.parse(bodyText)
         if (Array.isArray(latestJson)) {
-          const first = latestJson[0]
-          if (first && typeof first === 'object') {
-            latestRecord = first
+          if (latestJson.length === 0) {
+            return { changed: false, sent: false, reason: 'empty response' }
           }
+          const sorted = [...latestJson]
+            .filter((item) => item && typeof item === 'object')
+            .sort((a, b) => {
+              const at = Number(a.ts ?? a.timestamp ?? 0)
+              const bt = Number(b.ts ?? b.timestamp ?? 0)
+              if (!Number.isNaN(bt - at)) return bt - at
+              return 0
+            })
+          latestRecord = sorted[0] ?? null
         } else if (latestJson && typeof latestJson === 'object') {
           latestRecord = latestJson
         }
 
         if (latestRecord) {
           const candidate =
-            latestRecord.hash ?? latestRecord.id ?? latestRecord.timestamp ?? latestRecord.ts
+            latestRecord.hash ??
+            latestRecord.sig ??
+            latestRecord.id ??
+            latestRecord.timestamp ??
+            latestRecord.ts
           if (typeof candidate === 'string' || typeof candidate === 'number') {
             latestId = String(candidate)
           }
