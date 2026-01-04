@@ -9,7 +9,7 @@ const DEFAULTS = {
   stateFile: './data/state.json',
   configFile: './config.json',
   vapidSubject: 'mailto:ops@wiredove.net',
-  pushIconUrl: '/dovepurple_sm.png',
+  pushIconUrl: 'https://wiredove.net/dovepurple_sm.png',
 }
 
 async function readJsonFile(path, fallback) {
@@ -66,24 +66,47 @@ async function hashText(text) {
   return out
 }
 
-async function parsePostYaml(text) {
-  try {
-    const parsed = await apds.parseYaml(text)
-    if (parsed && typeof parsed === 'object') {
-      const attrs = parsed
-      const name = typeof attrs.name === 'string' ? attrs.name.trim() : undefined
-      const body = typeof attrs.body === 'string' ? attrs.body.trim() : undefined
-      return { name: name || undefined, body: body || undefined }
+async function parsePostText(text) {
+  if (!text || typeof text !== 'string') return {}
+
+  const raw = text.trim()
+  let yamlBlock = ''
+  let bodyText = ''
+
+  if (raw.startsWith('---')) {
+    const lines = raw.split('\n')
+    const endIndex = lines.indexOf('---', 1)
+    if (endIndex !== -1) {
+      yamlBlock = lines.slice(1, endIndex).join('\n')
+      bodyText = lines.slice(endIndex + 1).join('\n')
     }
-  } catch {
-    // Fall back to defaults if YAML parsing fails.
   }
-  return {}
+
+  let name
+  let yamlBody
+  if (yamlBlock) {
+    try {
+      const parsed = await apds.parseYaml(yamlBlock)
+      if (parsed && typeof parsed === 'object') {
+        name = typeof parsed.name === 'string' ? parsed.name.trim() : undefined
+        yamlBody = typeof parsed.body === 'string' ? parsed.body.trim() : undefined
+      }
+    } catch {
+      // Fall back to raw body if YAML parsing fails.
+    }
+  }
+
+  const body = bodyText.trim() || (yamlBody || '').trim()
+
+  return {
+    name: name || undefined,
+    body: body || undefined,
+  }
 }
 
-function formatPushTitle(name) {
-  if (name) return `New Wiredove Message from ${name}`
-  return 'New anproto message'
+function formatPushTitle(name, author) {
+  const authorLabel = name || (author ? author.substring(0, 10) : 'Someone')
+  return `New Wiredove Message from ${authorLabel}`
 }
 
 function formatPushBody(body) {
@@ -96,9 +119,11 @@ async function toPushPayload(latest, pushIconUrl) {
   const hash = record && typeof record.hash === 'string' ? record.hash : ''
   const targetUrl = hash ? `https://wiredove.net/#${hash}` : 'https://wiredove.net/'
   const rawText = record && typeof record.text === 'string' ? record.text : ''
-  const parsed = rawText ? await parsePostYaml(rawText) : {}
-  const title = formatPushTitle(parsed.name)
-  const body = formatPushBody(parsed.body)
+  const parsed = rawText ? await parsePostText(rawText) : {}
+  const bodyText = parsed.body || ''
+  if (!bodyText.trim()) return null
+  const title = formatPushTitle(parsed.name, record?.author)
+  const body = formatPushBody(bodyText)
   return JSON.stringify({
     title,
     body,
@@ -243,6 +268,14 @@ export async function createNotificationsService(options = {}) {
       }
 
       const payload = await toPushPayload(latestRecord ?? latestJson, settings.pushIconUrl)
+      if (!payload) {
+        return {
+          changed: false,
+          sent: false,
+          reason: 'no content',
+          latest: latestSummary,
+        }
+      }
       const now = new Date().toISOString()
       const nextSubs = []
 

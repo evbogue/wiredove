@@ -20,7 +20,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: payload.body,
     data: { url: targetUrl },
-    icon: payload.icon,
+    icon: payload.icon || '/dovepurple_sm.png',
     badge: payload.badge,
   }
 
