@@ -60,7 +60,7 @@ const queueEditRefresh = (editHash) => {
 
 const buildRightMeta = ({ author, hash, blob, qrTarget, raw, ts }) => {
   const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
-  return h('span', {classList: 'message-meta', style: 'float: right;'}, [
+  return h('span', {classList: 'message-meta'}, [
     h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
     ' ',
     render.qr(hash, blob, qrTarget),

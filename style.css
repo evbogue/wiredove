@@ -129,6 +129,7 @@ iframe {
   min-height: 35px;
   border-radius: 5px;
   overflow: hidden;
+  position: relative;
 }
 
 .message.edit-message {
@@ -165,6 +166,15 @@ iframe {
 .message-body {
   flex: 1;
   min-width: 0;
+}
+
+.message-meta {
+  position: absolute;
+  top: .75em;
+  right: .75em;
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
 }
 
 .premessage {
