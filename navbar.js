@@ -4,6 +4,7 @@ import { imageSpan } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
 import { sendWs } from './websocket.js' 
+import { notificationsButton } from "./notifications.js"
 
 const composeButton = async () => {
   if (await apds.pubkey()) {
@@ -92,6 +93,8 @@ export const navbar = async () => {
       h('a', {href: '#', classList: 'material-symbols-outlined'}, [h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})]),
       ' ',
       await composeButton(),
+      ' ',
+      notificationsButton(),
       ' ',
       span,
       ' ',
