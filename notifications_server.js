@@ -84,15 +84,23 @@ async function parsePostText(text) {
 
   let name
   let yamlBody
-  if (yamlBlock) {
-    try {
-      const parsed = await apds.parseYaml(yamlBlock)
-      if (parsed && typeof parsed === 'object') {
-        name = typeof parsed.name === 'string' ? parsed.name.trim() : undefined
-        yamlBody = typeof parsed.body === 'string' ? parsed.body.trim() : undefined
+  try {
+    const parsed = await apds.parseYaml(raw)
+    if (parsed && typeof parsed === 'object') {
+      name = typeof parsed.name === 'string' ? parsed.name.trim() : undefined
+      yamlBody = typeof parsed.body === 'string' ? parsed.body.trim() : undefined
+    }
+  } catch {
+    if (yamlBlock) {
+      try {
+        const parsed = await apds.parseYaml(yamlBlock)
+        if (parsed && typeof parsed === 'object') {
+          name = typeof parsed.name === 'string' ? parsed.name.trim() : undefined
+          yamlBody = typeof parsed.body === 'string' ? parsed.body.trim() : undefined
+        }
+      } catch {
+        // Fall back to raw body if YAML parsing fails.
       }
-    } catch {
-      // Fall back to raw body if YAML parsing fails.
     }
   }
 
