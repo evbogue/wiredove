@@ -114,7 +114,7 @@ async function parsePostText(text) {
 
 function formatPushTitle(name, author) {
   const authorLabel = name || (author ? author.substring(0, 10) : 'Someone')
-  return `New Wiredove Message from ${authorLabel}`
+  return `${authorLabel} on Wiredove`
 }
 
 function formatPushBody(body) {
