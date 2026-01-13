@@ -11,12 +11,53 @@ const editsCache = new Map()
 const EDIT_CACHE_TTL_MS = 5000
 
 const editState = new Map()
+const timestampRefreshMs = 60000
+const visibleTimestamps = new Map()
+let timestampObserver = null
 
 const getEditState = (hash) => {
   if (!editState.has(hash)) {
     editState.set(hash, { currentIndex: null, userNavigated: false })
   }
   return editState.get(hash)
+}
+
+const refreshTimestamp = async (element, timestamp) => {
+  if (!document.body.contains(element)) {
+    const stored = visibleTimestamps.get(element)
+    if (stored) { clearInterval(stored.intervalId) }
+    visibleTimestamps.delete(element)
+    return
+  }
+  element.textContent = await apds.human(timestamp)
+}
+
+const observeTimestamp = (element, timestamp) => {
+  if (!element) { return }
+  element.dataset.timestamp = timestamp
+  if (!timestampObserver) {
+    timestampObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const target = entry.target
+        const ts = target.dataset.timestamp
+        if (!ts) { return }
+        if (entry.isIntersecting) {
+          refreshTimestamp(target, ts)
+          if (!visibleTimestamps.has(target)) {
+            const intervalId = setInterval(() => {
+              refreshTimestamp(target, ts)
+            }, timestampRefreshMs)
+            visibleTimestamps.set(target, { intervalId })
+          }
+        } else {
+          const stored = visibleTimestamps.get(target)
+          if (stored) { clearInterval(stored.intervalId) }
+          visibleTimestamps.delete(target)
+        }
+      })
+    })
+  }
+  timestampObserver.observe(element)
 }
 
 const renderBody = async (body, replyHash) => {
@@ -369,7 +410,7 @@ render.meta = async (blob, opened, hash, div) => {
       syncPrevious(yaml)
 
       const ts = h('a', {href: '#' + hash}, [humanTime])
-      setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
+      observeTimestamp(ts, timestamp)
 
       const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
       const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
@@ -405,7 +446,7 @@ render.meta = async (blob, opened, hash, div) => {
   }
 
   const ts = h('a', {href: '#' + hash}, [humanTime])
-  setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
+  observeTimestamp(ts, timestamp)
 
   const pubkey = await apds.pubkey()
   const canEdit = pubkey && pubkey === author
