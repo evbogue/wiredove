@@ -22,8 +22,8 @@ const composeButton = async () => {
 const searchInput = h('input', {
   id: 'search',
   placeholder: 'Search',
-  classList: 'material-symbols-outlined', 
-  style: 'width: 75px; float: right; margin-right: 5px; height: 14px;',
+  classList: 'material-symbols-outlined',
+  style: 'width: 75px; height: 14px;',
   oninput: () => {
     searchInput.classList = ''
     window.location.hash = '?' + searchInput.value
@@ -33,7 +33,7 @@ const searchInput = h('input', {
 })
 
 const sync = h('a', {
-  style: 'float: right; margin-top: 3px;',
+  style: 'margin-top: 3px;',
   classList: 'material-symbols-outlined',
   onclick: async (e) => {
     sync.remove()
@@ -85,25 +85,25 @@ const sync = h('a', {
 }, ['Autorenew'])
 
 export const navbar = async () => {
-  const span = h('span', {style: 'margin-left: 5px; float: right;'})
+  const span = h('span')
 
-  const div = h('div', 
-    {id: 'navbar'},
-    [
-      h('a', {href: '#', classList: 'material-symbols-outlined'}, [h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})]),
-      ' ',
-      await composeButton(),
-      ' ',
-      notificationsButton(),
-      ' ',
-      span,
-      ' ',
-      h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'float: right; margin-top: 3px;'}, ['Settings']),
-      sync,
-      h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'float: right; margin-right: 5px; margin-top: 3px;'}, ['Folder_Data']),
-      searchInput,
-    ]
-  )
+  const left = h('span', {classList: 'navbar-left'}, [
+    h('a', {href: '#', classList: 'material-symbols-outlined'}, [
+      h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})
+    ]),
+    await composeButton(),
+  ])
+
+  const right = h('span', {classList: 'navbar-right'}, [
+    searchInput,
+    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Folder_Data']),
+    sync,
+    notificationsButton(),
+    h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Settings']),
+    span,
+  ])
+
+  const div = h('div', {id: 'navbar'}, [left, right])
 
   if (!await apds.keypair()) {
     div.appendChild(await identify())

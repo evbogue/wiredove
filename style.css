@@ -110,15 +110,31 @@ iframe {
   padding-top: .5em;
   padding-left: 1em;
   padding-bottom: .5em;
-  padding-right: 5em;
+  padding-right: 1em;
   position: fixed;
-  width: 98.5%;
+  width: 100%;
+  box-sizing: border-box;
   z-index: 1;
   top: 0;
   left: 0;
   background-color: rgba(248,248,248,0.5);
   border-bottom: 1px solid #eee;
   backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.navbar-left,
+.navbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navbar-right {
+  margin-left: auto;
 }
 
 .message {
@@ -202,6 +218,18 @@ iframe {
   hr { border: 1px solid #333;}
   pre, code { background: #333; color: #f5f5f5;}
   a {color: #50afe4;}
+}
+
+@media (max-width: 640px) {
+  #navbar {
+    padding-right: 1em;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .navbar-left,
+  .navbar-right {
+    gap: 4px;
+  }
 }
 
 
