@@ -298,10 +298,16 @@ render.qr = (hash, blob, target) => {
         const darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
         const background = darkMode ? '#222' : '#f8f8f8'
         const foreground = darkMode ? '#ccc' : '#444'
+        const maxSize = Math.min(
+          400,
+          Math.floor(window.innerWidth * 0.9),
+          Math.floor(window.innerHeight * 0.6)
+        )
+        const size = Math.max(160, maxSize)
         new QRious({
           element: canvas,
           value: location.href + blob,
-          size: 400,
+          size,
           background,
           foreground,
         })
@@ -365,7 +371,7 @@ render.meta = async (blob, opened, hash, div) => {
       const ts = h('a', {href: '#' + hash}, [humanTime])
       setInterval(async () => {ts.textContent = await apds.human(timestamp)}, 1000)
 
-      const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; max-width: 400px;'})
+      const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
       const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
       const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
 
@@ -416,7 +422,7 @@ render.meta = async (blob, opened, hash, div) => {
 
   const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
 
-  const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; max-width: 400px;'})
+  const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
   const editedHint = h('span', {classList: 'edit-hint', style: 'display: none;'}, [''])
   const editNav = buildEditNav(hash)
   const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
