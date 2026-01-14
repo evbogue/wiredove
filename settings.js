@@ -1,6 +1,7 @@
 import { h } from 'h'
 import { apds } from 'apds'
 import { nameDiv, avatarSpan } from './profile.js'
+import { queueSend } from './network_queue.js'
 
 export const importKey = async () => {
   const textarea = h('textarea', {placeholder: 'Keypair'})
@@ -58,6 +59,58 @@ const deleteEverything = h('button', {
   }
 }, ['Delete everything'])
 
+const pullEverything = h('button', {
+  onclick: async () => {
+    const remotelog = await fetch('https://pub.wiredove.net/all').then(l => l.json())
+    for (const m of remotelog) {
+      if (m && m.sig) {
+        await apds.add(m.sig)
+        await apds.make(m.text)
+      }
+    }
+  }
+}, ['Pull everything'])
+
+const pushEverything = h('button', {
+  onclick: async () => {
+    const log = await apds.query()
+    if (log) {
+      const ar = []
+      for (const msg of log) {
+        queueSend(msg.sig, 'ws')
+        if (msg.text) {
+          queueSend(msg.text, 'ws')
+          const yaml = await apds.parseYaml(msg.text)
+          if (yaml.image && !ar.includes(yaml.image)) {
+            const get = await apds.get(yaml.image)
+            if (get) {
+              queueSend(get, 'ws')
+              ar.push(yaml.image)
+            }
+          }
+          if (yaml.body) {
+            const images = yaml.body.match(/!\[.*?\]\((.*?)\)/g)
+            if (images) {
+              for (const image of images) {
+                const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
+                const imgBlob = await apds.get(src)
+                if (imgBlob && !ar.includes(src)) {
+                  queueSend(imgBlob, 'ws')
+                  ar.push(src)
+                }
+              }
+            }
+          }
+        }
+        if (!msg.text) {
+          const get = await apds.get(msg.opened.substring(13))
+          if (get) { queueSend(get, 'ws') }
+        }
+      }
+    }
+  }
+}, ['Push everything'])
+
 
 //const didweb = async () => {
 //  const input = h('input', {placeholder: 'https://yourwebsite.com/'})
@@ -92,6 +145,10 @@ export const settings = async () => {
     //h('p', ['Did:web']),
     //await didweb(),
     //h('hr'),
+    h('p', ['Sync']),
+    pushEverything,
+    pullEverything,
+    h('hr'),
     h('p', ['Import Keypair']),
     await editKey(),
     deleteEverything
@@ -99,4 +156,3 @@ export const settings = async () => {
 
   return div
 }
-

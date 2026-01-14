@@ -1,9 +1,9 @@
 import { apds } from 'apds'
 import { joinRoom } from './trystero-torrent.min.js'
 import { render }  from './render.js'
+import { noteReceived, registerNetworkSenders } from './network_queue.js'
 
 export let chan
-const gossipQueue = []
 
 let roomReadyResolver
 const createRoomReady = () => new Promise(resolve => {
@@ -19,19 +19,16 @@ const sendOverChan = (m) => {
   }
 }
 
-const flushGossipQueue = () => {
-  while (gossipQueue.length && chan) {
-    sendOverChan(gossipQueue.shift())
-  }
+export const sendTry = (m) => {
+  if (chan) { sendOverChan(m) }
 }
 
-export const sendTry = (m) => {
-  if (chan) {
-    sendOverChan(m)
-  } else {
-    gossipQueue.push(m)
-  }
-}
+export const hasRoom = () => !!chan
+
+registerNetworkSenders({
+  sendGossip: sendTry,
+  hasGossip: hasRoom
+})
 
 export const makeRoom = async (pubkey) => {
   if (!chan) {
@@ -44,6 +41,7 @@ export const makeRoom = async (pubkey) => {
 
     onHash(async (hash, id) => {
       console.log(`Received: ${hash}`)
+      noteReceived(hash)
       const get = await apds.get(hash)
       if (get) { sendBlob(get, id)}
       const latest = await apds.getLatest(hash)
@@ -52,6 +50,7 @@ export const makeRoom = async (pubkey) => {
 
     onBlob(async (blob, id) => {
       console.log(`Received: ${blob}`)
+      noteReceived(blob)
       //await process(blob) <-- trystero and ws should use the same process function
       await apds.make(blob)
       await render.shouldWe(blob)
@@ -71,7 +70,6 @@ export const makeRoom = async (pubkey) => {
 
     chan = room
     roomReadyResolver?.()
-    flushGossipQueue()
   }
 
   return roomReady

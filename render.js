@@ -9,6 +9,7 @@ export const render = {}
 const cache = new Map()
 const editsCache = new Map()
 const EDIT_CACHE_TTL_MS = 5000
+const pendingReplies = new Map()
 
 const editState = new Map()
 const timestampRefreshMs = 60000
@@ -217,9 +218,11 @@ const ensureOriginalMessage = async (targetHash) => {
   const existing = document.getElementById(targetHash)
   const scroller = document.getElementById('scroller')
   if (!existing && scroller) {
-    const placeholder = render.hash(targetHash)
-    if (placeholder) {
-      scroller.appendChild(placeholder)
+    const signed = await apds.get(targetHash)
+    if (signed) {
+      const opened = await apds.open(signed)
+      const ts = parseOpenedTimestamp(opened)
+      insertByTimestamp(scroller, targetHash, ts)
     }
   }
   const have = await apds.get(targetHash)
@@ -233,6 +236,89 @@ const parseOpenedTimestamp = (opened) => {
   const ts = Number.parseInt(opened.substring(0, 13), 10)
   return Number.isNaN(ts) ? 0 : ts
 }
+
+const normalizeTimestamp = (ts) => {
+  const value = Number.parseInt(ts, 10)
+  return Number.isNaN(value) ? 0 : value
+}
+
+const insertByTimestamp = (container, hash, ts) => {
+  if (!container || !hash) { return null }
+  const stamp = normalizeTimestamp(ts)
+  if (!stamp) { return null }
+  const safeHash = window.CSS && CSS.escape ? CSS.escape(hash) : hash
+  const matches = document.querySelectorAll('#' + safeHash)
+  if (matches.length > 1) {
+    matches.forEach((node, idx) => {
+      if (idx > 0) { node.remove() }
+    })
+  }
+  let div = document.getElementById(hash)
+  if (!div) {
+    div = render.hash(hash)
+  }
+  if (!div) { return null }
+  div.dataset.ts = stamp.toString()
+  if (div.parentNode === container) {
+    container.removeChild(div)
+  }
+  const children = Array.from(container.children)
+  for (const child of children) {
+    const childTs = normalizeTimestamp(child.dataset.ts)
+    if (childTs < stamp) {
+      container.insertBefore(div, child)
+      return div
+    }
+  }
+  container.appendChild(div)
+  return div
+}
+
+const getReplyParent = (yaml) => {
+  if (!yaml) { return null }
+  return yaml.replyHash || yaml.reply || null
+}
+
+const appendReply = async (parentHash, replyHash, ts, replyBlob = null) => {
+  const wrapper = document.getElementById(parentHash)
+  const repliesContainer = wrapper ? wrapper.querySelector('.message-replies') : null
+  if (!repliesContainer) { return false }
+  const blob = replyBlob || await apds.get(replyHash)
+  if (!blob) { return false }
+  let replyWrapper = document.getElementById(replyHash)
+  if (!replyWrapper) {
+    replyWrapper = render.hash(replyHash)
+  }
+  if (!replyWrapper) { return true }
+  const replyParent = replyWrapper.parentNode
+  const alreadyNested = replyParent && replyParent.classList && replyParent.classList.contains('reply')
+  if (!alreadyNested || replyParent.parentNode !== repliesContainer) {
+    const replyContain = h('div', {classList: 'reply'})
+    if (ts) { replyContain.dataset.ts = ts.toString() }
+    replyContain.appendChild(replyWrapper)
+    repliesContainer.appendChild(replyContain)
+  }
+  await render.blob(blob)
+  return true
+}
+
+const enqueuePendingReply = (parentHash, replyHash, ts) => {
+  if (!parentHash || !replyHash) { return }
+  const list = pendingReplies.get(parentHash) || []
+  if (list.some(item => item.hash === replyHash)) { return }
+  list.push({ hash: replyHash, ts })
+  pendingReplies.set(parentHash, list)
+}
+
+const flushPendingReplies = async (parentHash) => {
+  const list = pendingReplies.get(parentHash)
+  if (!list || !list.length) { return }
+  pendingReplies.delete(parentHash)
+  for (const item of list) {
+    await appendReply(parentHash, item.hash, item.ts)
+  }
+}
+
 
 const fetchEditsForMessage = async (hash, author) => {
   if (!author) { return [] }
@@ -396,6 +482,10 @@ render.meta = async (blob, opened, hash, div) => {
   const timestamp = opened.substring(0, 13)
   const contentHash = opened.substring(13)
   const author = blob.substring(0, 44)
+  const wrapper = document.getElementById(hash)
+  if (wrapper) {
+    wrapper.dataset.ts = timestamp
+  }
 
   const [humanTime, contentBlob, img] = await Promise.all([
     apds.human(timestamp),
@@ -438,6 +528,9 @@ render.meta = async (blob, opened, hash, div) => {
         rawDiv,
         qrTarget
       })
+      if (div.dataset.ts) {
+        meta.dataset.ts = div.dataset.ts
+      }
 
       div.replaceWith(meta)
       await applyProfile(contentHash, yaml)
@@ -474,7 +567,18 @@ render.meta = async (blob, opened, hash, div) => {
 
   const name = h('span', {id: 'name' + contentHash, classList: 'avatarlink'}, [author.substring(0, 10)])
 
-  const content = h('div', {id: contentHash, classList: 'material-symbols-outlined content'}, ['Notes'])
+  const content = h('div', {
+    id: contentHash,
+    classList: 'material-symbols-outlined content',
+    onclick: async () => {
+      const blob = await apds.get(contentHash)
+      if (blob) {
+        send(blob)
+      } else {
+        send(contentHash)
+      }
+    }
+  }, ['Notes'])
 
   const replySlot = h('span', {classList: 'message-actions-reply'})
   const editControls = h('span', {classList: 'message-actions-edit'}, [
@@ -489,7 +593,7 @@ render.meta = async (blob, opened, hash, div) => {
     editControls
   ])
 
-  const meta = h('div', {id: div.id, classList: 'message'}, [
+  const meta = h('div', {classList: 'message'}, [
     right,
     h('div', {classList: 'message-main'}, [
       h('a', {href: '#' + author}, [img]),
@@ -526,22 +630,17 @@ render.comments = async (hash, blob, div, actionsRow) => {
   const num = h('span')
 
   const log = await apds.getOpenedLog()
-  const src = document.location.hash.substring(1)
 
   let nume = 0
   log.forEach(async msg => {
     const yaml = await apds.parseYaml(msg.text)
     if (yaml.replyHash) { yaml.reply = yaml.replyHash}
     if (yaml.reply === hash) {
+      const ts = msg.ts || parseOpenedTimestamp(msg.opened)
+      if (!ts) { return }
       ++nume
       num.textContent = nume
-      //if (src === yaml.reply) {
-        const replyContain = h('div', {classList: 'reply'}, [
-          render.hash(msg.hash)
-        ])
-        div.after(replyContain)
-        await render.blob(await apds.get(msg.hash))
-      //}
+      await appendReply(hash, msg.hash, ts)
     }
   })
 
@@ -673,7 +772,10 @@ render.blob = async (blob) => {
     apds.open(blob)
   ])
   
-  const div = document.getElementById(hash)
+  const wrapper = document.getElementById(hash)
+  const div = wrapper && wrapper.classList.contains('message-wrapper')
+    ? wrapper.querySelector('.message-shell')
+    : wrapper
   if (opened) {
     const content = await apds.get(opened.substring(13))
     if (content) {
@@ -693,13 +795,14 @@ render.blob = async (blob) => {
       await render.content(hash, blob, div, null)
     } else {
       const content = h('div', {classList: 'content'})
-      const wrapper = h('div', {id: div.id, classList: 'message'}, [content])
-      div.replaceWith(wrapper)
+      const message = h('div', {classList: 'message'}, [content])
+      div.replaceWith(message)
       await render.content(hash, blob, content, null)
     }
   } else if (getimg) {
     getimg.src = blob
   } 
+  await flushPendingReplies(hash)
 }
 
 render.shouldWe = async (blob) => {
@@ -707,11 +810,13 @@ render.shouldWe = async (blob) => {
     apds.open(blob),
     apds.hash(blob)
   ])
+  if (!opened) { return }
   const already = await apds.get(hash)
   if (!already) {
     await apds.make(blob)
   }
-  if (opened && !already) {
+  const inDom = document.getElementById(hash)
+  if (opened && !inDom) {
     noteSeen(blob.substring(0, 44))
     const src = window.location.hash.substring(1)
     const al = []
@@ -721,37 +826,53 @@ render.shouldWe = async (blob) => {
       al.push(...parse)
       console.log(al)
     }
+    let yaml = null
     const msg = await apds.get(opened.substring(13))
-    if (!msg) { return }
-    const yaml = await apds.parseYaml(msg)
-    if (yaml && yaml.edit) {
-      queueEditRefresh(yaml.edit)
+    if (msg) {
+      yaml = await apds.parseYaml(msg)
+      if (yaml && yaml.edit) {
+        queueEditRefresh(yaml.edit)
+      }
     }
+    const ts = parseOpenedTimestamp(opened)
+    const scroller = document.getElementById('scroller')
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
-    if (blob.substring(0, 44) === src || hash === src || yaml.author === src || al.includes(blob.substring(0, 44))) {
-      const scroller = document.getElementById('scroller')
-      const div = render.hash(hash)
+    const authorKey = blob.substring(0, 44)
+    const replyTo = getReplyParent(yaml)
+    if (replyTo) {
+      const appended = await appendReply(replyTo, hash, ts, blob)
+      if (!appended) {
+        enqueuePendingReply(replyTo, hash, ts)
+      }
+      return
+    }
+    if (scroller && (authorKey === src || hash === src || al.includes(authorKey))) {
+      const div = insertByTimestamp(scroller, hash, ts)
       if (div) {
-        scroller.appendChild(div)
-        //scroller.insertBefore(div, scroller.firstChild)
         await render.blob(blob)
       }
     }
-    if (src === '') {
-      const scroller = document.getElementById('scroller')
-      const div = render.hash(hash)
+    if (scroller && src === '') {
+      const div = insertByTimestamp(scroller, hash, ts)
       if (div) {
-        //scroller.appendChild(div)
-        scroller.insertBefore(div, scroller.firstChild)
         await render.blob(blob)
       }
-    } 
+    }
   }
 }
 
 render.hash = (hash) => {
+  if (!hash) { return null }
   if (!document.getElementById(hash)) {
-    const div = h('div', {id: hash, className: 'premessage'}) 
-    return div
+    const messageShell = h('div', {classList: 'message-shell premessage'})
+    const replies = h('div', {classList: 'message-replies'})
+    const wrapper = h('div', {id: hash, classList: 'message-wrapper'}, [
+      messageShell,
+      replies
+    ])
+    return wrapper
   }
+  return null
 }
+
+render.insertByTimestamp = (container, hash, ts) => insertByTimestamp(container, hash, ts)

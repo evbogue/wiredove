@@ -100,7 +100,12 @@ const bootstrapActivity = async () => {
 }
 
 const refreshPubkeys = async () => {
-  pubkeys = await apds.getPubkeys() || []
+  try {
+    pubkeys = await apds.getPubkeys() || []
+  } catch (err) {
+    console.warn('getPubkeys failed', err)
+    pubkeys = []
+  }
   lastRefresh = nowMs()
   needsRebuild = true
   await bootstrapActivity()

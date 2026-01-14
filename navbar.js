@@ -3,7 +3,6 @@ import { identify } from './identify.js'
 import { imageSpan } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
-import { sendWs } from './websocket.js' 
 import { notificationsButton } from "./notifications.js"
 
 const composeButton = async () => {
@@ -32,58 +31,6 @@ const searchInput = h('input', {
   }
 })
 
-const sync = h('a', {
-  style: 'margin-top: 3px;',
-  classList: 'material-symbols-outlined',
-  onclick: async (e) => {
-    sync.remove()
-    const remotelog = await fetch('https://pub.wiredove.net/all').then(l => l.json())
-    for (const m of remotelog) {
-      if (m && m.sig) {
-        await apds.add(m.sig)
-        await apds.make(m.text)
-      }
-    }
-    const log = await apds.query()
-    if (log) {
-      const ar = []
-      for (const msg of log) {
-        sendWs(msg.sig)
-        if (msg.text) {
-          sendWs(msg.text)
-          const yaml = await apds.parseYaml(msg.text)
-          if (yaml.image && !ar.includes(yaml.image)) {
-            const get = await apds.get(yaml.image)
-            if (get) {
-              sendWs(get)
-              ar.push(yaml.image)
-            }
-          }
-          if (yaml.body) {
-            const images = yaml.body.match(/!\[.*?\]\((.*?)\)/g)
-            if (images) {
-              for (const image of images) {
-                const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
-                const imgBlob = await apds.get(src)
-                if (imgBlob && !ar.includes(src)) { 
-                  sendWs(imgBlob) 
-                  ar.push(src)
-                }
-              }
-            }
-          }
-        }
-        if (!msg.text) {
-          const get = await apds.get(msg.opened.substring(13))
-          if (get) {sendWs(get)}
-        }
-      }
-    }
-    window.location.hash = 'whut'
-    window.location.hash = ''
-  }
-}, ['Autorenew'])
-
 export const navbar = async () => {
   const span = h('span')
 
@@ -97,7 +44,6 @@ export const navbar = async () => {
   const right = h('span', {classList: 'navbar-right'}, [
     searchInput,
     h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Folder_Data']),
-    sync,
     notificationsButton(),
     h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Settings']),
     span,

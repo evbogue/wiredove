@@ -1,8 +1,6 @@
-import { sendWs } from './websocket.js'
-import { sendTry } from './gossip.js'
+import { queueSend } from './network_queue.js'
 
 export const send = async (m) => {
   console.log('SENDING' + m)
-  sendWs(m)
-  sendTry(m)
+  queueSend(m, 'both')
 }
