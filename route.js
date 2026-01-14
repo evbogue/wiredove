@@ -19,7 +19,6 @@ export const route = async () => {
   if (src === '') {
     const log = await apds.query()
     if (log && log[0]) {
-      log.sort((a,b) => b.ts - a.ts)
       adder(log, src, scroller)
     }
   }
@@ -50,7 +49,6 @@ export const route = async () => {
           query.push(...q)
         }
       }
-      query.sort((a,b) => b.ts - a.ts)
       adder(query, src, scroller)
     } catch (err) {console.log(err)}
   } 
@@ -60,7 +58,6 @@ export const route = async () => {
       noteInterest(src)
       const log = await apds.query(src)
       if (log && log[0]) {
-        log.sort((a,b) => b.ts - a.ts)
         adder(log, src, scroller)
       } else {
         console.log('we do not have it')
@@ -72,7 +69,6 @@ export const route = async () => {
     try {
       const log = await apds.query(src)
       if (log && log[0] && log != '') {
-        log.sort((a,b) => b.ts - a.ts)
         adder(log, src, scroller)
       }
     } catch (err) {}
