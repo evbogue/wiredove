@@ -7,6 +7,23 @@ import { send } from './send.js'
 import { markdown } from './markdown.js'
 import { imgUpload } from './upload.js'
 
+async function pushLocalNotification({ hash, author, text }) {
+  try {
+    await fetch('/push-now', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        hash,
+        author,
+        text,
+        url: `${window.location.origin}/#${hash}`,
+      }),
+    })
+  } catch {
+    // Notifications server might be unavailable; ignore.
+  }
+}
+
 export const composer = async (sig, options = {}) => {
   const obj = {}
   const isEdit = !!options.editHash && !sig
@@ -78,6 +95,7 @@ export const composer = async (sig, options = {}) => {
     await send(signed)
     await send(blob)
     const hash = await apds.hash(signed)
+    pushLocalNotification({ hash, author: signed.substring(0, 44), text: blob })
 
     const images = blob.match(/!\[.*?\]\((.*?)\)/g)
     if (images) {
@@ -100,9 +118,10 @@ export const composer = async (sig, options = {}) => {
       await render.blob(signed)
     } else {
       const scroller = document.getElementById('scroller')
-      const placeholder = render.hash(hash)
+      const opened = await apds.open(signed)
+      const ts = opened ? opened.substring(0, 13) : Date.now().toString()
+      const placeholder = render.insertByTimestamp(scroller, hash, ts)
       if (placeholder) {
-        scroller.insertBefore(placeholder, scroller.firstChild)
         await render.blob(signed)
       }
       overlay.remove()

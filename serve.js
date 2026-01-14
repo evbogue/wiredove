@@ -3,8 +3,6 @@ import { createNotificationsService } from './notifications_server.js'
 
 const notifications = await createNotificationsService()
 
-notifications.startPolling()
-
 Deno.serve(async (r) => {
   const handled = await notifications.handleRequest(r)
   if (handled) return handled

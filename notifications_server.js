@@ -2,8 +2,6 @@ import webpush from 'npm:web-push@3.6.7'
 import { apds } from 'https://esm.sh/gh/evbogue/apds@d9326cb/apds.js'
 
 const DEFAULTS = {
-  latestUrl: 'https://pub.wiredove.net/latest',
-  pollMs: 15000,
   dataDir: './data',
   subsFile: './data/subscriptions.json',
   stateFile: './data/state.json',
@@ -55,15 +53,6 @@ async function ensureVapidConfig(configPath, subject) {
 
 function subscriptionId(endpoint) {
   return btoa(endpoint).replaceAll('=', '')
-}
-
-async function hashText(text) {
-  const data = new TextEncoder().encode(text)
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  const bytes = new Uint8Array(digest)
-  let out = ''
-  for (const b of bytes) out += b.toString(16).padStart(2, '0')
-  return out
 }
 
 async function parsePostText(text) {
@@ -125,7 +114,8 @@ function formatPushBody(body) {
 async function toPushPayload(latest, pushIconUrl) {
   const record = latest && typeof latest === 'object' ? latest : null
   const hash = record && typeof record.hash === 'string' ? record.hash : ''
-  const targetUrl = hash ? `https://wiredove.net/#${hash}` : 'https://wiredove.net/'
+  const explicitUrl = record && typeof record.url === 'string' ? record.url : ''
+  const targetUrl = explicitUrl || (hash ? `https://wiredove.net/#${hash}` : 'https://wiredove.net/')
   const rawText = record && typeof record.text === 'string' ? record.text : ''
   const parsed = rawText ? await parsePostText(rawText) : {}
   const bodyText = parsed.body || ''
@@ -142,21 +132,8 @@ async function toPushPayload(latest, pushIconUrl) {
   })
 }
 
-function summarizeLatest(record) {
-  const text = typeof record.text === 'string' ? record.text : ''
-  const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text
-  return {
-    hash: typeof record.hash === 'string' ? record.hash : undefined,
-    author: typeof record.author === 'string' ? record.author : undefined,
-    ts: typeof record.ts === 'string' ? record.ts : undefined,
-    textPreview: preview || undefined,
-  }
-}
-
 export async function createNotificationsService(options = {}) {
   const settings = {
-    latestUrl: Deno.env.get('LATEST_URL') ?? DEFAULTS.latestUrl,
-    pollMs: Number(Deno.env.get('POLL_MS') ?? DEFAULTS.pollMs),
     dataDir: DEFAULTS.dataDir,
     subsFile: DEFAULTS.subsFile,
     stateFile: DEFAULTS.stateFile,
@@ -191,129 +168,38 @@ export async function createNotificationsService(options = {}) {
     await writeJsonFile(settings.stateFile, state)
   }
 
-  async function pollLatest(force = false) {
-    try {
-      const res = await fetch(settings.latestUrl, { cache: 'no-store' })
-      if (!res.ok) {
-        console.error(`Latest fetch failed: ${res.status}`)
-        return { changed: false, sent: false, reason: 'latest fetch failed' }
-      }
-      const bodyText = await res.text()
-      if (!bodyText.trim()) {
-        return { changed: false, sent: false, reason: 'empty response' }
-      }
-
-      let latestId = ''
-      let latestJson = bodyText
-      let latestRecord = null
-
-      try {
-        latestJson = JSON.parse(bodyText)
-        if (Array.isArray(latestJson)) {
-          if (latestJson.length === 0) {
-            return { changed: false, sent: false, reason: 'empty response' }
-          }
-          const sorted = [...latestJson]
-            .filter((item) => item && typeof item === 'object')
-            .sort((a, b) => {
-              const at = Number(a.ts ?? a.timestamp ?? 0)
-              const bt = Number(b.ts ?? b.timestamp ?? 0)
-              if (!Number.isNaN(bt - at)) return bt - at
-              return 0
-            })
-          latestRecord = sorted[0] ?? null
-        } else if (latestJson && typeof latestJson === 'object') {
-          latestRecord = latestJson
-        }
-
-        if (latestRecord) {
-          const candidate =
-            latestRecord.hash ??
-            latestRecord.sig ??
-            latestRecord.id ??
-            latestRecord.timestamp ??
-            latestRecord.ts
-          if (typeof candidate === 'string' || typeof candidate === 'number') {
-            latestId = String(candidate)
-          }
-        }
-      } catch {
-        // Non-JSON is allowed; fallback to hashing.
-      }
-
-      const state = await loadState()
-      const latestHash = latestId ? '' : await hashText(bodyText)
-      const latestSummary = latestRecord ? summarizeLatest(latestRecord) : undefined
-
-      const isNew = latestId
-        ? latestId !== state.lastSeenId
-        : latestHash !== state.lastSeenHash
-
-      if (!isNew && !force) {
-        return {
-          changed: false,
-          sent: false,
-          reason: 'no new messages',
-          latest: latestSummary,
-        }
-      }
-
-      if (isNew) {
-        await saveState({
-          lastSeenId: latestId || undefined,
-          lastSeenHash: latestHash || undefined,
-        })
-      }
-
-      const subs = await loadSubscriptions()
-      if (subs.length === 0) {
-        return {
-          changed: true,
-          sent: false,
-          reason: 'no subscriptions',
-          latest: latestSummary,
-        }
-      }
-
-      const payload = await toPushPayload(latestRecord ?? latestJson, settings.pushIconUrl)
-      if (!payload) {
-        return {
-          changed: false,
-          sent: false,
-          reason: 'no content',
-          latest: latestSummary,
-        }
-      }
-      const now = new Date().toISOString()
-      const nextSubs = []
-
-      for (const sub of subs) {
-        try {
-          await webpush.sendNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: sub.keys,
-            },
-            payload,
-          )
-          nextSubs.push({ ...sub, lastNotifiedAt: now })
-        } catch (err) {
-          const status = err && typeof err === 'object' ? err.statusCode : undefined
-          if (status === 404 || status === 410) {
-            console.warn(`Removing expired subscription: ${sub.id}`)
-            continue
-          }
-          console.error(`Push failed for ${sub.id}`, err)
-          nextSubs.push(sub)
-        }
-      }
-
-      await saveSubscriptions(nextSubs)
-      return { changed: true, sent: true, latest: latestSummary }
-    } catch (err) {
-      console.error('Poll error', err)
-      return { changed: false, sent: false, reason: 'poll error' }
+  async function sendPayloadToSubscriptions(payload) {
+    const subs = await loadSubscriptions()
+    if (subs.length === 0) {
+      return { sent: false, reason: 'no subscriptions' }
     }
+
+    const now = new Date().toISOString()
+    const nextSubs = []
+
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: sub.keys,
+          },
+          payload,
+        )
+        nextSubs.push({ ...sub, lastNotifiedAt: now })
+      } catch (err) {
+        const status = err && typeof err === 'object' ? err.statusCode : undefined
+        if (status === 404 || status === 410) {
+          console.warn(`Removing expired subscription: ${sub.id}`)
+          continue
+        }
+        console.error(`Push failed for ${sub.id}`, err)
+        nextSubs.push(sub)
+      }
+    }
+
+    await saveSubscriptions(nextSubs)
+    return { sent: true }
   }
 
   async function handleRequest(req) {
@@ -365,31 +251,39 @@ export async function createNotificationsService(options = {}) {
       return new Response('ok', { status: 200 })
     }
 
-    if (req.method === 'POST' && url.pathname === '/poll-now') {
-      const result = await pollLatest()
-      return Response.json(result)
-    }
+    if (req.method === 'POST' && url.pathname === '/push-now') {
+      const body = await req.json().catch(() => null)
+      if (!body || typeof body !== 'object') {
+        return Response.json({ error: 'invalid payload' }, { status: 400 })
+      }
+      const record = {
+        hash: typeof body.hash === 'string' ? body.hash : undefined,
+        author: typeof body.author === 'string' ? body.author : undefined,
+        text: typeof body.text === 'string' ? body.text : undefined,
+        url: typeof body.url === 'string' ? body.url : undefined,
+      }
 
-    if (req.method === 'POST' && url.pathname === '/push-latest') {
-      const result = await pollLatest(true)
-      return Response.json(result)
+      const payload = await toPushPayload(record, settings.pushIconUrl)
+      if (!payload) {
+        return Response.json({ sent: false, reason: 'no content' })
+      }
+
+      if (record.hash) {
+        await saveState({ lastSeenId: record.hash })
+      }
+
+      const sendResult = await sendPayloadToSubscriptions(payload)
+      return Response.json({
+        sent: sendResult.sent,
+        reason: sendResult.reason,
+      })
     }
 
     return null
   }
 
-  function startPolling() {
-    console.log(`Polling ${settings.latestUrl} every ${settings.pollMs}ms`)
-    pollLatest()
-    setInterval(() => {
-      pollLatest()
-    }, settings.pollMs)
-  }
-
   return {
     config,
     handleRequest,
-    pollLatest,
-    startPolling,
   }
 }
