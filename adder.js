@@ -46,47 +46,68 @@ export const adder = (log, src, div) => {
   if (log && log[0]) {
     let index = 0
     const ascending = isAscending(log)
-    let hasUserScrolled = false
-    let lastScrollTop = 0
-    const isNearBottom = () => {
-      const scrollEl = document.scrollingElement || document.documentElement || document.body
-      const scrollTop = scrollEl.scrollTop || window.scrollY || 0
-      const clientHeight = scrollEl.clientHeight || window.innerHeight || 0
-      const scrollHeight = scrollEl.scrollHeight || document.body.scrollHeight || 0
-      return (scrollTop + clientHeight) >= scrollHeight - 1000
-    }
+    let loading = false
+    let armed = false
+    const sentinelId = 'scroll-sentinel'
 
     let posts = []
-    if (ascending) {
-      const end = log.length - index
-      const start = Math.max(0, end - 25)
-      posts = log.slice(start, end).reverse()
-    } else {
-      posts = log.slice(index, index + 25)
+    const takeSlice = () => {
+      if (ascending) {
+        const end = log.length - index
+        const start = Math.max(0, end - 25)
+        posts = log.slice(start, end).reverse()
+      } else {
+        posts = log.slice(index, index + 25)
+      }
+      index = index + 25
+      return posts
     }
 
-    addPosts(posts, div)
-    index = index + 25
-
-    window.onscroll = () => {
-      const scrollEl = document.scrollingElement || document.documentElement || document.body
-      const scrollTop = scrollEl.scrollTop || window.scrollY || 0
-      if (scrollTop !== lastScrollTop) {
-        hasUserScrolled = true
-        lastScrollTop = scrollTop
+    const ensureSentinel = () => {
+      let sentinel = document.getElementById(sentinelId)
+      if (!sentinel) {
+        sentinel = document.createElement('div')
+        sentinel.id = sentinelId
+        sentinel.style.height = '1px'
       }
-      if (!hasUserScrolled) { return }
-      if (isNearBottom() && window.location.hash.substring(1) === src) {
-        if (ascending) {
-          const end = log.length - index
-          const start = Math.max(0, end - 25)
-          posts = log.slice(start, end).reverse()
-        } else {
-          posts = log.slice(index, index + 25)
-        }
-        index = index + 25
-        addPosts(posts, div)
+      if (sentinel.parentNode && sentinel.parentNode !== div) {
+        sentinel.parentNode.removeChild(sentinel)
+      }
+      div.appendChild(sentinel)
+      return sentinel
+    }
+
+    const loadNext = async () => {
+      if (loading) { return }
+      if (window.location.hash.substring(1) !== src) { return }
+      loading = true
+      try {
+        const next = takeSlice()
+        if (!next.length) { return false }
+        await addPosts(next, div)
+        ensureSentinel()
+        return true
+      } finally {
+        loading = false
       }
     }
+
+    void loadNext()
+    const armScroll = () => {
+      armed = true
+    }
+    window.addEventListener('scroll', armScroll, { passive: true, once: true })
+    const sentinel = ensureSentinel()
+    const observer = new IntersectionObserver(async (entries) => {
+      const entry = entries[0]
+      if (!entry || !entry.isIntersecting) { return }
+      if (!armed) { return }
+      const hasMore = await loadNext()
+      if (hasMore === false) {
+        observer.disconnect()
+      }
+    }, { root: null, rootMargin: '0px 0px', threshold: 0 })
+
+    observer.observe(sentinel)
   }
 }

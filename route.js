@@ -20,6 +20,7 @@ export const route = async () => {
   if (src === '') {
     const log = await apds.query()
     if (log && log[0]) {
+      scroller.dataset.paginated = 'true'
       adder(log, src, scroller)
     }
   }
@@ -50,6 +51,7 @@ export const route = async () => {
           query.push(...q)
         }
       }
+      scroller.dataset.paginated = 'true'
       adder(query, src, scroller)
     } catch (err) {console.log(err)}
   } 
@@ -59,6 +61,7 @@ export const route = async () => {
       noteInterest(src)
       const log = await apds.query(src)
       if (log && log[0]) {
+        scroller.dataset.paginated = 'true'
         adder(log, src, scroller)
       } else {
         console.log('we do not have it')
@@ -70,6 +73,7 @@ export const route = async () => {
     try {
       const log = await apds.query(src)
       if (log && log[0] && log != '') {
+        scroller.dataset.paginated = 'true'
         adder(log, src, scroller)
       }
     } catch (err) {}

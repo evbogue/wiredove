@@ -860,6 +860,8 @@ render.shouldWe = async (blob) => {
   const already = await apds.get(hash)
   if (!already) {
     await apds.make(blob)
+  } else {
+    return
   }
   const inDom = document.getElementById(hash)
   if (opened && !inDom) {
