@@ -46,6 +46,15 @@ export const adder = (log, src, div) => {
   if (log && log[0]) {
     let index = 0
     const ascending = isAscending(log)
+    let hasUserScrolled = false
+    let lastScrollTop = 0
+    const isNearBottom = () => {
+      const scrollEl = document.scrollingElement || document.documentElement || document.body
+      const scrollTop = scrollEl.scrollTop || window.scrollY || 0
+      const clientHeight = scrollEl.clientHeight || window.innerHeight || 0
+      const scrollHeight = scrollEl.scrollHeight || document.body.scrollHeight || 0
+      return (scrollTop + clientHeight) >= scrollHeight - 1000
+    }
 
     let posts = []
     if (ascending) {
@@ -60,7 +69,14 @@ export const adder = (log, src, div) => {
     index = index + 25
 
     window.onscroll = () => {
-      if (((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 1000) && window.location.hash.substring(1) === src) {
+      const scrollEl = document.scrollingElement || document.documentElement || document.body
+      const scrollTop = scrollEl.scrollTop || window.scrollY || 0
+      if (scrollTop !== lastScrollTop) {
+        hasUserScrolled = true
+        lastScrollTop = scrollTop
+      }
+      if (!hasUserScrolled) { return }
+      if (isNearBottom() && window.location.hash.substring(1) === src) {
         if (ascending) {
           const end = log.length - index
           const start = Math.max(0, end - 25)

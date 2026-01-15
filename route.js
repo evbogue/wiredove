@@ -15,6 +15,7 @@ export const route = async () => {
   const scroller = h('div', {id: 'scroller'})
 
   document.body.appendChild(scroller)
+  await render.buildReplyIndex()
 
   if (src === '') {
     const log = await apds.query()

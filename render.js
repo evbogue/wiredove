@@ -9,7 +9,9 @@ export const render = {}
 const cache = new Map()
 const editsCache = new Map()
 const EDIT_CACHE_TTL_MS = 5000
-const pendingReplies = new Map()
+const replyIndex = new Map()
+const replyCountTargets = new Map()
+let replyObserver = null
 
 const editState = new Map()
 const timestampRefreshMs = 60000
@@ -59,6 +61,67 @@ const observeTimestamp = (element, timestamp) => {
     })
   }
   timestampObserver.observe(element)
+}
+
+const indexReply = (parentHash, replyHash, ts) => {
+  if (!parentHash || !replyHash) { return }
+  const list = replyIndex.get(parentHash) || []
+  if (list.some(item => item.hash === replyHash)) { return }
+  list.push({ hash: replyHash, ts })
+  replyIndex.set(parentHash, list)
+}
+
+const updateReplyCount = (parentHash) => {
+  const target = replyCountTargets.get(parentHash)
+  if (!target) { return }
+  const list = replyIndex.get(parentHash) || []
+  target.textContent = list.length ? list.length.toString() : ''
+}
+
+const observeReplies = (wrapper, parentHash) => {
+  if (!wrapper) { return }
+  if (!replyObserver) {
+    replyObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const target = entry.target
+        if (!entry.isIntersecting) { return }
+        const hash = target.dataset.replyParent
+        if (!hash) { return }
+        if (target.dataset.repliesLoaded === 'true') { return }
+        const list = replyIndex.get(hash) || []
+        if (!list.length) {
+          target.dataset.repliesLoaded = 'true'
+          return
+        }
+        void (async () => {
+          for (const item of list) {
+            await appendReply(hash, item.hash, item.ts)
+          }
+          target.dataset.repliesLoaded = 'true'
+        })()
+      })
+    })
+  }
+  wrapper.dataset.replyParent = parentHash
+  replyObserver.observe(wrapper)
+}
+
+render.buildReplyIndex = async (log = null) => {
+  replyIndex.clear()
+  replyCountTargets.clear()
+  if (!log) {
+    log = await apds.getOpenedLog()
+  }
+  if (!log) { return }
+  for (const msg of log) {
+    if (!msg || !msg.text || !msg.hash) { continue }
+    const yaml = await apds.parseYaml(msg.text)
+    if (!yaml) { continue }
+    const parent = yaml.replyHash || yaml.reply || null
+    if (!parent) { continue }
+    const ts = msg.ts || parseOpenedTimestamp(msg.opened)
+    indexReply(parent, msg.hash, ts)
+  }
 }
 
 const renderBody = async (body, replyHash) => {
@@ -302,21 +365,12 @@ const appendReply = async (parentHash, replyHash, ts, replyBlob = null) => {
   return true
 }
 
-const enqueuePendingReply = (parentHash, replyHash, ts) => {
-  if (!parentHash || !replyHash) { return }
-  const list = pendingReplies.get(parentHash) || []
-  if (list.some(item => item.hash === replyHash)) { return }
-  list.push({ hash: replyHash, ts })
-  pendingReplies.set(parentHash, list)
-}
-
 const flushPendingReplies = async (parentHash) => {
-  const list = pendingReplies.get(parentHash)
-  if (!list || !list.length) { return }
-  pendingReplies.delete(parentHash)
-  for (const item of list) {
-    await appendReply(parentHash, item.hash, item.ts)
-  }
+  const wrapper = document.getElementById(parentHash)
+  if (!wrapper) { return }
+  const list = replyIndex.get(parentHash) || []
+  if (!list.length) { return }
+  observeReplies(wrapper, parentHash)
 }
 
 
@@ -628,21 +682,13 @@ render.meta = async (blob, opened, hash, div) => {
 
 render.comments = async (hash, blob, div, actionsRow) => {
   const num = h('span')
-
-  const log = await apds.getOpenedLog()
-
-  let nume = 0
-  log.forEach(async msg => {
-    const yaml = await apds.parseYaml(msg.text)
-    if (yaml.replyHash) { yaml.reply = yaml.replyHash}
-    if (yaml.reply === hash) {
-      const ts = msg.ts || parseOpenedTimestamp(msg.opened)
-      if (!ts) { return }
-      ++nume
-      num.textContent = nume
-      await appendReply(hash, msg.hash, ts)
-    }
-  })
+  replyCountTargets.set(hash, num)
+  updateReplyCount(hash)
+  const list = replyIndex.get(hash) || []
+  if (list.length) {
+    const wrapper = document.getElementById(hash)
+    observeReplies(wrapper, hash)
+  }
 
   const reply = h('a', {
     classList: 'material-symbols-outlined',
@@ -840,9 +886,13 @@ render.shouldWe = async (blob) => {
     const authorKey = blob.substring(0, 44)
     const replyTo = getReplyParent(yaml)
     if (replyTo) {
-      const appended = await appendReply(replyTo, hash, ts, blob)
-      if (!appended) {
-        enqueuePendingReply(replyTo, hash, ts)
+      indexReply(replyTo, hash, ts)
+      updateReplyCount(replyTo)
+      const wrapper = document.getElementById(replyTo)
+      if (wrapper && wrapper.dataset.repliesLoaded === 'true') {
+        await appendReply(replyTo, hash, ts, blob)
+      } else if (wrapper) {
+        observeReplies(wrapper, replyTo)
       }
       return
     }
