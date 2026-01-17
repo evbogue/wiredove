@@ -77,14 +77,14 @@ const pushEverything = h('button', {
     if (log) {
       const ar = []
       for (const msg of log) {
-        queueSend(msg.sig, 'ws')
+        queueSend(msg.sig)
         if (msg.text) {
-          queueSend(msg.text, 'ws')
+          queueSend(msg.text)
           const yaml = await apds.parseYaml(msg.text)
           if (yaml.image && !ar.includes(yaml.image)) {
             const get = await apds.get(yaml.image)
             if (get) {
-              queueSend(get, 'ws')
+              queueSend(get)
               ar.push(yaml.image)
             }
           }
@@ -95,7 +95,7 @@ const pushEverything = h('button', {
                 const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
                 const imgBlob = await apds.get(src)
                 if (imgBlob && !ar.includes(src)) {
-                  queueSend(imgBlob, 'ws')
+                  queueSend(imgBlob)
                   ar.push(src)
                 }
               }
@@ -104,7 +104,7 @@ const pushEverything = h('button', {
         }
         if (!msg.text) {
           const get = await apds.get(msg.opened.substring(13))
-          if (get) { queueSend(get, 'ws') }
+          if (get) { queueSend(get) }
         }
       }
     }

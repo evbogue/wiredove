@@ -120,9 +120,20 @@ export const composer = async (sig, options = {}) => {
       const scroller = document.getElementById('scroller')
       const opened = await apds.open(signed)
       const ts = opened ? opened.substring(0, 13) : Date.now().toString()
-      const placeholder = render.insertByTimestamp(scroller, hash, ts)
-      if (placeholder) {
-        await render.blob(signed)
+      if (window.__feedEnqueue) {
+        const src = window.location.hash.substring(1)
+        const queued = await window.__feedEnqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed })
+        if (!queued) {
+          const placeholder = render.insertByTimestamp(scroller, hash, ts)
+          if (placeholder) {
+            await render.blob(signed)
+          }
+        }
+      } else {
+        const placeholder = render.insertByTimestamp(scroller, hash, ts)
+        if (placeholder) {
+          await render.blob(signed)
+        }
       }
       overlay.remove()
     }

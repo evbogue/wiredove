@@ -1,8 +1,10 @@
 const SEND_DELAY_MS = 100
+const HASH_RETRY_MS = 800
 const queue = []
 const pending = new Map()
 let drainTimer = null
 let draining = false
+let nextHashTarget = 'ws'
 
 const senders = {
   ws: null,
@@ -16,12 +18,9 @@ const getKey = (msg) => {
   return null
 }
 
-const normalizeTargets = (targets) => {
-  if (!targets || targets === 'both') { return { ws: true, gossip: true } }
-  if (targets === 'ws') { return { ws: true, gossip: false } }
-  if (targets === 'gossip') { return { ws: false, gossip: true } }
-  return { ws: true, gossip: true }
-}
+const isHash = (msg) => typeof msg === 'string' && msg.length === 44
+
+const flipTarget = (target) => (target === 'ws' ? 'gossip' : 'ws')
 
 export const registerNetworkSenders = (config = {}) => {
   if (config.sendWs) { senders.ws = config.sendWs }
@@ -46,6 +45,29 @@ const cleanupItem = (item, index) => {
   queue.splice(index, 1)
 }
 
+const pickHashTarget = (item) => {
+  const wsReady = isTargetReady('ws')
+  const gossipReady = isTargetReady('gossip')
+  if (!item.sent.ws && !item.sent.gossip) {
+    const preferred = nextHashTarget
+    const preferredReady = preferred === 'ws' ? wsReady : gossipReady
+    if (preferredReady) { return preferred }
+    const fallback = flipTarget(preferred)
+    const fallbackReady = fallback === 'ws' ? wsReady : gossipReady
+    if (fallbackReady) { return fallback }
+    return null
+  }
+  if (item.sent.ws && item.sent.gossip) { return null }
+  const firstTarget = item.firstTarget
+  if (!firstTarget) { return null }
+  const otherTarget = flipTarget(firstTarget)
+  const otherReady = otherTarget === 'ws' ? wsReady : gossipReady
+  if (!item.sent[otherTarget] && otherReady && Date.now() - item.sentAt[firstTarget] >= HASH_RETRY_MS) {
+    return otherTarget
+  }
+  return null
+}
+
 const drainQueue = () => {
   drainTimer = null
   if (draining) {
@@ -56,8 +78,23 @@ const drainQueue = () => {
   try {
     for (let i = 0; i < queue.length; i += 1) {
       const item = queue[i]
-      const wsReady = item.targets.ws && !item.sent.ws && isTargetReady('ws')
-      const gossipReady = item.targets.gossip && !item.sent.gossip && isTargetReady('gossip')
+      if (item.kind === 'hash') {
+        const target = pickHashTarget(item)
+        if (!target) { continue }
+        sendToTarget(target, item.msg)
+        item.sent[target] = true
+        item.sentAt[target] = Date.now()
+        if (!item.firstTarget) {
+          item.firstTarget = target
+          nextHashTarget = flipTarget(target)
+        }
+        if (item.sent.ws && item.sent.gossip) {
+          cleanupItem(item, i)
+        }
+        break
+      }
+      const wsReady = !item.sent.ws && isTargetReady('ws')
+      const gossipReady = !item.sent.gossip && isTargetReady('gossip')
       if (!wsReady && !gossipReady) { continue }
       if (wsReady) {
         sendToTarget('ws', item.msg)
@@ -67,11 +104,9 @@ const drainQueue = () => {
         sendToTarget('gossip', item.msg)
         item.sent.gossip = true
       }
-      const wsDone = !item.targets.ws || item.sent.ws
-      const gossipDone = !item.targets.gossip || item.sent.gossip
-      if (wsDone && gossipDone) {
-        cleanupItem(item, i)
-      }
+      const wsDone = item.sent.ws
+      const gossipDone = item.sent.gossip
+      if (wsDone && gossipDone) { cleanupItem(item, i) }
       break
     }
   } finally {
@@ -82,21 +117,20 @@ const drainQueue = () => {
   }
 }
 
-export const queueSend = (msg, targets = 'both') => {
+export const queueSend = (msg) => {
   const key = getKey(msg)
-  const targetFlags = normalizeTargets(targets)
   if (key && pending.has(key)) {
     const item = pending.get(key)
-    item.targets.ws = item.targets.ws || targetFlags.ws
-    item.targets.gossip = item.targets.gossip || targetFlags.gossip
     if (!drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
     return
   }
   const item = {
     msg,
     key,
-    targets: targetFlags,
-    sent: { ws: false, gossip: false }
+    kind: isHash(msg) ? 'hash' : 'blob',
+    sent: { ws: false, gossip: false },
+    sentAt: { ws: 0, gossip: 0 },
+    firstTarget: null
   }
   queue.push(item)
   if (key) { pending.set(key, item) }
