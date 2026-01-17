@@ -75,13 +75,14 @@ export const makeWs = async (pub) => {
       for (const pub of p) {
         ws.send(pub)
         const latest = await apds.getLatest(pub)
+        if (!latest) { continue }
         if (latest.text) {
           ws.send(latest.text)
-        } else {
+        } else if (latest.opened) {
           const blob = await apds.get(latest.opened.substring(13))
-          if (blob) {ws.send(blob)}
+          if (blob) { ws.send(blob) }
         }
-        ws.send(latest.sig)
+        if (latest.sig) { ws.send(latest.sig) }
       }
       //below sends everything in the client to a dovepub pds server
       //const log = await apds.query()
