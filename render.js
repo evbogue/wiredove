@@ -1,9 +1,11 @@
 import { apds } from 'apds'
 import { h } from 'h'
 import { send } from './send.js'
+import { queueSend } from './network_queue.js'
 import { composer } from './composer.js'
 import { markdown } from './markdown.js'
 import { noteSeen } from './sync.js'
+import { promptKeypair } from './identify.js'
 
 export const render = {}
 const cache = new Map()
@@ -12,6 +14,7 @@ const EDIT_CACHE_TTL_MS = 5000
 const replyIndex = new Map()
 const replyCountTargets = new Map()
 let replyObserver = null
+const replyPreviewCache = new Map()
 
 const editState = new Map()
 const timestampRefreshMs = 60000
@@ -127,8 +130,11 @@ render.buildReplyIndex = async (log = null) => {
 const renderBody = async (body, replyHash) => {
   let html = body ? await markdown(body) : ''
   if (replyHash) {
-    html = "<span class='material-symbols-outlined'>Subdirectory_Arrow_left</span><a href='#" +
-      replyHash + "'> " + replyHash.substring(0, 10) + "...</a>" + html
+    const preview = "<span class='reply-preview' data-reply-preview='" + replyHash + "'>" +
+      "<span class='material-symbols-outlined reply-preview-icon'>Subdirectory_Arrow_left</span>" +
+      "<a href='#" + replyHash + "' class='reply-preview-link'>" +
+      replyHash.substring(0, 10) + "...</a></span>"
+    html = preview + html
   }
   return html
 }
@@ -200,11 +206,113 @@ const applyProfile = async (contentHash, yaml) => {
   }
 }
 
+const isHash = (value) => typeof value === 'string' && value.length === 44
+
+const queueLinkedHashes = async (yaml) => {
+  if (!yaml) { return }
+  const candidates = new Set()
+  if (isHash(yaml.replyHash)) { candidates.add(yaml.replyHash) }
+  if (isHash(yaml.reply)) { candidates.add(yaml.reply) }
+  if (isHash(yaml.previous)) {
+    console.log('[hashlink:previous]', yaml.previous)
+    candidates.add(yaml.previous)
+  }
+  if (isHash(yaml.edit)) { candidates.add(yaml.edit) }
+  if (isHash(yaml.image)) { candidates.add(yaml.image) }
+  const replyAuthor = isHash(yaml.replyto) ? yaml.replyto : (isHash(yaml.replyTo) ? yaml.replyTo : null)
+  for (const hash of candidates) {
+    console.log('[hashlink]', hash)
+    if (hash === yaml.image) {
+      const have = await apds.get(hash)
+      console.log('[hashlink:image]', hash, have ? 'have' : 'send')
+      if (!have) { queueSend(hash) }
+      continue
+    }
+    const query = await apds.query(hash)
+    console.log('[hashlink:post]', hash, query && query[0] ? 'have' : 'send')
+    if (!query || !query[0]) { queueSend(hash) }
+  }
+  if (replyAuthor) {
+    const query = await apds.query(replyAuthor)
+    console.log('[hashlink:author]', replyAuthor, query && query[0] ? 'have' : 'send')
+    if (!query || !query[0]) { queueSend(replyAuthor) }
+  }
+}
+
 const summarizeBody = (body, maxLen = 50) => {
   if (!body) { return '' }
   const single = body.replace(/\s+/g, ' ').trim()
   if (single.length <= maxLen) { return single }
   return single.substring(0, maxLen) + '...'
+}
+
+const fetchReplyPreview = async (replyHash) => {
+  if (!replyHash) { return null }
+  if (replyPreviewCache.has(replyHash)) { return replyPreviewCache.get(replyHash) }
+  const signed = await apds.get(replyHash)
+  if (!signed) {
+    queueSend(replyHash)
+    replyPreviewCache.set(replyHash, null)
+    return null
+  }
+  const opened = await apds.open(signed)
+  if (!opened || opened.length < 14) {
+    replyPreviewCache.set(replyHash, null)
+    return null
+  }
+  const contentHash = opened.substring(13)
+  const content = await apds.get(contentHash)
+  if (!content) {
+    queueSend(contentHash)
+    replyPreviewCache.set(replyHash, null)
+    return null
+  }
+  const yaml = await apds.parseYaml(content)
+  const author = signed.substring(0, 44)
+  const name = yaml && yaml.name ? yaml.name.trim() : author.substring(0, 10)
+  const body = yaml && yaml.body ? summarizeBody(yaml.body, 20) : ''
+  let avatarSrc = null
+  try {
+    const img = await apds.visual(author)
+    avatarSrc = img && img.src ? img.src : null
+  } catch {
+    avatarSrc = null
+  }
+  const preview = { author, name, body, avatarSrc }
+  replyPreviewCache.set(replyHash, preview)
+  return preview
+}
+
+const hydrateReplyPreviews = (container) => {
+  if (!container) { return }
+  const targets = container.querySelectorAll('[data-reply-preview]')
+  targets.forEach(target => {
+    if (target.dataset.replyPreviewHydrated === 'true') { return }
+    target.dataset.replyPreviewHydrated = 'true'
+    const replyHash = target.dataset.replyPreview
+    if (!replyHash) { return }
+    void (async () => {
+      const preview = await fetchReplyPreview(replyHash)
+      if (!preview) { return }
+      while (target.firstChild) { target.firstChild.remove() }
+      if (preview.name && preview.author) {
+        target.appendChild(h('a', {
+          href: '#' + preview.author,
+          classList: 'reply-preview-author'
+        }, [preview.name]))
+      }
+      target.appendChild(h('span', {
+        classList: 'material-symbols-outlined reply-preview-icon'
+      }, ['Subdirectory_Arrow_left']))
+      const linkText = preview.body || (replyHash.substring(0, 10) + '...')
+      const link = h('a', {
+        href: '#' + replyHash,
+        classList: 'reply-preview-link',
+        title: preview.name || ''
+      }, [linkText])
+      target.appendChild(link)
+    })()
+  })
 }
 
 const fetchEditSnippet = async (editHash) => {
@@ -326,14 +434,20 @@ const insertByTimestamp = (container, hash, ts) => {
     container.removeChild(div)
   }
   const children = Array.from(container.children)
+  const sentinel = container.querySelector('#scroll-sentinel')
   for (const child of children) {
+    if (!child.dataset || !child.dataset.ts) { continue }
     const childTs = normalizeTimestamp(child.dataset.ts)
     if (childTs < stamp) {
       container.insertBefore(div, child)
       return div
     }
   }
-  container.appendChild(div)
+  if (sentinel && sentinel.parentNode === container) {
+    container.insertBefore(div, sentinel)
+  } else {
+    container.appendChild(div)
+  }
   return div
 }
 
@@ -463,6 +577,7 @@ render.refreshEdits = async (hash, options = {}) => {
     : state.baseYaml.body
   state.currentBody = bodySource
   state.contentDiv.innerHTML = await renderBody(bodySource, baseReply)
+  hydrateReplyPreviews(state.contentDiv)
   if (!currentEdit) {
     await applyProfile(state.contentHash, state.baseYaml)
   }
@@ -696,7 +811,9 @@ render.comments = async (hash, blob, div, actionsRow) => {
       if (document.getElementById('reply-composer-' + hash)) { return }
       if (await apds.pubkey()) {
         div.after(await composer(blob))
+        return
       }
+      promptKeypair()
     }
   }, ['Chat_Bubble'])
 
@@ -754,6 +871,7 @@ render.content = async (hash, blob, div, messageHash) => {
       if (qrTarget) { msgDiv.appendChild(qrTarget) }
 
       await applyProfile(contentHash, yaml)
+      await queueLinkedHashes(yaml)
       return
     }
     div.className = 'content'
@@ -763,6 +881,7 @@ render.content = async (hash, blob, div, messageHash) => {
     })
     updateEditSnippet(yaml.edit, summaryRow)
     div.appendChild(summaryRow)
+    await queueLinkedHashes(yaml)
     return
   }
 
@@ -770,14 +889,9 @@ render.content = async (hash, blob, div, messageHash) => {
     div.className = 'content'
     if (yaml.replyHash) { yaml.reply = yaml.replyHash }
     div.innerHTML = await renderBody(yaml.body, yaml.reply)
+    hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)
-
-    if (yaml.previous) {
-      const check = await apds.query(yaml.previous)
-      if (!check[0]) {
-        await send(yaml.previous)
-      }
-    }
+    await queueLinkedHashes(yaml)
 
     if (messageHash) {
       render.registerMessage(messageHash, {
@@ -856,7 +970,21 @@ render.shouldWe = async (blob) => {
     apds.open(blob),
     apds.hash(blob)
   ])
-  if (!opened) { return }
+  if (!opened) {
+    const yaml = await apds.parseYaml(blob)
+    if (yaml) {
+      await queueLinkedHashes(yaml)
+    }
+    return
+  }
+  const contentHash = opened.substring(13)
+  const msg = await apds.get(contentHash)
+  if (msg) {
+    const yaml = await apds.parseYaml(msg)
+    await queueLinkedHashes(yaml)
+  } else {
+    queueSend(contentHash)
+  }
   const already = await apds.get(hash)
   if (!already) {
     await apds.make(blob)
@@ -899,16 +1027,18 @@ render.shouldWe = async (blob) => {
       return
     }
     if (scroller && (authorKey === src || hash === src || al.includes(authorKey))) {
-      const div = insertByTimestamp(scroller, hash, ts)
-      if (div) {
-        await render.blob(blob)
+      if (window.__feedEnqueue) {
+        const queued = await window.__feedEnqueue(src, { hash, ts, blob })
+        if (queued) { return }
       }
+      return
     }
     if (scroller && src === '') {
-      const div = insertByTimestamp(scroller, hash, ts)
-      if (div) {
-        await render.blob(blob)
+      if (window.__feedEnqueue) {
+        const queued = await window.__feedEnqueue(src, { hash, ts, blob })
+        if (queued) { return }
       }
+      return
     }
   }
 }

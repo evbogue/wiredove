@@ -1,21 +1,25 @@
 import { h } from 'h'
-import { identify } from './identify.js'
+import { identify, promptKeypair } from './identify.js'
 import { imageSpan } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
 import { notificationsButton } from "./notifications.js"
 
 const composeButton = async () => {
-  if (await apds.pubkey()) {
-    return h('a', {href: '#',
-      classList: 'material-symbols-outlined',
-      onclick: async (e) => {
-        e.preventDefault()
-        const compose = await composer()
-        document.body.appendChild(compose)
+  const hasKey = !!(await apds.pubkey())
+  return h('a', {
+    href: '#',
+    classList: hasKey ? 'material-symbols-outlined' : 'material-symbols-outlined disabled',
+    onclick: async (e) => {
+      e.preventDefault()
+      if (!await apds.pubkey()) {
+        promptKeypair()
+        return
       }
-    }, ['Edit_Square'])
-  } else { return h('span')}
+      const compose = await composer()
+      document.body.appendChild(compose)
+    }
+  }, ['Edit_Square'])
 }
 
 const searchInput = h('input', {

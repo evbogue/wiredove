@@ -74,6 +74,7 @@ export const identify = async () => {
   const span = h('span')
 
   const start = h('button', {
+    id: 'generate-keypair-button',
     onclick: async () => {
       const div2 = h('span', [
         await nameDiv()
@@ -90,4 +91,33 @@ export const identify = async () => {
     span.appendChild(div1)    
   }
   return span
+}
+
+export const promptKeypair = (message = 'Generate a keypair to post or reply.') => {
+  const button = document.getElementById('generate-keypair-button')
+  if (button) {
+    button.classList.add('keypair-highlight')
+    button.focus?.()
+    setTimeout(() => {
+      button.classList.remove('keypair-highlight')
+    }, 1800)
+  }
+
+  const existing = document.getElementById('keypair-notice')
+  const notice = existing || h('div', {id: 'keypair-notice', classList: 'keypair-notice'}, [''])
+  notice.textContent = message
+  notice.classList.add('show')
+
+  if (!existing) {
+    const navbar = document.getElementById('navbar')
+    if (navbar && navbar.parentNode) {
+      navbar.parentNode.insertBefore(notice, navbar.nextSibling)
+    } else {
+      document.body.appendChild(notice)
+    }
+  }
+
+  setTimeout(() => {
+    notice.classList.remove('show')
+  }, 3000)
 }
