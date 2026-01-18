@@ -96,6 +96,20 @@ a:hover {
 
 img {width: 95%;}
 
+img.post-image {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: zoom-in;
+  display: block;
+}
+
+img.post-image:focus {
+  outline: 2px solid #045fd0;
+  outline-offset: 2px;
+}
+
 .material-symbols-outlined { color: #666; vertical-align: middle; font-size: 18px; cursor: pointer;}
 
 iframe {
@@ -425,4 +439,74 @@ iframe {
   width: 90%;
   max-width: 600px;
   z-index: 1001;
+}
+
+.image-popover {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1100;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.image-popover.open {
+  display: flex;
+}
+
+.image-popover-frame {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.image-popover-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-popover-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.image-popover-image {
+  width: auto;
+  height: auto;
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  background: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .image-popover-close {
+    background: transparent;
+    color: #ddd;
+  }
+
+  .image-popover-close:hover {
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .image-popover-image {
+    background: #222;
+  }
 }
