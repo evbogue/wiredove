@@ -467,6 +467,11 @@ const appendReply = async (parentHash, replyHash, ts, replyBlob = null) => {
     replyWrapper = render.hash(replyHash)
   }
   if (!replyWrapper) { return true }
+  const scroller = document.getElementById('scroller')
+  if (scroller && scroller.contains(replyWrapper)) {
+    await render.blob(blob)
+    return true
+  }
   const replyParent = replyWrapper.parentNode
   const alreadyNested = replyParent && replyParent.classList && replyParent.classList.contains('reply')
   if (!alreadyNested || replyParent.parentNode !== repliesContainer) {
