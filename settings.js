@@ -1,7 +1,9 @@
 import { h } from 'h'
 import { apds } from 'apds'
 import { nameDiv, avatarSpan } from './profile.js'
-import { queueSend } from './network_queue.js'
+import { clearQueue, getQueueSize, queueSend } from './network_queue.js'
+
+const isHash = (value) => typeof value === 'string' && value.length === 44
 
 export const importKey = async () => {
   const textarea = h('textarea', {placeholder: 'Keypair'})
@@ -59,6 +61,43 @@ const deleteEverything = h('button', {
   }
 }, ['Delete everything'])
 
+let batchTotal = 0
+let batchTarget = 0
+let batchStartSize = 0
+let queueTicker = null
+
+const updateQueueUi = () => {
+  const size = getQueueSize()
+  if (batchTotal > 0) {
+    const done = Math.min(batchTotal, Math.max(0, batchTarget - size))
+    queueLabel.textContent = `Queue: ${size} | Push: ${done}/${batchTotal}`
+    queueProgress.max = batchTotal
+    queueProgress.value = done
+  } else {
+    queueLabel.textContent = `Queue: ${size}`
+    queueProgress.max = 1
+    queueProgress.value = 0
+  }
+}
+
+const queueLabel = h('div', {classList: 'queue-status'}, ['Queue: 0'])
+const queueProgress = h('progress', {classList: 'queue-progress', max: 1, value: 0})
+const cancelQueue = h('button', {
+  onclick: () => {
+    clearQueue()
+    batchTotal = 0
+    batchTarget = 0
+    batchStartSize = 0
+    updateQueueUi()
+  }
+}, ['Cancel queue'])
+
+const queuePanel = h('div', {classList: 'queue-panel'}, [
+  queueLabel,
+  queueProgress,
+  cancelQueue
+])
+
 const pullEverything = h('button', {
   onclick: async () => {
     const remotelog = await fetch('https://pub.wiredove.net/all').then(l => l.json())
@@ -73,29 +112,26 @@ const pullEverything = h('button', {
 
 const pushEverything = h('button', {
   onclick: async () => {
+    batchStartSize = getQueueSize()
+    batchTotal = 0
     const log = await apds.query()
     if (log) {
       const ar = []
       for (const msg of log) {
-        queueSend(msg.sig)
+        if (isHash(msg.hash) && queueSend(msg.hash)) { batchTotal += 1 }
         if (msg.text) {
-          queueSend(msg.text)
           const yaml = await apds.parseYaml(msg.text)
-          if (yaml.image && !ar.includes(yaml.image)) {
-            const get = await apds.get(yaml.image)
-            if (get) {
-              queueSend(get)
-              ar.push(yaml.image)
-            }
+          if (isHash(yaml.image) && !ar.includes(yaml.image)) {
+            if (queueSend(yaml.image)) { batchTotal += 1 }
+            ar.push(yaml.image)
           }
           if (yaml.body) {
             const images = yaml.body.match(/!\[.*?\]\((.*?)\)/g)
             if (images) {
               for (const image of images) {
                 const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
-                const imgBlob = await apds.get(src)
-                if (imgBlob && !ar.includes(src)) {
-                  queueSend(imgBlob)
+                if (isHash(src) && !ar.includes(src)) {
+                  if (queueSend(src)) { batchTotal += 1 }
                   ar.push(src)
                 }
               }
@@ -103,11 +139,13 @@ const pushEverything = h('button', {
           }
         }
         if (!msg.text) {
-          const get = await apds.get(msg.opened.substring(13))
-          if (get) { queueSend(get) }
+          const contentHash = msg.opened?.substring(13)
+          if (isHash(contentHash) && queueSend(contentHash)) { batchTotal += 1 }
         }
       }
     }
+    batchTarget = batchStartSize + batchTotal
+    updateQueueUi()
   }
 }, ['Push everything'])
 
@@ -135,6 +173,10 @@ const pushEverything = h('button', {
 //}
 
 export const settings = async () => {
+  if (!queueTicker) {
+    updateQueueUi()
+    queueTicker = setInterval(updateQueueUi, 500)
+  }
   const div = h('div', {classList: 'message'}, [
     h('p', ['Upload photo']),
     await avatarSpan(),
@@ -146,6 +188,7 @@ export const settings = async () => {
     //await didweb(),
     //h('hr'),
     h('p', ['Sync']),
+    queuePanel,
     pushEverything,
     pullEverything,
     h('hr'),

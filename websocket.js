@@ -72,17 +72,25 @@ export const makeWs = async (pub) => {
         console.warn('getPubkeys failed', err)
         p = []
       }
+      let selfPub = null
+      try {
+        selfPub = await apds.pubkey()
+      } catch (err) {
+        console.warn('pubkey failed', err)
+        selfPub = null
+      }
       for (const pub of p) {
         ws.send(pub)
-        const latest = await apds.getLatest(pub)
-        if (!latest) { continue }
-        if (latest.text) {
-          ws.send(latest.text)
-        } else if (latest.opened) {
-          const blob = await apds.get(latest.opened.substring(13))
-          if (blob) { ws.send(blob) }
+        if (selfPub && pub === selfPub) {
+          const latest = await apds.getLatest(pub)
+          if (!latest) { continue }
+          if (latest.hash) {
+            ws.send(latest.hash)
+          } else if (latest.sig) {
+            const sigHash = await apds.hash(latest.sig)
+            ws.send(sigHash)
+          }
         }
-        if (latest.sig) { ws.send(latest.sig) }
       }
       //below sends everything in the client to a dovepub pds server
       //const log = await apds.query()

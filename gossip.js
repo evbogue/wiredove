@@ -45,7 +45,7 @@ export const makeRoom = async (pubkey) => {
       const get = await apds.get(hash)
       if (get) { sendBlob(get, id)}
       const latest = await apds.getLatest(hash)
-      if (latest) { sendBlob(latest.sig)}
+      if (latest?.sig) { sendBlob(latest.sig) }
     }) 
 
     onBlob(async (blob, id) => {
@@ -60,8 +60,13 @@ export const makeRoom = async (pubkey) => {
 
     room.onPeerJoin(async (id) => {
       console.log(id + ' joined the room ' + pubkey)
-      const latest = await apds.getLatest(await apds.pubkey()) 
-      if (latest) { sendBlob(latest.sig) }
+      const latest = await apds.getLatest(await apds.pubkey())
+      if (latest?.hash) {
+        sendHash(latest.hash)
+      } else if (latest?.sig) {
+        const sigHash = await apds.hash(latest.sig)
+        sendHash(sigHash)
+      }
     })
 
     room.onPeerLeave(id => {

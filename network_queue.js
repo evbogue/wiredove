@@ -1,7 +1,9 @@
 const SEND_DELAY_MS = 100
 const HASH_RETRY_MS = 800
+const HASH_QUEUE_COOLDOWN_MS = 30000
 const queue = []
 const pending = new Map()
+const hashCooldown = new Map()
 let drainTimer = null
 let draining = false
 let nextHashTarget = 'ws'
@@ -122,7 +124,13 @@ export const queueSend = (msg) => {
   if (key && pending.has(key)) {
     const item = pending.get(key)
     if (!drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
-    return
+    return false
+  }
+  if (isHash(msg)) {
+    const now = Date.now()
+    const last = hashCooldown.get(msg) || 0
+    if (now - last < HASH_QUEUE_COOLDOWN_MS) { return false }
+    hashCooldown.set(msg, now)
   }
   const item = {
     msg,
@@ -135,6 +143,7 @@ export const queueSend = (msg) => {
   queue.push(item)
   if (key) { pending.set(key, item) }
   if (!drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
+  return true
 }
 
 export const noteReceived = (msg) => {
@@ -145,4 +154,17 @@ export const noteReceived = (msg) => {
   pending.delete(key)
   const idx = queue.indexOf(item)
   if (idx >= 0) { queue.splice(idx, 1) }
+}
+
+export const getQueueSize = () => queue.length
+
+export const clearQueue = () => {
+  queue.length = 0
+  pending.clear()
+  hashCooldown.clear()
+  if (drainTimer) {
+    clearTimeout(drainTimer)
+    drainTimer = null
+  }
+  draining = false
 }
