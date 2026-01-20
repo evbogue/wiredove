@@ -1,6 +1,120 @@
 import { render } from './render.js'
 import { apds } from 'apds'
 
+const RENDER_CONCURRENCY = 6
+const VIEW_PREFETCH_MARGIN = '1800px 0px'
+const DERENDER_DELAY_MS = 2000
+const PREFETCH_AHEAD_PX = 2000
+const PREFETCH_BEHIND_PX = 700
+let renderQueue = []
+let renderActive = 0
+const derenderTimers = new Map()
+let viewObserver = null
+let lastScrollTop = 0
+let scrollDir = 1
+
+const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+const logPerf = (label, start) => {
+  if (!window.__perfRender) { return }
+  const duration = perfNow() - start
+  console.log(`[render] ${label} ${duration.toFixed(1)}ms`)
+}
+const scheduleDrain = (fn) => {
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(fn)
+  } else {
+    setTimeout(fn, 0)
+  }
+}
+
+const scheduleRender = (entry, sig) => new Promise(resolve => {
+  renderQueue.push({ entry, sig, resolve })
+  void drainRenderQueue()
+})
+
+const drainRenderQueue = async () => {
+  while (renderActive < RENDER_CONCURRENCY && renderQueue.length) {
+    const { entry, sig, resolve } = renderQueue.shift()
+    renderActive += 1
+    const start = perfNow()
+    Promise.resolve()
+      .then(async () => {
+        if (!sig) { return }
+        await render.blob(sig)
+        const wrapper = entry?.hash ? document.getElementById(entry.hash) : null
+        if (wrapper) {
+          wrapper.dataset.rendered = 'true'
+          wrapper.dataset.rendering = 'false'
+        }
+        logPerf(entry.hash || 'blob', start)
+      })
+      .finally(() => {
+        resolve?.()
+        renderActive -= 1
+        if (renderQueue.length) {
+          scheduleDrain(() => {
+            void drainRenderQueue()
+          })
+        }
+      })
+  }
+}
+
+const ensureObserver = () => {
+  if (viewObserver) { return viewObserver }
+  viewObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const wrapper = entry.target
+      if (!wrapper) { return }
+      const hash = wrapper.id
+      if (!hash) { return }
+      const pending = derenderTimers.get(wrapper)
+      if (entry.isIntersecting) {
+        if (pending) {
+          clearTimeout(pending)
+          derenderTimers.delete(wrapper)
+        }
+        if (wrapper.dataset.rendered === 'true' || wrapper.dataset.rendering === 'true') { return }
+        wrapper.dataset.rendering = 'true'
+        apds.get(hash).then(sig => {
+          void scheduleRender({ hash }, sig)
+        })
+        return
+      }
+      // De-rendering disabled for now. Keep content mounted for faster scrollback.
+      // if (pending || wrapper.dataset.rendered !== 'true') { return }
+      // const timer = setTimeout(() => {
+      //   derenderTimers.delete(wrapper)
+      //   if (!document.body.contains(wrapper)) { return }
+      //   const rendered = wrapper.querySelector('.message, .edit-message')
+      //   if (!rendered) { return }
+      //   const placeholder = document.createElement('div')
+      //   placeholder.className = 'message-shell premessage'
+      //   rendered.replaceWith(placeholder)
+      //   wrapper.dataset.rendered = 'false'
+      //   wrapper.dataset.rendering = 'false'
+      // }, DERENDER_DELAY_MS)
+      // derenderTimers.set(wrapper, timer)
+    })
+  }, { root: null, rootMargin: VIEW_PREFETCH_MARGIN, threshold: 0 })
+  return viewObserver
+}
+
+const observeWrapper = (wrapper) => {
+  if (!wrapper) { return }
+  const observer = ensureObserver()
+  observer.observe(wrapper)
+}
+
+const isNearViewport = (element) => {
+  if (!element) { return false }
+  const rect = element.getBoundingClientRect()
+  const height = window.innerHeight || document.documentElement.clientHeight || 0
+  const ahead = scrollDir >= 0 ? PREFETCH_AHEAD_PX : PREFETCH_BEHIND_PX
+  const behind = scrollDir >= 0 ? PREFETCH_BEHIND_PX : PREFETCH_AHEAD_PX
+  return rect.top < height + ahead && rect.bottom > -behind
+}
+
 const getController = () => {
   if (!window.__feedController) {
     window.__feedController = {
@@ -23,7 +137,15 @@ const normalizeTimestamp = (ts) => {
   return Number.isNaN(value) ? 0 : value
 }
 
+const updateScrollDirection = () => {
+  const scrollEl = document.scrollingElement || document.documentElement || document.body
+  const top = scrollEl.scrollTop || window.scrollY || 0
+  scrollDir = top >= lastScrollTop ? 1 : -1
+  lastScrollTop = top
+}
+
 const addPosts = async (posts, div) => {
+  updateScrollDirection()
   for (const post of posts) {
     const ts = post.ts || (post.opened ? Number.parseInt(post.opened.substring(0, 13), 10) : 0)
     let placeholder = render.hash(post.hash)
@@ -35,10 +157,13 @@ const addPosts = async (posts, div) => {
     if (placeholder.parentNode !== div) {
       div.appendChild(placeholder)
     }
-    setTimeout(async () => {
-      const sig = await apds.get(post.hash)
-      await render.blob(sig)
-    }, 1)
+    observeWrapper(placeholder)
+    if (isNearViewport(placeholder)) {
+      placeholder.dataset.rendering = 'true'
+      apds.get(post.hash).then(sig => {
+        void scheduleRender(post, sig)
+      })
+    }
   }
 }
 
@@ -126,15 +251,21 @@ const updateBanner = (state) => {
 }
 
 const renderEntry = async (state, entry) => {
+  updateScrollDirection()
   const div = render.insertByTimestamp(state.container, entry.hash, entry.ts)
   if (!div) { return }
   if (entry.blob) {
-    await render.blob(entry.blob)
+    div.dataset.rendering = 'true'
+    void scheduleRender(entry, entry.blob)
   } else {
     const sig = await apds.get(entry.hash)
-    if (sig) { await render.blob(sig) }
+    if (sig) {
+      div.dataset.rendering = 'true'
+      void scheduleRender(entry, sig)
+    }
   }
   state.rendered.add(entry.hash)
+  observeWrapper(div.closest('.message-wrapper') || div)
 }
 
 const flushPending = async (state) => {
@@ -192,6 +323,7 @@ window.__feedEnqueue = async (src, entry) => {
 
 export const adder = (log, src, div) => {
   if (!div) { return }
+  updateScrollDirection()
   const pageSize = 25
   const entries = buildEntries(log || [])
   let loading = false
@@ -280,7 +412,7 @@ export const adder = (log, src, div) => {
     if (!entry || !entry.isIntersecting) { return }
     if (!armed) { return }
     await loadNext()
-  }, { root: null, rootMargin: '0px 0px', threshold: 0 })
+  }, { root: null, rootMargin: '1200px 0px', threshold: 0 })
 
   observer.observe(sentinel)
 }
