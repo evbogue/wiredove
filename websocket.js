@@ -4,6 +4,13 @@ import { noteReceived, registerNetworkSenders } from './network_queue.js'
 
 const pubs = new Set()
 const wsBackoff = new Map()
+const HTTP_POLL_INTERVAL_MS = 5000
+const httpState = {
+  baseUrl: null,
+  ready: false,
+  pollTimer: null,
+  lastSince: 0
+}
 
 let wsReadyResolver
 const createWsReadyPromise = () => new Promise(resolve => {
@@ -17,11 +24,109 @@ const deliverWs = (msg) => {
   })
 }
 
-export const sendWs = async (msg) => {
-  if (pubs.size) { deliverWs(msg) }
+const isHash = (msg) => typeof msg === 'string' && msg.length === 44
+
+const handleIncoming = async (msg) => {
+  noteReceived(msg)
+  if (isHash(msg)) {
+    const blob = await apds.get(msg)
+    if (blob) {
+      if (pubs.size) {
+        deliverWs(blob)
+      } else {
+        await sendHttp(blob)
+      }
+    }
+    return
+  }
+  await render.shouldWe(msg)
+  await apds.make(msg)
+  await apds.add(msg)
+  await render.blob(msg)
 }
 
-export const hasWs = () => pubs.size > 0
+const toHttpBase = (wsUrl) => wsUrl.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:')
+
+const scheduleHttpPoll = () => {
+  if (httpState.pollTimer) { return }
+  httpState.pollTimer = setTimeout(pollHttp, HTTP_POLL_INTERVAL_MS)
+}
+
+const pollHttp = async () => {
+  httpState.pollTimer = null
+  if (!httpState.ready || pubs.size) {
+    scheduleHttpPoll()
+    return
+  }
+  try {
+    const url = new URL('/gossip/poll', httpState.baseUrl)
+    url.searchParams.set('since', String(httpState.lastSince))
+    const res = await fetch(url.toString(), { cache: 'no-store' })
+    if (res.ok) {
+      const data = await res.json()
+      const messages = Array.isArray(data.messages) ? data.messages : []
+      for (const msg of messages) {
+        await handleIncoming(msg)
+      }
+      if (Number.isFinite(data.nextSince)) {
+        httpState.lastSince = Math.max(httpState.lastSince, data.nextSince)
+      }
+    }
+  } catch (err) {
+    console.warn('http gossip poll failed', err)
+  } finally {
+    scheduleHttpPoll()
+  }
+}
+
+const sendHttp = async (msg) => {
+  if (!httpState.ready) { return }
+  try {
+    const url = new URL('/gossip', httpState.baseUrl)
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: msg
+    })
+    if (!res.ok) { return }
+    const data = await res.json()
+    const messages = Array.isArray(data.messages) ? data.messages : []
+    for (const reply of messages) {
+      await handleIncoming(reply)
+    }
+  } catch (err) {
+    console.warn('http gossip send failed', err)
+  }
+}
+
+export const startHttpGossip = async (baseUrl) => {
+  if (httpState.ready) { return }
+  httpState.baseUrl = baseUrl
+  httpState.ready = true
+  try {
+    const q = await apds.query()
+    if (q && q.length) {
+      const last = q[q.length - 1]
+      const ts = parseInt(last?.ts || '0', 10)
+      if (Number.isFinite(ts)) {
+        httpState.lastSince = ts
+      }
+    }
+  } catch (err) {
+    console.warn('http gossip seed failed', err)
+  }
+  scheduleHttpPoll()
+}
+
+export const sendWs = async (msg) => {
+  if (pubs.size) {
+    deliverWs(msg)
+  } else {
+    await sendHttp(msg)
+  }
+}
+
+export const hasWs = () => pubs.size > 0 || httpState.ready
 
 registerNetworkSenders({
   sendWs,
@@ -29,6 +134,9 @@ registerNetworkSenders({
 })
 
 export const makeWs = async (pub) => {
+  const httpBase = toHttpBase(pub)
+  await startHttpGossip(httpBase)
+
   const getBackoff = () => {
     let state = wsBackoff.get(pub)
     if (!state) {
@@ -119,20 +227,8 @@ export const makeWs = async (pub) => {
     }
 
   ws.onmessage = async (m) => {
-    noteReceived(m.data)
-    if (m.data.length === 44) {
-      //console.log('NEEDS' + m.data)
-        const blob = await apds.get(m.data)
-        if (blob) {
-          ws.send(blob)
-        }
-      } else {
-        await render.shouldWe(m.data)
-        await apds.make(m.data)
-        await apds.add(m.data)
-        await render.blob(m.data)
-      }
-    }
+    await handleIncoming(m.data)
+  }
 
     ws.onerror = () => {
       scheduleReconnect()
