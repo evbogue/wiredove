@@ -214,27 +214,22 @@ const queueLinkedHashes = async (yaml) => {
   if (isHash(yaml.replyHash)) { candidates.add(yaml.replyHash) }
   if (isHash(yaml.reply)) { candidates.add(yaml.reply) }
   if (isHash(yaml.previous)) {
-    console.log('[hashlink:previous]', yaml.previous)
     candidates.add(yaml.previous)
   }
   if (isHash(yaml.edit)) { candidates.add(yaml.edit) }
   if (isHash(yaml.image)) { candidates.add(yaml.image) }
   const replyAuthor = isHash(yaml.replyto) ? yaml.replyto : (isHash(yaml.replyTo) ? yaml.replyTo : null)
   for (const hash of candidates) {
-    console.log('[hashlink]', hash)
     if (hash === yaml.image) {
       const have = await apds.get(hash)
-      console.log('[hashlink:image]', hash, have ? 'have' : 'send')
       if (!have) { queueSend(hash) }
       continue
     }
     const query = await apds.query(hash)
-    console.log('[hashlink:post]', hash, query && query[0] ? 'have' : 'send')
     if (!query || !query[0]) { queueSend(hash) }
   }
   if (replyAuthor) {
     const query = await apds.query(replyAuthor)
-    console.log('[hashlink:author]', replyAuthor, query && query[0] ? 'have' : 'send')
     if (!query || !query[0]) { queueSend(replyAuthor) }
   }
 }
