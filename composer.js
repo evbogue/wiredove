@@ -115,24 +115,27 @@ export const composer = async (sig, options = {}) => {
 
     if (sig) {
       div.id = hash
-      await render.blob(signed)
+      if (opened) { div.dataset.opened = opened }
+      await render.blob(signed, { hash, opened })
     } else {
       const scroller = document.getElementById('scroller')
       const opened = await apds.open(signed)
       const ts = opened ? opened.substring(0, 13) : Date.now().toString()
       if (window.__feedEnqueue) {
         const src = window.location.hash.substring(1)
-        const queued = await window.__feedEnqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed })
+        const queued = await window.__feedEnqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed, opened })
         if (!queued) {
           const placeholder = render.insertByTimestamp(scroller, hash, ts)
           if (placeholder) {
-            await render.blob(signed)
+            if (opened) { placeholder.dataset.opened = opened }
+            await render.blob(signed, { hash, opened })
           }
         }
       } else {
         const placeholder = render.insertByTimestamp(scroller, hash, ts)
         if (placeholder) {
-          await render.blob(signed)
+          if (opened) { placeholder.dataset.opened = opened }
+          await render.blob(signed, { hash, opened })
         }
       }
       overlay.remove()

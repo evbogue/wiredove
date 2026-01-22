@@ -22,6 +22,18 @@ const parseOpenedTimestamp = (opened) => {
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
+const getOpenedFromQuery = async (hash) => {
+  if (!hash) { return null }
+  const query = await apds.query(hash)
+  if (Array.isArray(query) && query[0] && query[0].opened) {
+    return query[0].opened
+  }
+  if (query && query.opened) {
+    return query.opened
+  }
+  return null
+}
+
 const expandHomeLog = async (log) => {
   if (!Array.isArray(log) || !log.length) { return log || [] }
   const entries = [...log]
@@ -36,7 +48,7 @@ const expandHomeLog = async (log) => {
         queueSend(cursor)
         break
       }
-      const opened = await apds.open(sig)
+      const opened = await getOpenedFromQuery(cursor)
       if (!opened || opened.length < 14) { break }
       const contentHash = opened.substring(13)
       const content = await apds.get(contentHash)
@@ -48,8 +60,7 @@ const expandHomeLog = async (log) => {
       const previous = yaml?.previous
       if (!isHash(previous) || seen.has(previous)) { break }
       queueSend(previous)
-      const prevSig = await apds.get(previous)
-      const prevOpened = prevSig ? await apds.open(prevSig) : null
+      const prevOpened = await getOpenedFromQuery(previous)
       const ts = parseOpenedTimestamp(prevOpened)
       entries.push({ hash: previous, opened: prevOpened, ts })
       seen.add(previous)
@@ -134,10 +145,16 @@ export const route = async () => {
     }
     const check = await document.getElementById(hash)
     if (!check) {
-      const ts = opened ? Number.parseInt(opened.substring(0, 13), 10) : 0
+      let ts = 0
+      if (opened) {
+        ts = Number.parseInt(opened.substring(0, 13), 10)
+        if (Number.isNaN(ts)) { ts = 0 }
+      }
+      if (!ts) { ts = Date.now() }
       const div = render.insertByTimestamp(scroller, hash, ts)
       if (!div) { return }
-      await render.blob(src)  
+      if (opened) { div.dataset.opened = opened }
+      await render.blob(src, { hash, opened })
     }
   }
   setTimeout(() => {

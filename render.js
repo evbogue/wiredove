@@ -66,11 +66,11 @@ const observeTimestamp = (element, timestamp) => {
   timestampObserver.observe(element)
 }
 
-const indexReply = (parentHash, replyHash, ts) => {
+const indexReply = (parentHash, replyHash, ts, opened = null) => {
   if (!parentHash || !replyHash) { return }
   const list = replyIndex.get(parentHash) || []
   if (list.some(item => item.hash === replyHash)) { return }
-  list.push({ hash: replyHash, ts })
+  list.push({ hash: replyHash, ts, opened })
   replyIndex.set(parentHash, list)
 }
 
@@ -98,7 +98,7 @@ const observeReplies = (wrapper, parentHash) => {
         }
         void (async () => {
           for (const item of list) {
-            await appendReply(hash, item.hash, item.ts)
+            await appendReply(hash, item.hash, item.ts, null, item.opened)
           }
           target.dataset.repliesLoaded = 'true'
         })()
@@ -123,7 +123,7 @@ render.buildReplyIndex = async (log = null) => {
     const parent = yaml.replyHash || yaml.reply || null
     if (!parent) { continue }
     const ts = msg.ts || parseOpenedTimestamp(msg.opened)
-    indexReply(parent, msg.hash, ts)
+    indexReply(parent, msg.hash, ts, msg.opened || null)
   }
 }
 
@@ -208,6 +208,18 @@ const applyProfile = async (contentHash, yaml) => {
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
+const getOpenedFromQuery = async (hash) => {
+  if (!hash) { return null }
+  const query = await apds.query(hash)
+  if (Array.isArray(query) && query[0] && query[0].opened) {
+    return query[0].opened
+  }
+  if (query && query.opened) {
+    return query.opened
+  }
+  return null
+}
+
 const queueLinkedHashes = async (yaml) => {
   if (!yaml) { return }
   const candidates = new Set()
@@ -250,7 +262,7 @@ const fetchReplyPreview = async (replyHash) => {
     replyPreviewCache.set(replyHash, null)
     return null
   }
-  const opened = await apds.open(signed)
+  const opened = await getOpenedFromQuery(replyHash)
   if (!opened || opened.length < 14) {
     replyPreviewCache.set(replyHash, null)
     return null
@@ -314,7 +326,7 @@ const fetchEditSnippet = async (editHash) => {
   if (!editHash) { return '' }
   const signed = await apds.get(editHash)
   if (!signed) { return '' }
-  const opened = await apds.open(signed)
+  const opened = await getOpenedFromQuery(editHash)
   if (!opened || opened.length < 14) { return '' }
   const content = await apds.get(opened.substring(13))
   if (!content) { return '' }
@@ -386,7 +398,7 @@ const ensureOriginalMessage = async (targetHash) => {
   if (!existing && scroller) {
     const signed = await apds.get(targetHash)
     if (signed) {
-      const opened = await apds.open(signed)
+      const opened = await getOpenedFromQuery(targetHash)
       const ts = parseOpenedTimestamp(opened)
       insertByTimestamp(scroller, targetHash, ts)
     }
@@ -451,7 +463,7 @@ const getReplyParent = (yaml) => {
   return yaml.replyHash || yaml.reply || null
 }
 
-const appendReply = async (parentHash, replyHash, ts, replyBlob = null) => {
+const appendReply = async (parentHash, replyHash, ts, replyBlob = null, replyOpened = null) => {
   const wrapper = document.getElementById(parentHash)
   const repliesContainer = wrapper ? wrapper.querySelector('.message-replies') : null
   if (!repliesContainer) { return false }
@@ -462,9 +474,12 @@ const appendReply = async (parentHash, replyHash, ts, replyBlob = null) => {
     replyWrapper = render.hash(replyHash)
   }
   if (!replyWrapper) { return true }
+  if (replyOpened) {
+    replyWrapper.dataset.opened = replyOpened
+  }
   const scroller = document.getElementById('scroller')
   if (scroller && scroller.contains(replyWrapper)) {
-    await render.blob(blob)
+    await render.blob(blob, { hash: replyHash, opened: replyOpened })
     return true
   }
   const replyParent = replyWrapper.parentNode
@@ -475,7 +490,7 @@ const appendReply = async (parentHash, replyHash, ts, replyBlob = null) => {
     replyContain.appendChild(replyWrapper)
     repliesContainer.appendChild(replyContain)
   }
-  await render.blob(blob)
+  await render.blob(blob, { hash: replyHash, opened: replyOpened })
   return true
 }
 
@@ -926,13 +941,21 @@ render.content = async (hash, blob, div, messageHash) => {
   }
 }
 
-render.blob = async (blob) => {
-  const [hash, opened] = await Promise.all([
-    apds.hash(blob),
-    apds.open(blob)
-  ])
-  
-  const wrapper = document.getElementById(hash)
+render.blob = async (blob, meta = {}) => {
+  let hash = meta.hash || null
+  let wrapper = hash ? document.getElementById(hash) : null
+  if (!hash && wrapper) { hash = wrapper.id }
+  if (!hash) { hash = await apds.hash(blob) }
+  if (!wrapper && hash) { wrapper = document.getElementById(hash) }
+
+  let opened = meta.opened || (wrapper && wrapper.dataset ? wrapper.dataset.opened : null)
+  if (!opened && hash) {
+    opened = await getOpenedFromQuery(hash)
+  }
+  if (opened && wrapper && wrapper.dataset && !wrapper.dataset.opened) {
+    wrapper.dataset.opened = opened
+  }
+
   const div = wrapper && wrapper.classList.contains('message-wrapper')
     ? wrapper.querySelector('.message-shell')
     : wrapper
@@ -1016,11 +1039,11 @@ render.shouldWe = async (blob) => {
     const authorKey = blob.substring(0, 44)
     const replyTo = getReplyParent(yaml)
     if (replyTo) {
-      indexReply(replyTo, hash, ts)
+      indexReply(replyTo, hash, ts, opened)
       updateReplyCount(replyTo)
       const wrapper = document.getElementById(replyTo)
       if (wrapper && wrapper.dataset.repliesLoaded === 'true') {
-        await appendReply(replyTo, hash, ts, blob)
+        await appendReply(replyTo, hash, ts, blob, opened)
       } else if (wrapper) {
         observeReplies(wrapper, replyTo)
       }
@@ -1028,14 +1051,14 @@ render.shouldWe = async (blob) => {
     }
     if (scroller && (authorKey === src || hash === src || al.includes(authorKey))) {
       if (window.__feedEnqueue) {
-        const queued = await window.__feedEnqueue(src, { hash, ts, blob })
+        const queued = await window.__feedEnqueue(src, { hash, ts, blob, opened })
         if (queued) { return }
       }
       return
     }
     if (scroller && src === '') {
       if (window.__feedEnqueue) {
-        const queued = await window.__feedEnqueue(src, { hash, ts, blob })
+        const queued = await window.__feedEnqueue(src, { hash, ts, blob, opened })
         if (queued) { return }
       }
       return

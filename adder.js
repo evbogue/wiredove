@@ -40,7 +40,7 @@ const drainRenderQueue = async () => {
     Promise.resolve()
       .then(async () => {
         if (!sig) { return }
-        await render.blob(sig)
+        await render.blob(sig, { hash: entry?.hash, opened: entry?.opened })
         const wrapper = entry?.hash ? document.getElementById(entry.hash) : null
         if (wrapper) {
           wrapper.dataset.rendered = 'true'
@@ -185,7 +185,7 @@ const buildEntries = (log) => {
     if (seen.has(post.hash)) { continue }
     seen.add(post.hash)
     const ts = getTimestamp(post)
-    entries.push({ hash: post.hash, ts })
+    entries.push({ hash: post.hash, ts, opened: post.opened })
   }
   entries.sort(sortDesc)
   return entries
@@ -254,6 +254,9 @@ const renderEntry = async (state, entry) => {
   updateScrollDirection()
   const div = render.insertByTimestamp(state.container, entry.hash, entry.ts)
   if (!div) { return }
+  if (entry.opened) {
+    div.dataset.opened = entry.opened
+  }
   if (entry.blob) {
     div.dataset.rendering = 'true'
     void scheduleRender(entry, entry.blob)
