@@ -924,9 +924,9 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     ' ',
     editNav.wrap
   ])
+  editControls.appendChild(moderationControls)
   const actionsRow = h('div', {classList: 'message-actions'}, [
     replySlot,
-    moderationControls,
     editControls
   ])
 
