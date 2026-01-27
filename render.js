@@ -6,6 +6,7 @@ import { composer } from './composer.js'
 import { markdown } from './markdown.js'
 import { noteSeen } from './sync.js'
 import { promptKeypair } from './identify.js'
+import { addBlockedAuthor, addHiddenHash, addMutedAuthor, isBlockedAuthor, removeHiddenHash, removeMutedAuthor, shouldHideMessage } from './moderation.js'
 
 export const render = {}
 const cache = new Map()
@@ -662,13 +663,136 @@ const buildEditNav = (hash) => {
   return { wrap, left, right, index }
 }
 
-render.meta = async (blob, opened, hash, div) => {
+const findMessageTarget = (hash) => {
+  if (!hash) { return null }
+  const wrapper = document.getElementById(hash)
+  if (!wrapper) { return null }
+  return wrapper.querySelector('.message') || wrapper.querySelector('.message-shell')
+}
+
+const applyModerationStub = async ({ target, hash, author, moderation, blob, opened }) => {
+  if (!target || !moderation || !moderation.hidden) { return }
+  const stub = h('div', {classList: 'message moderation-hidden'})
+  const title = h('span', {classList: 'moderation-hidden-title'}, ['Hidden by local moderation'])
+  const actions = h('span', {classList: 'moderation-hidden-actions'})
+  const showOnce = h('button', {
+    onclick: async () => {
+      await render.meta(blob, opened, hash, stub, { forceShow: true })
+    }
+  }, ['Show once'])
+  actions.appendChild(showOnce)
+
+  if (moderation.code === 'muted-author') {
+    const unmute = h('button', {
+      onclick: async () => {
+        await removeMutedAuthor(author)
+        await render.meta(blob, opened, hash, stub)
+      }
+    }, ['Unmute'])
+    actions.appendChild(unmute)
+  } else if (moderation.code === 'hidden-hash') {
+    const unhide = h('button', {
+      onclick: async () => {
+        await removeHiddenHash(hash)
+        await render.meta(blob, opened, hash, stub)
+      }
+    }, ['Unhide'])
+    actions.appendChild(unhide)
+  } else if (moderation.code === 'muted-word') {
+    actions.appendChild(h('a', {href: '#settings'}, ['Edit filters']))
+  }
+
+  stub.appendChild(title)
+  stub.appendChild(actions)
+  target.replaceWith(stub)
+}
+
+const buildModerationControls = ({ author, hash, blob, opened }) => {
+  const hide = h('a', {
+    classList: 'material-symbols-outlined',
+    title: 'Hide message',
+    onclick: async (e) => {
+      e.preventDefault()
+      await addHiddenHash(hash)
+      const target = findMessageTarget(hash)
+      if (target) {
+        await applyModerationStub({
+          target,
+          hash,
+          author,
+          moderation: { hidden: true, reason: 'Hidden message', code: 'hidden-hash' },
+          blob,
+          opened
+        })
+      } else {
+        location.reload()
+      }
+    }
+  }, ['Visibility_Off'])
+
+  const block = h('a', {
+    classList: 'material-symbols-outlined',
+    title: 'Block author',
+    onclick: async (e) => {
+      e.preventDefault()
+      if (!confirm('Block this author and purge their local data?')) { return }
+      window.__feedStatus?.('Blocking author…', { sticky: true })
+      const result = await addBlockedAuthor(author)
+      const removed = result?.purge?.removed ?? 0
+      const blobs = result?.purge?.blobs ?? 0
+      if (result?.purge) {
+        window.__feedStatus?.(`Blocked author. Removed ${removed} post${removed === 1 ? '' : 's'}, ${blobs} blob${blobs === 1 ? '' : 's'}.`)
+      } else {
+        window.__feedStatus?.('Blocked author.')
+      }
+      const wrappers = Array.from(document.querySelectorAll('.message-wrapper'))
+        .filter(node => node.dataset?.author === author)
+      if (wrappers.length) {
+        wrappers.forEach(node => node.remove())
+      } else {
+        const wrapper = document.getElementById(hash)
+        if (wrapper) {
+          wrapper.remove()
+        } else {
+          location.reload()
+        }
+      }
+    }
+  }, ['Block'])
+
+  const mute = h('a', {
+    classList: 'material-symbols-outlined',
+    title: 'Mute author',
+    onclick: async (e) => {
+      e.preventDefault()
+      await addMutedAuthor(author)
+      const target = findMessageTarget(hash)
+      if (target) {
+        await applyModerationStub({
+          target,
+          hash,
+          author,
+          moderation: { hidden: true, reason: 'Muted author', code: 'muted-author' },
+          blob,
+          opened
+        })
+      } else {
+        location.reload()
+      }
+    }
+  }, ['Person_Off'])
+
+  return h('span', {classList: 'message-actions-mod'}, [hide, mute, block])
+}
+
+render.meta = async (blob, opened, hash, div, options = {}) => {
   const timestamp = opened.substring(0, 13)
   const contentHash = opened.substring(13)
   const author = blob.substring(0, 44)
   const wrapper = document.getElementById(hash)
   if (wrapper) {
     wrapper.dataset.ts = timestamp
+    wrapper.dataset.author = author
   }
 
   const [humanTime, contentBlob, img] = await Promise.all([
@@ -677,49 +801,76 @@ render.meta = async (blob, opened, hash, div) => {
     apds.visual(author)
   ])
 
+  let yaml = null
   if (contentBlob) {
-    const yaml = await apds.parseYaml(contentBlob)
-    if (yaml && yaml.edit) {
-      queueEditRefresh(yaml.edit)
-      syncPrevious(yaml)
+    yaml = await apds.parseYaml(contentBlob)
+  }
 
-      const ts = h('a', {href: '#' + hash}, [humanTime])
-      observeTimestamp(ts, timestamp)
-
-      const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
-      const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
-      const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
-
-      img.className = 'avatar'
-      img.id = 'image' + contentHash
-      img.style = 'float: left;'
-
-      const summary = buildEditSummaryLine({
-        name: yaml.name,
-        editHash: yaml.edit,
-        author,
-        nameId: 'name' + contentHash,
-      })
-      updateEditSnippet(yaml.edit, summary)
-      const summaryRow = buildEditSummaryRow({
-        avatarLink: h('a', {href: '#' + author}, [img]),
-        summary
-      })
-      const meta = buildEditMessageShell({
-        id: div.id,
-        right,
-        summaryRow,
-        rawDiv,
-        qrTarget
-      })
-      if (div.dataset.ts) {
-        meta.dataset.ts = div.dataset.ts
+  if (!options.forceShow) {
+    const moderation = await shouldHideMessage({
+      author,
+      hash,
+      body: yaml?.body || ''
+    })
+    if (moderation.hidden) {
+      if (moderation.code === 'blocked-author') {
+        const wrapper = document.getElementById(hash)
+        if (wrapper) { wrapper.remove() }
+        return
       }
-
-      div.replaceWith(meta)
-      await applyProfile(contentHash, yaml)
+      await applyModerationStub({
+        target: div,
+        hash,
+        author,
+        moderation,
+        blob,
+        opened
+      })
       return
     }
+  }
+
+  if (yaml && yaml.edit) {
+    queueEditRefresh(yaml.edit)
+    syncPrevious(yaml)
+
+    const ts = h('a', {href: '#' + hash}, [humanTime])
+    observeTimestamp(ts, timestamp)
+
+    const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
+    const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
+    const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
+
+    img.className = 'avatar'
+    img.id = 'image' + contentHash
+    img.style = 'float: left;'
+
+    const summary = buildEditSummaryLine({
+      name: yaml.name,
+      editHash: yaml.edit,
+      author,
+      nameId: 'name' + contentHash,
+    })
+    updateEditSnippet(yaml.edit, summary)
+    const summaryRow = buildEditSummaryRow({
+      avatarLink: h('a', {href: '#' + author}, [img]),
+      summary
+    })
+    const meta = buildEditMessageShell({
+      id: div.id,
+      right,
+      summaryRow,
+      rawDiv,
+      qrTarget
+    })
+    meta.dataset.author = author
+    if (div.dataset.ts) {
+      meta.dataset.ts = div.dataset.ts
+    }
+
+    div.replaceWith(meta)
+    await applyProfile(contentHash, yaml)
+    return
   }
 
   const ts = h('a', {href: '#' + hash}, [humanTime])
@@ -765,6 +916,7 @@ render.meta = async (blob, opened, hash, div) => {
   }, ['Notes'])
 
   const replySlot = h('span', {classList: 'message-actions-reply'})
+  const moderationControls = buildModerationControls({ author, hash, blob, opened })
   const editControls = h('span', {classList: 'message-actions-edit'}, [
     editButton || '',
     editButton ? ' ' : '',
@@ -774,6 +926,7 @@ render.meta = async (blob, opened, hash, div) => {
   ])
   const actionsRow = h('div', {classList: 'message-actions'}, [
     replySlot,
+    moderationControls,
     editControls
   ])
 
@@ -942,6 +1095,7 @@ render.content = async (hash, blob, div, messageHash) => {
 }
 
 render.blob = async (blob, meta = {}) => {
+  const forceShow = Boolean(meta.forceShow)
   let hash = meta.hash || null
   let wrapper = hash ? document.getElementById(hash) : null
   if (!hash && wrapper) { hash = wrapper.id }
@@ -971,7 +1125,7 @@ render.blob = async (blob, meta = {}) => {
 
   const getimg = document.getElementById('inlineimage' + hash)
   if (opened && div && !div.childNodes[1]) {
-    await render.meta(blob, opened, hash, div)
+    await render.meta(blob, opened, hash, div, { forceShow })
     //await render.comments(hash, blob, div)
   } else if (div && !div.childNodes[1]) {
     if (div.className.includes('content')) {
@@ -989,6 +1143,10 @@ render.blob = async (blob, meta = {}) => {
 }
 
 render.shouldWe = async (blob) => {
+  const authorKey = blob?.substring(0, 44)
+  if (authorKey && await isBlockedAuthor(authorKey)) {
+    return
+  }
   const [opened, hash] = await Promise.all([
     apds.open(blob),
     apds.hash(blob)
@@ -1016,7 +1174,7 @@ render.shouldWe = async (blob) => {
   }
   const inDom = document.getElementById(hash)
   if (opened && !inDom) {
-    noteSeen(blob.substring(0, 44))
+    await noteSeen(blob.substring(0, 44))
     const src = window.location.hash.substring(1)
     const al = []
     const aliases = localStorage.getItem(src)
@@ -1036,7 +1194,6 @@ render.shouldWe = async (blob) => {
     const ts = parseOpenedTimestamp(opened)
     const scroller = document.getElementById('scroller')
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
-    const authorKey = blob.substring(0, 44)
     const replyTo = getReplyParent(yaml)
     if (replyTo) {
       indexReply(replyTo, hash, ts, opened)

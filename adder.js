@@ -230,6 +230,13 @@ const ensureBanner = (state) => {
   button.type = 'button'
   button.className = 'new-posts-button'
   button.addEventListener('click', async () => {
+    if (state.statusMode) { return }
+    const scrollEl = document.scrollingElement || document.documentElement || document.body
+    if (scrollEl) {
+      scrollEl.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
     await flushPending(state)
   })
   banner.appendChild(button)
@@ -241,12 +248,19 @@ const ensureBanner = (state) => {
 
 const updateBanner = (state) => {
   if (!state.banner || !state.bannerButton) { return }
+  if (state.statusMessage) {
+    state.bannerButton.textContent = state.statusMessage
+    state.bannerButton.disabled = true
+    state.banner.style.display = 'block'
+    return
+  }
   const count = state.pending.length
   if (!count) {
     state.banner.style.display = 'none'
     return
   }
   state.bannerButton.textContent = `Show ${count} new post${count === 1 ? '' : 's'}`
+  state.bannerButton.disabled = false
   state.banner.style.display = 'block'
 }
 
@@ -324,6 +338,59 @@ window.__feedEnqueue = async (src, entry) => {
   return true
 }
 
+const getStatusState = () => {
+  const controller = getController()
+  const src = window.location.hash.substring(1)
+  let state = controller.getFeed(src)
+  if (state) { return state }
+  if (!window.__statusFeedState) {
+    const container = document.getElementById('scroller')
+    if (!container) { return null }
+    const fallback = {
+      src: '__status__',
+      container,
+      entries: [],
+      cursor: 0,
+      seen: new Set(),
+      rendered: new Set(),
+      pending: [],
+      pageSize: 0,
+      latestVisibleTs: 0,
+      oldestVisibleTs: 0,
+      banner: null,
+      bannerButton: null,
+      statusMessage: '',
+      statusMode: false,
+      statusTimer: null
+    }
+    ensureBanner(fallback)
+    window.__statusFeedState = fallback
+  }
+  return window.__statusFeedState
+}
+
+window.__feedStatus = (message, options = {}) => {
+  const state = getStatusState()
+  if (!state) { return false }
+  const { timeout = 2500, sticky = false } = options
+  if (state.statusTimer) {
+    clearTimeout(state.statusTimer)
+    state.statusTimer = null
+  }
+  state.statusMessage = message || ''
+  state.statusMode = Boolean(message)
+  updateBanner(state)
+  if (state.statusMode && !sticky) {
+    state.statusTimer = setTimeout(() => {
+      state.statusMessage = ''
+      state.statusMode = false
+      state.statusTimer = null
+      updateBanner(state)
+    }, timeout)
+  }
+  return true
+}
+
 export const adder = (log, src, div) => {
   if (!div) { return }
   updateScrollDirection()
@@ -346,7 +413,10 @@ export const adder = (log, src, div) => {
     latestVisibleTs: 0,
     oldestVisibleTs: 0,
     banner: null,
-    bannerButton: null
+    bannerButton: null,
+    statusMessage: '',
+    statusMode: false,
+    statusTimer: null
   }
   getController().feeds.set(src, state)
   ensureBanner(state)

@@ -10,6 +10,7 @@ import { importBlob } from './import.js'
 import { send } from './send.js'
 import { queueSend } from './network_queue.js'
 import { noteInterest } from './sync.js'
+import { isBlockedAuthor } from './moderation.js'
 
 const HOME_SEED_COUNT = 3
 const HOME_BACKFILL_DEPTH = 6
@@ -104,7 +105,8 @@ export const route = async () => {
       console.log(ar)
       let query = []
       for (const pubkey of ar) {
-        noteInterest(pubkey)
+        if (await isBlockedAuthor(pubkey)) { continue }
+        await noteInterest(pubkey)
         await send(pubkey)
         const q = await apds.query(pubkey)
         if (q) {
@@ -118,7 +120,8 @@ export const route = async () => {
 
   else if (src.length === 44) {
     try {
-      noteInterest(src)
+      if (await isBlockedAuthor(src)) { return }
+      await noteInterest(src)
       const log = await apds.query(src)
       scroller.dataset.paginated = 'true'
       adder(log || [], src, scroller)
@@ -138,7 +141,9 @@ export const route = async () => {
   else if (src.length > 44) {
     const hash = await apds.hash(src)
     const opened = await apds.open(src)
-    noteInterest(src.substring(0, 44))
+    const author = src.substring(0, 44)
+    if (await isBlockedAuthor(author)) { return }
+    await noteInterest(author)
     if (opened) {
       //await makeRoom(src.substring(0, 44))
       await apds.add(src)

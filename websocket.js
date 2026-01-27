@@ -1,6 +1,7 @@
 import { apds } from 'apds'
 import { render } from './render.js'
 import { noteReceived, registerNetworkSenders } from './network_queue.js'
+import { getModerationState, isBlockedAuthor } from './moderation.js'
 
 const pubs = new Set()
 const wsBackoff = new Map()
@@ -39,6 +40,8 @@ const handleIncoming = async (msg) => {
     }
     return
   }
+  const author = msg.substring(0, 44)
+  if (await isBlockedAuthor(author)) { return }
   await render.shouldWe(msg)
   await apds.make(msg)
   await apds.add(msg)
@@ -187,7 +190,10 @@ export const makeWs = async (pub) => {
         console.warn('pubkey failed', err)
         selfPub = null
       }
+      const moderation = await getModerationState()
+      const blocked = new Set(moderation.blockedAuthors || [])
       for (const pub of p) {
+        if (blocked.has(pub)) { continue }
         ws.send(pub)
         if (selfPub && pub === selfPub) {
           const latest = await apds.getLatest(pub)

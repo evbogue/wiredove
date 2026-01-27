@@ -1,4 +1,5 @@
 import { apds } from 'apds'
+import { isBlockedAuthor } from './moderation.js'
 
 const activity = new Map()
 
@@ -106,20 +107,29 @@ const refreshPubkeys = async () => {
     console.warn('getPubkeys failed', err)
     pubkeys = []
   }
+  const filtered = []
+  for (const pubkey of pubkeys) {
+    if (!pubkey || pubkey.length !== 44) { continue }
+    if (await isBlockedAuthor(pubkey)) { continue }
+    filtered.push(pubkey)
+  }
+  pubkeys = filtered
   lastRefresh = nowMs()
   needsRebuild = true
   await bootstrapActivity()
 }
 
-export const noteSeen = (pubkey) => {
+export const noteSeen = async (pubkey) => {
   if (!pubkey || pubkey.length !== 44) { return }
+  if (await isBlockedAuthor(pubkey)) { return }
   const entry = getEntry(pubkey)
   entry.lastSeen = nowMs()
   needsRebuild = true
 }
 
-export const noteInterest = (pubkey) => {
+export const noteInterest = async (pubkey) => {
   if (!pubkey || pubkey.length !== 44) { return }
+  if (await isBlockedAuthor(pubkey)) { return }
   const entry = getEntry(pubkey)
   entry.lastInterest = nowMs()
   needsRebuild = true

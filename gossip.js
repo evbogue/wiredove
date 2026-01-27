@@ -2,6 +2,7 @@ import { apds } from 'apds'
 import { joinRoom } from './trystero-torrent.min.js'
 import { render }  from './render.js'
 import { noteReceived, registerNetworkSenders } from './network_queue.js'
+import { isBlockedAuthor } from './moderation.js'
 
 export let chan
 
@@ -31,6 +32,9 @@ registerNetworkSenders({
 })
 
 export const makeRoom = async (pubkey) => {
+  if (pubkey && pubkey.length === 44 && await isBlockedAuthor(pubkey)) {
+    return roomReady
+  }
   if (!chan) {
     const room = joinRoom({appId: 'wiredovetestnet', password: 'iajwoiejfaowiejfoiwajfe'}, pubkey)
     const [ sendHash, onHash ] = room.makeAction('hash')
@@ -51,6 +55,8 @@ export const makeRoom = async (pubkey) => {
     onBlob(async (blob, id) => {
       console.log(`Received: ${blob}`)
       noteReceived(blob)
+      const author = blob.substring(0, 44)
+      if (await isBlockedAuthor(author)) { return }
       //await process(blob) <-- trystero and ws should use the same process function
       await apds.make(blob)
       await render.shouldWe(blob)
