@@ -11,6 +11,7 @@ import { send } from './send.js'
 import { queueSend } from './network_queue.js'
 import { noteInterest } from './sync.js'
 import { isBlockedAuthor } from './moderation.js'
+import { buildProfileHeader } from './profile_header.js'
 
 const HOME_SEED_COUNT = 3
 const HOME_BACKFILL_DEPTH = 6
@@ -72,8 +73,35 @@ const expandHomeLog = async (log) => {
   return entries
 }
 
+const waitForFirstRenderedAuthor = (container, timeoutMs = 6000) => new Promise((resolve) => {
+  if (!container) { resolve(null); return }
+  const existing = container.querySelector('[data-author]')
+  if (existing && existing.dataset.author) {
+    resolve(existing.dataset.author)
+    return
+  }
+  let resolved = false
+  const observer = new MutationObserver(() => {
+    if (resolved) { return }
+    const found = container.querySelector('[data-author]')
+    if (found && found.dataset.author) {
+      resolved = true
+      observer.disconnect()
+      resolve(found.dataset.author)
+    }
+  })
+  observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-author'] })
+  setTimeout(() => {
+    if (resolved) { return }
+    resolved = true
+    observer.disconnect()
+    resolve(null)
+  }, timeoutMs)
+})
+
 export const route = async () => {
   const src = window.location.hash.substring(1)
+
   const scroller = h('div', {id: 'scroller'})
 
   document.body.appendChild(scroller)
@@ -104,6 +132,7 @@ export const route = async () => {
       if (ar) { localStorage.setItem(src, JSON.stringify(ar))}
       console.log(ar)
       let query = []
+      const selfKey = await apds.pubkey()
       for (const pubkey of ar) {
         if (await isBlockedAuthor(pubkey)) { continue }
         await noteInterest(pubkey)
@@ -113,6 +142,15 @@ export const route = async () => {
           query.push(...q)
         }
       }
+      if (query.length) {
+        const primaryKey = Array.isArray(ar) && ar.length ? ar[0] : null
+        const header = await buildProfileHeader({ label: src, messages: query, canEdit: false, pubkey: primaryKey })
+        if (header) { scroller.appendChild(header) }
+      } else {
+        const primaryKey = Array.isArray(ar) && ar.length ? ar[0] : null
+        const header = await buildProfileHeader({ label: src, messages: [], canEdit: false, pubkey: primaryKey })
+        if (header) { scroller.appendChild(header) }
+      }
       scroller.dataset.paginated = 'true'
       adder(query, src, scroller)
     } catch (err) {console.log(err)}
@@ -121,10 +159,17 @@ export const route = async () => {
   else if (src.length === 44) {
     try {
       if (await isBlockedAuthor(src)) { return }
+      const selfKey = await apds.pubkey()
       await noteInterest(src)
       const log = await apds.query(src)
+      const canEdit = !!(selfKey && selfKey === src)
       scroller.dataset.paginated = 'true'
       adder(log || [], src, scroller)
+      void waitForFirstRenderedAuthor(scroller).then(async (author) => {
+        if (!author || author !== src) { return }
+        const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
+        if (header) { scroller.prepend(header) }
+      })
       if (!log || !log[0]) {
         console.log('we do not have it')
         await send(src)

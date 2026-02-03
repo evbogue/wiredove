@@ -126,7 +126,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   let avatar
   if (canEdit) {
     const editAvatarImg = h('img', {
-      classList: 'post-image profile-avatar profile-edit-only no-popover',
+      classList: 'profile-avatar profile-edit-only',
       src: draftImageSrc,
       alt: `${currentName || label} profile photo`
     })

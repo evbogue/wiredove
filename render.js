@@ -1053,6 +1053,15 @@ render.content = async (hash, blob, div, messageHash) => {
     return
   }
 
+  if (yaml && yaml.bio && (!yaml.body || !yaml.body.trim())) {
+    div.classList.remove('material-symbols-outlined')
+    const bioHtml = await markdown(yaml.bio)
+    div.innerHTML = `<p><strong>New bio:</strong></p>${bioHtml}`
+    await applyProfile(contentHash, yaml)
+    await queueLinkedHashes(yaml)
+    return
+  }
+
   if (yaml && yaml.body) {
     div.className = 'content'
     if (yaml.replyHash) { yaml.reply = yaml.replyHash }
