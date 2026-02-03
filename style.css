@@ -116,7 +116,49 @@ button:hover {
   cursor: pointer;
 }
 
-textarea, input {
+.composer-toggle {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 6px;
+  background: #f0f0f0;
+  border: 1px solid #e4e4e4;
+  border-radius: 999px;
+  padding: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.composer-toggle button {
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+.composer-toggle button.active {
+  font-weight: 600;
+}
+
+.composer-toggle-indicator {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e4e4e4;
+  transition: transform 180ms ease;
+  pointer-events: none;
+}
+
+.composer-toggle.event-active .composer-toggle-indicator {
+  transform: translateX(100%);
+}
+
+textarea, input, select {
   font-size: 1em;
   font-family: "Source Sans 3", sans-serif;
   border: 1px solid #f8f8f8;
@@ -129,11 +171,11 @@ textarea, input {
 
 .composer { margin-left: 0; margin-top: 0;}
 
-textarea:hover, textarea:focus, input:hover, input:focus, {
+textarea:hover, textarea:focus, input:hover, input:focus, select:hover, select:focus, {
   background: transparent;
 }
 
-textarea:focus, input:focus {
+textarea:focus, input:focus, select:focus {
   outline: none !important;
 }
 
@@ -142,6 +184,93 @@ textarea {
   margin-bottom: 5px;
   width: 99%;
   height: 150px;
+}
+
+.composer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.event-preview {
+  border: 1px solid #e4e4e4;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #fafafa;
+}
+
+.event-preview-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.event-preview-meta {
+  color: #777;
+  font-size: 0.95em;
+}
+
+.event-location-wrapper {
+  position: relative;
+}
+
+.event-location-wrapper input {
+  width: 100%;
+}
+
+.event-time-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.event-time-row select {
+  min-width: 120px;
+}
+
+.event-location-results {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #e4e4e4;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.event-location-option {
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.event-location-option:hover,
+.event-location-option.active {
+  background: #f2f2f2;
+}
+
+.event-location-status {
+  font-size: 0.9em;
+  color: #2a6a2a;
+}
+
+.event-location-status.error {
+  color: #b00020;
+}
+
+.preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 a {
@@ -305,13 +434,55 @@ iframe {
   .message:hover { border: 1px solid #333;}
   .new-posts-button { background: #3a2f12; border: 1px solid #6b5320; color: #f5d27a; }
 
-  textarea, input, iframe { background: #222; color: #f5f5f5; border: 1px solid #222;}
+  textarea, input, select, iframe { background: #222; color: #f5f5f5; border: 1px solid #222;}
 
   button { color: #ccc; background: #333; border: 1px solid #444;}
   button:hover { background: #222;}
   hr { border: 1px solid #333;}
   pre, code { background: #333; color: #f5f5f5;}
   a {color: #50afe4;}
+
+  .composer-toggle {
+    background: #2a2a2a;
+    border-color: #333;
+  }
+
+  .composer-toggle-indicator {
+    background: #3a3a3a;
+    border-color: #4a4a4a;
+  }
+
+  .event-preview {
+    background: #1f1f1f;
+    border-color: #2a2a2a;
+  }
+
+  .event-preview-meta {
+    color: #a5a5a5;
+  }
+
+  .event-location-status {
+    color: #7bc27b;
+  }
+
+  .event-location-status.error {
+    color: #f28b82;
+  }
+
+  .event-location-results {
+    background: #1f1f1f;
+    border-color: #333;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .event-location-option {
+    color: #f5f5f5;
+  }
+
+  .event-location-option:hover,
+  .event-location-option.active {
+    background: #2b2b2b;
+  }
 
 }
 

@@ -7,6 +7,8 @@ import { send } from './send.js'
 import { markdown } from './markdown.js'
 import { imgUpload } from './upload.js'
 
+const ENABLE_EVENT_COMPOSER = false
+
 async function pushLocalNotification({ hash, author, text }) {
   try {
     await fetch('/push-now', {
@@ -80,11 +82,348 @@ export const composer = async (sig, options = {}) => {
   }
 
   const pubkey = await apds.pubkey()
+  let composerMode = 'message'
+
+  const eventDate = h('input', {type: 'date'})
+  const makeSelect = (placeholder, values) => {
+    const select = document.createElement('select')
+    const empty = document.createElement('option')
+    empty.value = ''
+    empty.textContent = placeholder
+    select.appendChild(empty)
+    for (const value of values) {
+      const option = document.createElement('option')
+      option.value = value
+      option.textContent = value
+      select.appendChild(option)
+    }
+    return select
+  }
+  const timeOptions = []
+  for (let minutes = 0; minutes < 24 * 60; minutes += 30) {
+    const hour24 = Math.floor(minutes / 60)
+    const minute = minutes % 60
+    const ampm = hour24 < 12 ? 'AM' : 'PM'
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
+    const label = `${hour12}:${String(minute).padStart(2, '0')}${ampm.toLowerCase()}`
+    timeOptions.push(label)
+  }
+  const eventStartTime = makeSelect('Start time', timeOptions)
+  const eventEndTime = makeSelect('End time', timeOptions)
+  const fallbackTimezones = [
+    'UTC',
+    'America/New_York',
+    'America/Chicago',
+    'America/Denver',
+    'America/Los_Angeles',
+    'Europe/London',
+    'Europe/Paris',
+    'Asia/Tokyo'
+  ]
+  const timezoneOptions = (typeof Intl !== 'undefined' && Intl.supportedValuesOf)
+    ? Intl.supportedValuesOf('timeZone')
+    : fallbackTimezones
+  const eventTimezone = makeSelect('Timezone (optional)', timezoneOptions)
+  const localTz = (typeof Intl !== 'undefined')
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : ''
+  if (localTz) { eventTimezone.value = localTz }
+  const eventLocation = h('input', {placeholder: 'Location'})
+  const eventLocationStatus = h('div', {classList: 'event-location-status'})
+  const locationResults = h('div', {classList: 'event-location-results'})
+  const locationWrapper = h('div', {classList: 'event-location-wrapper'}, [
+    eventLocation,
+    locationResults
+  ])
+  let locationTimer
+  let locationController
+  let locationItems = []
+  let locationHighlight = -1
+  const setLocationStatus = (msg, isError = false) => {
+    eventLocationStatus.textContent = msg
+    eventLocationStatus.classList.toggle('error', isError)
+  }
+  const clearLocationResults = () => {
+    locationResults.innerHTML = ''
+    locationItems = []
+    locationHighlight = -1
+    locationResults.style.display = 'none'
+  }
+  const chooseLocation = (displayName, shortLabel) => {
+    eventLocation.value = shortLabel || displayName
+    eventLocation.dataset.full = displayName
+    clearLocationResults()
+    setLocationStatus('Location selected.')
+  }
+  const updateHighlight = () => {
+    const options = locationResults.querySelectorAll('.event-location-option')
+    options.forEach((option, index) => {
+      option.classList.toggle('active', index === locationHighlight)
+    })
+  }
+  const formatLocationLabel = (match) => {
+    const address = match.address || {}
+    const name = match.name || (match.namedetails && match.namedetails.name)
+    const road = address.road
+    const house = address.house_number
+    const city = address.city || address.town || address.village || address.hamlet
+    const region = address.state || address.region
+    const country = address.country
+    const street = house && road ? `${house} ${road}` : road
+    const labelParts = [name, street, city, region].filter(Boolean)
+    if (labelParts.length) { return labelParts.join(', ') }
+    const fallbackParts = [match.display_name, country].filter(Boolean)
+    return fallbackParts.join(', ') || 'Unknown'
+  }
+  const renderLocationResults = (data) => {
+    clearLocationResults()
+    locationItems = data
+    locationResults.style.display = 'flex'
+    for (let i = 0; i < data.length; i += 1) {
+      const match = data[i]
+      const label = formatLocationLabel(match)
+        const option = h('div', {
+          classList: 'event-location-option',
+          onmousedown: (e) => {
+            e.preventDefault()
+            chooseLocation(match.display_name, label)
+          }
+        }, [label])
+        locationResults.appendChild(option)
+      }
+  }
+  const updateLocationList = async () => {
+    const query = eventLocation.value.trim()
+    if (query.length < 3) {
+      clearLocationResults()
+      setLocationStatus('')
+      return
+    }
+    if (locationController) { locationController.abort() }
+    locationController = new AbortController()
+    setLocationStatus('Searching...')
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&limit=5&q=${encodeURIComponent(query)}`
+      const res = await fetch(url, { headers: { 'accept': 'application/json' }, signal: locationController.signal })
+      if (!res.ok) { throw new Error('Lookup failed') }
+      const data = await res.json()
+      if (!Array.isArray(data) || data.length === 0) {
+        clearLocationResults()
+        setLocationStatus('No results found.', true)
+        return
+      }
+      renderLocationResults(data)
+      setLocationStatus('')
+    } catch (err) {
+      if (err && err.name === 'AbortError') { return }
+      setLocationStatus('Could not fetch suggestions.', true)
+    }
+  }
+  eventLocation.addEventListener('input', () => {
+    clearTimeout(locationTimer)
+    eventLocation.dataset.full = ''
+    locationTimer = setTimeout(updateLocationList, 300)
+  })
+  eventLocation.addEventListener('keydown', (e) => {
+    if (!locationItems.length) { return }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      locationHighlight = Math.min(locationHighlight + 1, locationItems.length - 1)
+      updateHighlight()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      locationHighlight = Math.max(locationHighlight - 1, 0)
+      updateHighlight()
+    } else if (e.key === 'Enter') {
+      if (locationHighlight >= 0) {
+        e.preventDefault()
+        chooseLocation(locationItems[locationHighlight].display_name)
+      }
+    } else if (e.key === 'Escape') {
+      clearLocationResults()
+    }
+  })
+  eventLocation.addEventListener('blur', () => {
+    setTimeout(() => { clearLocationResults() }, 150)
+  })
+  const eventHelp = h('div', {style: 'display: none; color: #b00020; font-size: 12px; margin: 4px 0;'})
+  const eventFields = h('div', {style: 'display: none;'}, [
+    h('div', [eventDate]),
+    h('div', {classList: 'event-time-row'}, [eventStartTime, eventEndTime, eventTimezone]),
+    h('div', [locationWrapper]),
+    h('div', [eventLocationStatus]),
+    h('div', [eventHelp])
+  ])
+
+  const parseTime = (label) => {
+    const match = label.match(/^(\d{1,2}):(\d{2})(am|pm)$/i)
+    if (!match) { return '' }
+    let hour24 = Number.parseInt(match[1], 10)
+    const minute = match[2]
+    const ampm = match[3].toLowerCase()
+    if (ampm === 'am') {
+      if (hour24 === 12) { hour24 = 0 }
+    } else if (ampm === 'pm') {
+      if (hour24 < 12) { hour24 += 12 }
+    }
+    return `${String(hour24).padStart(2, '0')}:${minute}`
+  }
+
+  const buildEventYaml = () => {
+    const meta = buildComposeMeta()
+    const lines = ['---']
+    if (meta.start) { lines.push(`start: ${meta.start}`) }
+    if (meta.end) { lines.push(`end: ${meta.end}`) }
+    if (meta.loc) { lines.push(`loc: ${meta.loc}`) }
+    if (meta.tz) { lines.push(`tz: ${meta.tz}`) }
+    lines.push('---')
+    lines.push(textarea.value)
+    return lines.join('\n')
+  }
+
+  const renderEventPreview = async (showRaw) => {
+    const dateValue = eventDate.value || 'Date not set'
+    const startLabel = eventStartTime.value || 'Start not set'
+    const endLabel = eventEndTime.value || 'End not set'
+    const loc = eventLocation.value.trim() || 'Location not set'
+    const tz = eventTimezone.value
+    content.innerHTML = ''
+    if (showRaw) {
+      content.textContent = buildEventYaml()
+      return
+    }
+    const bodyHtml = await markdown(textarea.value)
+    const timeLine = tz
+      ? `${dateValue} • ${startLabel}–${endLabel} • ${tz}`
+      : `${dateValue} • ${startLabel}–${endLabel}`
+    const summary = h('div', {classList: 'event-preview'}, [
+      h('div', {classList: 'event-preview-meta'}, [timeLine]),
+      h('div', {classList: 'event-preview-meta'}, [loc])
+    ])
+    const body = h('div')
+    body.innerHTML = bodyHtml
+    content.appendChild(summary)
+    content.appendChild(body)
+  }
+
+  const renderMessagePreview = async (showRaw) => {
+    if (showRaw) {
+      content.textContent = textarea.value
+      return
+    }
+    content.innerHTML = await markdown(textarea.value)
+  }
+
+  let messageToggle
+  let eventToggle
+  let modeToggle
+  const updateToggleState = () => {
+    if (!ENABLE_EVENT_COMPOSER) { return }
+    if (!messageToggle || !eventToggle) { return }
+    const isEvent = composerMode === 'event'
+    messageToggle.classList.toggle('active', !isEvent)
+    eventToggle.classList.toggle('active', isEvent)
+    messageToggle.setAttribute('aria-pressed', String(!isEvent))
+    eventToggle.setAttribute('aria-pressed', String(isEvent))
+    if (modeToggle) {
+      modeToggle.classList.toggle('event-active', isEvent)
+    }
+  }
+
+  const setComposerMode = (mode) => {
+    if (!ENABLE_EVENT_COMPOSER) {
+      composerMode = 'message'
+      return
+    }
+    composerMode = mode
+    if (mode === 'event') {
+      eventFields.style = 'display: block;'
+      textarea.placeholder = 'Write event details'
+    } else {
+      eventFields.style = 'display: none;'
+      textarea.placeholder = 'Write a message'
+    }
+    updateToggleState()
+  }
+
+  const buildComposeMeta = () => {
+    if (!ENABLE_EVENT_COMPOSER || composerMode !== 'event') { return { ...replyObj } }
+    const meta = { ...replyObj }
+    const loc = (eventLocation.dataset.full || eventLocation.value).trim()
+    const dateValue = eventDate.value
+    const startLabel = eventStartTime.value
+    const endLabel = eventEndTime.value
+    const tz = eventTimezone.value
+    const startValue = startLabel ? parseTime(startLabel) : ''
+    const endValue = endLabel ? parseTime(endLabel) : ''
+    const start = (dateValue && startValue)
+      ? Math.floor(new Date(`${dateValue}T${startValue}`).getTime() / 1000)
+      : null
+    const end = (dateValue && endValue)
+      ? Math.floor(new Date(`${dateValue}T${endValue}`).getTime() / 1000)
+      : null
+    if (Number.isFinite(start)) { meta.start = start }
+    if (Number.isFinite(end)) { meta.end = end }
+    if (loc) { meta.loc = loc }
+    if (tz) { meta.tz = tz }
+    return meta
+  }
 
   const publishButton = h('button', {style: 'float: right;', onclick: async (e) => {
-    e.target.disabled = true
-    e.target.textContent = 'Publishing...'
-    const published = await apds.compose(textarea.value, replyObj)
+    const button = e.target
+    button.disabled = true
+    button.textContent = 'Publishing...'
+    if (ENABLE_EVENT_COMPOSER && composerMode === 'event') {
+      const dateValue = eventDate.value
+      const startLabel = eventStartTime.value
+      const endLabel = eventEndTime.value
+      const startValue = startLabel ? parseTime(startLabel) : ''
+      const endValue = endLabel ? parseTime(endLabel) : ''
+      const loc = (eventLocation.dataset.full || eventLocation.value).trim()
+      const startMs = (dateValue && startValue)
+        ? new Date(`${dateValue}T${startValue}`).getTime()
+        : NaN
+      const endMs = (dateValue && endValue)
+        ? new Date(`${dateValue}T${endValue}`).getTime()
+        : NaN
+      const setHelp = (msg, focusEl) => {
+        eventHelp.textContent = msg
+        eventHelp.style = 'display: block; color: #b00020; font-size: 12px; margin: 4px 0;'
+        if (focusEl) { focusEl.focus() }
+      }
+      eventHelp.style = 'display: none;'
+      if (!loc) {
+        setHelp('Location is required.', eventLocation)
+        button.disabled = false
+        button.textContent = 'Publish'
+        return
+      }
+      if (!dateValue) {
+        setHelp('Event date is required.', eventDate)
+        button.disabled = false
+        button.textContent = 'Publish'
+        return
+      }
+      if (!startValue) {
+        setHelp('Start time is required.', eventStartTime)
+        button.disabled = false
+        button.textContent = 'Publish'
+        return
+      }
+      if (!endValue) {
+        setHelp('End time is required.', eventEndTime)
+        button.disabled = false
+        button.textContent = 'Publish'
+        return
+      }
+      if (endMs < startMs) {
+        setHelp('End time must be after the start time.', eventEndTime)
+        button.disabled = false
+        button.textContent = 'Publish'
+        return
+      }
+    }
+    const published = await apds.compose(textarea.value, buildComposeMeta())
     textarea.value = ''
     const signed = await apds.get(published)
     const opened = await apds.open(signed)
@@ -142,21 +481,63 @@ export const composer = async (sig, options = {}) => {
     }
   }}, ['Publish'])
 
+  if (ENABLE_EVENT_COMPOSER) {
+    messageToggle = h('button', {type: 'button', onclick: () => setComposerMode('message')}, ['Message'])
+    eventToggle = h('button', {type: 'button', onclick: () => setComposerMode('event')}, ['Event'])
+    const toggleIndicator = h('span', {classList: 'composer-toggle-indicator'})
+    modeToggle = h('div', {classList: 'composer-toggle'}, [
+      toggleIndicator,
+      messageToggle,
+      eventToggle
+    ])
+    updateToggleState()
+  }
+
+  const rawDiv = h('div', {classList: 'message-raw'})
+  let rawshow = true
+  let rawContent
+  let rawText = ''
+  const updateRawText = () => {
+    rawText = (ENABLE_EVENT_COMPOSER && composerMode === 'event') ? buildEventYaml() : textarea.value
+    if (rawContent) { rawContent.textContent = rawText }
+  }
+  const rawToggle = h('a', {classList: 'material-symbols-outlined', onclick: () => {
+    updateRawText()
+    if (rawshow) {
+      if (!rawContent) {
+        rawContent = h('pre', {classList: 'hljs'}, [rawText])
+      }
+      rawDiv.appendChild(rawContent)
+      rawshow = false
+    } else {
+      rawContent.parentNode.removeChild(rawContent)
+      rawshow = true
+    }
+  }}, ['Code'])
+
+  const renderPreview = async () => {
+    updateRawText()
+    if (ENABLE_EVENT_COMPOSER && composerMode === 'event') {
+      await renderEventPreview(false)
+    } else {
+      await renderMessagePreview(false)
+    }
+  }
+
   const previewButton = h('button', {style: 'float: right;', onclick: async () => {
     textareaDiv.style = 'display: none;'
     previewDiv.style = 'display: block;'
-    content.innerHTML = await markdown(textarea.value)
+    await renderPreview()
   }}, ['Preview'])
 
-  const textareaDiv = h('div', {classList: 'composer'}, [
-    textarea,
-    previewButton
-  ])
+  const textareaDiv = h('div', {classList: 'composer'}, ENABLE_EVENT_COMPOSER
+    ? [modeToggle, eventFields, textarea, previewButton]
+    : [textarea, previewButton]
+  )
 
   const content = h('div')
 
-  const previewDiv = h('div', {style: 'display: none;'}, [
-    content,
+  const previewControls = h('div', {classList: 'preview-controls'}, [
     publishButton,
     h('button', {style: 'float: right;', onclick: () => { 
      textareaDiv.style = 'display: block;'
@@ -164,8 +545,16 @@ export const composer = async (sig, options = {}) => {
     }}, ['Cancel'])
   ])
 
+  const previewDiv = h('div', {style: 'display: none;'}, [
+    content,
+    rawDiv,
+    previewControls
+  ])
+
   const meta = h('span', {classList: 'message-meta'}, [
     h('span', {classList: 'pubkey'}, [pubkey.substring(0, 6)]),
+    ' ',
+    rawToggle,
     ' ',
     cancel,
   ])
@@ -177,12 +566,17 @@ export const composer = async (sig, options = {}) => {
     await imgUpload(textarea)
   ])
 
+  const composerHeader = h('div', {classList: 'composer-header'}, ENABLE_EVENT_COMPOSER
+    ? [await nameSpan(), modeToggle]
+    : [await nameSpan()]
+  )
+
   const composerDiv = h('div', [
     meta,
     h('div', {classList: 'message-main'}, [
       h('span', [await avatarSpan()]),
       h('div', {classList: 'message-stack'}, [
-        await nameSpan(),
+        composerHeader,
         bodyWrap
       ])
     ])
