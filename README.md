@@ -30,6 +30,25 @@ Run the container and expose it on port 8000:
 docker run --rm -p 8000:8000 wiredove
 ```
 
+Persist notification state and VAPID keys between restarts:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/config.json:/app/config.json" \
+  wiredove
+```
+
+Optional env overrides:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e VAPID_CONFIG_PATH=/app/config.json \
+  -e VAPID_SUBJECT=mailto:ops@wiredove.net \
+  -e PUSH_ICON_URL=https://wiredove.net/dovepurple_sm.png \
+  wiredove
+```
+
 Then open `http://localhost:8000` in your browser.
 
 ### Comparisons
