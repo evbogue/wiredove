@@ -1,4 +1,4 @@
-import { h } from 'h' 
+import { h } from 'h'
 import { apds } from 'apds'
 
 const cache = new Map()
