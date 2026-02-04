@@ -2,6 +2,7 @@ import { apds } from 'apds'
 import { render } from './render.js'
 import { h } from 'h'
 import { composer } from './composer.js'
+import { buildShareMessage, parseSharePayload } from './share.js'
 import { profile } from './profile.js'
 import { makeRoom } from './gossip.js'
 import { settings, importKey } from './settings.js'
@@ -107,7 +108,23 @@ export const route = async () => {
   document.body.appendChild(scroller)
   await render.buildReplyIndex()
 
-  if (src === '') {
+  if (src.startsWith('share=')) {
+    const payload = parseSharePayload(src)
+    if (payload) {
+      const message = buildShareMessage(payload)
+      setTimeout(async () => {
+        try {
+          const compose = await composer(null, { initialBody: message, autoGenKeypair: true })
+          document.body.appendChild(compose)
+        } catch (err) {
+          console.log(err)
+        }
+      }, 0)
+      history.replaceState(null, '', '#')
+    }
+  }
+
+  if (src === '' || src.startsWith('share=')) {
     let log = await apds.query()
     log = await expandHomeLog(log)
     scroller.dataset.paginated = 'true'

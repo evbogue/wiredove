@@ -60,6 +60,7 @@ export const composer = async (sig, options = {}) => {
   }
 
   const textarea = h('textarea', {placeholder: 'Write a message'})
+  if (typeof options.initialBody === 'string' && !isEdit) { textarea.value = options.initialBody }
   if (isEdit && typeof options.editBody === 'string') { textarea.value = options.editBody }
 
   const cancel = h('a', {classList: 'material-symbols-outlined', onclick: () => {
@@ -81,7 +82,16 @@ export const composer = async (sig, options = {}) => {
     replyObj.edit = options.editHash
   }
 
-  const pubkey = await apds.pubkey()
+  let pubkey = await apds.pubkey()
+  if (!pubkey && options.autoGenKeypair) {
+    try {
+      const keypair = await apds.generate()
+      await apds.put('keypair', keypair)
+      pubkey = await apds.pubkey()
+    } catch (err) {
+      // Fall back to anonymous composer if keygen fails.
+    }
+  }
   let composerMode = 'message'
 
   const eventDate = h('input', {type: 'date'})
@@ -524,9 +534,12 @@ export const composer = async (sig, options = {}) => {
     }
   }
 
+  const uploadControls = await imgUpload(textarea)
+
   const previewButton = h('button', {style: 'float: right;', onclick: async () => {
     textareaDiv.style = 'display: none;'
     previewDiv.style = 'display: block;'
+    uploadControls.style = 'display: none;'
     await renderPreview()
   }}, ['Preview'])
 
@@ -542,6 +555,7 @@ export const composer = async (sig, options = {}) => {
     h('button', {style: 'float: right;', onclick: () => { 
      textareaDiv.style = 'display: block;'
      previewDiv.style = 'display: none;'
+     uploadControls.style = 'display: block;'
     }}, ['Cancel'])
   ])
 
@@ -552,7 +566,7 @@ export const composer = async (sig, options = {}) => {
   ])
 
   const meta = h('span', {classList: 'message-meta'}, [
-    h('span', {classList: 'pubkey'}, [pubkey.substring(0, 6)]),
+    h('span', {classList: 'pubkey'}, [pubkey ? pubkey.substring(0, 6) : 'anon']),
     ' ',
     rawToggle,
     ' ',
@@ -563,7 +577,7 @@ export const composer = async (sig, options = {}) => {
     contextDiv,
     textareaDiv,
     previewDiv,
-    await imgUpload(textarea)
+    uploadControls
   ])
 
   const composerHeader = h('div', {classList: 'composer-header'}, ENABLE_EVENT_COMPOSER
