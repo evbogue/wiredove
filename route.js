@@ -121,6 +121,10 @@ export const route = async () => {
         }
       }, 0)
       history.replaceState(null, '', '#')
+      if (typeof window.onhashchange === 'function') {
+        window.onhashchange()
+      }
+      return
     }
   }
 
