@@ -115,8 +115,13 @@ const pushEverything = h('button', {
   onclick: async () => {
     batchStartSize = getQueueSize()
     batchTotal = 0
-    const log = await apds.query()
+    let log = await apds.query()
     if (log) {
+      log = [...log].sort((a, b) => {
+        const tsA = Number.parseInt(a?.ts ?? a?.opened?.substring(0, 13) ?? '0', 10) || 0
+        const tsB = Number.parseInt(b?.ts ?? b?.opened?.substring(0, 13) ?? '0', 10) || 0
+        return tsB - tsA
+      })
       const ar = []
       for (const msg of log) {
         if (isHash(msg.hash) && queueSend(msg.hash)) { batchTotal += 1 }
