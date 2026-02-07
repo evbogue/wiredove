@@ -6,6 +6,7 @@ import { getModerationState, isBlockedAuthor } from './moderation.js'
 const pubs = new Set()
 const wsBackoff = new Map()
 const HTTP_POLL_INTERVAL_MS = 5000
+const RECENT_LATEST_WINDOW_MS = 24 * 60 * 60 * 1000
 const httpState = {
   baseUrl: null,
   ready: false,
@@ -26,6 +27,11 @@ const deliverWs = (msg) => {
 }
 
 const isHash = (msg) => typeof msg === 'string' && msg.length === 44
+const parseOpenedTimestamp = (opened) => {
+  if (typeof opened !== 'string' || opened.length < 13) { return 0 }
+  const ts = Number.parseInt(opened.substring(0, 13), 10)
+  return Number.isFinite(ts) ? ts : 0
+}
 
 const handleIncoming = async (msg) => {
   noteReceived(msg)
@@ -176,6 +182,7 @@ export const makeWs = async (pub) => {
     pubs.add(ws)
     resetBackoff()
     wsReadyResolver?.()
+    const now = Date.now()
     let p = []
       try {
         p = await apds.getPubkeys() || []
@@ -183,28 +190,17 @@ export const makeWs = async (pub) => {
         console.warn('getPubkeys failed', err)
         p = []
       }
-      let selfPub = null
-      try {
-        selfPub = await apds.pubkey()
-      } catch (err) {
-        console.warn('pubkey failed', err)
-        selfPub = null
-      }
       const moderation = await getModerationState()
       const blocked = new Set(moderation.blockedAuthors || [])
       for (const pub of p) {
         if (blocked.has(pub)) { continue }
         ws.send(pub)
-        if (selfPub && pub === selfPub) {
-          const latest = await apds.getLatest(pub)
-          if (!latest) { continue }
-          if (latest.hash) {
-            ws.send(latest.hash)
-          } else if (latest.sig) {
-            const sigHash = await apds.hash(latest.sig)
-            ws.send(sigHash)
-          }
-        }
+        const latest = await apds.getLatest(pub)
+        if (!latest) { continue }
+        const openedTs = parseOpenedTimestamp(latest.opened)
+        if (!openedTs || now - openedTs > RECENT_LATEST_WINDOW_MS) { continue }
+        if (!latest.sig) { continue }
+        ws.send(latest.sig)
       }
       //below sends everything in the client to a dovepub pds server
       //const log = await apds.query()
