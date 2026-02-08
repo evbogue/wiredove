@@ -7,7 +7,7 @@ import { markdown } from './markdown.js'
 import { noteSeen } from './sync.js'
 import { promptKeypair } from './identify.js'
 import { addBlockedAuthor, addHiddenHash, addMutedAuthor, isBlockedAuthor, removeHiddenHash, removeMutedAuthor, shouldHideMessage } from './moderation.js'
-import { ensureQRious } from './lazy_vendor.js'
+import { ensureHighlight, ensureQRious } from './lazy_vendor.js'
 import { addReplyToIndex, ensureReplyIndex, getReplyCount, getRepliesForParent } from './reply_index.js'
 
 export const render = {}
@@ -66,6 +66,28 @@ const observeTimestamp = (element, timestamp) => {
     })
   }
   timestampObserver.observe(element)
+}
+
+const highlightCodeIn = async (container) => {
+  if (!container) { return }
+  const nodes = Array.from(container.querySelectorAll('pre code, pre'))
+  if (!nodes.length) { return }
+  let hljs
+  try {
+    hljs = await ensureHighlight()
+  } catch (err) {
+    console.warn('highlight load failed', err)
+    return
+  }
+  if (!hljs || typeof hljs.highlightElement !== 'function') { return }
+  nodes.forEach((node) => {
+    const target = node.matches('pre') && node.querySelector('code')
+      ? node.querySelector('code')
+      : node
+    if (!target || target.dataset.hljsDone === 'true') { return }
+    hljs.highlightElement(target)
+    target.dataset.hljsDone = 'true'
+  })
 }
 
 const updateReplyCount = (parentHash) => {
@@ -573,6 +595,7 @@ render.refreshEdits = async (hash, options = {}) => {
     : state.baseYaml.body
   state.currentBody = bodySource
   state.contentDiv.innerHTML = await renderBody(bodySource, baseReply)
+  await highlightCodeIn(state.contentDiv)
   hydrateReplyPreviews(state.contentDiv)
   if (!currentEdit) {
     await applyProfile(state.contentHash, state.baseYaml)
@@ -1045,6 +1068,7 @@ render.content = async (hash, blob, div, messageHash) => {
     div.classList.remove('material-symbols-outlined')
     const bioHtml = await markdown(yaml.bio)
     div.innerHTML = `<p><strong>New bio:</strong></p>${bioHtml}`
+    await highlightCodeIn(div)
     await applyProfile(contentHash, yaml)
     await queueLinkedHashes(yaml)
     return
@@ -1061,6 +1085,7 @@ render.content = async (hash, blob, div, messageHash) => {
       updateReplyCount(yaml.reply)
     }
     div.innerHTML = await renderBody(yaml.body, yaml.reply)
+    await highlightCodeIn(div)
     hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)
     await queueLinkedHashes(yaml)
