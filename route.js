@@ -16,6 +16,8 @@ import { buildProfileHeader } from './profile_header.js'
 
 const HOME_SEED_COUNT = 3
 const HOME_BACKFILL_DEPTH = 6
+const COMMUNITY_QUERY_CONCURRENCY = 4
+const HOME_EXPAND_CONCURRENCY = 3
 
 const parseOpenedTimestamp = (opened) => {
   if (!opened || opened.length < 13) { return 0 }
@@ -37,38 +39,71 @@ const getOpenedFromQuery = async (hash) => {
   return null
 }
 
+const mapLimit = async (items, limit, worker) => {
+  if (!Array.isArray(items) || !items.length) { return [] }
+  const results = new Array(items.length)
+  let cursor = 0
+  const lanes = Math.max(1, Math.min(limit, items.length))
+  const runLane = async () => {
+    while (true) {
+      const index = cursor
+      if (index >= items.length) { return }
+      cursor += 1
+      results[index] = await worker(items[index], index)
+    }
+  }
+  await Promise.all(Array.from({ length: lanes }, () => runLane()))
+  return results
+}
+
+const expandSeedChain = async (startHash) => {
+  if (!startHash) { return [] }
+  const discovered = []
+  const visited = new Set([startHash])
+  let cursor = startHash
+  let depth = 0
+  while (cursor && depth < HOME_BACKFILL_DEPTH) {
+    const sig = await apds.get(cursor)
+    if (!sig) {
+      queueSend(cursor)
+      break
+    }
+    const opened = await getOpenedFromQuery(cursor)
+    if (!opened || opened.length < 14) { break }
+    const contentHash = opened.substring(13)
+    const content = await apds.get(contentHash)
+    if (!content) {
+      queueSend(contentHash)
+      break
+    }
+    const yaml = await apds.parseYaml(content)
+    const previous = yaml?.previous
+    if (!isHash(previous) || visited.has(previous)) { break }
+    queueSend(previous)
+    const prevOpened = await getOpenedFromQuery(previous)
+    const ts = parseOpenedTimestamp(prevOpened)
+    discovered.push({ hash: previous, opened: prevOpened, ts })
+    visited.add(previous)
+    cursor = previous
+    depth += 1
+  }
+  return discovered
+}
+
 const expandHomeLog = async (log) => {
   if (!Array.isArray(log) || !log.length) { return log || [] }
   const entries = [...log]
   const seen = new Set(entries.map(entry => entry?.hash).filter(Boolean))
   const seeds = entries.slice(0, HOME_SEED_COUNT)
-  for (const seed of seeds) {
-    let cursor = seed?.hash
-    let depth = 0
-    while (cursor && depth < HOME_BACKFILL_DEPTH) {
-      const sig = await apds.get(cursor)
-      if (!sig) {
-        queueSend(cursor)
-        break
-      }
-      const opened = await getOpenedFromQuery(cursor)
-      if (!opened || opened.length < 14) { break }
-      const contentHash = opened.substring(13)
-      const content = await apds.get(contentHash)
-      if (!content) {
-        queueSend(contentHash)
-        break
-      }
-      const yaml = await apds.parseYaml(content)
-      const previous = yaml?.previous
-      if (!isHash(previous) || seen.has(previous)) { break }
-      queueSend(previous)
-      const prevOpened = await getOpenedFromQuery(previous)
-      const ts = parseOpenedTimestamp(prevOpened)
-      entries.push({ hash: previous, opened: prevOpened, ts })
-      seen.add(previous)
-      cursor = previous
-      depth += 1
+  const chains = await mapLimit(seeds, HOME_EXPAND_CONCURRENCY, async (seed) => {
+    return expandSeedChain(seed?.hash)
+  })
+  for (const chain of chains) {
+    if (!Array.isArray(chain) || !chain.length) { continue }
+    for (const entry of chain) {
+      if (!entry?.hash || seen.has(entry.hash)) { continue }
+      entries.push(entry)
+      seen.add(entry.hash)
     }
   }
   return entries
@@ -152,17 +187,17 @@ export const route = async () => {
       const ar = await fetch('https://pub.wiredove.net/' + src).then(r => r.json())
       if (ar) { localStorage.setItem(src, JSON.stringify(ar))}
       console.log(ar)
-      let query = []
-      const selfKey = await apds.pubkey()
-      for (const pubkey of ar) {
-        if (await isBlockedAuthor(pubkey)) { continue }
+      const pubkeys = Array.isArray(ar) ? ar : []
+      const batched = await mapLimit(pubkeys, COMMUNITY_QUERY_CONCURRENCY, async (pubkey) => {
+        if (await isBlockedAuthor(pubkey)) { return [] }
         await noteInterest(pubkey)
         await send(pubkey)
         const q = await apds.query(pubkey)
-        if (q) {
-          query.push(...q)
-        }
-      }
+        if (Array.isArray(q)) { return q }
+        if (q) { return [q] }
+        return []
+      })
+      const query = batched.flat()
       if (query.length) {
         const primaryKey = Array.isArray(ar) && ar.length ? ar[0] : null
         const header = await buildProfileHeader({ label: src, messages: query, canEdit: false, pubkey: primaryKey })
