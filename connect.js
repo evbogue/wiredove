@@ -1,9 +1,6 @@
-import { apds } from 'apds'
 import { makeRoom } from './gossip.js'
 import { makeWs, startHttpGossip } from './websocket.js'
 import { send } from './send.js'
-
-await apds.start('wiredovedbversion1')
 
 export const connect = async () => {
   //await makeWs('ws://localhost:9000')
