@@ -8,12 +8,12 @@ import { noteSeen } from './sync.js'
 import { promptKeypair } from './identify.js'
 import { addBlockedAuthor, addHiddenHash, addMutedAuthor, isBlockedAuthor, removeHiddenHash, removeMutedAuthor, shouldHideMessage } from './moderation.js'
 import { ensureQRious } from './lazy_vendor.js'
+import { addReplyToIndex, ensureReplyIndex, getReplyCount, getRepliesForParent } from './reply_index.js'
 
 export const render = {}
 const cache = new Map()
 const editsCache = new Map()
 const EDIT_CACHE_TTL_MS = 5000
-const replyIndex = new Map()
 const replyCountTargets = new Map()
 let replyObserver = null
 const replyPreviewCache = new Map()
@@ -68,19 +68,11 @@ const observeTimestamp = (element, timestamp) => {
   timestampObserver.observe(element)
 }
 
-const indexReply = (parentHash, replyHash, ts, opened = null) => {
-  if (!parentHash || !replyHash) { return }
-  const list = replyIndex.get(parentHash) || []
-  if (list.some(item => item.hash === replyHash)) { return }
-  list.push({ hash: replyHash, ts, opened })
-  replyIndex.set(parentHash, list)
-}
-
 const updateReplyCount = (parentHash) => {
   const target = replyCountTargets.get(parentHash)
   if (!target) { return }
-  const list = replyIndex.get(parentHash) || []
-  target.textContent = list.length ? list.length.toString() : ''
+  const count = getReplyCount(parentHash)
+  target.textContent = count ? count.toString() : ''
 }
 
 const observeReplies = (wrapper, parentHash) => {
@@ -93,7 +85,7 @@ const observeReplies = (wrapper, parentHash) => {
         const hash = target.dataset.replyParent
         if (!hash) { return }
         if (target.dataset.repliesLoaded === 'true') { return }
-        const list = replyIndex.get(hash) || []
+        const list = getRepliesForParent(hash)
         if (!list.length) {
           target.dataset.repliesLoaded = 'true'
           return
@@ -112,21 +104,8 @@ const observeReplies = (wrapper, parentHash) => {
 }
 
 render.buildReplyIndex = async (log = null) => {
-  replyIndex.clear()
   replyCountTargets.clear()
-  if (!log) {
-    log = await apds.getOpenedLog()
-  }
-  if (!log) { return }
-  for (const msg of log) {
-    if (!msg || !msg.text || !msg.hash) { continue }
-    const yaml = await apds.parseYaml(msg.text)
-    if (!yaml) { continue }
-    const parent = yaml.replyHash || yaml.reply || null
-    if (!parent) { continue }
-    const ts = msg.ts || parseOpenedTimestamp(msg.opened)
-    indexReply(parent, msg.hash, ts, msg.opened || null)
-  }
+  await ensureReplyIndex(log)
 }
 
 const renderBody = async (body, replyHash) => {
@@ -499,7 +478,7 @@ const appendReply = async (parentHash, replyHash, ts, replyBlob = null, replyOpe
 const flushPendingReplies = async (parentHash) => {
   const wrapper = document.getElementById(parentHash)
   if (!wrapper) { return }
-  const list = replyIndex.get(parentHash) || []
+  const list = getRepliesForParent(parentHash)
   if (!list.length) { return }
   observeReplies(wrapper, parentHash)
 }
@@ -976,7 +955,7 @@ render.comments = async (hash, blob, div, actionsRow) => {
   const num = h('span')
   replyCountTargets.set(hash, num)
   updateReplyCount(hash)
-  const list = replyIndex.get(hash) || []
+  const list = getRepliesForParent(hash)
   if (list.length) {
     const wrapper = document.getElementById(hash)
     observeReplies(wrapper, hash)
@@ -1074,6 +1053,13 @@ render.content = async (hash, blob, div, messageHash) => {
   if (yaml && yaml.body) {
     div.className = 'content'
     if (yaml.replyHash) { yaml.reply = yaml.replyHash }
+    if (messageHash && yaml.reply) {
+      const messageWrapper = document.getElementById(messageHash)
+      const messageOpened = messageWrapper?.dataset?.opened || null
+      const messageTs = messageOpened ? parseOpenedTimestamp(messageOpened) : 0
+      addReplyToIndex(yaml.reply, messageHash, messageTs, messageOpened)
+      updateReplyCount(yaml.reply)
+    }
     div.innerHTML = await renderBody(yaml.body, yaml.reply)
     hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)
@@ -1212,7 +1198,7 @@ render.shouldWe = async (blob) => {
     // this should detect whether the syncing message is newer or older and place the msg in the right spot
     const replyTo = getReplyParent(yaml)
     if (replyTo) {
-      indexReply(replyTo, hash, ts, opened)
+      addReplyToIndex(replyTo, hash, ts, opened)
       updateReplyCount(replyTo)
       const wrapper = document.getElementById(replyTo)
       if (wrapper && wrapper.dataset.repliesLoaded === 'true') {
