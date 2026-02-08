@@ -5,6 +5,15 @@ import { navbar } from './navbar.js'
 import { send } from './send.js'
 import { startSync } from './sync.js'
 
+const registerServiceWorker = () => {
+  if (!('serviceWorker' in navigator)) { return }
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('service worker registration failed', err)
+    })
+  }, { once: true })
+}
+
 const createImagePopover = () => {
   const popover = document.createElement('div')
   popover.id = 'image-popover'
@@ -96,5 +105,6 @@ document.body.appendChild(createImagePopover())
 await route()
 await connect()
 await startSync(send)
+registerServiceWorker()
 
 if (!window.location.hash) { window.location = '#' } 
