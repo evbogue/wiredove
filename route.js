@@ -13,6 +13,7 @@ import { queueSend } from './network_queue.js'
 import { noteInterest } from './sync.js'
 import { isBlockedAuthor } from './moderation.js'
 import { buildProfileHeader } from './profile_header.js'
+import { ensureHighlight } from './lazy_vendor.js'
 
 const HOME_SEED_COUNT = 3
 const HOME_BACKFILL_DEPTH = 6
@@ -229,7 +230,13 @@ export const route = async () => {
     }
   }
   setTimeout(() => {
-    hljs.highlightAll()
+    void ensureHighlight().then((hljs) => {
+      if (hljs && typeof hljs.highlightAll === 'function') {
+        hljs.highlightAll()
+      }
+    }).catch((err) => {
+      console.warn('highlight load failed', err)
+    })
   }, 100)
 }
 

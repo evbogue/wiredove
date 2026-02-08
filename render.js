@@ -7,6 +7,7 @@ import { markdown } from './markdown.js'
 import { noteSeen } from './sync.js'
 import { promptKeypair } from './identify.js'
 import { addBlockedAuthor, addHiddenHash, addMutedAuthor, isBlockedAuthor, removeHiddenHash, removeMutedAuthor, shouldHideMessage } from './moderation.js'
+import { ensureQRious } from './lazy_vendor.js'
 
 export const render = {}
 const cache = new Map()
@@ -601,7 +602,7 @@ render.refreshEdits = async (hash, options = {}) => {
 
 render.qr = (hash, blob, target) => {
   const link = h('a', {
-    onclick: () => {
+    onclick: async () => {
       const qrTarget = target || document.getElementById('qr-target' + hash)
       if (!qrTarget) { return }
       if (!qrTarget.firstChild) {
@@ -616,13 +617,21 @@ render.qr = (hash, blob, target) => {
           Math.floor(window.innerHeight * 0.6)
         )
         const size = Math.max(160, maxSize)
-        new QRious({
-          element: canvas,
-          value: location.href + blob,
-          size,
-          background,
-          foreground,
-        })
+        try {
+          const QRious = await ensureQRious()
+          new QRious({
+            element: canvas,
+            value: location.href + blob,
+            size,
+            background,
+            foreground,
+          })
+        } catch (err) {
+          console.warn('QRious load failed', err)
+          while (qrTarget.firstChild) {
+            qrTarget.firstChild.remove()
+          }
+        }
       } else {
         while (qrTarget.firstChild) {
           qrTarget.firstChild.remove()
