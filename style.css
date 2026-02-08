@@ -291,6 +291,14 @@ img.post-image {
   border-radius: 6px;
   cursor: zoom-in;
   display: block;
+  margin: 0;
+}
+
+.post-image-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 8px 0;
 }
 
 img.post-image.profile-avatar {

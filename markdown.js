@@ -6,6 +6,35 @@ import { send } from './send.js'
 const renderer = new marked.Renderer()
 
 renderer.paragraph = function (paragraph) {
+  const images = paragraph.match(/<img\b[^>]*>/gi) || []
+  if (images.length) {
+    const textOnly = paragraph
+      .replace(/<img\b[^>]*>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    if (!textOnly) {
+      return `<div class="post-image-row">${images.join('')}</div>`
+    }
+
+    const words = textOnly.split(' ')
+    for (let i = 0; i < words.length; i += 1) {
+      let word = words[i]
+      if (!word.startsWith('#')) { continue }
+      let end
+      if (['.', ',', '?', ':', '!'].some(char => word.endsWith(char))) {
+        end = word[word.length - 1]
+        word = word.substring(0, word.length - 1)
+      }
+      let hashtag = "<a href='#?" + word + "'>" + word + "</a>"
+      if (end) { hashtag += end }
+      words[i] = hashtag
+    }
+
+    return '<p>' + words.join(' ') + '</p><div class="post-image-row">' + images.join('') + '</div>'
+  }
+
   const array = paragraph.split(' ')
 
   for (let i = 0; i < array.length; i++) {
@@ -64,5 +93,7 @@ marked.setOptions({
 })
 
 export const markdown = async (txt) => {
-  return '<p>' + marked(txt) + '</p>'
+  const rendered = marked(txt || '')
+  // If markdown splits image-only paragraphs (e.g. due blank lines), merge adjacent rows.
+  return rendered.replace(/<\/div>\s*<div class="post-image-row">/g, '')
 }
