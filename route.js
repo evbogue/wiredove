@@ -109,8 +109,9 @@ export const route = async () => {
 
     if (src === '' || src.startsWith('share=')) {
       scroller.dataset.paginated = 'true'
-      adder([], src, scroller)
-      await ctx.orchestrator.startHome()
+      const { log } = await ctx.orchestrator.startHome()
+      if (!ctx.isActive()) { return }
+      adder(log || [], src, scroller)
       return
     }
 
@@ -130,9 +131,9 @@ export const route = async () => {
 
     if (src.length < 44 && !src.startsWith('?')) {
       scroller.dataset.paginated = 'true'
-      adder([], src, scroller)
       const { query, primaryKey } = await ctx.orchestrator.startAlias(src)
       if (!ctx.isActive()) { return }
+      adder(query || [], src, scroller)
       if (query.length) {
         const header = await buildProfileHeader({ label: src, messages: query, canEdit: false, pubkey: primaryKey })
         if (header) { scroller.appendChild(header) }
@@ -148,9 +149,9 @@ export const route = async () => {
       const selfKey = await apds.pubkey()
       await noteInterest(src)
       scroller.dataset.paginated = 'true'
-      adder([], src, scroller)
       const { log } = await ctx.orchestrator.startAuthor(src)
       if (!ctx.isActive()) { return }
+      adder(log || [], src, scroller)
       const canEdit = !!(selfKey && selfKey === src)
       void waitForFirstRenderedAuthor(scroller).then(async (author) => {
         if (!ctx.isActive()) { return }
@@ -166,8 +167,9 @@ export const route = async () => {
 
     if (src.startsWith('?')) {
       scroller.dataset.paginated = 'true'
-      adder([], src, scroller)
-      await ctx.orchestrator.startSearch(src)
+      const { log } = await ctx.orchestrator.startSearch(src)
+      if (!ctx.isActive()) { return }
+      adder(log || [], src, scroller)
       return
     }
 

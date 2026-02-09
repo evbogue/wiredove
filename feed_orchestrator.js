@@ -12,6 +12,8 @@ const HOME_BACKFILL_DEPTH = 6
 const COMMUNITY_QUERY_CONCURRENCY = adaptiveConcurrency({ base: 4, min: 1, max: 8, type: 'network' })
 const HOME_EXPAND_CONCURRENCY = adaptiveConcurrency({ base: 3, min: 1, max: 6 })
 const FEED_ROWS_POLL_MS = 5000
+const FEED_ROWS_ENABLED = false
+const feedRowsEnabled = () => FEED_ROWS_ENABLED
 
 const parseOpenedTimestamp = (opened) => {
   if (!opened || opened.length < 13) { return 0 }
@@ -120,6 +122,7 @@ export class FeedOrchestrator {
   }
 
   async fetchFeedRows({ kind = 'home', key = '', since = 0, limit = 40, timeoutMs = 1800 } = {}) {
+    if (!feedRowsEnabled()) { return { rows: [], nextSince: since } }
     const timeoutController = new AbortController()
     let externalAbort = null
     if (this.signal) {
@@ -164,27 +167,35 @@ export class FeedOrchestrator {
   }
 
   async startHome() {
-    const feedRowsPromise = perfMeasure(
-      'route.feedRows.home',
-      async () => this.fetchFeedRows({ kind: 'home', since: 0, limit: 50 }),
-      'home'
-    )
-    const localLogPromise = perfMeasure('route.query', async () => apds.query(), 'home')
-    const feedRowsResult = await feedRowsPromise
-    if (!this.isActive()) { return { log: [] } }
-    await this.mergeRows(feedRowsResult.rows || [])
-    if (!this.isActive()) { return { log: [] } }
-    let log = await localLogPromise
+    let log = await perfMeasure('route.query', async () => apds.query(), 'home')
     if (!this.isActive()) { return { log: [] } }
     log = attachCachedRows(log || [])
-    await this.store.upsertMany(log || [])
     if (!this.isActive()) { return { log } }
-    this.startHomePolling(feedRowsResult.nextSince || this.store.getSince() || 0)
+
+    // Keep local feed as source of truth for initial paint. Remote feed rows are additive only.
+    if (!feedRowsEnabled()) {
+      void this.runHomeBackfill(log || [])
+      return { log }
+    }
+    const since = this.store.getSince() || 0
+    void (async () => {
+      const seedRowsResult = await perfMeasure(
+        'route.feedRows.home',
+        async () => this.fetchFeedRows({ kind: 'home', since, limit: 50 }),
+        'home'
+      )
+      if (!this.isActive()) { return }
+      await this.mergeRows(seedRowsResult.rows || [])
+      if (!this.isActive()) { return }
+      this.startHomePolling(seedRowsResult.nextSince || this.store.getSince() || since)
+    })()
+
     void this.runHomeBackfill(log || [])
     return { log }
   }
 
   startHomePolling(initialSince = 0) {
+    if (!feedRowsEnabled()) { return }
     this.stop()
     const state = { since: initialSince }
     const tick = async () => {
@@ -212,18 +223,25 @@ export class FeedOrchestrator {
   }
 
   async startAuthor(pubkey) {
-    const seedRowsResult = await perfMeasure(
-      'route.feedRows.author',
-      async () => this.fetchFeedRows({ kind: 'author', key: pubkey, since: 0, limit: 50 }),
-      'pubkey'
-    )
-    if (!this.isActive()) { return { log: [] } }
-    await this.mergeRows(seedRowsResult.rows || [])
     const log = await perfMeasure('route.query', async () => apds.query(pubkey), 'pubkey')
     if (!this.isActive()) { return { log: [] } }
     const withCachedRows = attachCachedRows(log || [])
-    await this.store.upsertMany(withCachedRows)
-    return { log: log || [] }
+
+    if (!feedRowsEnabled()) {
+      return { log: withCachedRows || [] }
+    }
+    const since = this.store.getSince() || 0
+    void (async () => {
+      const seedRowsResult = await perfMeasure(
+        'route.feedRows.author',
+        async () => this.fetchFeedRows({ kind: 'author', key: pubkey, since, limit: 50 }),
+        'pubkey'
+      )
+      if (!this.isActive()) { return }
+      await this.mergeRows(seedRowsResult.rows || [])
+    })()
+
+    return { log: withCachedRows || [] }
   }
 
   async startAlias(alias) {
@@ -235,13 +253,6 @@ export class FeedOrchestrator {
     if (!this.isActive()) { return { query: [], primaryKey: null } }
     if (ar) { localStorage.setItem(alias, JSON.stringify(ar)) }
     const pubkeys = Array.isArray(ar) ? ar : []
-    const seedRowsResult = await perfMeasure(
-      'route.feedRows.alias',
-      async () => this.fetchFeedRows({ kind: 'alias', key: alias, since: 0, limit: 50 }),
-      'community'
-    )
-    if (!this.isActive()) { return { query: [], primaryKey: null } }
-    await this.mergeRows(seedRowsResult.rows || [])
     const batched = await perfMeasure('route.community.queryBatch', async () => mapLimit(pubkeys, COMMUNITY_QUERY_CONCURRENCY, async (pubkey) => {
       if (!this.isActive()) { return [] }
       if (await isBlockedAuthor(pubkey)) { return [] }
@@ -255,6 +266,21 @@ export class FeedOrchestrator {
     }), 'community')
     if (!this.isActive()) { return { query: [], primaryKey: null } }
     const query = batched.flat()
+    if (!feedRowsEnabled()) {
+      const primaryKey = Array.isArray(ar) && ar.length ? ar[0] : null
+      return { query, primaryKey }
+    }
+    const since = this.store.getSince() || 0
+    void (async () => {
+      const seedRowsResult = await perfMeasure(
+        'route.feedRows.alias',
+        async () => this.fetchFeedRows({ kind: 'alias', key: alias, since, limit: 50 }),
+        'community'
+      )
+      if (!this.isActive()) { return }
+      await this.mergeRows(seedRowsResult.rows || [])
+    })()
+
     const primaryKey = Array.isArray(ar) && ar.length ? ar[0] : null
     return { query, primaryKey }
   }
@@ -263,7 +289,6 @@ export class FeedOrchestrator {
     const log = await perfMeasure('route.query', async () => apds.query(queryHash), 'search')
     if (!this.isActive()) { return { log: [] } }
     const withCachedRows = attachCachedRows(log || [])
-    await this.store.upsertMany(withCachedRows)
-    return { log: log || [] }
+    return { log: withCachedRows || [] }
   }
 }

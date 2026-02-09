@@ -10,6 +10,7 @@ const FRAME_RENDER_START_BUDGET = adaptiveConcurrency({ base: 3, min: 1, max: 6,
 const FRAME_QUEUE_BUDGET_MS = 6
 const VIEW_PREFETCH_MARGIN = '1800px 0px'
 const DERENDER_DELAY_MS = 2000
+const ENABLE_DERENDER = false
 const PREFETCH_AHEAD_PX = 2000
 const PREFETCH_BEHIND_PX = 700
 let renderQueue = []
@@ -122,6 +123,7 @@ const ensureObserver = () => {
         })
         return
       }
+      if (!ENABLE_DERENDER) { return }
       if (pending || wrapper.dataset.rendered !== 'true') { return }
       const timer = setTimeout(() => {
         derenderTimers.delete(wrapper)
@@ -358,7 +360,8 @@ const flushPending = async (state) => {
 
 const enqueuePost = async (state, entry) => {
   if (!entry || !entry.hash || !entry.ts) { return }
-  insertEntry(state, entry)
+  const insertedAt = insertEntry(state, entry)
+  if (insertedAt < 0) { return }
   if (!state.latestVisibleTs) {
     await renderEntry(state, entry)
     state.latestVisibleTs = entry.ts
