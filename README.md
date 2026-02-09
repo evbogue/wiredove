@@ -46,8 +46,34 @@ docker run --rm -p 8000:8000 \
   -e VAPID_CONFIG_PATH=/app/config.json \
   -e VAPID_SUBJECT=mailto:ops@wiredove.net \
   -e PUSH_ICON_URL=https://wiredove.net/dovepurple_sm.png \
+  -e FEED_ROWS_UPSTREAM=https://pub.wiredove.net \
   wiredove
 ```
+
+### Performance toggles and baseline
+
+Enable in-browser performance metrics:
+
+```js
+localStorage.setItem('wiredove.perf', '1')
+location.reload()
+```
+
+Disable metrics:
+
+```js
+localStorage.removeItem('wiredove.perf')
+location.reload()
+```
+
+With metrics enabled, the app logs rolling `avg/p50/p95` timings in the console for route load, feed paging, render, and network batch phases.
+
+Suggested baseline capture flow:
+
+1. Clear storage and reload.
+2. Load home feed, profile feed, and alias/community feed.
+3. Record `route:*`, `adder.loadNext:*`, `render.blob:*`, `net.*` p50/p95 lines.
+4. Keep these numbers as your pre/post optimization checkpoint.
 
 Then open `http://localhost:8000` in your browser.
 

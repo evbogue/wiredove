@@ -9,6 +9,8 @@ import { promptKeypair } from './identify.js'
 import { addBlockedAuthor, addHiddenHash, addMutedAuthor, isBlockedAuthor, removeHiddenHash, removeMutedAuthor, shouldHideMessage } from './moderation.js'
 import { ensureHighlight, ensureQRious } from './lazy_vendor.js'
 import { addReplyToIndex, ensureReplyIndex, getReplyCount, getRepliesForParent } from './reply_index.js'
+import { makeFeedRow, upsertFeedRow, parseOpenedTimestamp } from './feed_row_cache.js'
+import { perfStart, perfEnd } from './perf.js'
 
 export const render = {}
 const cache = new Map()
@@ -17,6 +19,8 @@ const EDIT_CACHE_TTL_MS = 5000
 const replyCountTargets = new Map()
 let replyObserver = null
 const replyPreviewCache = new Map()
+let cachedPubkeyPromise = null
+const timestampInsertState = new WeakMap()
 
 const editState = new Map()
 const timestampRefreshMs = 60000
@@ -28,6 +32,16 @@ const getEditState = (hash) => {
     editState.set(hash, { currentIndex: null, userNavigated: false })
   }
   return editState.get(hash)
+}
+
+const getCachedPubkey = async () => {
+  if (!cachedPubkeyPromise) {
+    cachedPubkeyPromise = apds.pubkey().catch((err) => {
+      cachedPubkeyPromise = null
+      throw err
+    })
+  }
+  return cachedPubkeyPromise
 }
 
 const refreshTimestamp = async (element, timestamp) => {
@@ -128,6 +142,20 @@ const observeReplies = (wrapper, parentHash) => {
 render.buildReplyIndex = async (log = null) => {
   replyCountTargets.clear()
   await ensureReplyIndex(log)
+}
+
+render.refreshVisibleReplies = () => {
+  replyCountTargets.forEach((_, parentHash) => {
+    updateReplyCount(parentHash)
+  })
+  const wrappers = Array.from(document.querySelectorAll('.message-wrapper'))
+  wrappers.forEach((wrapper) => {
+    const parentHash = wrapper.id
+    if (!parentHash) { return }
+    if (wrapper.dataset.repliesLoaded === 'true') { return }
+    if (!getReplyCount(parentHash)) { return }
+    observeReplies(wrapper, parentHash)
+  })
 }
 
 const renderBody = async (body, replyHash) => {
@@ -237,15 +265,15 @@ const queueLinkedHashes = async (yaml) => {
   for (const hash of candidates) {
     if (hash === yaml.image) {
       const have = await apds.get(hash)
-      if (!have) { queueSend(hash) }
+      if (!have) { queueSend(hash, { priority: 'low' }) }
       continue
     }
     const query = await apds.query(hash)
-    if (!query || !query[0]) { queueSend(hash) }
+    if (!query || !query[0]) { queueSend(hash, { priority: 'low' }) }
   }
   if (replyAuthor) {
     const query = await apds.query(replyAuthor)
-    if (!query || !query[0]) { queueSend(replyAuthor) }
+    if (!query || !query[0]) { queueSend(replyAuthor, { priority: 'low' }) }
   }
 }
 
@@ -261,7 +289,7 @@ const fetchReplyPreview = async (replyHash) => {
   if (replyPreviewCache.has(replyHash)) { return replyPreviewCache.get(replyHash) }
   const signed = await apds.get(replyHash)
   if (!signed) {
-    queueSend(replyHash)
+    queueSend(replyHash, { priority: 'low' })
     replyPreviewCache.set(replyHash, null)
     return null
   }
@@ -273,7 +301,7 @@ const fetchReplyPreview = async (replyHash) => {
   const contentHash = opened.substring(13)
   const content = await apds.get(contentHash)
   if (!content) {
-    queueSend(contentHash)
+    queueSend(contentHash, { priority: 'low' })
     replyPreviewCache.set(replyHash, null)
     return null
   }
@@ -412,28 +440,109 @@ const ensureOriginalMessage = async (targetHash) => {
   }
 }
 
-const parseOpenedTimestamp = (opened) => {
-  if (!opened || opened.length < 13) { return 0 }
-  const ts = Number.parseInt(opened.substring(0, 13), 10)
-  return Number.isNaN(ts) ? 0 : ts
-}
-
 const normalizeTimestamp = (ts) => {
   const value = Number.parseInt(ts, 10)
   return Number.isNaN(value) ? 0 : value
+}
+
+const buildTimestampState = (container) => {
+  const entries = []
+  const children = Array.from(container.children)
+  for (const child of children) {
+    if (!child || !child.dataset) { continue }
+    const childTs = normalizeTimestamp(child.dataset.ts)
+    if (!childTs) { continue }
+    entries.push({ ts: childTs, node: child })
+  }
+  entries.sort((a, b) => b.ts - a.ts)
+  return {
+    entries,
+    childCount: children.length
+  }
+}
+
+const getTimestampState = (container) => {
+  const existing = timestampInsertState.get(container)
+  const currentChildCount = container.children.length
+  if (existing && existing.childCount === currentChildCount) {
+    return existing
+  }
+  const next = buildTimestampState(container)
+  timestampInsertState.set(container, next)
+  return next
+}
+
+const findInsertIndex = (entries, stamp) => {
+  let lo = 0
+  let hi = entries.length
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (entries[mid].ts >= stamp) {
+      lo = mid + 1
+    } else {
+      hi = mid
+    }
+  }
+  return lo
+}
+
+const removeEntryForNode = (entries, node) => {
+  const idx = entries.findIndex((entry) => entry.node === node)
+  if (idx >= 0) {
+    entries.splice(idx, 1)
+  }
+}
+
+const buildPreviewNode = (row) => {
+  const author = row?.author || ''
+  const name = row?.name || (author ? author.substring(0, 10) : 'unknown')
+  const preview = row?.preview || 'Loading message...'
+  const replyCount = Number.isFinite(row?.replyCount) ? row.replyCount : 0
+  const authorHref = author ? ('#' + author) : '#'
+  return h('div', {classList: 'message message-preview'}, [
+    h('div', {classList: 'message-main'}, [
+      h('span', {classList: 'avatarlink'}, [name]),
+      h('div', {classList: 'message-stack'}, [
+        h('a', {href: authorHref, classList: 'avatarlink'}, [name]),
+        h('div', {classList: 'message-body'}, [preview]),
+        replyCount > 0
+          ? h('div', {classList: 'message-meta'}, [`${replyCount} repl${replyCount === 1 ? 'y' : 'ies'}`])
+          : ''
+      ])
+    ])
+  ])
+}
+
+render.applyRowPreview = (wrapper, row) => {
+  if (!wrapper || !row) { return false }
+  const shell = wrapper.classList && wrapper.classList.contains('message-wrapper')
+    ? wrapper.querySelector('.message-shell')
+    : wrapper
+  if (!shell || !shell.classList || !shell.classList.contains('premessage')) { return false }
+  if (shell.dataset.previewReady === 'true') { return false }
+  while (shell.firstChild) {
+    shell.firstChild.remove()
+  }
+  shell.appendChild(buildPreviewNode(row))
+  shell.dataset.previewReady = 'true'
+  if (row.ts && !wrapper.dataset.ts) {
+    wrapper.dataset.ts = String(row.ts)
+  }
+  if (row.opened && !wrapper.dataset.opened) {
+    wrapper.dataset.opened = row.opened
+  }
+  if (row.author && !wrapper.dataset.author) {
+    wrapper.dataset.author = row.author
+  }
+  return true
 }
 
 const insertByTimestamp = (container, hash, ts) => {
   if (!container || !hash) { return null }
   const stamp = normalizeTimestamp(ts)
   if (!stamp) { return null }
-  const safeHash = window.CSS && CSS.escape ? CSS.escape(hash) : hash
-  const matches = document.querySelectorAll('#' + safeHash)
-  if (matches.length > 1) {
-    matches.forEach((node, idx) => {
-      if (idx > 0) { node.remove() }
-    })
-  }
+  const state = getTimestampState(container)
+  const entries = state.entries
   let div = document.getElementById(hash)
   if (!div) {
     div = render.hash(hash)
@@ -441,23 +550,23 @@ const insertByTimestamp = (container, hash, ts) => {
   if (!div) { return null }
   div.dataset.ts = stamp.toString()
   if (div.parentNode === container) {
+    removeEntryForNode(entries, div)
     container.removeChild(div)
   }
-  const children = Array.from(container.children)
-  const sentinel = container.querySelector('#scroll-sentinel')
-  for (const child of children) {
-    if (!child.dataset || !child.dataset.ts) { continue }
-    const childTs = normalizeTimestamp(child.dataset.ts)
-    if (childTs < stamp) {
-      container.insertBefore(div, child)
-      return div
+  const insertIdx = findInsertIndex(entries, stamp)
+  const beforeNode = insertIdx < entries.length ? entries[insertIdx].node : null
+  if (beforeNode && beforeNode.parentNode === container) {
+    container.insertBefore(div, beforeNode)
+  } else {
+    const sentinel = container.querySelector('#scroll-sentinel')
+    if (sentinel && sentinel.parentNode === container) {
+      container.insertBefore(div, sentinel)
+    } else {
+      container.appendChild(div)
     }
   }
-  if (sentinel && sentinel.parentNode === container) {
-    container.insertBefore(div, sentinel)
-  } else {
-    container.appendChild(div)
-  }
+  entries.splice(insertIdx, 0, { ts: stamp, node: div })
+  state.childCount = container.children.length
   return div
 }
 
@@ -806,15 +915,31 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     wrapper.dataset.author = author
   }
 
-  const [humanTime, contentBlob, img] = await Promise.all([
+  const contentPromise = options.contentBlob !== undefined
+    ? Promise.resolve(options.contentBlob)
+    : apds.get(contentHash)
+  const [humanTime, fallbackContentBlob, img] = await Promise.all([
     apds.human(timestamp),
-    apds.get(contentHash),
+    contentPromise,
     apds.visual(author)
   ])
 
-  let yaml = null
-  if (contentBlob) {
+  const contentBlob = options.contentBlob || fallbackContentBlob
+  let yaml = options.yaml || null
+  if (!yaml && contentBlob) {
     yaml = await apds.parseYaml(contentBlob)
+  }
+  const row = makeFeedRow({
+    hash,
+    opened,
+    author,
+    contentHash,
+    yaml,
+    ts: parseOpenedTimestamp(opened)
+  })
+  if (row) {
+    row.replyCount = getReplyCount(hash)
+    upsertFeedRow(row)
   }
 
   if (!options.forceShow) {
@@ -887,7 +1012,7 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
   const ts = h('a', {href: '#' + hash}, [humanTime])
   observeTimestamp(ts, timestamp)
 
-  const pubkey = await apds.pubkey()
+  const pubkey = await getCachedPubkey()
   const canEdit = pubkey && pubkey === author
   const editButton = canEdit ? h('a', {
     classList: 'material-symbols-outlined',
@@ -970,7 +1095,7 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
   const comments = render.comments(hash, blob, meta, actionsRow)
   await Promise.all([
     comments,
-    contentBlob ? render.content(contentHash, contentBlob, content, hash) : send(contentHash)
+    contentBlob ? render.content(contentHash, contentBlob, content, hash, yaml) : send(contentHash)
   ])
 } 
 
@@ -1012,11 +1137,11 @@ render.comments = async (hash, blob, div, actionsRow) => {
   }
 }
 
-render.content = async (hash, blob, div, messageHash) => {
+render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
   const contentHashPromise = hash ? Promise.resolve(hash) : apds.hash(blob)
   const [contentHash, yaml] = await Promise.all([
     contentHashPromise,
-    apds.parseYaml(blob)
+    preParsedYaml ? Promise.resolve(preParsedYaml) : apds.parseYaml(blob)
   ])
 
   if (yaml && yaml.edit) {
@@ -1124,6 +1249,7 @@ render.content = async (hash, blob, div, messageHash) => {
 }
 
 render.blob = async (blob, meta = {}) => {
+  const token = perfStart('render.blob', meta.hash || 'unknown')
   const forceShow = Boolean(meta.forceShow)
   let hash = meta.hash || null
   let wrapper = hash ? document.getElementById(hash) : null
@@ -1142,33 +1268,36 @@ render.blob = async (blob, meta = {}) => {
   const div = wrapper && wrapper.classList.contains('message-wrapper')
     ? wrapper.querySelector('.message-shell')
     : wrapper
+  let contentBlob = null
+  let parsedYaml = null
   if (opened) {
-    const content = await apds.get(opened.substring(13))
-    if (content) {
-      const yaml = await apds.parseYaml(content)
-      if (yaml && yaml.edit) {
-        queueEditRefresh(yaml.edit)
+    contentBlob = await apds.get(opened.substring(13))
+    if (contentBlob) {
+      parsedYaml = await apds.parseYaml(contentBlob)
+      if (parsedYaml && parsedYaml.edit) {
+        queueEditRefresh(parsedYaml.edit)
       }
     }
   }
 
   const getimg = document.getElementById('inlineimage' + hash)
   if (opened && div && !div.childNodes[1]) {
-    await render.meta(blob, opened, hash, div, { forceShow })
+    await render.meta(blob, opened, hash, div, { forceShow, contentBlob, yaml: parsedYaml })
     //await render.comments(hash, blob, div)
   } else if (div && !div.childNodes[1]) {
     if (div.className.includes('content')) {
-      await render.content(hash, blob, div, null)
+      await render.content(hash, blob, div, null, parsedYaml)
     } else {
       const content = h('div', {classList: 'content'})
       const message = h('div', {classList: 'message'}, [content])
       div.replaceWith(message)
-      await render.content(hash, blob, content, null)
+      await render.content(hash, blob, content, null, parsedYaml)
     }
   } else if (getimg) {
     getimg.src = blob
   } 
   await flushPendingReplies(hash)
+  perfEnd(token)
 }
 
 render.shouldWe = async (blob) => {
@@ -1193,7 +1322,7 @@ render.shouldWe = async (blob) => {
     const yaml = await apds.parseYaml(msg)
     await queueLinkedHashes(yaml)
   } else {
-    queueSend(contentHash)
+    queueSend(contentHash, { priority: 'high' })
   }
   const already = await apds.get(hash)
   if (!already) {
@@ -1250,7 +1379,7 @@ render.shouldWe = async (blob) => {
   }
 }
 
-render.hash = (hash) => {
+render.hash = (hash, row = null) => {
   if (!hash) { return null }
   if (!document.getElementById(hash)) {
     const messageShell = h('div', {classList: 'message-shell premessage'})
@@ -1259,6 +1388,9 @@ render.hash = (hash) => {
       messageShell,
       replies
     ])
+    if (row) {
+      render.applyRowPreview(wrapper, row)
+    }
     return wrapper
   }
   return null

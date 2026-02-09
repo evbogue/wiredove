@@ -102,8 +102,9 @@ const createImagePopover = () => {
 await apds.start('wiredovedbversion1')
 document.body.appendChild(await navbar())
 document.body.appendChild(createImagePopover())
+const connectPromise = connect()
 await route()
-await connect()
+await connectPromise
 await startSync(send)
 registerServiceWorker()
 

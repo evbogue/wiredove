@@ -1,8 +1,10 @@
 import { apds } from 'apds'
+import { adaptiveConcurrency } from './adaptive_concurrency.js'
 
 const replyIndex = new Map()
 let buildPromise = null
 let built = false
+const INDEX_PARSE_CONCURRENCY = adaptiveConcurrency({ base: 8, min: 2, max: 12 })
 
 const parseOpenedTimestamp = (opened) => {
   if (!opened || opened.length < 13) { return 0 }
@@ -30,19 +32,45 @@ export const addReplyToIndex = (parentHash, replyHash, ts = 0, opened = null) =>
   return true
 }
 
+const mapLimit = async (items, limit, worker) => {
+  if (!Array.isArray(items) || !items.length) { return [] }
+  const results = new Array(items.length)
+  let cursor = 0
+  const lanes = Math.max(1, Math.min(limit, items.length))
+  const runLane = async () => {
+    while (true) {
+      const index = cursor
+      if (index >= items.length) { return }
+      cursor += 1
+      results[index] = await worker(items[index], index)
+    }
+  }
+  await Promise.all(Array.from({ length: lanes }, () => runLane()))
+  return results
+}
+
 const indexLogMessage = async (msg) => {
-  if (!msg || !msg.hash || !msg.text) { return false }
+  if (!msg || !msg.hash || !msg.text) { return null }
   const yaml = await apds.parseYaml(msg.text)
   const parent = getReplyParent(yaml)
-  if (!parent) { return false }
-  return addReplyToIndex(parent, msg.hash, msg.ts, msg.opened || null)
+  if (!parent) { return null }
+  return {
+    parent,
+    hash: msg.hash,
+    ts: msg.ts,
+    opened: msg.opened || null
+  }
 }
 
 const buildFromLog = async (log = null) => {
   const source = log || await apds.getOpenedLog()
   if (!Array.isArray(source) || !source.length) { return }
-  for (const msg of source) {
-    await indexLogMessage(msg)
+  const indexed = await mapLimit(source, INDEX_PARSE_CONCURRENCY, async (msg) => {
+    return indexLogMessage(msg)
+  })
+  for (const entry of indexed) {
+    if (!entry) { continue }
+    addReplyToIndex(entry.parent, entry.hash, entry.ts, entry.opened)
   }
 }
 

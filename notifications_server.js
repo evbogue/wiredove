@@ -8,6 +8,7 @@ const DEFAULTS = {
   configFile: './config.json',
   vapidSubject: 'mailto:ops@wiredove.net',
   pushIconUrl: 'https://wiredove.net/dovepurple_sm.png',
+  feedRowsUpstream: 'https://pub.wiredove.net',
 }
 
 async function readJsonFile(path, fallback) {
@@ -111,6 +112,99 @@ function formatPushBody(body) {
   return 'Tap to view the latest update'
 }
 
+function parseOpenedTimestamp(opened) {
+  if (!opened || typeof opened !== 'string' || opened.length < 13) return 0
+  const ts = Number.parseInt(opened.substring(0, 13), 10)
+  return Number.isFinite(ts) ? ts : 0
+}
+
+function summarizeText(text, maxLen = 140) {
+  if (!text || typeof text !== 'string') return ''
+  const single = text.replace(/\s+/g, ' ').trim()
+  if (single.length <= maxLen) return single
+  return single.substring(0, maxLen) + '...'
+}
+
+async function extractFeedRows(messages, limit = 40) {
+  if (!Array.isArray(messages) || !messages.length) return []
+  const contentByHash = new Map()
+  const rowsByHash = new Map()
+  const replyCountByParent = new Map()
+
+  for (const msg of messages) {
+    if (typeof msg !== 'string' || !msg.length) continue
+    const opened = await apds.open(msg)
+    if (opened) {
+      const hash = await apds.hash(msg)
+      if (!hash) continue
+      const ts = parseOpenedTimestamp(opened)
+      const contentHash = opened.substring(13)
+      rowsByHash.set(hash, {
+        hash,
+        ts,
+        opened,
+        author: msg.substring(0, 44),
+        contentHash,
+      })
+      continue
+    }
+    const contentHash = await apds.hash(msg)
+    if (!contentHash) continue
+    try {
+      const yaml = await apds.parseYaml(msg)
+      if (!yaml || typeof yaml !== 'object') continue
+      const replyParent = typeof yaml.replyHash === 'string' && yaml.replyHash.length === 44
+        ? yaml.replyHash
+        : (typeof yaml.reply === 'string' && yaml.reply.length === 44 ? yaml.reply : '')
+      if (replyParent) {
+        replyCountByParent.set(replyParent, (replyCountByParent.get(replyParent) || 0) + 1)
+      }
+      contentByHash.set(contentHash, {
+        name: typeof yaml.name === 'string' ? yaml.name.trim() : '',
+        preview: summarizeText(
+          (typeof yaml.body === 'string' && yaml.body) ||
+          (typeof yaml.bio === 'string' && yaml.bio) ||
+          ''
+        ),
+        replyParent,
+      })
+    } catch {
+      // Ignore invalid YAML content blobs.
+    }
+  }
+
+  const rows = Array.from(rowsByHash.values()).map((row) => {
+    const content = contentByHash.get(row.contentHash) || {}
+    return {
+      hash: row.hash,
+      ts: row.ts,
+      opened: row.opened,
+      author: row.author,
+      contentHash: row.contentHash,
+      name: content.name || '',
+      preview: content.preview || '',
+      replyCount: replyCountByParent.get(row.hash) || 0,
+    }
+  })
+
+  rows.sort((a, b) => b.ts - a.ts)
+  return rows.slice(0, Math.max(1, Math.min(200, limit)))
+}
+
+async function fetchPollRows(upstreamBase, since, limit) {
+  const upstream = new URL('/gossip/poll', upstreamBase)
+  upstream.searchParams.set('since', String(since))
+  const res = await fetch(upstream.toString(), { cache: 'no-store' })
+  if (!res.ok) {
+    throw new Error('upstream poll unavailable')
+  }
+  const data = await res.json()
+  const messages = Array.isArray(data?.messages) ? data.messages : []
+  const rows = await extractFeedRows(messages, limit)
+  const nextSince = Number.isFinite(data?.nextSince) ? data.nextSince : since
+  return { rows, nextSince }
+}
+
 async function toPushPayload(latest, pushIconUrl) {
   const record = latest && typeof latest === 'object' ? latest : null
   const hash = record && typeof record.hash === 'string' ? record.hash : ''
@@ -140,6 +234,7 @@ export async function createNotificationsService(options = {}) {
     configFile: Deno.env.get('VAPID_CONFIG_PATH') ?? DEFAULTS.configFile,
     vapidSubject: Deno.env.get('VAPID_SUBJECT') ?? DEFAULTS.vapidSubject,
     pushIconUrl: Deno.env.get('PUSH_ICON_URL') ?? DEFAULTS.pushIconUrl,
+    feedRowsUpstream: Deno.env.get('FEED_ROWS_UPSTREAM') ?? DEFAULTS.feedRowsUpstream,
     ...options,
   }
 
@@ -277,6 +372,68 @@ export async function createNotificationsService(options = {}) {
         sent: sendResult.sent,
         reason: sendResult.reason,
       })
+    }
+
+    if (req.method === 'GET' && url.pathname === '/feed-rows/home') {
+      const sinceRaw = url.searchParams.get('since') || '0'
+      const limitRaw = url.searchParams.get('limit') || '40'
+      const since = Number.parseInt(sinceRaw, 10)
+      const limit = Number.parseInt(limitRaw, 10)
+      const safeSince = Number.isFinite(since) && since > 0 ? since : 0
+      const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 40
+      try {
+        const { rows, nextSince } = await fetchPollRows(settings.feedRowsUpstream, safeSince, safeLimit)
+        return Response.json({ rows, nextSince })
+      } catch (err) {
+        console.error('feed rows fetch failed', err)
+        return Response.json({ error: 'feed-rows-failed' }, { status: 500 })
+      }
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/feed-rows/author/')) {
+      const pubkey = decodeURIComponent(url.pathname.substring('/feed-rows/author/'.length))
+      const sinceRaw = url.searchParams.get('since') || '0'
+      const limitRaw = url.searchParams.get('limit') || '40'
+      const since = Number.parseInt(sinceRaw, 10)
+      const limit = Number.parseInt(limitRaw, 10)
+      const safeSince = Number.isFinite(since) && since > 0 ? since : 0
+      const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 40
+      try {
+        const { rows, nextSince } = await fetchPollRows(settings.feedRowsUpstream, safeSince, safeLimit * 4)
+        const filtered = rows.filter((row) => row.author === pubkey).slice(0, safeLimit)
+        return Response.json({ rows: filtered, nextSince })
+      } catch (err) {
+        console.error('author feed rows fetch failed', err)
+        return Response.json({ error: 'feed-rows-author-failed' }, { status: 500 })
+      }
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/feed-rows/alias/')) {
+      const alias = decodeURIComponent(url.pathname.substring('/feed-rows/alias/'.length))
+      const sinceRaw = url.searchParams.get('since') || '0'
+      const limitRaw = url.searchParams.get('limit') || '40'
+      const since = Number.parseInt(sinceRaw, 10)
+      const limit = Number.parseInt(limitRaw, 10)
+      const safeSince = Number.isFinite(since) && since > 0 ? since : 0
+      const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 40
+      try {
+        const aliasUrl = new URL('/' + alias, settings.feedRowsUpstream)
+        const aliasRes = await fetch(aliasUrl.toString(), { cache: 'no-store' })
+        if (!aliasRes.ok) {
+          return Response.json({ rows: [], nextSince: safeSince })
+        }
+        const aliasData = await aliasRes.json().catch(() => [])
+        const authors = new Set(Array.isArray(aliasData) ? aliasData.filter((item) => typeof item === 'string') : [])
+        if (!authors.size) {
+          return Response.json({ rows: [], nextSince: safeSince })
+        }
+        const { rows, nextSince } = await fetchPollRows(settings.feedRowsUpstream, safeSince, safeLimit * 4)
+        const filtered = rows.filter((row) => authors.has(row.author)).slice(0, safeLimit)
+        return Response.json({ rows: filtered, nextSince })
+      } catch (err) {
+        console.error('alias feed rows fetch failed', err)
+        return Response.json({ error: 'feed-rows-alias-failed' }, { status: 500 })
+      }
     }
 
     return null

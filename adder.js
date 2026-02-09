@@ -1,13 +1,21 @@
 import { render } from './render.js'
 import { apds } from 'apds'
+import { adaptiveConcurrency } from './adaptive_concurrency.js'
+import { perfMeasure, perfStart, perfEnd } from './perf.js'
+import { queueSend } from './network_queue.js'
+import { getFeedRow } from './feed_row_cache.js'
 
-const RENDER_CONCURRENCY = 6
+const RENDER_CONCURRENCY = adaptiveConcurrency({ base: 6, min: 2, max: 10, type: 'render' })
+const FRAME_RENDER_START_BUDGET = adaptiveConcurrency({ base: 3, min: 1, max: 6, type: 'render' })
+const FRAME_QUEUE_BUDGET_MS = 6
 const VIEW_PREFETCH_MARGIN = '1800px 0px'
 const DERENDER_DELAY_MS = 2000
 const PREFETCH_AHEAD_PX = 2000
 const PREFETCH_BEHIND_PX = 700
 let renderQueue = []
 let renderActive = 0
+let frameStartsRemaining = FRAME_RENDER_START_BUDGET
+let frameBudgetScheduled = false
 const derenderTimers = new Map()
 let viewObserver = null
 let lastScrollTop = 0
@@ -27,14 +35,37 @@ const scheduleDrain = (fn) => {
   }
 }
 
+const scheduleFrameBudgetReset = () => {
+  if (frameBudgetScheduled) { return }
+  frameBudgetScheduled = true
+  scheduleDrain(() => {
+    frameStartsRemaining = FRAME_RENDER_START_BUDGET
+    frameBudgetScheduled = false
+    if (renderQueue.length) {
+      void drainRenderQueue()
+    }
+  })
+}
+
 const scheduleRender = (entry, sig) => new Promise(resolve => {
   renderQueue.push({ entry, sig, resolve })
   void drainRenderQueue()
 })
 
 const drainRenderQueue = async () => {
+  const drainToken = perfStart('adder.renderQueue.drain')
+  const frameStart = perfNow()
   while (renderActive < RENDER_CONCURRENCY && renderQueue.length) {
+    if (frameStartsRemaining <= 0) {
+      scheduleFrameBudgetReset()
+      break
+    }
+    if (perfNow() - frameStart > FRAME_QUEUE_BUDGET_MS) {
+      scheduleFrameBudgetReset()
+      break
+    }
     const { entry, sig, resolve } = renderQueue.shift()
+    frameStartsRemaining -= 1
     renderActive += 1
     const start = perfNow()
     Promise.resolve()
@@ -52,12 +83,17 @@ const drainRenderQueue = async () => {
         resolve?.()
         renderActive -= 1
         if (renderQueue.length) {
-          scheduleDrain(() => {
-            void drainRenderQueue()
-          })
+          if (frameStartsRemaining <= 0) {
+            scheduleFrameBudgetReset()
+          } else {
+            scheduleDrain(() => {
+              void drainRenderQueue()
+            })
+          }
         }
       })
   }
+  perfEnd(drainToken)
 }
 
 const ensureObserver = () => {
@@ -77,24 +113,33 @@ const ensureObserver = () => {
         if (wrapper.dataset.rendered === 'true' || wrapper.dataset.rendering === 'true') { return }
         wrapper.dataset.rendering = 'true'
         apds.get(hash).then(sig => {
+          if (!sig) {
+            wrapper.dataset.rendering = 'false'
+            queueSend(hash, { priority: 'high' })
+            return
+          }
           void scheduleRender({ hash }, sig)
         })
         return
       }
-      // De-rendering disabled for now. Keep content mounted for faster scrollback.
-      // if (pending || wrapper.dataset.rendered !== 'true') { return }
-      // const timer = setTimeout(() => {
-      //   derenderTimers.delete(wrapper)
-      //   if (!document.body.contains(wrapper)) { return }
-      //   const rendered = wrapper.querySelector('.message, .edit-message')
-      //   if (!rendered) { return }
-      //   const placeholder = document.createElement('div')
-      //   placeholder.className = 'message-shell premessage'
-      //   rendered.replaceWith(placeholder)
-      //   wrapper.dataset.rendered = 'false'
-      //   wrapper.dataset.rendering = 'false'
-      // }, DERENDER_DELAY_MS)
-      // derenderTimers.set(wrapper, timer)
+      if (pending || wrapper.dataset.rendered !== 'true') { return }
+      const timer = setTimeout(() => {
+        derenderTimers.delete(wrapper)
+        if (!document.body.contains(wrapper)) { return }
+        if (wrapper.contains(document.activeElement)) { return }
+        const rendered = wrapper.querySelector('.message, .edit-message')
+        if (!rendered) { return }
+        const placeholder = document.createElement('div')
+        placeholder.className = 'message-shell premessage'
+        rendered.replaceWith(placeholder)
+        wrapper.dataset.rendered = 'false'
+        wrapper.dataset.rendering = 'false'
+        const row = getFeedRow(hash)
+        if (row) {
+          render.applyRowPreview?.(wrapper, row)
+        }
+      }, DERENDER_DELAY_MS)
+      derenderTimers.set(wrapper, timer)
     })
   }, { root: null, rootMargin: VIEW_PREFETCH_MARGIN, threshold: 0 })
   return viewObserver
@@ -148,11 +193,14 @@ const addPosts = async (posts, div) => {
   updateScrollDirection()
   for (const post of posts) {
     const ts = post.ts || (post.opened ? Number.parseInt(post.opened.substring(0, 13), 10) : 0)
-    let placeholder = render.hash(post.hash)
+    let placeholder = render.hash(post.hash, post.row || null)
     if (!placeholder) {
       placeholder = document.getElementById(post.hash)
     }
     if (!placeholder) { continue }
+    if (post.row) {
+      render.applyRowPreview?.(placeholder, post.row)
+    }
     if (ts) { placeholder.dataset.ts = ts.toString() }
     if (placeholder.parentNode !== div) {
       div.appendChild(placeholder)
@@ -161,6 +209,11 @@ const addPosts = async (posts, div) => {
     if (isNearViewport(placeholder)) {
       placeholder.dataset.rendering = 'true'
       apds.get(post.hash).then(sig => {
+        if (!sig) {
+          placeholder.dataset.rendering = 'false'
+          queueSend(post.hash, { priority: 'high' })
+          return
+        }
         void scheduleRender(post, sig)
       })
     }
@@ -185,7 +238,7 @@ const buildEntries = (log) => {
     if (seen.has(post.hash)) { continue }
     seen.add(post.hash)
     const ts = getTimestamp(post)
-    entries.push({ hash: post.hash, ts, opened: post.opened })
+    entries.push({ hash: post.hash, ts, opened: post.opened, row: post.row || null })
   }
   entries.sort(sortDesc)
   return entries
@@ -268,6 +321,9 @@ const renderEntry = async (state, entry) => {
   updateScrollDirection()
   const div = render.insertByTimestamp(state.container, entry.hash, entry.ts)
   if (!div) { return }
+  if (entry.row) {
+    render.applyRowPreview?.(div, entry.row)
+  }
   if (entry.opened) {
     div.dataset.opened = entry.opened
   }
@@ -279,6 +335,9 @@ const renderEntry = async (state, entry) => {
     if (sig) {
       div.dataset.rendering = 'true'
       void scheduleRender(entry, sig)
+    } else {
+      div.dataset.rendering = 'false'
+      queueSend(entry.hash, { priority: 'high' })
     }
   }
   state.rendered.add(entry.hash)
@@ -457,7 +516,7 @@ export const adder = (log, src, div) => {
     try {
       const next = takeSlice()
       if (!next.length) { return false }
-      await addPosts(next, div)
+      await perfMeasure('adder.loadNext', async () => addPosts(next, div), src || 'home')
       for (const entry of next) {
         state.rendered.add(entry.hash)
       }

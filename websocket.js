@@ -2,11 +2,14 @@ import { apds } from 'apds'
 import { render } from './render.js'
 import { noteReceived, registerNetworkSenders } from './network_queue.js'
 import { getModerationState, isBlockedAuthor } from './moderation.js'
+import { adaptiveConcurrency } from './adaptive_concurrency.js'
+import { perfMeasure, perfStart, perfEnd } from './perf.js'
 
 const pubs = new Set()
 const wsBackoff = new Map()
 const HTTP_POLL_INTERVAL_MS = 5000
 const RECENT_LATEST_WINDOW_MS = 24 * 60 * 60 * 1000
+const INCOMING_BATCH_CONCURRENCY = adaptiveConcurrency({ base: 6, min: 2, max: 10, type: 'network' })
 const httpState = {
   baseUrl: null,
   ready: false,
@@ -31,6 +34,39 @@ const parseOpenedTimestamp = (opened) => {
   if (typeof opened !== 'string' || opened.length < 13) { return 0 }
   const ts = Number.parseInt(opened.substring(0, 13), 10)
   return Number.isFinite(ts) ? ts : 0
+}
+
+const mapLimit = async (items, limit, worker) => {
+  if (!Array.isArray(items) || !items.length) { return [] }
+  const results = new Array(items.length)
+  let cursor = 0
+  const lanes = Math.max(1, Math.min(limit, items.length))
+  const runLane = async () => {
+    while (true) {
+      const index = cursor
+      if (index >= items.length) { return }
+      cursor += 1
+      results[index] = await worker(items[index], index)
+    }
+  }
+  await Promise.all(Array.from({ length: lanes }, () => runLane()))
+  return results
+}
+
+const processIncomingBatch = async (messages) => {
+  if (!Array.isArray(messages) || !messages.length) { return }
+  const token = perfStart('net.batch.process')
+  const seen = new Set()
+  const deduped = messages.filter((msg) => {
+    if (typeof msg !== 'string' || !msg.length) { return false }
+    if (seen.has(msg)) { return false }
+    seen.add(msg)
+    return true
+  })
+  await mapLimit(deduped, INCOMING_BATCH_CONCURRENCY, async (msg) => {
+    await handleIncoming(msg)
+  })
+  perfEnd(token)
 }
 
 const handleIncoming = async (msg) => {
@@ -70,13 +106,11 @@ const pollHttp = async () => {
   try {
     const url = new URL('/gossip/poll', httpState.baseUrl)
     url.searchParams.set('since', String(httpState.lastSince))
-    const res = await fetch(url.toString(), { cache: 'no-store' })
+    const res = await perfMeasure('net.http.poll', async () => fetch(url.toString(), { cache: 'no-store' }))
     if (res.ok) {
       const data = await res.json()
       const messages = Array.isArray(data.messages) ? data.messages : []
-      for (const msg of messages) {
-        await handleIncoming(msg)
-      }
+      await processIncomingBatch(messages)
       if (Number.isFinite(data.nextSince)) {
         httpState.lastSince = Math.max(httpState.lastSince, data.nextSince)
       }
@@ -92,17 +126,15 @@ const sendHttp = async (msg) => {
   if (!httpState.ready) { return }
   try {
     const url = new URL('/gossip', httpState.baseUrl)
-    const res = await fetch(url.toString(), {
+    const res = await perfMeasure('net.http.send', async () => fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: msg
-    })
+    }))
     if (!res.ok) { return }
     const data = await res.json()
     const messages = Array.isArray(data.messages) ? data.messages : []
-    for (const reply of messages) {
-      await handleIncoming(reply)
-    }
+    await processIncomingBatch(messages)
   } catch (err) {
     console.warn('http gossip send failed', err)
   }
@@ -115,8 +147,11 @@ export const startHttpGossip = async (baseUrl) => {
   try {
     const q = await apds.query()
     if (q && q.length) {
-      const last = q[q.length - 1]
-      const ts = parseInt(last?.ts || '0', 10)
+      let ts = 0
+      q.forEach((entry) => {
+        const value = Number.parseInt(entry?.ts || '0', 10)
+        if (Number.isFinite(value) && value > ts) { ts = value }
+      })
       if (Number.isFinite(ts)) {
         httpState.lastSince = ts
       }
@@ -124,6 +159,7 @@ export const startHttpGossip = async (baseUrl) => {
   } catch (err) {
     console.warn('http gossip seed failed', err)
   }
+  void pollHttp()
   scheduleHttpPoll()
 }
 
@@ -192,16 +228,16 @@ export const makeWs = async (pub) => {
       }
       const moderation = await getModerationState()
       const blocked = new Set(moderation.blockedAuthors || [])
-      for (const pub of p) {
-        if (blocked.has(pub)) { continue }
+      const announceable = p.filter((pub) => !blocked.has(pub))
+      await mapLimit(announceable, INCOMING_BATCH_CONCURRENCY, async (pub) => {
         ws.send(pub)
         const latest = await apds.getLatest(pub)
-        if (!latest) { continue }
+        if (!latest) { return }
         const openedTs = parseOpenedTimestamp(latest.opened)
-        if (!openedTs || now - openedTs > RECENT_LATEST_WINDOW_MS) { continue }
-        if (!latest.sig) { continue }
+        if (!openedTs || now - openedTs > RECENT_LATEST_WINDOW_MS) { return }
+        if (!latest.sig) { return }
         ws.send(latest.sig)
-      }
+      })
       //below sends everything in the client to a dovepub pds server
       //const log = await apds.query()
       //if (log) {
