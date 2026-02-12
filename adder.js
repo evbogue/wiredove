@@ -460,7 +460,6 @@ export const adder = (log, src, div) => {
   const entries = buildEntries(log || [])
   let loading = false
   let armed = false
-  const sentinelId = 'scroll-sentinel'
 
   let posts = []
   const state = {
@@ -478,7 +477,8 @@ export const adder = (log, src, div) => {
     bannerButton: null,
     statusMessage: '',
     statusMode: false,
-    statusTimer: null
+    statusTimer: null,
+    sentinel: null
   }
   getController().feeds.set(src, state)
   ensureBanner(state)
@@ -499,11 +499,12 @@ export const adder = (log, src, div) => {
   }
 
   const ensureSentinel = () => {
-    let sentinel = document.getElementById(sentinelId)
+    let sentinel = state.sentinel
     if (!sentinel) {
       sentinel = document.createElement('div')
-      sentinel.id = sentinelId
+      sentinel.className = 'scroll-sentinel'
       sentinel.style.height = '1px'
+      state.sentinel = sentinel
     }
     if (sentinel.parentNode && sentinel.parentNode !== div) {
       sentinel.parentNode.removeChild(sentinel)

@@ -17,6 +17,55 @@ import { FeedOrchestrator } from './feed_orchestrator.js'
 let activeRouteRun = 0
 let activeRouteController = null
 let activeOrchestrator = null
+let activePanelKey = null
+const routePanels = new Map()
+const routeScrollTop = new Map()
+
+const getScroller = () => {
+  let scroller = document.getElementById('scroller')
+  if (scroller) { return scroller }
+  scroller = h('div', { id: 'scroller' })
+  document.body.appendChild(scroller)
+  return scroller
+}
+
+const getPanelKey = (src) => (src === '' ? '__home__' : src)
+
+const getRoutePanel = (scroller, key) => {
+  let panel = routePanels.get(key)
+  if (panel && !document.body.contains(panel)) {
+    routePanels.delete(key)
+    panel = null
+  }
+  if (!panel) {
+    panel = h('div', { classList: 'route-panel' })
+    panel.dataset.routeKey = key
+    panel.style.display = 'none'
+    routePanels.set(key, panel)
+    scroller.appendChild(panel)
+  } else if (panel.parentNode !== scroller) {
+    scroller.appendChild(panel)
+  }
+  return panel
+}
+
+const activatePanel = (key, panel) => {
+  if (activePanelKey && activePanelKey !== key) {
+    const previous = routePanels.get(activePanelKey)
+    if (previous) {
+      routeScrollTop.set(activePanelKey, window.scrollY || 0)
+      previous.style.display = 'none'
+    }
+  }
+  panel.style.display = ''
+  activePanelKey = key
+  const savedTop = routeScrollTop.get(key)
+  if (typeof savedTop === 'number') {
+    setTimeout(() => {
+      window.scrollTo(0, savedTop)
+    }, 0)
+  }
+}
 
 const waitForFirstRenderedAuthor = (container, timeoutMs = 6000) => new Promise((resolve) => {
   if (!container) { resolve(null); return }
@@ -80,11 +129,10 @@ const makeRouteContext = (src, scroller) => {
 export const route = async () => {
   const token = perfStart('route', window.location.hash.substring(1) || 'home')
   const src = window.location.hash.substring(1)
-  const scroller = h('div', {id: 'scroller'})
-
-  document.body.appendChild(scroller)
-  scheduleReplyIndexBuild()
-  const ctx = makeRouteContext(src, scroller)
+  const scroller = getScroller()
+  const panelKey = getPanelKey(src)
+  const panel = getRoutePanel(scroller, panelKey)
+  activatePanel(panelKey, panel)
 
   try {
     if (src.startsWith('share=')) {
@@ -108,56 +156,69 @@ export const route = async () => {
     }
 
     if (src === '' || src.startsWith('share=')) {
-      scroller.dataset.paginated = 'true'
+      if (panel.dataset.ready === 'true') { return }
+      panel.replaceChildren()
+      panel.dataset.paginated = 'true'
+      scheduleReplyIndexBuild()
+      const ctx = makeRouteContext(src, panel)
       const { log } = await ctx.orchestrator.startHome()
       if (!ctx.isActive()) { return }
-      adder(log || [], src, scroller)
+      adder(log || [], src, panel)
+      panel.dataset.ready = 'true'
       return
     }
 
     if (src === 'settings') {
+      panel.replaceChildren()
       if (await apds.pubkey()) {
-        scroller.appendChild(await settings())
+        panel.appendChild(await settings())
       } else {
-        scroller.appendChild(await importKey())
+        panel.appendChild(await importKey())
       }
       return
     }
 
     if (src === 'import') {
-      scroller.appendChild(await importBlob())
+      panel.replaceChildren()
+      panel.appendChild(await importBlob())
       return
     }
 
     if (src.length < 44 && !src.startsWith('?')) {
-      scroller.dataset.paginated = 'true'
+      panel.replaceChildren()
+      panel.dataset.paginated = 'true'
+      scheduleReplyIndexBuild()
+      const ctx = makeRouteContext(src, panel)
       const { query, primaryKey } = await ctx.orchestrator.startAlias(src)
       if (!ctx.isActive()) { return }
-      adder(query || [], src, scroller)
+      adder(query || [], src, panel)
       if (query.length) {
         const header = await buildProfileHeader({ label: src, messages: query, canEdit: false, pubkey: primaryKey })
-        if (header) { scroller.appendChild(header) }
+        if (header) { panel.appendChild(header) }
       } else {
         const header = await buildProfileHeader({ label: src, messages: [], canEdit: false, pubkey: primaryKey })
-        if (header) { scroller.appendChild(header) }
+        if (header) { panel.appendChild(header) }
       }
       return
     }
 
     if (src.length === 44) {
+      panel.replaceChildren()
       if (await isBlockedAuthor(src)) { return }
       const selfKey = await apds.pubkey()
       await noteInterest(src)
-      scroller.dataset.paginated = 'true'
+      panel.dataset.paginated = 'true'
+      scheduleReplyIndexBuild()
+      const ctx = makeRouteContext(src, panel)
       const { log } = await ctx.orchestrator.startAuthor(src)
       if (!ctx.isActive()) { return }
-      adder(log || [], src, scroller)
+      adder(log || [], src, panel)
       const canEdit = !!(selfKey && selfKey === src)
-      void waitForFirstRenderedAuthor(scroller).then(async (author) => {
+      void waitForFirstRenderedAuthor(panel).then(async (author) => {
         if (!ctx.isActive()) { return }
         if (!author || author !== src) { return }
         const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
-        if (header) { scroller.prepend(header) }
+        if (header) { panel.prepend(header) }
       })
       if (!log || !log[0]) {
         await send(src)
@@ -166,14 +227,18 @@ export const route = async () => {
     }
 
     if (src.startsWith('?')) {
-      scroller.dataset.paginated = 'true'
+      panel.replaceChildren()
+      panel.dataset.paginated = 'true'
+      scheduleReplyIndexBuild()
+      const ctx = makeRouteContext(src, panel)
       const { log } = await ctx.orchestrator.startSearch(src)
       if (!ctx.isActive()) { return }
-      adder(log || [], src, scroller)
+      adder(log || [], src, panel)
       return
     }
 
     if (src.length > 44) {
+      panel.replaceChildren()
       const hash = await apds.hash(src)
       const opened = await apds.open(src)
       const author = src.substring(0, 44)
@@ -190,7 +255,7 @@ export const route = async () => {
           if (Number.isNaN(ts)) { ts = 0 }
         }
         if (!ts) { ts = Date.now() }
-        const div = render.insertByTimestamp(scroller, hash, ts)
+        const div = render.insertByTimestamp(panel, hash, ts)
         if (!div) { return }
         if (opened) { div.dataset.opened = opened }
         await render.blob(src, { hash, opened })
@@ -209,9 +274,6 @@ window.onhashchange = async () => {
   if (activeRouteController) {
     activeRouteController.abort()
     activeRouteController = null
-  }
-  while (document.getElementById('scroller')) {
-    document.getElementById('scroller').remove()
   }
   if (window.location.hash === '#?') {
     const search = document.getElementById('search')
