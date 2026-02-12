@@ -41,11 +41,47 @@ const searchInput = h('input', {
 
 export const navbar = async () => {
   const span = h('span')
+  const publishDesc = h('span', {
+    id: 'publish-desc',
+    classList: 'publish-desc',
+    'aria-live': 'polite'
+  }, [''])
   const publishState = h('span', {
     id: 'publish-state',
     classList: 'publish-state is-idle',
-    title: 'No recent publish activity'
+    tabindex: '0'
   }, [''])
+  let showPublishDesc = false
+  const renderPublishDesc = () => {
+    publishDesc.textContent = showPublishDesc ? (publishState.dataset.desc || '') : ''
+  }
+  publishState.addEventListener('mouseenter', () => {
+    showPublishDesc = true
+    renderPublishDesc()
+  })
+  publishState.addEventListener('mouseleave', () => {
+    showPublishDesc = false
+    renderPublishDesc()
+  })
+  publishState.addEventListener('focus', () => {
+    showPublishDesc = true
+    renderPublishDesc()
+  })
+  publishState.addEventListener('blur', () => {
+    showPublishDesc = false
+    renderPublishDesc()
+  })
+  const publishWrap = h('span', { classList: 'publish-wrap' }, [
+    publishDesc,
+    publishState
+  ])
+  const setPublishIndicator = (className, description) => {
+    publishState.className = className
+    publishState.textContent = ''
+    publishState.dataset.desc = description
+    publishState.setAttribute('aria-label', description)
+    renderPublishDesc()
+  }
   let clearTimer = null
   let publishStatusState = getPublishStatusSnapshot()
   let queueStatusState = getQueueStatusSnapshot()
@@ -58,46 +94,35 @@ export const navbar = async () => {
     const queueReady = Boolean(queueStatusState?.wsReady || queueStatusState?.gossipReady)
     if (queueTotal > 0) {
       if (queueReady) {
-        publishState.className = 'publish-state is-pending'
-        publishState.textContent = ''
-        publishState.title = `Gossip queue pending (${queueStatusState.high} high, ${queueStatusState.normal} normal, ${queueStatusState.low} low)`
+        setPublishIndicator(
+          'publish-state is-pending',
+          `Gossip queue pending (${queueStatusState.high} high, ${queueStatusState.normal} normal, ${queueStatusState.low} low)`
+        )
       } else {
-        publishState.className = 'publish-state is-fail'
-        publishState.textContent = ''
-        publishState.title = 'Queue has pending items but no active transport'
+        setPublishIndicator('publish-state is-fail', 'Queue has pending items but no active transport')
       }
       return
     }
     const pendingCount = publishStatusState?.pendingCount || 0
     const last = publishStatusState?.lastResult
     if (pendingCount > 0) {
-      publishState.className = 'publish-state is-pending'
-      publishState.textContent = ''
-      publishState.title = 'Waiting for pub confirmation'
+      setPublishIndicator('publish-state is-pending', 'Waiting for pub confirmation')
       return
     }
     if (last && (Date.now() - last.at) < PUBLISH_STATUS_FLASH_MS) {
       if (last.ok) {
-        publishState.className = 'publish-state is-ok'
-        publishState.textContent = ''
-        publishState.title = 'Pub confirmed message persistence'
+        setPublishIndicator('publish-state is-ok', 'Pub confirmed message persistence')
       } else if (last.reason === 'unconfirmed') {
-        publishState.className = 'publish-state is-pending'
-        publishState.textContent = ''
-        publishState.title = 'Publish not yet confirmed by pub'
+        setPublishIndicator('publish-state is-pending', 'Publish not yet confirmed by pub')
       } else {
-        publishState.className = 'publish-state is-fail'
-        publishState.textContent = ''
-        publishState.title = `Publish failed (${last.reason || 'unknown'})`
+        setPublishIndicator('publish-state is-fail', `Publish failed (${last.reason || 'unknown'})`)
       }
       clearTimer = setTimeout(() => {
         renderPublishState()
       }, PUBLISH_STATUS_FLASH_MS)
       return
     }
-    publishState.className = 'publish-state is-idle'
-    publishState.textContent = ''
-    publishState.title = 'No recent publish activity'
+    setPublishIndicator('publish-state is-idle', 'No recent publish activity')
   }
   subscribePublishStatus((state) => {
     publishStatusState = state
@@ -116,7 +141,7 @@ export const navbar = async () => {
   ])
 
   const right = h('span', {classList: 'navbar-right'}, [
-    publishState,
+    publishWrap,
     searchInput,
     h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Folder_Data']),
     notificationsButton(),

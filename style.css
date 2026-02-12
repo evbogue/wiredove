@@ -352,6 +352,14 @@ iframe {
   margin-left: auto;
 }
 
+.publish-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 10px;
+  flex: 0 0 auto;
+}
+
 .publish-state {
   width: 10px;
   height: 10px;
@@ -362,6 +370,22 @@ iframe {
   white-space: nowrap;
   padding: 0;
   flex: 0 0 auto;
+}
+
+.publish-desc {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: #666;
+  min-width: 0;
+  max-width: min(380px, 55vw);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  text-align: right;
 }
 
 .publish-state.is-pending {
@@ -469,6 +493,7 @@ iframe {
   .publish-state.is-pending { border-color: #8a7337; background: #f2c94c; }
   .publish-state.is-ok { border-color: #3f8050; background: #3cb371; }
   .publish-state.is-fail { border-color: #8c4a4a; background: #d9534f; }
+  .publish-desc { color: #bcbcbc; }
   .message { background-color: #222; border: 1px solid #1e1e1e;}
   .message:hover { border: 1px solid #333;}
   .new-posts-button { background: #3a2f12; border: 1px solid #6b5320; color: #f5d27a; }
