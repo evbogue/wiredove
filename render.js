@@ -558,7 +558,7 @@ const insertByTimestamp = (container, hash, ts) => {
   if (beforeNode && beforeNode.parentNode === container) {
     container.insertBefore(div, beforeNode)
   } else {
-    const sentinel = container.querySelector('#scroll-sentinel')
+    const sentinel = container.querySelector('.scroll-sentinel')
     if (sentinel && sentinel.parentNode === container) {
       container.insertBefore(div, sentinel)
     } else {
@@ -1331,14 +1331,6 @@ render.shouldWe = async (blob) => {
   const inDom = document.getElementById(hash)
   if (opened && !inDom) {
     await noteSeen(blob.substring(0, 44))
-    const src = window.location.hash.substring(1)
-    const al = []
-    const aliases = localStorage.getItem(src)
-    if (aliases) {
-      const parse = JSON.parse(aliases)
-      al.push(...parse)
-      console.log(al)
-    }
     let yaml = null
     const msg = await apds.get(opened.substring(13))
     if (msg) {
@@ -1362,19 +1354,15 @@ render.shouldWe = async (blob) => {
       }
       return
     }
-    if (scroller && (authorKey === src || hash === src || al.includes(authorKey))) {
-      if (window.__feedEnqueue) {
-        const queued = await window.__feedEnqueue(src, { hash, ts, blob, opened })
-        if (queued) { return }
-      }
-      return
-    }
-    if (scroller && src === '') {
-      if (window.__feedEnqueue) {
-        const queued = await window.__feedEnqueue(src, { hash, ts, blob, opened })
-        if (queued) { return }
-      }
-      return
+    if (scroller && window.__feedEnqueueMatching) {
+      const queued = await window.__feedEnqueueMatching({
+        hash,
+        ts,
+        blob,
+        opened,
+        author: authorKey
+      })
+      if (queued) { return }
     }
   }
 }

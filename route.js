@@ -34,14 +34,9 @@ const panelKeyToSrc = (key) => (key === '__home__' ? '' : key)
 
 const getRoutePanel = (scroller, key) => {
   let panel = routePanels.get(key)
-  if (panel && !document.body.contains(panel)) {
-    routePanels.delete(key)
-    panel = null
-  }
   if (!panel) {
     panel = h('div', { classList: 'route-panel' })
     panel.dataset.routeKey = key
-    panel.style.display = 'none'
     routePanels.set(key, panel)
     scroller.appendChild(panel)
   } else if (panel.parentNode !== scroller) {
@@ -55,11 +50,10 @@ const activatePanel = (key, panel) => {
     const previous = routePanels.get(activePanelKey)
     if (previous) {
       routeScrollTop.set(activePanelKey, window.scrollY || 0)
-      previous.style.display = 'none'
+      previous.remove()
     }
     window.__feedController?.deactivateFeed?.(panelKeyToSrc(activePanelKey))
   }
-  panel.style.display = ''
   activePanelKey = key
   window.__feedController?.activateFeed?.(panelKeyToSrc(key))
   const savedTop = routeScrollTop.get(key)
@@ -172,22 +166,27 @@ export const route = async () => {
     }
 
     if (src === 'settings') {
+      if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       if (await apds.pubkey()) {
         panel.appendChild(await settings())
       } else {
         panel.appendChild(await importKey())
       }
+      panel.dataset.ready = 'true'
       return
     }
 
     if (src === 'import') {
+      if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.appendChild(await importBlob())
+      panel.dataset.ready = 'true'
       return
     }
 
     if (src.length < 44 && !src.startsWith('?')) {
+      if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
@@ -202,10 +201,12 @@ export const route = async () => {
         const header = await buildProfileHeader({ label: src, messages: [], canEdit: false, pubkey: primaryKey })
         if (header) { panel.appendChild(header) }
       }
+      panel.dataset.ready = 'true'
       return
     }
 
     if (src.length === 44) {
+      if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       if (await isBlockedAuthor(src)) { return }
       const selfKey = await apds.pubkey()
@@ -226,10 +227,12 @@ export const route = async () => {
       if (!log || !log[0]) {
         await send(src)
       }
+      panel.dataset.ready = 'true'
       return
     }
 
     if (src.startsWith('?')) {
+      if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
@@ -237,10 +240,12 @@ export const route = async () => {
       const { log } = await ctx.orchestrator.startSearch(src)
       if (!ctx.isActive()) { return }
       adder(log || [], src, panel)
+      panel.dataset.ready = 'true'
       return
     }
 
     if (src.length > 44) {
+      if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       const hash = await apds.hash(src)
       const opened = await apds.open(src)
@@ -263,6 +268,7 @@ export const route = async () => {
         if (opened) { div.dataset.opened = opened }
         await render.blob(src, { hash, opened })
       }
+      panel.dataset.ready = 'true'
     }
   } finally {
     perfEnd(token)

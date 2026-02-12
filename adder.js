@@ -167,12 +167,7 @@ const getController = () => {
     window.__feedController = {
       feeds: new Map(),
       getFeed(src) {
-        const state = this.feeds.get(src)
-        if (state && state.container && !document.body.contains(state.container)) {
-          this.feeds.delete(src)
-          return null
-        }
-        return state || null
+        return this.feeds.get(src) || null
       },
       deactivateFeed(src) {
         const state = this.getFeed(src)
@@ -185,6 +180,29 @@ const getController = () => {
     }
   }
   return window.__feedController
+}
+
+const makeRouteMatcher = (src) => {
+  if (src === '') {
+    return () => true
+  }
+  if (src.length === 44) {
+    return (entry) => entry?.author === src
+  }
+  if (src.length < 44 && !src.startsWith('?') && src !== 'settings' && src !== 'import') {
+    return (entry) => {
+      const aliasesRaw = localStorage.getItem(src)
+      if (!aliasesRaw) { return false }
+      try {
+        const aliases = JSON.parse(aliasesRaw)
+        if (!Array.isArray(aliases)) { return false }
+        return aliases.includes(entry?.author)
+      } catch {
+        return false
+      }
+    }
+  }
+  return () => false
 }
 
 const normalizeTimestamp = (ts) => {
@@ -366,10 +384,15 @@ const flushPending = async (state) => {
   }
 }
 
-const enqueuePost = async (state, entry) => {
+  const enqueuePost = async (state, entry) => {
   if (!entry || !entry.hash || !entry.ts) { return }
   const insertedAt = insertEntry(state, entry)
   if (insertedAt < 0) { return }
+  if (!state.active) {
+    state.pending.push(entry)
+    updateBanner(state)
+    return
+  }
   if (!state.latestVisibleTs) {
     await renderEntry(state, entry)
     state.latestVisibleTs = entry.ts
@@ -406,6 +429,19 @@ window.__feedEnqueue = async (src, entry) => {
   if (!state) { return false }
   await enqueuePost(state, entry)
   return true
+}
+
+window.__feedEnqueueMatching = async (entry) => {
+  if (!entry || !entry.hash || !entry.ts) { return false }
+  const controller = getController()
+  let matched = false
+  const states = Array.from(controller.feeds.values())
+  for (const state of states) {
+    if (!state?.matches?.(entry)) { continue }
+    await enqueuePost(state, entry)
+    matched = true
+  }
+  return matched
 }
 
 const getStatusState = () => {
@@ -474,6 +510,8 @@ export const adder = (log, src, div) => {
   const state = {
     src,
     container: div,
+    matches: makeRouteMatcher(src),
+    active: true,
     entries,
     cursor: 0,
     seen: new Set(entries.map(entry => entry.hash)),
@@ -527,6 +565,7 @@ export const adder = (log, src, div) => {
 
   const loadNext = async () => {
     if (loading) { return }
+    if (!state.active) { return false }
     if (window.location.hash.substring(1) !== src) { return }
     loading = true
     try {
@@ -579,13 +618,16 @@ export const adder = (log, src, div) => {
   observer.observe(sentinel)
   state.observer = observer
   state.deactivate = () => {
+    state.active = false
     detachArmScroll()
     state.observer?.disconnect()
   }
   state.activate = () => {
+    state.active = true
     if (state.sentinel) {
       state.observer?.observe(state.sentinel)
     }
     attachArmScroll()
+    updateBanner(state)
   }
 }
