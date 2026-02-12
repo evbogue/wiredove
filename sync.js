@@ -102,7 +102,8 @@ const bootstrapActivity = async () => {
 
 const refreshPubkeys = async () => {
   try {
-    pubkeys = await apds.getPubkeys() || []
+    const next = await apds.getPubkeys()
+    pubkeys = Array.isArray(next) ? next : []
   } catch (err) {
     console.warn('getPubkeys failed', err)
     pubkeys = []

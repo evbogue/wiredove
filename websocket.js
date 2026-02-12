@@ -23,9 +23,25 @@ const createWsReadyPromise = () => new Promise(resolve => {
 })
 export let wsReady = createWsReadyPromise()
 
+const isWsOpen = (ws) => ws && ws.readyState === WebSocket.OPEN
+
+const safeWsSend = (ws, msg) => {
+  if (!isWsOpen(ws)) { return false }
+  try {
+    ws.send(msg)
+    return true
+  } catch (err) {
+    console.warn('ws send failed', err)
+    return false
+  }
+}
+
 const deliverWs = (msg) => {
   pubs.forEach(pub => {
-    pub.send(msg)
+    const sent = safeWsSend(pub, msg)
+    if (!sent && pub.readyState !== WebSocket.CONNECTING) {
+      pubs.delete(pub)
+    }
   })
 }
 
@@ -219,24 +235,25 @@ export const makeWs = async (pub) => {
     resetBackoff()
     wsReadyResolver?.()
     const now = Date.now()
-    let p = []
+    let pubkeys = []
       try {
-        p = await apds.getPubkeys() || []
+        const next = await apds.getPubkeys()
+        pubkeys = Array.isArray(next) ? next : []
       } catch (err) {
         console.warn('getPubkeys failed', err)
-        p = []
+        pubkeys = []
       }
       const moderation = await getModerationState()
       const blocked = new Set(moderation.blockedAuthors || [])
-      const announceable = p.filter((pub) => !blocked.has(pub))
+      const announceable = pubkeys.filter((pub) => !blocked.has(pub))
       await mapLimit(announceable, INCOMING_BATCH_CONCURRENCY, async (pub) => {
-        ws.send(pub)
+        if (!safeWsSend(ws, pub)) { return }
         const latest = await apds.getLatest(pub)
         if (!latest) { return }
         const openedTs = parseOpenedTimestamp(latest.opened)
         if (!openedTs || now - openedTs > RECENT_LATEST_WINDOW_MS) { return }
         if (!latest.sig) { return }
-        ws.send(latest.sig)
+        safeWsSend(ws, latest.sig)
       })
       //below sends everything in the client to a dovepub pds server
       //const log = await apds.query()
