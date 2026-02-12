@@ -173,6 +173,14 @@ const getController = () => {
           return null
         }
         return state || null
+      },
+      deactivateFeed(src) {
+        const state = this.getFeed(src)
+        state?.deactivate?.()
+      },
+      activateFeed(src) {
+        const state = this.getFeed(src)
+        state?.activate?.()
       }
     }
   }
@@ -460,6 +468,7 @@ export const adder = (log, src, div) => {
   const entries = buildEntries(log || [])
   let loading = false
   let armed = false
+  let armListenerAttached = false
 
   let posts = []
   const state = {
@@ -478,7 +487,10 @@ export const adder = (log, src, div) => {
     statusMessage: '',
     statusMode: false,
     statusTimer: null,
-    sentinel: null
+    sentinel: null,
+    observer: null,
+    activate: null,
+    deactivate: null
   }
   getController().feeds.set(src, state)
   ensureBanner(state)
@@ -538,10 +550,24 @@ export const adder = (log, src, div) => {
   }
 
   void loadNext()
+
+  const detachArmScroll = () => {
+    if (!armListenerAttached) { return }
+    window.removeEventListener('scroll', armScroll)
+    armListenerAttached = false
+  }
+
   const armScroll = () => {
     armed = true
+    detachArmScroll()
   }
-  window.addEventListener('scroll', armScroll, { passive: true, once: true })
+  const attachArmScroll = () => {
+    if (armed || armListenerAttached) { return }
+    window.addEventListener('scroll', armScroll, { passive: true, once: true })
+    armListenerAttached = true
+  }
+
+  attachArmScroll()
   const sentinel = ensureSentinel()
   const observer = new IntersectionObserver(async (entries) => {
     const entry = entries[0]
@@ -551,4 +577,15 @@ export const adder = (log, src, div) => {
   }, { root: null, rootMargin: '1200px 0px', threshold: 0 })
 
   observer.observe(sentinel)
+  state.observer = observer
+  state.deactivate = () => {
+    detachArmScroll()
+    state.observer?.disconnect()
+  }
+  state.activate = () => {
+    if (state.sentinel) {
+      state.observer?.observe(state.sentinel)
+    }
+    attachArmScroll()
+  }
 }

@@ -30,6 +30,7 @@ const getScroller = () => {
 }
 
 const getPanelKey = (src) => (src === '' ? '__home__' : src)
+const panelKeyToSrc = (key) => (key === '__home__' ? '' : key)
 
 const getRoutePanel = (scroller, key) => {
   let panel = routePanels.get(key)
@@ -56,9 +57,11 @@ const activatePanel = (key, panel) => {
       routeScrollTop.set(activePanelKey, window.scrollY || 0)
       previous.style.display = 'none'
     }
+    window.__feedController?.deactivateFeed?.(panelKeyToSrc(activePanelKey))
   }
   panel.style.display = ''
   activePanelKey = key
+  window.__feedController?.activateFeed?.(panelKeyToSrc(key))
   const savedTop = routeScrollTop.get(key)
   if (typeof savedTop === 'number') {
     setTimeout(() => {
