@@ -352,6 +352,33 @@ iframe {
   margin-left: auto;
 }
 
+.publish-state {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid #c7c7c7;
+  background: #d8d8d8;
+  display: inline-block;
+  white-space: nowrap;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.publish-state.is-pending {
+  border-color: #c4a353;
+  background: #f2c94c;
+}
+
+.publish-state.is-ok {
+  border-color: #6bb77d;
+  background: #3cb371;
+}
+
+.publish-state.is-fail {
+  border-color: #d98b8b;
+  background: #d9534f;
+}
+
 .message {
   padding: .75em;
   background: #f8f8f8;
@@ -438,6 +465,10 @@ iframe {
     color: #ccc;
   }
   #navbar {  background-color: rgba(34,34,34,0.5); border-bottom: 1px solid #333; }
+  .publish-state { border-color: #4a4a4a; background: #5a5a5a; }
+  .publish-state.is-pending { border-color: #8a7337; background: #f2c94c; }
+  .publish-state.is-ok { border-color: #3f8050; background: #3cb371; }
+  .publish-state.is-fail { border-color: #8c4a4a; background: #d9534f; }
   .message { background-color: #222; border: 1px solid #1e1e1e;}
   .message:hover { border: 1px solid #333;}
   .new-posts-button { background: #3a2f12; border: 1px solid #6b5320; color: #f5d27a; }

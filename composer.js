@@ -6,8 +6,14 @@ import { ntfy } from './ntfy.js'
 import { send } from './send.js'
 import { markdown } from './markdown.js'
 import { imgUpload } from './upload.js'
+import { beginPublishVerification, finishPublishVerification } from './publish_status.js'
 
 const ENABLE_EVENT_COMPOSER = false
+const parseOpenedTimestamp = (opened) => {
+  if (typeof opened !== 'string' || opened.length < 13) { return 0 }
+  const ts = Number.parseInt(opened.substring(0, 13), 10)
+  return Number.isFinite(ts) ? ts : 0
+}
 
 async function pushLocalNotification({ hash, author, text }) {
   try {
@@ -446,14 +452,33 @@ export const composer = async (sig, options = {}) => {
     const hash = await apds.hash(signed)
     pushLocalNotification({ hash, author: signed.substring(0, 44), text: blob })
 
+    const confirmTargets = [signed]
     const images = blob.match(/!\[.*?\]\((.*?)\)/g)
     if (images) {
       for (const image of images) {
         const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
         const imgBlob = await apds.get(src)
-        if (imgBlob) { await send(imgBlob) }
+        if (imgBlob) {
+          await send(imgBlob)
+        }
       }
     }
+    const verifyId = beginPublishVerification({ hash })
+    void (async () => {
+      try {
+        const { confirmMessagesPersisted } = await import('./websocket.js')
+        const openedTs = parseOpenedTimestamp(opened)
+        const since = openedTs ? Math.max(0, openedTs - 10000) : undefined
+        const persisted = await confirmMessagesPersisted(confirmTargets, { since })
+        finishPublishVerification(verifyId, persisted)
+        if (!persisted.ok) {
+          console.warn('publish confirmation failed', persisted)
+        }
+      } catch (err) {
+        console.warn('publish confirmation errored', err)
+        finishPublishVerification(verifyId, { ok: false, reason: 'unconfirmed', missing: confirmTargets })
+      }
+    })()
 
     if (isEdit) {
       render.invalidateEdits(options.editHash)
@@ -467,6 +492,7 @@ export const composer = async (sig, options = {}) => {
       if (opened) { div.dataset.opened = opened }
       await render.blob(signed, { hash, opened })
     } else {
+      overlay.remove()
       const scroller = document.getElementById('scroller')
       const opened = await apds.open(signed)
       const ts = opened ? opened.substring(0, 13) : Date.now().toString()
@@ -487,7 +513,6 @@ export const composer = async (sig, options = {}) => {
           await render.blob(signed, { hash, opened })
         }
       }
-      overlay.remove()
     }
   }}, ['Publish'])
 

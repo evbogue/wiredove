@@ -24,6 +24,7 @@ const senders = {
   gossip: null,
   hasGossip: null
 }
+const queueListeners = new Set()
 
 const normalizePriority = (priority) => {
   if (priority === 'high' || priority === 'normal' || priority === 'low') { return priority }
@@ -79,6 +80,7 @@ export const registerNetworkSenders = (config = {}) => {
   if (config.hasWs) { senders.hasWs = config.hasWs }
   if (config.sendGossip) { senders.gossip = config.sendGossip }
   if (config.hasGossip) { senders.hasGossip = config.hasGossip }
+  notifyQueueListeners()
 }
 
 const isTargetReady = (target) => {
@@ -92,9 +94,31 @@ const sendToTarget = (target, msg) => {
   if (target === 'gossip') { senders.gossip?.(msg) }
 }
 
+const queueSnapshot = () => ({
+  total: totalQueueSize(),
+  high: queues.high.length,
+  normal: queues.normal.length,
+  low: queues.low.length,
+  draining,
+  wsReady: Boolean(isTargetReady('ws')),
+  gossipReady: Boolean(isTargetReady('gossip'))
+})
+
+const notifyQueueListeners = () => {
+  const state = queueSnapshot()
+  queueListeners.forEach((listener) => {
+    try {
+      listener(state)
+    } catch (err) {
+      console.warn('queue status listener failed', err)
+    }
+  })
+}
+
 const removeItem = (item, lane, index) => {
   if (item.key) { pending.delete(item.key) }
   queues[lane].splice(index, 1)
+  notifyQueueListeners()
 }
 
 const pickHashTarget = (item) => {
@@ -179,6 +203,7 @@ const drainQueue = () => {
   if (totalQueueSize() > 0) {
     drainTimer = setTimeout(drainQueue, SEND_DELAY_MS)
   }
+  notifyQueueListeners()
 }
 
 export const queueSend = (msg, options = {}) => {
@@ -188,6 +213,7 @@ export const queueSend = (msg, options = {}) => {
     const existing = pending.get(key)
     promoteItem(existing, priority)
     if (!drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
+    notifyQueueListeners()
     return false
   }
   if (isHash(msg)) {
@@ -210,6 +236,7 @@ export const queueSend = (msg, options = {}) => {
   if (key) { pending.set(key, item) }
   trimOverflow()
   if (!drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
+  notifyQueueListeners()
   return true
 }
 
@@ -220,9 +247,18 @@ export const noteReceived = (msg) => {
   if (!item) { return }
   pending.delete(key)
   removeFromQueue(queues[item.priority], item)
+  notifyQueueListeners()
 }
 
 export const getQueueSize = () => totalQueueSize()
+export const getQueueStatusSnapshot = () => queueSnapshot()
+export const subscribeQueueStatus = (listener) => {
+  queueListeners.add(listener)
+  listener(queueSnapshot())
+  return () => {
+    queueListeners.delete(listener)
+  }
+}
 
 export const clearQueue = () => {
   queues.high.length = 0
@@ -235,4 +271,5 @@ export const clearQueue = () => {
     drainTimer = null
   }
   draining = false
+  notifyQueueListeners()
 }

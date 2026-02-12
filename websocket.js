@@ -16,6 +16,9 @@ const httpState = {
   pollTimer: null,
   lastSince: 0
 }
+const DEFAULT_CONFIRM_TIMEOUT_MS = 12000
+const DEFAULT_CONFIRM_INTERVAL_MS = 600
+const DEFAULT_CONFIRM_LOOKBACK_MS = 2 * 60 * 1000
 
 let wsReadyResolver
 const createWsReadyPromise = () => new Promise(resolve => {
@@ -107,6 +110,31 @@ const handleIncoming = async (msg) => {
 }
 
 const toHttpBase = (wsUrl) => wsUrl.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:')
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const normalizeSince = (value) => {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) { return 0 }
+  return Math.max(0, Math.floor(parsed))
+}
+
+const pollHttpSince = async (since) => {
+  if (!httpState.ready || !httpState.baseUrl) { return null }
+  try {
+    const url = new URL('/gossip/poll', httpState.baseUrl)
+    url.searchParams.set('since', String(normalizeSince(since)))
+    const res = await perfMeasure('net.http.poll', async () => fetch(url.toString(), { cache: 'no-store' }))
+    if (!res.ok) { return { ok: false, status: res.status } }
+    const data = await res.json()
+    return {
+      ok: true,
+      messages: Array.isArray(data.messages) ? data.messages : [],
+      nextSince: Number.isFinite(data.nextSince) ? data.nextSince : null
+    }
+  } catch (err) {
+    console.warn('http gossip poll failed', err)
+    return { ok: false, error: err }
+  }
+}
 
 const scheduleHttpPoll = () => {
   if (httpState.pollTimer) { return }
@@ -120,19 +148,13 @@ const pollHttp = async () => {
     return
   }
   try {
-    const url = new URL('/gossip/poll', httpState.baseUrl)
-    url.searchParams.set('since', String(httpState.lastSince))
-    const res = await perfMeasure('net.http.poll', async () => fetch(url.toString(), { cache: 'no-store' }))
-    if (res.ok) {
-      const data = await res.json()
-      const messages = Array.isArray(data.messages) ? data.messages : []
-      await processIncomingBatch(messages)
-      if (Number.isFinite(data.nextSince)) {
-        httpState.lastSince = Math.max(httpState.lastSince, data.nextSince)
+    const polled = await pollHttpSince(httpState.lastSince)
+    if (polled?.ok) {
+      await processIncomingBatch(polled.messages)
+      if (Number.isFinite(polled.nextSince)) {
+        httpState.lastSince = Math.max(httpState.lastSince, polled.nextSince)
       }
     }
-  } catch (err) {
-    console.warn('http gossip poll failed', err)
   } finally {
     scheduleHttpPoll()
   }
@@ -188,6 +210,40 @@ export const sendWs = async (msg) => {
 }
 
 export const hasWs = () => pubs.size > 0 || httpState.ready
+
+export const confirmMessagesPersisted = async (messages, options = {}) => {
+  const targets = Array.from(new Set((messages || []).filter((msg) => typeof msg === 'string' && msg.length)))
+  if (!targets.length) { return { ok: true, missing: [], attempts: 0 } }
+  if (!httpState.ready || !httpState.baseUrl) {
+    return { ok: false, missing: targets, attempts: 0, reason: 'unconfirmed' }
+  }
+
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : DEFAULT_CONFIRM_TIMEOUT_MS
+  const intervalMs = Number.isFinite(options.intervalMs) ? options.intervalMs : DEFAULT_CONFIRM_INTERVAL_MS
+  const lookbackMs = Number.isFinite(options.lookbackMs) ? options.lookbackMs : DEFAULT_CONFIRM_LOOKBACK_MS
+  const deadline = Date.now() + Math.max(500, timeoutMs)
+  const pending = new Set(targets)
+  let cursor = normalizeSince(options.since ?? (Date.now() - lookbackMs))
+  let attempts = 0
+
+  while (Date.now() <= deadline && pending.size) {
+    attempts += 1
+    const polled = await pollHttpSince(cursor)
+    if (polled?.ok) {
+      polled.messages.forEach((msg) => pending.delete(msg))
+      if (Number.isFinite(polled.nextSince)) {
+        cursor = Math.max(cursor, normalizeSince(polled.nextSince))
+      }
+      if (!pending.size) {
+        return { ok: true, missing: [], attempts }
+      }
+    }
+    if (Date.now() + intervalMs > deadline) { break }
+    await sleep(intervalMs)
+  }
+
+  return { ok: false, missing: Array.from(pending), attempts, reason: 'unconfirmed' }
+}
 
 registerNetworkSenders({
   sendWs,

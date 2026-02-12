@@ -4,6 +4,10 @@ import { imageSpan } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
 import { notificationsButton } from "./notifications.js"
+import { getPublishStatusSnapshot, subscribePublishStatus } from './publish_status.js'
+import { getQueueStatusSnapshot, subscribeQueueStatus } from './network_queue.js'
+
+const PUBLISH_STATUS_FLASH_MS = 8000
 
 const composeButton = async () => {
   const hasKey = !!(await apds.pubkey())
@@ -37,6 +41,72 @@ const searchInput = h('input', {
 
 export const navbar = async () => {
   const span = h('span')
+  const publishState = h('span', {
+    id: 'publish-state',
+    classList: 'publish-state is-idle',
+    title: 'No recent publish activity'
+  }, [''])
+  let clearTimer = null
+  let publishStatusState = getPublishStatusSnapshot()
+  let queueStatusState = getQueueStatusSnapshot()
+  const renderPublishState = () => {
+    if (clearTimer) {
+      clearTimeout(clearTimer)
+      clearTimer = null
+    }
+    const queueTotal = queueStatusState?.total || 0
+    const queueReady = Boolean(queueStatusState?.wsReady || queueStatusState?.gossipReady)
+    if (queueTotal > 0) {
+      if (queueReady) {
+        publishState.className = 'publish-state is-pending'
+        publishState.textContent = ''
+        publishState.title = `Gossip queue pending (${queueStatusState.high} high, ${queueStatusState.normal} normal, ${queueStatusState.low} low)`
+      } else {
+        publishState.className = 'publish-state is-fail'
+        publishState.textContent = ''
+        publishState.title = 'Queue has pending items but no active transport'
+      }
+      return
+    }
+    const pendingCount = publishStatusState?.pendingCount || 0
+    const last = publishStatusState?.lastResult
+    if (pendingCount > 0) {
+      publishState.className = 'publish-state is-pending'
+      publishState.textContent = ''
+      publishState.title = 'Waiting for pub confirmation'
+      return
+    }
+    if (last && (Date.now() - last.at) < PUBLISH_STATUS_FLASH_MS) {
+      if (last.ok) {
+        publishState.className = 'publish-state is-ok'
+        publishState.textContent = ''
+        publishState.title = 'Pub confirmed message persistence'
+      } else if (last.reason === 'unconfirmed') {
+        publishState.className = 'publish-state is-pending'
+        publishState.textContent = ''
+        publishState.title = 'Publish not yet confirmed by pub'
+      } else {
+        publishState.className = 'publish-state is-fail'
+        publishState.textContent = ''
+        publishState.title = `Publish failed (${last.reason || 'unknown'})`
+      }
+      clearTimer = setTimeout(() => {
+        renderPublishState()
+      }, PUBLISH_STATUS_FLASH_MS)
+      return
+    }
+    publishState.className = 'publish-state is-idle'
+    publishState.textContent = ''
+    publishState.title = 'No recent publish activity'
+  }
+  subscribePublishStatus((state) => {
+    publishStatusState = state
+    renderPublishState()
+  })
+  subscribeQueueStatus((state) => {
+    queueStatusState = state
+    renderPublishState()
+  })
 
   const left = h('span', {classList: 'navbar-left'}, [
     h('a', {href: '#', classList: 'material-symbols-outlined'}, [
@@ -46,6 +116,7 @@ export const navbar = async () => {
   ])
 
   const right = h('span', {classList: 'navbar-right'}, [
+    publishState,
     searchInput,
     h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Folder_Data']),
     notificationsButton(),
