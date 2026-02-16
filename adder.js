@@ -406,7 +406,9 @@ const flushPending = async (state) => {
   }
   const inWindow = state.oldestVisibleTs && entry.ts >= state.oldestVisibleTs && entry.ts <= state.latestVisibleTs
   if (entry.ts > state.latestVisibleTs) {
-    if (isAtTop()) {
+    // If this is a *local* post (freshly published by this client), render it immediately.
+    // Otherwise, preserve scroll position and hide behind the "Show N new posts" banner.
+    if (entry.local || isAtTop()) {
       await renderEntry(state, entry)
       state.latestVisibleTs = entry.ts
       if (!state.oldestVisibleTs) { state.oldestVisibleTs = entry.ts }
