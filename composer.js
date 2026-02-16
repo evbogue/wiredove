@@ -498,6 +498,14 @@ export const composer = async (sig, options = {}) => {
       const ts = opened ? opened.substring(0, 13) : Date.now().toString()
       if (window.__feedEnqueue) {
         const src = window.location.hash.substring(1)
+        // UX: if you just posted, show it immediately.
+        // If the user is even slightly scrolled, adder.js will treat the new post as "pending" and show a banner,
+        // which reads like "my post didn't load". Force scroll to top before enqueue so it renders right away.
+        try {
+          const scrollEl = document.scrollingElement || document.documentElement || document.body
+          if (scrollEl) { scrollEl.scrollTop = 0 }
+          window.scrollTo(0, 0)
+        } catch {}
         const queued = await window.__feedEnqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed, opened })
         if (!queued) {
           const placeholder = render.insertByTimestamp(scroller, hash, ts)
