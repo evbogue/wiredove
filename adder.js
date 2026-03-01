@@ -380,11 +380,11 @@ const flushPending = async (state) => {
   for (const entry of pending) {
     await renderEntry(state, entry)
     state.latestVisibleTs = Math.max(state.latestVisibleTs || 0, entry.ts)
-    if (!state.oldestVisibleTs) { state.oldestVisibleTs = entry.ts }
+    state.oldestVisibleTs = Math.min(state.oldestVisibleTs || entry.ts, entry.ts)
   }
 }
 
-  const enqueuePost = async (state, entry) => {
+const enqueuePost = async (state, entry) => {
   if (!entry || !entry.hash || !entry.ts) { return }
   const insertedAt = insertEntry(state, entry)
   if (insertedAt < 0) { return }
@@ -393,36 +393,23 @@ const flushPending = async (state) => {
     updateBanner(state)
     return
   }
-  if (!state.latestVisibleTs) {
+  // Initial page still loading — render everything immediately
+  if (!state.latestVisibleTs || state.rendered.size < state.pageSize) {
     await renderEntry(state, entry)
-    state.latestVisibleTs = entry.ts
-    state.oldestVisibleTs = entry.ts
-    return
-  }
-  if (entry.ts < state.oldestVisibleTs && state.rendered.size < state.pageSize) {
-    await renderEntry(state, entry)
-    state.oldestVisibleTs = entry.ts
-    return
-  }
-  const inWindow = state.oldestVisibleTs && entry.ts >= state.oldestVisibleTs && entry.ts <= state.latestVisibleTs
-  if (entry.ts > state.latestVisibleTs) {
-    // If this is a *local* post (freshly published by this client), render it immediately.
-    // Otherwise, preserve scroll position and hide behind the "Show N new posts" banner.
-    if (entry.local || isAtTop()) {
-      await renderEntry(state, entry)
-      state.latestVisibleTs = entry.ts
-      if (!state.oldestVisibleTs) { state.oldestVisibleTs = entry.ts }
-    } else {
-      state.pending.push(entry)
-      updateBanner(state)
-    }
-    return
-  }
-  if (inWindow) {
-    await renderEntry(state, entry)
-    state.latestVisibleTs = Math.max(state.latestVisibleTs, entry.ts)
+    state.latestVisibleTs = Math.max(state.latestVisibleTs || 0, entry.ts)
     state.oldestVisibleTs = Math.min(state.oldestVisibleTs || entry.ts, entry.ts)
+    return
   }
+  // Newer than current view and user has scrolled down (not a local post) — buffer behind banner
+  if (entry.ts > state.latestVisibleTs && !entry.local && !isAtTop()) {
+    state.pending.push(entry)
+    updateBanner(state)
+    return
+  }
+  // Everything else: inside/below current window, or newer but user is at top / local post
+  await renderEntry(state, entry)
+  state.latestVisibleTs = Math.max(state.latestVisibleTs, entry.ts)
+  state.oldestVisibleTs = Math.min(state.oldestVisibleTs, entry.ts)
 }
 
 window.__feedEnqueue = async (src, entry) => {
