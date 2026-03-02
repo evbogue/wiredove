@@ -5,6 +5,22 @@ import { send } from './send.js'
 
 const renderer = new marked.Renderer()
 
+const linkHashtags = (words) => {
+  for (let i = 0; i < words.length; i++) {
+    let word = words[i]
+    if (!word.startsWith('#')) { continue }
+    let end
+    if (['.', ',', '?', ':', '!'].some(char => word.endsWith(char))) {
+      end = word[word.length - 1]
+      word = word.substring(0, word.length - 1)
+    }
+    let hashtag = "<a href='#?" + word + "'>" + word + "</a>"
+    if (end) { hashtag += end }
+    words[i] = hashtag
+  }
+  return words
+}
+
 renderer.paragraph = function (paragraph) {
   const images = paragraph.match(/<img\b[^>]*>/gi) || []
   if (images.length) {
@@ -18,47 +34,11 @@ renderer.paragraph = function (paragraph) {
       return `<div class="post-image-row">${images.join('')}</div>`
     }
 
-    const words = textOnly.split(' ')
-    for (let i = 0; i < words.length; i += 1) {
-      let word = words[i]
-      if (!word.startsWith('#')) { continue }
-      let end
-      if (['.', ',', '?', ':', '!'].some(char => word.endsWith(char))) {
-        end = word[word.length - 1]
-        word = word.substring(0, word.length - 1)
-      }
-      let hashtag = "<a href='#?" + word + "'>" + word + "</a>"
-      if (end) { hashtag += end }
-      words[i] = hashtag
-    }
-
-    return '<p>' + words.join(' ') + '</p><div class="post-image-row">' + images.join('') + '</div>'
+    const linked = linkHashtags(textOnly.split(' ')).join(' ')
+    return '<p>' + linked + '</p><div class="post-image-row">' + images.join('') + '</div>'
   }
 
-  const array = paragraph.split(' ')
-
-  for (let i = 0; i < array.length; i++) {
-    let word = array[i]
-    if (word.startsWith('#')) {
-      let end
-
-      if (['.', ',', '?', ':', '!'].some(char => word.endsWith(char))) {
-        end = word[word.length - 1]
-        word = word.substring(0, word.length - 1)
-      }
-
-      let hashtag = "<a href='#?" + word + "'>" + word + "</a>"
-
-      if (end) {
-        hashtag = hashtag + end
-      }
-      array[i] = hashtag
-    }
-  }
-
-  const newgraph = array.join(' ')
-
-  return '<p>' + newgraph + '</p>'
+  return '<p>' + linkHashtags(paragraph.split(' ')).join(' ') + '</p>'
 }
 
 renderer.link = function (href, title, text) {
