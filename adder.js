@@ -4,6 +4,7 @@ import { adaptiveConcurrency } from './adaptive_concurrency.js'
 import { perfMeasure, perfStart, perfEnd } from './perf.js'
 import { queueSend } from './network_queue.js'
 import { getFeedRow } from './feed_row_cache.js'
+import { normalizeTimestamp } from './utils.js'
 
 const RENDER_CONCURRENCY = adaptiveConcurrency({ base: 6, min: 2, max: 10, type: 'render' })
 const FRAME_RENDER_START_BUDGET = adaptiveConcurrency({ base: 3, min: 1, max: 6, type: 'render' })
@@ -205,10 +206,6 @@ const makeRouteMatcher = (src) => {
   return () => false
 }
 
-const normalizeTimestamp = (ts) => {
-  const value = Number.parseInt(ts, 10)
-  return Number.isNaN(value) ? 0 : value
-}
 
 const updateScrollDirection = () => {
   const scrollEl = document.scrollingElement || document.documentElement || document.body

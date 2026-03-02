@@ -3,9 +3,10 @@ import { send } from './send.js'
 import { queueSend } from './network_queue.js'
 import { noteInterest } from './sync.js'
 import { isBlockedAuthor } from './moderation.js'
-import { attachCachedRows, getFeedRow, upsertFeedRow } from './feed_row_cache.js'
+import { attachCachedRows, getFeedRow, upsertFeedRow, parseOpenedTimestamp } from './feed_row_cache.js'
 import { adaptiveConcurrency } from './adaptive_concurrency.js'
 import { perfMeasure } from './perf.js'
+import { isHash, getOpenedFromQuery } from './utils.js'
 
 const HOME_SEED_COUNT = 3
 const HOME_BACKFILL_DEPTH = 6
@@ -15,25 +16,6 @@ const FEED_ROWS_POLL_MS = 5000
 const FEED_ROWS_ENABLED = false
 const feedRowsEnabled = () => FEED_ROWS_ENABLED
 
-const parseOpenedTimestamp = (opened) => {
-  if (!opened || opened.length < 13) { return 0 }
-  const ts = Number.parseInt(opened.substring(0, 13), 10)
-  return Number.isNaN(ts) ? 0 : ts
-}
-
-const isHash = (value) => typeof value === 'string' && value.length === 44
-
-const getOpenedFromQuery = async (hash) => {
-  if (!hash) { return null }
-  const query = await apds.query(hash)
-  if (Array.isArray(query) && query[0] && query[0].opened) {
-    return query[0].opened
-  }
-  if (query && query.opened) {
-    return query.opened
-  }
-  return null
-}
 
 const mapLimit = async (items, limit, worker) => {
   if (!Array.isArray(items) || !items.length) { return [] }
