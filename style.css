@@ -576,6 +576,33 @@ iframe {
 
 .reply { margin-left: 1em; }
 
+.reply-depth-1 {
+  margin-left: 0.9em;
+}
+
+.reply-depth-2 {
+  margin-left: 1.4em;
+}
+
+.reply-depth-3,
+.reply-depth-capped {
+  margin-left: 1.8em;
+}
+
+.reply-depth-capped {
+  position: relative;
+}
+
+.reply-depth-capped::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #dde2e8;
+}
+
 .message-reply-compact {
   border-left: 3px solid #d8dde3;
   background: #fbfbfb;

@@ -3,7 +3,10 @@ import { h } from 'h'
 import { queueSend } from './network_queue.js'
 import { composer } from './composer.js'
 import { promptKeypair } from './identify.js'
-import { ensureReplyIndex, getReplyCount, getRepliesForParent } from './reply_index.js'
+import {
+  ensureReplyIndex, getReplyCount, getRepliesForParent,
+  getReplyDepth, getMaxReplyDepth
+} from './reply_index.js'
 import { getOpenedFromQuery } from './utils.js'
 
 const replyCountTargets = new Map()
@@ -104,6 +107,8 @@ export const appendReply = async (parentHash, replyHash, ts, replyBlob = null, r
   if (replyOpened) {
     replyWrapper.dataset.opened = replyOpened
   }
+  const replyDepth = getReplyDepth(replyHash)
+  replyWrapper.dataset.replyDepth = String(replyDepth)
   const scroller = document.getElementById('scroller')
   if (scroller && scroller.contains(replyWrapper)) {
     await render.blob(blob, { hash: replyHash, opened: replyOpened })
@@ -114,6 +119,11 @@ export const appendReply = async (parentHash, replyHash, ts, replyBlob = null, r
   if (!alreadyNested || replyParent.parentNode !== repliesContainer) {
     const replyContain = h('div', {classList: 'reply'})
     if (ts) { replyContain.dataset.ts = ts.toString() }
+    replyContain.dataset.replyDepth = String(replyDepth)
+    replyContain.classList.add('reply-depth-' + Math.min(replyDepth, getMaxReplyDepth()))
+    if (replyDepth >= getMaxReplyDepth()) {
+      replyContain.classList.add('reply-depth-capped')
+    }
     replyContain.appendChild(replyWrapper)
     repliesContainer.appendChild(replyContain)
   }

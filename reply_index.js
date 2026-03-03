@@ -2,9 +2,11 @@ import { apds } from 'apds'
 import { adaptiveConcurrency } from './adaptive_concurrency.js'
 
 const replyIndex = new Map()
+const replyParentIndex = new Map()
 let buildPromise = null
 let built = false
 const INDEX_PARSE_CONCURRENCY = adaptiveConcurrency({ base: 8, min: 2, max: 12 })
+const MAX_REPLY_DEPTH = 3
 
 const parseOpenedTimestamp = (opened) => {
   if (!opened || opened.length < 13) { return 0 }
@@ -29,6 +31,7 @@ export const addReplyToIndex = (parentHash, replyHash, ts = 0, opened = null) =>
   if (list.some(item => item.hash === replyHash)) { return false }
   list.push({ hash: replyHash, ts: normalizeTs(ts, opened), opened })
   replyIndex.set(parentHash, list)
+  replyParentIndex.set(replyHash, parentHash)
   return true
 }
 
@@ -94,3 +97,22 @@ export const ensureReplyIndex = async (log = null) => {
 export const getRepliesForParent = (parentHash) => replyIndex.get(parentHash) || []
 
 export const getReplyCount = (parentHash) => getRepliesForParent(parentHash).length
+
+export const getReplyParentHash = (replyHash) => replyParentIndex.get(replyHash) || null
+
+export const getReplyDepth = (replyHash, maxDepth = MAX_REPLY_DEPTH) => {
+  if (!replyHash) { return 0 }
+  let depth = 0
+  let cursor = replyHash
+  const seen = new Set()
+  while (depth < maxDepth) {
+    const parent = getReplyParentHash(cursor)
+    if (!parent || seen.has(parent)) { break }
+    seen.add(parent)
+    depth += 1
+    cursor = parent
+  }
+  return depth
+}
+
+export const getMaxReplyDepth = () => MAX_REPLY_DEPTH

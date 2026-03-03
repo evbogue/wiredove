@@ -7,7 +7,7 @@ import { markdown } from './markdown.js'
 import { noteSeen } from './sync.js'
 import { isBlockedAuthor, shouldHideMessage } from './moderation.js'
 import { ensureHighlight } from './lazy_vendor.js'
-import { addReplyToIndex, getReplyCount } from './reply_index.js'
+import { addReplyToIndex, getReplyCount, getReplyDepth } from './reply_index.js'
 import { makeFeedRow, upsertFeedRow, parseOpenedTimestamp } from './feed_row_cache.js'
 import { perfStart, perfEnd } from './perf.js'
 import { isHash, getOpenedFromQuery } from './utils.js'
@@ -117,6 +117,7 @@ const applyRenderModeToWrapper = (hash, yaml) => {
   wrapper.dataset.messageKind = getMessageKind(yaml)
   wrapper.dataset.renderMode = mode
   wrapper.dataset.replyDisplay = mode === 'thread' ? 'thread' : 'feed'
+  wrapper.dataset.replyDepth = String(getReplyDepth(hash))
   return { wrapper, mode }
 }
 
