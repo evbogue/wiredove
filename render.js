@@ -86,6 +86,44 @@ const renderBody = async (body, replyHash) => {
   return html
 }
 
+const getRouteSrc = () => window.location.hash.substring(1)
+
+const isThreadRoute = (src = getRouteSrc()) => src.length > 44
+
+const getMessageKind = (yaml) => (getReplyParent(yaml) ? 'reply' : 'post')
+
+const getRenderMode = (yaml) => {
+  if (getMessageKind(yaml) !== 'reply') { return 'full' }
+  return isThreadRoute() ? 'thread' : 'replyCompact'
+}
+
+const buildReplyContext = (replyHash, className = 'message-reply-context') => {
+  if (!replyHash) { return null }
+  const preview = h('span', { classList: 'reply-preview' }, [
+    h('a', { href: '#' + replyHash, classList: 'reply-preview-link' }, [replyHash.substring(0, 10) + '...'])
+  ])
+  preview.dataset.replyPreview = replyHash
+  return h('div', { classList: className }, [
+    h('span', { classList: 'material-symbols-outlined message-reply-context-icon' }, ['Subdirectory_Arrow_left']),
+    h('span', { classList: 'message-reply-context-label' }, ['Replying to']),
+    preview
+  ])
+}
+
+const applyRenderModeToWrapper = (hash, yaml) => {
+  const wrapper = document.getElementById(hash)
+  if (!wrapper) { return null }
+  const mode = getRenderMode(yaml)
+  wrapper.dataset.messageKind = getMessageKind(yaml)
+  wrapper.dataset.renderMode = mode
+  wrapper.dataset.replyDisplay = mode === 'thread' ? 'thread' : 'feed'
+  return { wrapper, mode }
+}
+
+const canNestRepliesUnderWrapper = (wrapper) => (
+  !!(wrapper && wrapper.dataset && wrapper.dataset.replyDisplay === 'thread')
+)
+
 const buildRawControls = (blob, opened, contentBlob) => {
   const rawDiv = h('div', {classList: 'message-raw'})
   let rawshow = true
@@ -307,7 +345,7 @@ const buildActionRow = ({ author, hash, blob, opened, editButton, editedHint, ed
   ])
 }
 
-const buildMessageDOM = async ({ blob, opened, hash, div, timestamp, contentHash, author, humanTime, img, contentBlob, yaml }) => {
+const buildMessageDOM = async ({ blob, opened, hash, div, timestamp, contentHash, author, humanTime, img, contentBlob, yaml, renderMode }) => {
   const ts = h('a', {href: '#' + hash}, [humanTime])
   observeTimestamp(ts, timestamp)
 
@@ -351,6 +389,9 @@ const buildMessageDOM = async ({ blob, opened, hash, div, timestamp, contentHash
   }, ['Notes'])
 
   const actionsRow = buildActionRow({ author, hash, blob, opened, editButton, editedHint, editNav })
+  const replyContext = renderMode === 'replyCompact'
+    ? buildReplyContext(getReplyParent(yaml), 'message-reply-context message-reply-context-compact')
+    : null
 
   const meta = h('div', {classList: 'message'}, [
     right,
@@ -358,6 +399,7 @@ const buildMessageDOM = async ({ blob, opened, hash, div, timestamp, contentHash
       h('a', {href: '#' + author}, [img]),
       h('div', {classList: 'message-stack'}, [
         h('a', {href: '#' + author}, [name]),
+        replyContext || '',
         h('div', {classList: 'message-body'}, [
           h('div', {id: 'reply' + contentHash}),
           content,
@@ -370,6 +412,8 @@ const buildMessageDOM = async ({ blob, opened, hash, div, timestamp, contentHash
   ])
 
   div.replaceWith(meta)
+  meta.classList.toggle('message-reply-compact', renderMode === 'replyCompact')
+  meta.classList.toggle('message-thread-reply', renderMode === 'thread')
   render.registerMessage(hash, {
     author,
     baseTimestamp: timestamp,
@@ -447,12 +491,14 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
   }
 
   const ctx = { blob, opened, hash, div, timestamp, contentHash, author, humanTime, img, contentBlob, yaml }
+  const renderMode = getRenderMode(yaml)
+  applyRenderModeToWrapper(hash, yaml)
 
   if (yaml && yaml.edit) {
     return renderEditMeta(ctx)
   }
 
-  return buildMessageDOM(ctx)
+  return buildMessageDOM({ ...ctx, renderMode })
 }
 
 render.comments = comments
@@ -520,7 +566,22 @@ const contentBodyBranch = async (contentHash, yaml, div, messageHash) => {
     addReplyToIndex(yaml.reply, messageHash, messageTs, messageOpened)
     updateReplyCount(yaml.reply)
   }
-  div.innerHTML = await renderBody(yaml.body, yaml.reply)
+  const wrapper = messageHash ? document.getElementById(messageHash) : null
+  const renderMode = wrapper?.dataset?.renderMode || getRenderMode(yaml)
+  if (renderMode === 'replyCompact') {
+    div.innerHTML = await markdown(yaml.body)
+  } else if (renderMode === 'thread') {
+    div.innerHTML = await markdown(yaml.body)
+    const threadContext = buildReplyContext(yaml.reply, 'message-reply-context message-reply-context-thread')
+    if (threadContext) {
+      div.prepend(threadContext)
+    }
+  } else {
+    div.innerHTML = await renderBody(yaml.body, yaml.reply)
+  }
+  if (renderMode === 'thread') {
+    div.classList.add('content-thread')
+  }
   await highlightCodeIn(div)
   hydrateReplyPreviews(div)
   await applyProfile(contentHash, yaml)
@@ -652,12 +713,13 @@ render.shouldWe = async (blob) => {
       addReplyToIndex(replyTo, hash, ts, opened)
       updateReplyCount(replyTo)
       const wrapper = document.getElementById(replyTo)
-      if (wrapper && wrapper.dataset.repliesLoaded === 'true') {
+      if (canNestRepliesUnderWrapper(wrapper) && wrapper.dataset.repliesLoaded === 'true') {
         await appendReply(replyTo, hash, ts, blob, opened)
-      } else if (wrapper) {
+        return
+      } else if (canNestRepliesUnderWrapper(wrapper)) {
         observeReplies(wrapper, replyTo)
+        return
       }
-      return
     }
     if (scroller && window.__feedEnqueueMatching) {
       const queued = await window.__feedEnqueueMatching({

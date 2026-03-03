@@ -17,6 +17,10 @@ export const initReplyRenderer = (renderObj) => {
   render = renderObj
 }
 
+const shouldExpandRepliesForWrapper = (wrapper) => (
+  !!(wrapper && wrapper.dataset && wrapper.dataset.replyDisplay === 'thread')
+)
+
 const summarizeBody = (body, maxLen = 50) => {
   if (!body) { return '' }
   const single = body.replace(/\s+/g, ' ').trim()
@@ -33,6 +37,7 @@ export const updateReplyCount = (parentHash) => {
 
 export const observeReplies = (wrapper, parentHash) => {
   if (!wrapper) { return }
+  if (!shouldExpandRepliesForWrapper(wrapper)) { return }
   if (!replyObserver) {
     replyObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -72,6 +77,7 @@ export const refreshVisibleReplies = () => {
   wrappers.forEach((wrapper) => {
     const parentHash = wrapper.id
     if (!parentHash) { return }
+    if (!shouldExpandRepliesForWrapper(wrapper)) { return }
     if (wrapper.dataset.repliesLoaded === 'true') { return }
     if (!getReplyCount(parentHash)) { return }
     observeReplies(wrapper, parentHash)
@@ -85,6 +91,7 @@ export const getReplyParent = (yaml) => {
 
 export const appendReply = async (parentHash, replyHash, ts, replyBlob = null, replyOpened = null) => {
   const wrapper = document.getElementById(parentHash)
+  if (!shouldExpandRepliesForWrapper(wrapper)) { return false }
   const repliesContainer = wrapper ? wrapper.querySelector('.message-replies') : null
   if (!repliesContainer) { return false }
   const blob = replyBlob || await apds.get(replyHash)
@@ -117,6 +124,7 @@ export const appendReply = async (parentHash, replyHash, ts, replyBlob = null, r
 export const flushPendingReplies = async (parentHash) => {
   const wrapper = document.getElementById(parentHash)
   if (!wrapper) { return }
+  if (!shouldExpandRepliesForWrapper(wrapper)) { return }
   const list = getRepliesForParent(parentHash)
   if (!list.length) { return }
   observeReplies(wrapper, parentHash)
@@ -196,8 +204,8 @@ export const comments = async (hash, blob, div, actionsRow) => {
   replyCountTargets.set(hash, num)
   updateReplyCount(hash)
   const list = getRepliesForParent(hash)
-  if (list.length) {
-    const wrapper = document.getElementById(hash)
+  const wrapper = document.getElementById(hash)
+  if (list.length && shouldExpandRepliesForWrapper(wrapper)) {
     observeReplies(wrapper, hash)
   }
 
