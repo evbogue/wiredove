@@ -5,10 +5,7 @@ import { getModerationState, isBlockedAuthor } from './moderation.js'
 import { adaptiveConcurrency } from './adaptive_concurrency.js'
 import { perfMeasure, perfStart, perfEnd } from './perf.js'
 
-const pubs = new Set()
-const wsBackoff = new Map()
 const HTTP_POLL_INTERVAL_MS = 5000
-const RECENT_LATEST_WINDOW_MS = 24 * 60 * 60 * 1000
 const INCOMING_BATCH_CONCURRENCY = adaptiveConcurrency({ base: 6, min: 2, max: 10, type: 'network' })
 const httpState = {
   baseUrl: null,
@@ -22,33 +19,7 @@ const DEFAULT_CONFIRM_TIMEOUT_MS = 12000
 const DEFAULT_CONFIRM_INTERVAL_MS = 600
 const DEFAULT_CONFIRM_LOOKBACK_MS = 2 * 60 * 1000
 
-let wsReadyResolver
-const createWsReadyPromise = () => new Promise(resolve => {
-  wsReadyResolver = resolve
-})
-export let wsReady = createWsReadyPromise()
-
-const isWsOpen = (ws) => ws && ws.readyState === WebSocket.OPEN
-
-const safeWsSend = (ws, msg) => {
-  if (!isWsOpen(ws)) { return false }
-  try {
-    ws.send(msg)
-    return true
-  } catch (err) {
-    console.warn('ws send failed', err)
-    return false
-  }
-}
-
-const deliverWs = (msg) => {
-  pubs.forEach(pub => {
-    const sent = safeWsSend(pub, msg)
-    if (!sent && pub.readyState !== WebSocket.CONNECTING) {
-      pubs.delete(pub)
-    }
-  })
-}
+export const wsReady = Promise.resolve()
 
 const isHash = (msg) => typeof msg === 'string' && msg.length === 44
 const parseOpenedTimestamp = (opened) => {
@@ -95,11 +66,7 @@ const handleIncoming = async (msg) => {
   if (isHash(msg)) {
     const blob = await apds.get(msg)
     if (blob) {
-      if (pubs.size) {
-        deliverWs(blob)
-      } else {
-        await sendHttp(blob)
-      }
+      await sendHttp(blob)
     }
     return
   }
@@ -226,7 +193,7 @@ const scheduleHttpPoll = () => {
 
 const pollHttp = async () => {
   httpState.pollTimer = null
-  if (!httpState.ready || pubs.size) {
+  if (!httpState.ready) {
     scheduleHttpPoll()
     return
   }
@@ -295,14 +262,10 @@ export const startHttpGossip = async (baseUrl) => {
 }
 
 export const sendWs = async (msg) => {
-  if (pubs.size) {
-    deliverWs(msg)
-  } else {
-    await sendHttp(msg)
-  }
+  await sendHttp(msg)
 }
 
-export const hasWs = () => pubs.size > 0 || httpState.ready
+export const hasWs = () => httpState.ready
 
 export const confirmMessagesPersisted = async (messages, options = {}) => {
   const targets = Array.from(new Set((messages || []).filter((msg) => typeof msg === 'string' && msg.length)))
@@ -344,110 +307,10 @@ registerNetworkSenders({
 })
 
 export const makeWs = async (pub) => {
+  // Websocket transport is intentionally disabled. HTTP gossip now provides the
+  // primary sync path and is simpler to operate across restrictive/mobile
+  // environments, so this bootstrap only starts the HTTP layer.
   const httpBase = toHttpBase(pub)
   await startHttpGossip(httpBase)
-
-  const getBackoff = () => {
-    let state = wsBackoff.get(pub)
-    if (!state) {
-      state = { delayMs: 1000, timer: null }
-      wsBackoff.set(pub, state)
-    }
-    return state
-  }
-
-  const scheduleReconnect = () => {
-    const state = getBackoff()
-    if (state.timer) return
-    state.timer = setTimeout(() => {
-      state.timer = null
-      connectWs()
-      state.delayMs *= 2
-    }, state.delayMs)
-  }
-
-  const resetBackoff = () => {
-    const state = getBackoff()
-    if (state.timer) {
-      clearTimeout(state.timer)
-      state.timer = null
-    }
-    state.delayMs = 1000
-  }
-
-  const connectWs = () => {
-    const ws = new WebSocket(pub)
-
-    ws.onopen = async () => {
-      console.log('OPEN')
-    pubs.add(ws)
-    resetBackoff()
-    wsReadyResolver?.()
-    const now = Date.now()
-    let pubkeys = []
-      try {
-        const next = await apds.getPubkeys()
-        pubkeys = Array.isArray(next) ? next : []
-      } catch (err) {
-        console.warn('getPubkeys failed', err)
-        pubkeys = []
-      }
-      const moderation = await getModerationState()
-      const blocked = new Set(moderation.blockedAuthors || [])
-      const announceable = pubkeys.filter((pub) => !blocked.has(pub))
-      await mapLimit(announceable, INCOMING_BATCH_CONCURRENCY, async (pub) => {
-        if (!safeWsSend(ws, pub)) { return }
-        const latest = await apds.getLatest(pub)
-        if (!latest) { return }
-        const openedTs = parseOpenedTimestamp(latest.opened)
-        if (!openedTs || now - openedTs > RECENT_LATEST_WINDOW_MS) { return }
-        if (!latest.sig) { return }
-        safeWsSend(ws, latest.sig)
-      })
-      //below sends everything in the client to a dovepub pds server
-      //const log = await apds.query()
-      //if (log) {
-      //  const ar = []
-      //  for (const msg of log) {
-      //    ws.send(msg.sig)
-      //    if (msg.text) {
-      //      ws.send(msg.text)
-      //      const yaml = await apds.parseYaml(msg.text)
-      //      //console.log(yaml)
-      //      if (yaml.image && !ar.includes(yaml.image)) {
-      //        const get = await apds.get(yaml.image)
-      //        if (get) {
-      //          ws.send(get)
-      //          ar.push(yaml.image)
-      //        }
-      //      }
-      //    }
-      //    if (!msg.text) {
-      //      const get = await apds.get(msg.opened.substring(13))
-      //      if (get) {ws.send(get)}
-      //    }
-      //  }
-      //}
-    }
-
-  ws.onmessage = async (m) => {
-    await handleIncoming(m.data)
-  }
-
-    ws.onerror = () => {
-      scheduleReconnect()
-    }
-
-    ws.onclose = async () => {
-      console.log('CLOSED')
-      pubs.delete(ws)
-      if (!pubs.size) {
-        wsReady = createWsReadyPromise()
-      }
-      scheduleReconnect()
-    }
-  }
-
-  connectWs()
   return wsReady
 }
