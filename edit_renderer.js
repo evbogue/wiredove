@@ -1,7 +1,7 @@
 import { apds } from 'apds'
 import { h } from 'h'
 import { send } from './send.js'
-import { getOpenedFromQuery } from './utils.js'
+import { getOpenedFromQuery, threadHref } from './utils.js'
 import { parseOpenedTimestamp } from './feed_row_cache.js'
 
 const editsCache = new Map()
@@ -63,7 +63,7 @@ export const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }
   return h('span', {classList: 'edit-summary'}, [
     nameEl,
     h('span', {classList: 'edit-summary-verb'}, ['edited']),
-    h('a', {href: '#' + editHash, classList: 'edit-summary-link'}, [safeSnippet])
+    h('a', {href: threadHref(editHash), classList: 'edit-summary-link'}, [safeSnippet])
   ])
 }
 

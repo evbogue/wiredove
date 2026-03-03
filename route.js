@@ -13,6 +13,7 @@ import { buildProfileHeader } from './profile_header.js'
 import { perfStart, perfEnd } from './perf.js'
 import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
+import { isHash } from './utils.js'
 
 let activeRouteRun = 0
 let activeRouteController = null
@@ -123,6 +124,41 @@ const makeRouteContext = (src, scroller) => {
   return { runId, signal, isActive, store, orchestrator, scroller, src }
 }
 
+const renderThreadByHash = async (panel, threadHash) => {
+  if (!isHash(threadHash)) { return false }
+  panel.replaceChildren()
+  scheduleReplyIndexBuild()
+  let sig = await apds.get(threadHash)
+  if (!sig) {
+    await send(threadHash)
+    sig = await apds.get(threadHash)
+  }
+  if (!sig) {
+    const div = render.insertByTimestamp(panel, threadHash, Date.now())
+    if (!div) { return true }
+    div.dataset.threadRoot = 'true'
+    panel.dataset.ready = 'true'
+    return true
+  }
+  const opened = await apds.open(sig)
+  const author = sig.substring(0, 44)
+  if (await isBlockedAuthor(author)) { return true }
+  await noteInterest(author)
+  await apds.add(sig)
+  let ts = Date.now()
+  if (opened) {
+    const parsed = Number.parseInt(opened.substring(0, 13), 10)
+    if (!Number.isNaN(parsed) && parsed > 0) { ts = parsed }
+  }
+  const div = render.insertByTimestamp(panel, threadHash, ts)
+  if (!div) { return true }
+  div.dataset.threadRoot = 'true'
+  if (opened) { div.dataset.opened = opened }
+  await render.blob(sig, { hash: threadHash, opened })
+  panel.dataset.ready = 'true'
+  return true
+}
+
 export const route = async () => {
   const token = perfStart('route', window.location.hash.substring(1) || 'home')
   const src = window.location.hash.substring(1)
@@ -183,6 +219,13 @@ export const route = async () => {
       panel.appendChild(await importBlob())
       panel.dataset.ready = 'true'
       return
+    }
+
+    if (src.startsWith('thread=')) {
+      if (panel.dataset.ready === 'true') { return }
+      const threadHash = src.substring('thread='.length)
+      const handled = await renderThreadByHash(panel, threadHash)
+      if (handled) { return }
     }
 
     if (src.length < 44 && !src.startsWith('?')) {
