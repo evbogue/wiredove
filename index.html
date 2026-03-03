@@ -9,13 +9,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
     <link rel='manifest' href='./manifest.json' />
-    <script type='importmap'>
-      {
-        "imports": {
-          "apds": "https://esm.sh/gh/evbogue/apds@4934fac/apds.js",
-          "h": "https://esm.sh/gh/evbogue/apds@78abedd/lib/h.js"
-        }
-      }
+    <script>
+      const useLocalApds = new URLSearchParams(window.location.search).get('localApds') === '1'
+      const imports = useLocalApds
+        ? {
+            apds: 'http://127.0.0.1:9000/apds.js',
+            h: 'http://127.0.0.1:9000/lib/h.js'
+          }
+        : {
+            apds: 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js',
+            h: 'https://esm.sh/gh/evbogue/apds@78abedd/lib/h.js'
+          }
+      document.write(
+        `<script type="importmap">${JSON.stringify({ imports })}<\/script>`
+      )
     </script>
     <script type='module' src='app.js'></script>
     <link rel='stylesheet' type='text/css' href='./style.css' />

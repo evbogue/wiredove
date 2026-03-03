@@ -14,7 +14,9 @@ const httpState = {
   baseUrl: null,
   ready: false,
   pollTimer: null,
-  lastSince: 0
+  lastSince: 0,
+  cursor: '',
+  announced: false
 }
 const DEFAULT_CONFIRM_TIMEOUT_MS = 12000
 const DEFAULT_CONFIRM_INTERVAL_MS = 600
@@ -117,21 +119,102 @@ const normalizeSince = (value) => {
   return Math.max(0, Math.floor(parsed))
 }
 
-const pollHttpSince = async (since) => {
+const applyHttpProgress = (data) => {
+  if (!data || typeof data !== 'object') { return }
+  if (typeof data.nextCursor === 'string' && data.nextCursor.length) {
+    httpState.cursor = data.nextCursor
+  }
+  if (Number.isFinite(data.nextSince)) {
+    httpState.lastSince = Math.max(httpState.lastSince, normalizeSince(data.nextSince))
+  }
+}
+
+const resetHttpCursor = () => {
+  httpState.cursor = ''
+  httpState.announced = false
+}
+
+const pollHttpSince = async (since, options = {}) => {
   if (!httpState.ready || !httpState.baseUrl) { return null }
+  const preferSince = options?.preferSince === true
   try {
     const url = new URL('/gossip/poll', httpState.baseUrl)
-    url.searchParams.set('since', String(normalizeSince(since)))
+    if (!preferSince && httpState.cursor) {
+      url.searchParams.set('cursor', httpState.cursor)
+    } else {
+      url.searchParams.set('since', String(normalizeSince(since)))
+    }
     const res = await perfMeasure('net.http.poll', async () => fetch(url.toString(), { cache: 'no-store' }))
+    if (res.status === 400) {
+      const data = await res.json().catch(() => ({}))
+      if (data?.error === 'invalid-cursor') {
+        resetHttpCursor()
+      }
+      return { ok: false, status: res.status, invalidCursor: true }
+    }
     if (!res.ok) { return { ok: false, status: res.status } }
     const data = await res.json()
+    applyHttpProgress(data)
     return {
       ok: true,
       messages: Array.isArray(data.messages) ? data.messages : [],
-      nextSince: Number.isFinite(data.nextSince) ? data.nextSince : null
+      nextSince: Number.isFinite(data.nextSince) ? data.nextSince : null,
+      nextCursor: typeof data.nextCursor === 'string' ? data.nextCursor : ''
     }
   } catch (err) {
     console.warn('http gossip poll failed', err)
+    return { ok: false, error: err }
+  }
+}
+
+const announceHttp = async () => {
+  if (!httpState.ready || !httpState.baseUrl) { return null }
+  try {
+    let authors = []
+    try {
+      const next = await apds.getPubkeys()
+      authors = Array.isArray(next) ? next : []
+    } catch (err) {
+      console.warn('http announce pubkeys failed', err)
+    }
+    const moderation = await getModerationState()
+    const blocked = new Set(moderation.blockedAuthors || [])
+    const announceable = authors.filter((pub) => !blocked.has(pub))
+    const url = new URL('/gossip/announce', httpState.baseUrl)
+    const res = await perfMeasure('net.http.announce', async () => fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        authors: announceable,
+        wantHashes: [],
+        cursor: httpState.cursor,
+        capabilities: {
+          rows: true,
+          blobs: true,
+          cursorResume: true,
+          batchPublish: true
+        }
+      })
+    }))
+    if (res.status === 400) {
+      const data = await res.json().catch(() => ({}))
+      if (data?.error === 'invalid-cursor') {
+        resetHttpCursor()
+      }
+      return { ok: false, status: res.status, invalidCursor: true }
+    }
+    if (!res.ok) { return { ok: false, status: res.status } }
+    const data = await res.json()
+    applyHttpProgress(data)
+    httpState.announced = true
+    return {
+      ok: true,
+      messages: Array.isArray(data.messages) ? data.messages : [],
+      nextSince: Number.isFinite(data.nextSince) ? data.nextSince : null,
+      nextCursor: typeof data.nextCursor === 'string' ? data.nextCursor : ''
+    }
+  } catch (err) {
+    console.warn('http gossip announce failed', err)
     return { ok: false, error: err }
   }
 }
@@ -148,12 +231,15 @@ const pollHttp = async () => {
     return
   }
   try {
+    if (!httpState.announced) {
+      const announced = await announceHttp()
+      if (announced?.ok) {
+        await processIncomingBatch(announced.messages)
+      }
+    }
     const polled = await pollHttpSince(httpState.lastSince)
     if (polled?.ok) {
       await processIncomingBatch(polled.messages)
-      if (Number.isFinite(polled.nextSince)) {
-        httpState.lastSince = Math.max(httpState.lastSince, polled.nextSince)
-      }
     }
   } finally {
     scheduleHttpPoll()
@@ -163,14 +249,15 @@ const pollHttp = async () => {
 const sendHttp = async (msg) => {
   if (!httpState.ready) { return }
   try {
-    const url = new URL('/gossip', httpState.baseUrl)
+    const url = new URL('/gossip/publish', httpState.baseUrl)
     const res = await perfMeasure('net.http.send', async () => fetch(url.toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: msg
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [msg], blobs: [] })
     }))
     if (!res.ok) { return }
     const data = await res.json()
+    applyHttpProgress(data)
     const messages = Array.isArray(data.messages) ? data.messages : []
     await processIncomingBatch(messages)
   } catch (err) {
@@ -182,6 +269,7 @@ export const startHttpGossip = async (baseUrl) => {
   if (httpState.ready) { return }
   httpState.baseUrl = baseUrl
   httpState.ready = true
+  httpState.announced = false
   try {
     const q = await apds.query()
     if (q && q.length) {
@@ -196,6 +284,11 @@ export const startHttpGossip = async (baseUrl) => {
     }
   } catch (err) {
     console.warn('http gossip seed failed', err)
+  }
+  httpState.cursor = ''
+  const announced = await announceHttp()
+  if (announced?.ok) {
+    await processIncomingBatch(announced.messages)
   }
   void pollHttp()
   scheduleHttpPoll()
@@ -228,7 +321,7 @@ export const confirmMessagesPersisted = async (messages, options = {}) => {
 
   while (Date.now() <= deadline && pending.size) {
     attempts += 1
-    const polled = await pollHttpSince(cursor)
+    const polled = await pollHttpSince(cursor, { preferSince: true })
     if (polled?.ok) {
       polled.messages.forEach((msg) => pending.delete(msg))
       if (Number.isFinite(polled.nextSince)) {
