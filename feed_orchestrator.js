@@ -7,14 +7,14 @@ import { attachCachedRows, getFeedRow, upsertFeedRow, parseOpenedTimestamp } fro
 import { adaptiveConcurrency } from './adaptive_concurrency.js'
 import { perfMeasure } from './perf.js'
 import { isHash, getOpenedFromQuery } from './utils.js'
+import { feedRowsEnabled, getRemoteApdsBase } from './bootstrap_config.js'
 
 const HOME_SEED_COUNT = 3
 const HOME_BACKFILL_DEPTH = 6
 const COMMUNITY_QUERY_CONCURRENCY = adaptiveConcurrency({ base: 4, min: 1, max: 8, type: 'network' })
 const HOME_EXPAND_CONCURRENCY = adaptiveConcurrency({ base: 3, min: 1, max: 6 })
 const FEED_ROWS_POLL_MS = 5000
-const FEED_ROWS_ENABLED = false
-const feedRowsEnabled = () => FEED_ROWS_ENABLED
+const getFeedRowsBase = () => getRemoteApdsBase()
 
 
 const mapLimit = async (items, limit, worker) => {
@@ -120,7 +120,7 @@ export class FeedOrchestrator {
       } else if (kind === 'alias') {
         path = '/feed-rows/alias/' + encodeURIComponent(key || '')
       }
-      const url = new URL(path, window.location.origin)
+      const url = new URL(path, getFeedRowsBase())
       url.searchParams.set('since', String(since))
       url.searchParams.set('limit', String(limit))
       const res = await fetch(url.toString(), { cache: 'no-store', signal: timeoutController.signal })
@@ -229,7 +229,7 @@ export class FeedOrchestrator {
   async startAlias(alias) {
     const ar = await perfMeasure(
       'route.directory.fetch',
-      async () => fetch('https://pub.wiredove.net/' + alias).then(r => r.json()),
+      async () => fetch(new URL('/' + alias, getRemoteApdsBase()).toString()).then(r => r.json()),
       'community'
     )
     if (!this.isActive()) { return { query: [], primaryKey: null } }

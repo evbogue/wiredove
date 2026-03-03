@@ -3,6 +3,7 @@ import { apds } from 'apds'
 import { nameDiv, avatarSpan } from './profile.js'
 import { clearQueue, getQueueSize, queueSend } from './network_queue.js'
 import { addBlockedAuthor, getModerationState, removeBlockedAuthor, saveModerationState, splitTextList } from './moderation.js'
+import { getRemoteApdsBase } from './bootstrap_config.js'
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
@@ -101,7 +102,7 @@ const queuePanel = h('div', {classList: 'queue-panel'}, [
 
 const pullEverything = h('button', {
   onclick: async () => {
-    const remotelog = await fetch('https://pub.wiredove.net/all').then(l => l.json())
+    const remotelog = await fetch(new URL('/all', getRemoteApdsBase()).toString()).then(l => l.json())
     for (const m of remotelog) {
       if (m && m.sig) {
         await apds.add(m.sig)
