@@ -7,7 +7,6 @@ import { send } from './send.js'
 import { markdown } from './markdown.js'
 import { imgUpload } from './upload.js'
 import { beginPublishVerification, finishPublishVerification } from './publish_status.js'
-import { threadHref } from './utils.js'
 
 const ENABLE_EVENT_COMPOSER = false
 const parseOpenedTimestamp = (opened) => {
@@ -25,7 +24,7 @@ async function pushLocalNotification({ hash, author, text }) {
         hash,
         author,
         text,
-        url: `${window.location.origin}/${threadHref(hash)}`,
+        url: `${window.location.origin}/#${hash}`,
       }),
     })
   } catch {
@@ -51,7 +50,7 @@ export const composer = async (sig, options = {}) => {
   if (obj.replyHash) {
     const replySymbol = h('span', {classList: 'material-symbols-outlined'}, ['Subdirectory_Arrow_left'])
     const author = h('a', {href: '#' + obj.replyAuthor}, [obj.replyAuthor.substring(0, 10)])
-    const replyContent = h('a', {href: threadHref(obj.replyHash)}, [obj.replyHash.substring(0, 10)])
+    const replyContent = h('a', {href: '#' + obj.replyHash}, [obj.replyHash.substring(0, 10)])
     contextDiv.appendChild(author)
     if (obj.replyName) { author.textContent = obj.replyName}
     if (obj.replyBody) { replyContent.textContent = obj.replyBody.substring(0, 10) + '...'}
@@ -61,7 +60,7 @@ export const composer = async (sig, options = {}) => {
 
   if (isEdit) {
     const editSymbol = h('span', {classList: 'material-symbols-outlined'}, ['Edit'])
-    const editTarget = h('a', {href: threadHref(options.editHash)}, [options.editHash.substring(0, 10)])
+    const editTarget = h('a', {href: '#' + options.editHash}, [options.editHash.substring(0, 10)])
     contextDiv.appendChild(editSymbol)
     contextDiv.appendChild(editTarget)
   }

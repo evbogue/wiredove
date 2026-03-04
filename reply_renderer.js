@@ -7,7 +7,7 @@ import {
   ensureReplyIndex, getReplyCount, getRepliesForParent,
   getReplyDepth, getMaxReplyDepth
 } from './reply_index.js'
-import { getOpenedFromQuery, threadHref } from './utils.js'
+import { getOpenedFromQuery } from './utils.js'
 
 const replyCountTargets = new Map()
 let replyObserver = null
@@ -200,7 +200,7 @@ export const hydrateReplyPreviews = (container) => {
       }, ['Subdirectory_Arrow_left']))
       const linkText = preview.body || (replyHash.substring(0, 10) + '...')
       const link = h('a', {
-        href: threadHref(replyHash),
+        href: '#' + replyHash,
         classList: 'reply-preview-link',
         title: preview.name || ''
       }, [linkText])

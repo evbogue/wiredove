@@ -99,6 +99,12 @@ const scheduleReplyIndexBuild = () => {
   })
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const setRouteMode = (mode) => {
+  document.body.dataset.routeMode = mode
+}
+
 const beginRouteRun = () => {
   activeRouteRun += 1
   if (activeOrchestrator) {
@@ -124,15 +130,12 @@ const makeRouteContext = (src, scroller) => {
   return { runId, signal, isActive, store, orchestrator, scroller, src }
 }
 
-const renderThreadByHash = async (panel, threadHash) => {
+const renderThreadByHash = async (panel, threadHash, knownSig = null) => {
   if (!isHash(threadHash)) { return false }
   panel.replaceChildren()
+  setRouteMode('thread')
   scheduleReplyIndexBuild()
-  let sig = await apds.get(threadHash)
-  if (!sig) {
-    await send(threadHash)
-    sig = await apds.get(threadHash)
-  }
+  let sig = knownSig || await apds.get(threadHash)
   if (!sig) {
     const div = render.insertByTimestamp(panel, threadHash, Date.now())
     if (!div) { return true }
@@ -157,6 +160,42 @@ const renderThreadByHash = async (panel, threadHash) => {
   await render.blob(sig, { hash: threadHash, opened })
   panel.dataset.ready = 'true'
   return true
+}
+
+const resolveHashRoute = async (hash) => {
+  if (!isHash(hash)) { return { kind: 'unknown' } }
+  const checkSig = async () => {
+    const sig = await apds.get(hash)
+    if (!sig) { return null }
+    const opened = await apds.open(sig)
+    if (!opened) { return null }
+    return { sig, opened }
+  }
+
+  const localMessage = await checkSig()
+  if (localMessage) {
+    return { kind: 'thread', sig: localMessage.sig, opened: localMessage.opened }
+  }
+
+  const authorQuery = await apds.query(hash)
+  if (Array.isArray(authorQuery) && authorQuery[0]) {
+    return { kind: 'author' }
+  }
+
+  await send(hash)
+  await sleep(350)
+
+  const fetchedMessage = await checkSig()
+  if (fetchedMessage) {
+    return { kind: 'thread', sig: fetchedMessage.sig, opened: fetchedMessage.opened }
+  }
+
+  const refreshedAuthorQuery = await apds.query(hash)
+  if (Array.isArray(refreshedAuthorQuery) && refreshedAuthorQuery[0]) {
+    return { kind: 'author' }
+  }
+
+  return { kind: 'author' }
 }
 
 export const route = async () => {
@@ -189,6 +228,7 @@ export const route = async () => {
     }
 
     if (src === '' || src.startsWith('share=')) {
+      setRouteMode('feed')
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
@@ -202,6 +242,7 @@ export const route = async () => {
     }
 
     if (src === 'settings') {
+      setRouteMode('settings')
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       if (await apds.pubkey()) {
@@ -214,6 +255,7 @@ export const route = async () => {
     }
 
     if (src === 'import') {
+      setRouteMode('import')
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.appendChild(await importBlob())
@@ -221,14 +263,8 @@ export const route = async () => {
       return
     }
 
-    if (src.startsWith('thread=')) {
-      if (panel.dataset.ready === 'true') { return }
-      const threadHash = src.substring('thread='.length)
-      const handled = await renderThreadByHash(panel, threadHash)
-      if (handled) { return }
-    }
-
     if (src.length < 44 && !src.startsWith('?')) {
+      setRouteMode('alias')
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
@@ -249,8 +285,14 @@ export const route = async () => {
     }
 
     if (src.length === 44) {
-      if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
+      panel.dataset.ready = ''
+      const resolved = await resolveHashRoute(src)
+      if (resolved.kind === 'thread') {
+        await renderThreadByHash(panel, src, resolved.sig)
+        return
+      }
+      setRouteMode('author')
       if (await isBlockedAuthor(src)) { return }
       const selfKey = await apds.pubkey()
       await noteInterest(src)
@@ -275,6 +317,7 @@ export const route = async () => {
     }
 
     if (src.startsWith('?')) {
+      setRouteMode('search')
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
@@ -288,6 +331,7 @@ export const route = async () => {
     }
 
     if (src.length > 44) {
+      setRouteMode('thread')
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       const hash = await apds.hash(src)

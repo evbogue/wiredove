@@ -10,7 +10,7 @@ import { ensureHighlight } from './lazy_vendor.js'
 import { addReplyToIndex, getReplyCount, getReplyDepth } from './reply_index.js'
 import { makeFeedRow, upsertFeedRow, parseOpenedTimestamp } from './feed_row_cache.js'
 import { perfStart, perfEnd } from './perf.js'
-import { isHash, getOpenedFromQuery, threadHref } from './utils.js'
+import { isHash, getOpenedFromQuery } from './utils.js'
 import {
   getEditState, syncPrevious, updateEditSnippet,
   buildEditSummaryLine, buildEditSummaryRow, buildEditMessageShell,
@@ -88,7 +88,9 @@ const renderBody = async (body, replyHash) => {
 
 const getRouteSrc = () => window.location.hash.substring(1)
 
-const isThreadRoute = (src = getRouteSrc()) => src.startsWith('thread=') || src.length > 44
+const getRouteMode = () => document.body?.dataset?.routeMode || ''
+
+const isThreadRoute = (src = getRouteSrc()) => getRouteMode() === 'thread' || src.length > 44
 
 const getMessageKind = (yaml) => (getReplyParent(yaml) ? 'reply' : 'post')
 
@@ -100,7 +102,7 @@ const getRenderMode = (yaml) => {
 const buildReplyContext = (replyHash, className = 'message-reply-context') => {
   if (!replyHash) { return null }
   const preview = h('span', { classList: 'reply-preview' }, [
-    h('a', { href: threadHref(replyHash), classList: 'reply-preview-link' }, [replyHash.substring(0, 10) + '...'])
+    h('a', { href: '#' + replyHash, classList: 'reply-preview-link' }, [replyHash.substring(0, 10) + '...'])
   ])
   preview.dataset.replyPreview = replyHash
   return h('div', { classList: className }, [
@@ -169,7 +171,7 @@ const ensureOriginalMessage = async (targetHash) => {
 const queueEditRefresh = (editHash) => _queueEditRefresh(editHash, ensureOriginalMessage, render.invalidateEdits, render.refreshEdits)
 
 const buildRightMeta = ({ author, hash, blob, qrTarget, raw, ts }) => {
-  const permalink = h('a', {href: threadHref(hash), classList: 'material-symbols-outlined'}, ['Share'])
+  const permalink = h('a', {href: '#' + hash, classList: 'material-symbols-outlined'}, ['Share'])
   return h('span', {classList: 'message-meta'}, [
     h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
     ' ',
@@ -291,7 +293,7 @@ const renderEditMeta = async ({ blob, opened, hash, div, timestamp, contentHash,
   queueEditRefresh(yaml.edit)
   syncPrevious(yaml)
 
-  const ts = h('a', {href: threadHref(hash)}, [humanTime])
+  const ts = h('a', {href: '#' + hash}, [humanTime])
   observeTimestamp(ts, timestamp)
 
   const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
@@ -347,7 +349,7 @@ const buildActionRow = ({ author, hash, blob, opened, editButton, editedHint, ed
 }
 
 const buildMessageDOM = async ({ blob, opened, hash, div, timestamp, contentHash, author, humanTime, img, contentBlob, yaml, renderMode }) => {
-  const ts = h('a', {href: threadHref(hash)}, [humanTime])
+  const ts = h('a', {href: '#' + hash}, [humanTime])
   observeTimestamp(ts, timestamp)
 
   const pubkey = await getCachedPubkey()

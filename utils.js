@@ -2,8 +2,6 @@ import { apds } from 'apds'
 
 export const isHash = (value) => typeof value === 'string' && value.length === 44
 
-export const threadHref = (hash) => '#thread=' + hash
-
 export const getOpenedFromQuery = async (hash) => {
   if (!hash) { return null }
   const query = await apds.query(hash)
