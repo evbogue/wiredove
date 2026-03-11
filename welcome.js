@@ -64,11 +64,19 @@ const rankPosts = async (messages) => {
 export const welcomePanel = async () => {
   const container = h('div', { classList: 'welcome-container' })
 
-  const card = h('div', { classList: 'message welcome-card' }, [
+  const hasKeypair = !!(await apds.pubkey())
+  const cardChildren = [
     h('h2', ['Wiredove']),
-    h('p', ['A distributed social network. Your identity is a cryptographic keypair that lives in your browser \u2014 no accounts, no servers, no one in control.']),
-    await identify()
-  ])
+    h('p', ['A distributed social network. Your identity is a cryptographic keypair that lives in your browser \u2014 no accounts, no servers, no one in control.'])
+  ]
+  if (hasKeypair) {
+    cardChildren.push(h('p', {}, [
+      h('a', { href: '#', style: 'font-weight: 600;' }, ['Go to your feed \u2192'])
+    ]))
+  } else {
+    cardChildren.push(await identify())
+  }
+  const card = h('div', { classList: 'message welcome-card' }, cardChildren)
   container.appendChild(card)
 
   // Fetch and render trending posts

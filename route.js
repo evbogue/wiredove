@@ -171,6 +171,14 @@ export const route = async () => {
       return
     }
 
+    if (src === 'preview') {
+      if (panel.dataset.ready === 'true') { return }
+      panel.replaceChildren()
+      panel.appendChild(await welcomePanel())
+      panel.dataset.ready = 'true'
+      return
+    }
+
     if (src === 'settings') {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()

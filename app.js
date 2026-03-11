@@ -103,14 +103,29 @@ await apds.start('wiredovedbversion1')
 document.body.appendChild(await navbar())
 document.body.appendChild(createImagePopover())
 const hasKeypair = !!(await apds.pubkey())
-if (hasKeypair) {
+const isPreview = window.location.hash === '#preview'
+if (hasKeypair && !isPreview) {
   const connectPromise = connect()
   await route()
   await connectPromise
   await startSync(send)
 } else {
   await route()
+  if (hasKeypair && isPreview) {
+    // Start connect + sync when user navigates away from preview
+    const startNetwork = async () => {
+      window.removeEventListener('hashchange', onLeavePreview)
+      await connect()
+      await startSync(send)
+    }
+    const onLeavePreview = () => {
+      if (window.location.hash !== '#preview') {
+        startNetwork()
+      }
+    }
+    window.addEventListener('hashchange', onLeavePreview)
+  }
 }
 registerServiceWorker()
 
-if (!window.location.hash) { window.location = '#' } 
+if (!window.location.hash) { window.location = '#' }
