@@ -397,15 +397,19 @@ export const settings = async () => {
     //h('hr'),
     h('p', ['Sync']),
     queuePanel,
-    pushEverything,
-    pullEverything,
     h('hr'),
     h('p', ['Moderation']),
     await moderationPanel(),
     h('hr'),
     h('p', ['Import Keypair']),
     await editKey(),
-    deleteEverything
+    deleteEverything,
+    h('hr'),
+    h('details', {}, [
+      h('summary', {style: 'cursor: pointer; font-weight: 600; margin-bottom: 8px;'}, ['Advanced']),
+      pushEverything,
+      pullEverything
+    ])
   ])
 
   return div
