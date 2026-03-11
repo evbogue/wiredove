@@ -2,8 +2,7 @@ import { h } from 'h'
 import { apds } from 'apds'
 import { render } from './render.js'
 import { identify } from './identify.js'
-import { getRemoteApdsBase } from './bootstrap_config.js'
-import { getBootstrapConfig } from './bootstrap_config.js'
+import { getRemoteApdsBase, getBootstrapConfig } from './bootstrap_config.js'
 
 const FEATURED_PUBKEY = getBootstrapConfig().seed
 const MAX_POSTS = 10

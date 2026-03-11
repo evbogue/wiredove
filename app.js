@@ -102,10 +102,15 @@ const createImagePopover = () => {
 await apds.start('wiredovedbversion1')
 document.body.appendChild(await navbar())
 document.body.appendChild(createImagePopover())
-const connectPromise = connect()
-await route()
-await connectPromise
-await startSync(send)
+const hasKeypair = !!(await apds.pubkey())
+if (hasKeypair) {
+  const connectPromise = connect()
+  await route()
+  await connectPromise
+  await startSync(send)
+} else {
+  await route()
+}
 registerServiceWorker()
 
 if (!window.location.hash) { window.location = '#' } 
