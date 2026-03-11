@@ -584,6 +584,29 @@ iframe {
   margin-top: 5px;
 }
 
+.feed-loading {
+  text-align: center;
+  padding: 3em 1em;
+  color: #999;
+  font-size: 0.95em;
+}
+
+.feed-loading::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: #999;
+  animation: loading-pulse 1s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
 .content {margin-top: 5px;} 
 
 .message, .message > * {

@@ -22,9 +22,13 @@ Moved push/pull into a collapsed "Advanced" `<details>` section instead.
 
 ## P1 — High Impact
 
-### WO-05: Add empty state / welcome screen for new users ✅
-**Status:** Done (commit 654ef37)
-Welcome card with intro text, Generate Keypair CTA, and trending posts ranked by engagement. Seed pubkey pinned to top.
+### WO-05: Add empty state / welcome screen → Trending feature ✅
+**Status:** Done — evolved into full `#trending` route (see WORKORDER-TRENDING.md, all T-01 through T-08 complete)
+- `#trending` is a first-class route with engagement-ranked posts from the network
+- Anonymous users redirect from `#` → `#trending`, see onboarding card + trending posts
+- Seed pubkey pinned to top, posts scored by reply count + recency
+- Navbar has trending icon, network sync deferred until leaving `#trending`
+- Files: `trending.js` (new), `route.js`, `app.js`, `identify.js`, `navbar.js`, `style.css`, `sw.js`
 
 ### WO-06: Add loading indicator to feed
 **File:** `route.js`, `adder.js`

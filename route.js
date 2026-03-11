@@ -11,6 +11,16 @@ import { noteInterest } from './sync.js'
 import { isBlockedAuthor } from './moderation.js'
 import { buildProfileHeader } from './profile_header.js'
 import { perfStart, perfEnd } from './perf.js'
+
+const showLoading = (panel) => {
+  const el = h('div', { classList: 'feed-loading' }, ['Loading'])
+  panel.appendChild(el)
+  return el
+}
+const removeLoading = (panel) => {
+  const el = panel.querySelector('.feed-loading')
+  if (el) { el.remove() }
+}
 import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
 import { trendingPanel, onboardingCard } from './trending.js'
@@ -161,10 +171,12 @@ export const route = async () => {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
+      showLoading(panel)
       scheduleReplyIndexBuild()
       const ctx = makeRouteContext(src, panel)
       const { log } = await ctx.orchestrator.startHome()
       if (!ctx.isActive()) { return }
+      removeLoading(panel)
       adder(log || [], src, panel)
       panel.dataset.ready = 'true'
       return
@@ -205,10 +217,12 @@ export const route = async () => {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
+      showLoading(panel)
       scheduleReplyIndexBuild()
       const ctx = makeRouteContext(src, panel)
       const { query, primaryKey } = await ctx.orchestrator.startAlias(src)
       if (!ctx.isActive()) { return }
+      removeLoading(panel)
       adder(query || [], src, panel)
       if (query.length) {
         const header = await buildProfileHeader({ label: src, messages: query, canEdit: false, pubkey: primaryKey })
@@ -228,10 +242,12 @@ export const route = async () => {
       const selfKey = await apds.pubkey()
       await noteInterest(src)
       panel.dataset.paginated = 'true'
+      showLoading(panel)
       scheduleReplyIndexBuild()
       const ctx = makeRouteContext(src, panel)
       const { log } = await ctx.orchestrator.startAuthor(src)
       if (!ctx.isActive()) { return }
+      removeLoading(panel)
       adder(log || [], src, panel)
       const canEdit = !!(selfKey && selfKey === src)
       void waitForFirstRenderedAuthor(panel).then(async (author) => {
@@ -251,10 +267,12 @@ export const route = async () => {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
+      showLoading(panel)
       scheduleReplyIndexBuild()
       const ctx = makeRouteContext(src, panel)
       const { log } = await ctx.orchestrator.startSearch(src)
       if (!ctx.isActive()) { return }
+      removeLoading(panel)
       adder(log || [], src, panel)
       panel.dataset.ready = 'true'
       return
