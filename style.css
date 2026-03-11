@@ -175,8 +175,10 @@ textarea:hover, textarea:focus, input:hover, input:focus, select:hover, select:f
   background: transparent;
 }
 
-textarea:focus, input:focus, select:focus {
-  outline: none !important;
+textarea:focus-visible, input:focus-visible, select:focus-visible,
+button:focus-visible, a:focus-visible {
+  outline: 2px solid #045fd0;
+  outline-offset: 2px;
 }
 
 textarea {
@@ -505,6 +507,11 @@ iframe {
   hr { border: 1px solid #333;}
   pre, code { background: #333; color: #f5f5f5;}
   a {color: #50afe4;}
+
+  textarea:focus-visible, input:focus-visible, select:focus-visible,
+  button:focus-visible, a:focus-visible {
+    outline-color: #50afe4;
+  }
 
   .composer-toggle {
     background: #2a2a2a;
