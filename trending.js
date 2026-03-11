@@ -7,15 +7,47 @@ import { getRemoteApdsBase, getBootstrapConfig } from './bootstrap_config.js'
 const FEATURED_PUBKEY = getBootstrapConfig().seed
 const MAX_POSTS = 10
 
+const isSigned = (msg) => typeof msg === 'string' && msg.length > 44
+
+const fetchAndStoreMessages = async () => {
+  const url = new URL('/gossip/poll', getRemoteApdsBase())
+  url.searchParams.set('since', '0')
+  const res = await fetch(url.toString(), { cache: 'no-store' })
+  if (!res.ok) { return [] }
+  const data = await res.json()
+  const messages = Array.isArray(data.messages) ? data.messages : []
+
+  // Store everything — apds links signed messages to their content blobs
+  for (const msg of messages) {
+    if (typeof msg !== 'string') { continue }
+    await apds.make(msg)
+    if (isSigned(msg)) {
+      await apds.add(msg)
+    }
+  }
+
+  return messages
+}
+
 const rankPosts = async (messages) => {
   const replyCounts = new Map()
   const posts = []
 
-  for (const m of messages) {
-    if (!m || !m.sig || !m.text) { continue }
+  for (const msg of messages) {
+    if (!isSigned(msg)) { continue }
+
+    const opened = await apds.open(msg)
+    if (!opened) { continue }
+
+    const contentHash = opened.substring(13)
+    const content = await apds.get(contentHash)
+    if (!content) { continue }
+
     let yaml
-    try { yaml = await apds.parseYaml(m.text) } catch { continue }
+    try { yaml = await apds.parseYaml(content) } catch { continue }
     if (!yaml) { continue }
+
+    const hash = await apds.hash(msg)
 
     if (yaml.reply) {
       replyCounts.set(yaml.reply, (replyCounts.get(yaml.reply) || 0) + 1)
@@ -23,17 +55,9 @@ const rankPosts = async (messages) => {
 
     if (yaml.reply || yaml.edit) { continue }
 
-    let ts = 0
-    try {
-      const opened = await apds.open(m.sig)
-      if (opened && opened.length >= 13) {
-        ts = Number.parseInt(opened.substring(0, 13), 10) || 0
-      }
-    } catch {}
-
-    const author = m.sig.substring(0, 44)
-    const hash = await apds.hash(m.sig)
-    posts.push({ sig: m.sig, text: m.text, hash, author, ts, yaml })
+    const ts = Number.parseInt(opened.substring(0, 13), 10) || 0
+    const author = msg.substring(0, 44)
+    posts.push({ sig: msg, hash, author, ts, opened })
   }
 
   const now = Date.now()
@@ -73,11 +97,8 @@ export const trendingPanel = async () => {
   const container = h('div', { classList: 'trending-container' })
 
   try {
-    const url = new URL('/all', getRemoteApdsBase()).toString()
-    const res = await fetch(url)
-    if (!res.ok) { return container }
-    const messages = await res.json()
-    if (!Array.isArray(messages) || !messages.length) { return container }
+    const messages = await fetchAndStoreMessages()
+    if (!messages.length) { return container }
 
     const ranked = await rankPosts(messages)
     if (!ranked.length) { return container }
@@ -86,14 +107,11 @@ export const trendingPanel = async () => {
     container.appendChild(scroller)
 
     for (const post of ranked) {
-      await apds.add(post.sig)
-      await apds.make(post.text)
-      const opened = await apds.open(post.sig)
-      const ts = opened ? opened.substring(0, 13) : String(post.ts)
+      const ts = post.opened ? post.opened.substring(0, 13) : String(post.ts)
       const placeholder = render.insertByTimestamp(scroller, post.hash, ts)
       if (placeholder) {
-        if (opened) { placeholder.dataset.opened = opened }
-        await render.blob(post.sig, { hash: post.hash, opened })
+        if (post.opened) { placeholder.dataset.opened = post.opened }
+        await render.blob(post.sig, { hash: post.hash, opened: post.opened })
       }
     }
   } catch (err) {
