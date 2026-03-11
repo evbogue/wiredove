@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v1'
+const CACHE_VERSION = 'v2'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
