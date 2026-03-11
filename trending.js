@@ -93,15 +93,13 @@ export const onboardingCard = async () => {
   ])
 }
 
-export const trendingPanel = async () => {
-  const container = h('div', { classList: 'trending-container' })
-
+export const trendingPanel = async (container) => {
   try {
     const messages = await fetchAndStoreMessages()
-    if (!messages.length) { return container }
+    if (!messages.length) { return }
 
     const ranked = await rankPosts(messages)
-    if (!ranked.length) { return container }
+    if (!ranked.length) { return }
 
     const scroller = h('div', { classList: 'trending-posts' })
     container.appendChild(scroller)
@@ -117,6 +115,4 @@ export const trendingPanel = async () => {
   } catch (err) {
     console.warn('trending: failed to load posts', err)
   }
-
-  return container
 }

@@ -176,7 +176,7 @@ export const route = async () => {
       if (!await apds.pubkey()) {
         panel.appendChild(await onboardingCard())
       }
-      panel.appendChild(await trendingPanel())
+      await trendingPanel(panel)
       panel.dataset.ready = 'true'
       return
     }
