@@ -573,10 +573,15 @@ iframe {
 .welcome-card {
   text-align: center;
   padding: 2em 1.5em;
+  margin-bottom: 8px;
 }
 
 .welcome-card h2 {
   margin-bottom: 8px;
+}
+
+.trending-container {
+  margin-top: 5px;
 }
 
 .content {margin-top: 5px;} 

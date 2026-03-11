@@ -140,6 +140,7 @@ export const navbar = async () => {
       h('img', {src: './dovepurple_sm.png', classList: 'avatar_small', alt: 'Wiredove'})
     ]),
     await composeButton(),
+    h('a', {href: '#trending', classList: 'material-symbols-outlined', style: 'margin-top: 3px;', title: 'Trending', 'aria-label': 'Trending posts'}, ['Local_Fire_Department']),
   ])
 
   const right = h('span', {classList: 'navbar-right'}, [

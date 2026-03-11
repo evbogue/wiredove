@@ -28,7 +28,7 @@ const saveButton = async (keypair) => {
     id: 'saveButton',
     onclick: async () => {
       await apds.put('keypair', keypair)
-      window.location.hash = '#preview'
+      window.location.hash = '#trending'
       document.location.reload()
     }
   }, ['Save'])
@@ -56,7 +56,7 @@ export const genDiv = async () => {
         }, .000001)
       } else {
         await apds.put('keypair', initial)
-        window.location.hash = '#preview'
+        window.location.hash = '#trending'
         document.location.reload()
       }
     }

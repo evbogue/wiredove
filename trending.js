@@ -61,25 +61,17 @@ const rankPosts = async (messages) => {
   return scored.slice(0, MAX_POSTS)
 }
 
-export const welcomePanel = async () => {
-  const container = h('div', { classList: 'welcome-container' })
-
-  const hasKeypair = !!(await apds.pubkey())
-  const cardChildren = [
+export const onboardingCard = async () => {
+  return h('div', { classList: 'message welcome-card' }, [
     h('h2', ['Wiredove']),
-    h('p', ['A distributed social network. Your identity is a cryptographic keypair that lives in your browser \u2014 no accounts, no servers, no one in control.'])
-  ]
-  if (hasKeypair) {
-    cardChildren.push(h('p', {}, [
-      h('a', { href: '#', style: 'font-weight: 600;' }, ['Go to your feed \u2192'])
-    ]))
-  } else {
-    cardChildren.push(await identify())
-  }
-  const card = h('div', { classList: 'message welcome-card' }, cardChildren)
-  container.appendChild(card)
+    h('p', ['A distributed social network. Your identity is a cryptographic keypair that lives in your browser \u2014 no accounts, no servers, no one in control.']),
+    await identify()
+  ])
+}
 
-  // Fetch and render trending posts
+export const trendingPanel = async () => {
+  const container = h('div', { classList: 'trending-container' })
+
   try {
     const url = new URL('/all', getRemoteApdsBase()).toString()
     const res = await fetch(url)
@@ -90,9 +82,7 @@ export const welcomePanel = async () => {
     const ranked = await rankPosts(messages)
     if (!ranked.length) { return container }
 
-    container.appendChild(h('p', { style: 'color: #777; margin-top: 16px; margin-bottom: 4px;' }, ['Recent posts']))
-
-    const scroller = h('div', { classList: 'welcome-posts' })
+    const scroller = h('div', { classList: 'trending-posts' })
     container.appendChild(scroller)
 
     for (const post of ranked) {
@@ -107,7 +97,7 @@ export const welcomePanel = async () => {
       }
     }
   } catch (err) {
-    console.warn('welcome: failed to load recent posts', err)
+    console.warn('trending: failed to load posts', err)
   }
 
   return container
