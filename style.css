@@ -570,6 +570,15 @@ iframe {
 }
 
 
+.welcome-card {
+  text-align: center;
+  padding: 2em 1.5em;
+}
+
+.welcome-card h2 {
+  margin-bottom: 8px;
+}
+
 .content {margin-top: 5px;} 
 
 .message, .message > * {

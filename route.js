@@ -13,6 +13,7 @@ import { buildProfileHeader } from './profile_header.js'
 import { perfStart, perfEnd } from './perf.js'
 import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
+import { welcomePanel } from './welcome.js'
 
 let activeRouteRun = 0
 let activeRouteController = null
@@ -155,6 +156,11 @@ export const route = async () => {
     if (src === '' || src.startsWith('share=')) {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
+      if (!await apds.pubkey()) {
+        panel.appendChild(await welcomePanel())
+        panel.dataset.ready = 'true'
+        return
+      }
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
       const ctx = makeRouteContext(src, panel)
