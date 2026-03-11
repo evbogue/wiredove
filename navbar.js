@@ -14,6 +14,8 @@ const composeButton = async () => {
   return h('a', {
     href: '#',
     classList: hasKey ? 'material-symbols-outlined' : 'material-symbols-outlined disabled',
+    title: 'Compose',
+    'aria-label': 'Compose new post',
     onclick: async (e) => {
       e.preventDefault()
       if (!await apds.pubkey()) {
@@ -134,8 +136,8 @@ export const navbar = async () => {
   })
 
   const left = h('span', {classList: 'navbar-left'}, [
-    h('a', {href: '#', classList: 'material-symbols-outlined'}, [
-      h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})
+    h('a', {href: '#', classList: 'material-symbols-outlined', title: 'Home', 'aria-label': 'Home'}, [
+      h('img', {src: './dovepurple_sm.png', classList: 'avatar_small', alt: 'Wiredove'})
     ]),
     await composeButton(),
   ])
@@ -143,9 +145,9 @@ export const navbar = async () => {
   const right = h('span', {classList: 'navbar-right'}, [
     publishWrap,
     searchInput,
-    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Folder_Data']),
+    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;', title: 'Source code', 'aria-label': 'View source on GitHub'}, ['Folder_Data']),
     notificationsButton(),
-    h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Settings']),
+    h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'margin-top: 3px;', title: 'Settings', 'aria-label': 'Settings'}, ['Settings']),
     span,
   ])
 
@@ -154,7 +156,7 @@ export const navbar = async () => {
   if (!await apds.keypair()) {
     div.appendChild(await identify())
   } else {
-    span.appendChild(h('a', {href: '#' + await apds.pubkey()},[await imageSpan()]))
+    span.appendChild(h('a', {href: '#' + await apds.pubkey(), title: 'Your profile', 'aria-label': 'View your profile'},[await imageSpan()]))
   }
 
   return div
