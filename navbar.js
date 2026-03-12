@@ -154,11 +154,21 @@ export const navbar = async () => {
 
   const div = h('div', {id: 'navbar'}, [left, right])
 
+  let identifyEl = null
   if (!await apds.keypair()) {
-    div.appendChild(await identify())
+    identifyEl = await identify()
+    div.appendChild(identifyEl)
   } else {
     span.appendChild(h('a', {href: '#' + await apds.pubkey(), title: 'Your profile', 'aria-label': 'View your profile'},[await imageSpan()]))
   }
+
+  window.addEventListener('keypair-created', async () => {
+    if (identifyEl) { identifyEl.remove() }
+    const pubkey = await apds.pubkey()
+    span.appendChild(h('a', {href: '#' + pubkey, title: 'Your profile', 'aria-label': 'View your profile'}, [await imageSpan()]))
+    const composeLink = left.querySelector('.disabled')
+    if (composeLink) { composeLink.classList.remove('disabled') }
+  }, { once: true })
 
   return div
 }

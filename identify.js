@@ -11,8 +11,7 @@ export const identify = async () => {
       start.textContent = 'Generating...'
       const keypair = await apds.generate()
       await apds.put('keypair', keypair)
-      window.location.hash = '#trending'
-      document.location.reload()
+      window.dispatchEvent(new CustomEvent('keypair-created'))
     }
   }, ['Generate Keypair'])
 

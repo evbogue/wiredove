@@ -86,11 +86,18 @@ const rankPosts = async (messages) => {
 }
 
 export const onboardingCard = async () => {
-  return h('div', { classList: 'message welcome-card' }, [
+  const card = h('div', { classList: 'message welcome-card' }, [
     h('h2', ['Wiredove']),
     h('p', ['A distributed social network. Your identity is a cryptographic keypair that lives in your browser \u2014 no accounts, no servers, no one in control.']),
     await identify()
   ])
+
+  window.addEventListener('keypair-created', () => {
+    const btn = card.querySelector('#generate-keypair-button')
+    if (btn) { btn.closest('span').remove() }
+  }, { once: true })
+
+  return card
 }
 
 export const trendingPanel = async (container) => {

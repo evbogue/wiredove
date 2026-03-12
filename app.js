@@ -126,6 +126,21 @@ if (hasKeypair && !isTrending) {
     window.addEventListener('hashchange', onLeaveTrending)
   }
 }
+
+window.addEventListener('keypair-created', () => {
+  const startNetwork = async () => {
+    window.removeEventListener('hashchange', onLeave)
+    await connect()
+    await startSync(send)
+  }
+  const onLeave = () => {
+    if (window.location.hash !== '#trending') {
+      startNetwork()
+    }
+  }
+  window.addEventListener('hashchange', onLeave)
+}, { once: true })
+
 registerServiceWorker()
 
 if (!window.location.hash) { window.location = '#' }
