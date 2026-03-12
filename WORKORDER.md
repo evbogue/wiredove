@@ -30,15 +30,13 @@ Moved push/pull into a collapsed "Advanced" `<details>` section instead.
 - Navbar has trending icon, network sync deferred until leaving `#trending`
 - Files: `trending.js` (new), `route.js`, `app.js`, `identify.js`, `navbar.js`, `style.css`, `sw.js`
 
-### WO-06: Add loading indicator to feed
-**File:** `route.js`, `adder.js`
-**Problem:** Navigating to home, a profile, or search shows a blank page for several seconds while content loads.
-**Action:** Insert a simple "Loading..." text node or spinner into the panel at the start of each route handler. Remove it when the first message renders.
+### WO-06: Add loading indicator to feed ✅
+**Status:** Done (commit 17df29f)
+Pulsing "Loading" indicator in feed panels during async data fetches. Covers home, author, alias, and search routes.
 
-### WO-07: Fix keypair generation UX
-**File:** `identify.js:38-71`
-**Problem:** Vanity key search runs at ~0ms interval with no explanation, no progress, no cancel, no skip.
-**Action:** Add explanatory text, "Skip" button, cancel button, throttle display, cap search time.
+### WO-07: Fix keypair generation UX ✅
+**Status:** Done (commit c7b54c0)
+Simplified keypair generation to instant create+save. Vanity keygen moved to Advanced section in settings.
 
 ### WO-08: Allow direct publish without preview step
 **File:** `composer.js:567-593`
