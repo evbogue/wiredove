@@ -1,98 +1,91 @@
 import {h} from 'h'
 import {apds} from 'apds'
 
-const nameDiv = async () => {
-  const name = await apds.get('name')
-
-  const namer = h('input', {
-    placeholder: name || 'Name yourself'
-  })
-
-  const namerDiv = h('span', [
-    namer,
-    h('button', {onclick: async () => {
-      if (namer.value) {
-        namer.placeholder = namer.value
-        await apds.put('name', namer.value)
-        namer.value = ''
-        namerDiv.replaceWith(await genDiv())
-      }
-    }}, ['Save'])
-  ])
-
-  return namerDiv
-}
-
-const saveButton = async (keypair) => {
-  const button = h('button', {
-    id: 'saveButton',
-    onclick: async () => {
-      await apds.put('keypair', keypair)
-      window.location.hash = '#trending'
-      document.location.reload()
-    }
-  }, ['Save'])
-
-  return button
-} 
-
-export const genDiv = async () => {
-  const initial = await apds.generate()
-  const name = await apds.get('name')
-  const pubkey = h('span', {classList: 'pubkey'})
-  const button = h('button', {
-    onclick: async () => {
-      if (name.length > 1) {
-        const alreadyButton = document.getElementById('saveButton')
-        if (alreadyButton) { alreadyButton.remove() }
-        let done = true
-        const genInterval = setInterval(async _ => {
-          const keypair = await apds.generate()
-          pubkey.textContent = keypair.substring(0, 10)
-          if (keypair.substring(0, 2).toUpperCase() === name.substring(0, 2).toUpperCase()) {
-            clearInterval(genInterval)
-            pubkey.after(await saveButton(keypair))
-          }
-        }, .000001)
-      } else {
-        await apds.put('keypair', initial)
-        window.location.hash = '#trending'
-        document.location.reload()
-      }
-    }
-  }, ['Generate'])
-  button.click()
-  const div = h('span', [
-    h('span', [name]),
-    button,
-    ' ',
-    pubkey,
-    ' ',
-  ])
-  return div
-}
-
 export const identify = async () => {
   const span = h('span')
 
   const start = h('button', {
     id: 'generate-keypair-button',
     onclick: async () => {
-      const div2 = h('span', [
-        await nameDiv()
-      ])
-
-      div1.replaceWith(div2)
+      start.disabled = true
+      start.textContent = 'Generating...'
+      const keypair = await apds.generate()
+      await apds.put('keypair', keypair)
+      window.location.hash = '#trending'
+      document.location.reload()
     }
   }, ['Generate Keypair'])
 
   const div1 = h('span', [start])
 
-
   if (!await apds.pubkey()) {
-    span.appendChild(div1)    
+    span.appendChild(div1)
   }
   return span
+}
+
+export const vanityKeygen = () => {
+  const prefix = h('input', { placeholder: 'Prefix (e.g. "ev")' })
+  const status = h('span', { classList: 'vanity-status' })
+  let running = false
+  let genInterval = null
+
+  const stop = h('button', {
+    style: 'display: none;',
+    onclick: () => {
+      if (genInterval) { clearInterval(genInterval) }
+      running = false
+      stop.style.display = 'none'
+      searchBtn.style.display = ''
+    }
+  }, ['Stop'])
+
+  const searchBtn = h('button', {
+    onclick: async () => {
+      const target = prefix.value.trim()
+      if (!target) { return }
+      running = true
+      searchBtn.style.display = 'none'
+      stop.style.display = ''
+      let attempts = 0
+      genInterval = setInterval(async () => {
+        if (!running) { return }
+        const keypair = await apds.generate()
+        attempts++
+        const pub = keypair.substring(0, target.length)
+        if (pub.toUpperCase() === target.toUpperCase()) {
+          clearInterval(genInterval)
+          running = false
+          stop.style.display = 'none'
+          searchBtn.style.display = ''
+          status.textContent = `Match found after ${attempts} attempts`
+          const save = h('button', {
+            onclick: async () => {
+              await apds.put('keypair', keypair)
+              window.location.hash = '#'
+              document.location.reload()
+            }
+          }, ['Use this key'])
+          result.replaceChildren(
+            h('span', { classList: 'pubkey' }, [keypair.substring(0, 10) + '...']),
+            ' ',
+            save
+          )
+        } else {
+          status.textContent = `${attempts} keys checked...`
+        }
+      }, 1)
+    }
+  }, ['Search'])
+
+  const result = h('div')
+
+  return h('div', { classList: 'vanity-keygen' }, [
+    h('p', ['Generate a keypair whose public key starts with a specific prefix.']),
+    h('div', [prefix, ' ', searchBtn, stop]),
+    status,
+    result
+  ])
 }
 
 export const promptKeypair = (message = 'Generate a keypair to post or reply.') => {

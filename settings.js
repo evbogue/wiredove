@@ -4,6 +4,7 @@ import { nameDiv, avatarSpan } from './profile.js'
 import { clearQueue, getQueueSize, queueSend } from './network_queue.js'
 import { addBlockedAuthor, getModerationState, removeBlockedAuthor, saveModerationState, splitTextList } from './moderation.js'
 import { getRemoteApdsBase } from './bootstrap_config.js'
+import { vanityKeygen } from './identify.js'
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
@@ -407,6 +408,9 @@ export const settings = async () => {
     h('hr'),
     h('details', {}, [
       h('summary', {style: 'cursor: pointer; font-weight: 600; margin-bottom: 8px;'}, ['Advanced']),
+      h('p', ['Vanity keypair']),
+      vanityKeygen(),
+      h('hr'),
       pushEverything,
       pullEverything
     ])
