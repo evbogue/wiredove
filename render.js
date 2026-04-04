@@ -706,9 +706,10 @@ render.refreshEdits = async (hash, options = {}) => {
   state.contentDiv.innerHTML = await renderBody(bodySource, baseReply)
   await highlightCodeIn(state.contentDiv)
   hydrateReplyPreviews(state.contentDiv)
-  if (!currentEdit) {
-    await applyProfile(state.contentHash, state.baseYaml)
-  }
+  const profileYaml = currentEdit && currentEdit.yaml
+    ? { ...state.baseYaml, ...currentEdit.yaml }
+    : state.baseYaml
+  await applyProfile(state.contentHash, profileYaml)
 }
 
 render.qr = (hash, blob, target) => {
