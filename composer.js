@@ -445,6 +445,7 @@ export const composer = async (sig, options = {}) => {
     }
     const published = await apds.compose(textarea.value, buildComposeMeta())
     textarea.value = ''
+    mediaControls.destroy?.()
     const signed = await apds.get(published)
     const opened = await apds.open(signed)
 
