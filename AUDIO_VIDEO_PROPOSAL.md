@@ -4,6 +4,12 @@
 
 Let Wiredove publish and play audio/video using ANProto blobs.
 
+## UI direction
+
+![Wiredove audio/video concept](docs/wiredove-audio-video-concept.jpg)
+
+Use this mockup as the visual target for integrating media into the existing mobile Wiredove feed.
+
 ## User flow
 
 ```text
