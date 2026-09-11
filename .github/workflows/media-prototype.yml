@@ -1,0 +1,23 @@
+name: media prototype syntax
+
+on:
+  push:
+    branches:
+      - feature/media-prototype
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          node --check anproto_blob.js
+          node --check media.js
+          node --check composer.js
+          node --check render.js
+          node --check serve.js

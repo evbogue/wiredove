@@ -7,6 +7,7 @@ import { send } from './send.js'
 import { markdown } from './markdown.js'
 import { imgUpload } from './upload.js'
 import { beginPublishVerification, finishPublishVerification } from './publish_status.js'
+import { createMediaComposer } from './media.js'
 
 const ENABLE_EVENT_COMPOSER = false
 const parseOpenedTimestamp = (opened) => {
@@ -99,6 +100,7 @@ export const composer = async (sig, options = {}) => {
     }
   }
   let composerMode = 'message'
+  let mediaAttachment = null
 
   const eventDate = h('input', {type: 'date'})
   const makeSelect = (placeholder, values) => {
@@ -363,8 +365,10 @@ export const composer = async (sig, options = {}) => {
   }
 
   const buildComposeMeta = () => {
-    if (!ENABLE_EVENT_COMPOSER || composerMode !== 'event') { return { ...replyObj } }
-    const meta = { ...replyObj }
+    const baseMeta = { ...replyObj }
+    if (mediaAttachment) Object.assign(baseMeta, mediaAttachment)
+    if (!ENABLE_EVENT_COMPOSER || composerMode !== 'event') { return baseMeta }
+    const meta = baseMeta
     const loc = (eventLocation.dataset.full || eventLocation.value).trim()
     const dateValue = eventDate.value
     const startLabel = eventStartTime.value
@@ -441,6 +445,7 @@ export const composer = async (sig, options = {}) => {
     }
     const published = await apds.compose(textarea.value, buildComposeMeta())
     textarea.value = ''
+    mediaControls.destroy?.()
     const signed = await apds.get(published)
     const opened = await apds.open(signed)
 
@@ -563,11 +568,15 @@ export const composer = async (sig, options = {}) => {
   }
 
   const uploadControls = await imgUpload(textarea)
+  const mediaControls = createMediaComposer({
+    onAttachment: (attachment) => { mediaAttachment = attachment }
+  })
 
   const previewButton = h('button', {style: 'float: right;', onclick: async () => {
     textareaDiv.style = 'display: none;'
     previewDiv.style = 'display: block;'
     uploadControls.style = 'display: none;'
+    mediaControls.style = 'display: none;'
     await renderPreview()
   }}, ['Preview'])
 
@@ -584,6 +593,7 @@ export const composer = async (sig, options = {}) => {
      textareaDiv.style = 'display: block;'
      previewDiv.style = 'display: none;'
      uploadControls.style = 'display: block;'
+     mediaControls.style = 'display: block;'
     }}, ['Cancel'])
   ])
 
@@ -605,6 +615,7 @@ export const composer = async (sig, options = {}) => {
     contextDiv,
     textareaDiv,
     previewDiv,
+    mediaControls,
     uploadControls
   ])
 

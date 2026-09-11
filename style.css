@@ -914,3 +914,75 @@ iframe {
     background: #222;
   }
 }
+
+
+/* ANProto audio/video prototype */
+.media-composer {
+  margin: 8px 0 2px;
+}
+
+.media-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.media-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+}
+
+.media-action .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.media-action.recording {
+  border-color: #d9534f;
+}
+
+.media-compose-status,
+.media-status {
+  margin-top: 6px;
+  color: #777;
+  font-size: 0.85em;
+}
+
+.media-compose-status.error,
+.media-status.error {
+  color: #b00020;
+}
+
+.media-compose-preview,
+.media-post {
+  margin-top: 8px;
+}
+
+.media-player {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 6px;
+  background: #111;
+}
+
+audio.media-player {
+  min-height: 42px;
+}
+
+video.media-player {
+  max-height: 70vh;
+}
+
+@media (prefers-color-scheme: dark) {
+  .media-compose-status,
+  .media-status {
+    color: #a5a5a5;
+  }
+
+  .media-compose-status.error,
+  .media-status.error {
+    color: #f28b82;
+  }
+}

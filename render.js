@@ -11,6 +11,7 @@ import { ensureHighlight, ensureQRious } from './lazy_vendor.js'
 import { addReplyToIndex, ensureReplyIndex, getReplyCount, getRepliesForParent } from './reply_index.js'
 import { makeFeedRow, upsertFeedRow, parseOpenedTimestamp } from './feed_row_cache.js'
 import { perfStart, perfEnd } from './perf.js'
+import { renderMedia } from './media.js'
 
 export const render = {}
 const cache = new Map()
@@ -1200,7 +1201,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
     return
   }
 
-  if (yaml && yaml.body) {
+  if (yaml && (yaml.body || (yaml.blob && ['audio', 'video'].includes(yaml.type)))) {
     div.className = 'content'
     if (yaml.replyHash) { yaml.reply = yaml.replyHash }
     if (messageHash && yaml.reply) {
@@ -1210,7 +1211,8 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       addReplyToIndex(yaml.reply, messageHash, messageTs, messageOpened)
       updateReplyCount(yaml.reply)
     }
-    div.innerHTML = await renderBody(yaml.body, yaml.reply)
+    div.innerHTML = await renderBody(yaml.body || '', yaml.reply)
+    await renderMedia(yaml, div)
     await highlightCodeIn(div)
     hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)
@@ -1221,7 +1223,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
         baseYaml: yaml,
         contentHash,
         contentDiv: div,
-        currentBody: yaml.body
+        currentBody: yaml.body || ''
       })
       await render.refreshEdits(messageHash)
     }
