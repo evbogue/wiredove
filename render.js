@@ -11,6 +11,7 @@ import { ensureHighlight, ensureQRious } from './lazy_vendor.js'
 import { addReplyToIndex, ensureReplyIndex, getReplyCount, getRepliesForParent } from './reply_index.js'
 import { makeFeedRow, upsertFeedRow, parseOpenedTimestamp } from './feed_row_cache.js'
 import { perfStart, perfEnd } from './perf.js'
+import { renderMedia } from './media.js'
 
 export const render = {}
 const cache = new Map()
@@ -1211,6 +1212,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       updateReplyCount(yaml.reply)
     }
     div.innerHTML = await renderBody(yaml.body, yaml.reply)
+    await renderMedia(yaml, div)
     await highlightCodeIn(div)
     hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)
