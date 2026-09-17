@@ -28,6 +28,10 @@ For media:
 
 The broader project direction is sustainable, portable internet fame rather than protocol completeness for its own sake.
 
+## AndFS migration work order
+
+Ev requested new media use AndFS on 2026-09-17. Follow `WORK_ORDER.md` for this migration. The architecture below describes the existing anblob implementation, which must remain readable for old signed posts; it is not the target for new writes.
+
 ## Audio/video architecture
 
 ANProto now has content-addressed blob support in the ANProto repository.

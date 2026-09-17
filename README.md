@@ -10,6 +10,10 @@ For new message notifications subscribe via https://ntfy.sh/wiredove since Wired
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
+### AndFS migration
+
+New multimedia storage is planned to move to AndFS, compatible with the evbogue.com timeline. See [WORK_ORDER.md](WORK_ORDER.md) for the message contract, implementation tickets, legacy anblob preservation, and cross-client acceptance checks. The current runtime still uses anblob.
+
 ### Running with Docker
 
 Build the image from the project root:
