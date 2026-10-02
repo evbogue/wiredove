@@ -466,7 +466,13 @@ class WiredoveWidget extends HTMLElement {
         );
       };
       view.append(composer);
-    } else attachFeed(posts);
+    } else {
+      const roots = posts.filter((post) =>
+        !post.parsed?.reply && !post.parsed?.replyHash
+      );
+      if (roots.length) attachFeed(roots);
+      else view.textContent = "No posts yet.";
+    }
     root.append(view);
   }
 }
