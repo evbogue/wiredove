@@ -4,13 +4,17 @@ import { displayName, human, renderAndFSMedia, visual } from "./render.js";
 
 const css = `
 :host { display:block; color:inherit; font:inherit; }
-.material-symbols-outlined { font-family:"Material Symbols Outlined"; font-size:24px; font-style:normal; font-weight:normal; line-height:1; font-variant-ligatures:common-ligatures; font-feature-settings:"liga" 1; white-space:nowrap; word-wrap:normal; }
+.material-symbols-outlined { font-family:"Material Symbols Outlined"; font-size:20px; font-style:normal; font-weight:normal; line-height:1; font-variant-ligatures:common-ligatures; font-feature-settings:"liga" 1; }
 .controls { align-items:center; display:flex; flex-wrap:wrap; gap:.5rem; }
 .status { color:var(--wiredove-muted, #777); font-size:.875rem; min-height:1.2em; }
+.message-actions { margin-top:.25rem; }
+.reply-action { border:0; background:transparent; color:var(--wiredove-muted, #777); cursor:pointer; font:inherit; padding:0; }
+.reply-action:hover { color:inherit; text-decoration:underline; }
+.message-body .wiredove-inline-image { display:block; max-width:100%; max-height:36rem; height:auto; object-fit:contain; margin-block:.5rem; }
+.message-body .wiredove-legacy-image-label { display:block; color:var(--wiredove-muted, #777); font-size:.88rem; }
 `;
 const wiredoveStyleURL = new URL("../style.css", import.meta.url).href;
-const materialStyleURL =
-  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&icon_names=chat_bubble&display=block";
+const materialStyleURL = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&icon_names=chat_bubble&display=block";
 
 const applyWiredoveStyles = (root) => {
   const stylesheet = document.createElement("link");
@@ -27,20 +31,47 @@ const applyWiredoveStyles = (root) => {
 const appendFormattedText = (target, text) => {
   for (const line of String(text || "").split("\n")) {
     const row = document.createElement("div");
-    for (const part of line.split(/(https?:\/\/[^\s)<>]+|#[A-Za-z0-9_]+)/g)) {
-      if (/^https?:\/\//.test(part)) {
+    const pattern = /!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s)<>]+|#[A-Za-z0-9_]+)/g;
+    let cursor = 0;
+    for (const match of line.matchAll(pattern)) {
+      const [whole, imageAlt, imageSource, linkLabel, linkTarget, token] = match;
+      row.append(document.createTextNode(line.slice(cursor, match.index)));
+      if (imageAlt !== undefined) {
+        if (/^https?:\/\//.test(imageSource)) {
+          const image = document.createElement("img");
+          image.src = imageSource;
+          image.alt = imageAlt || "Attached image";
+          image.loading = "lazy";
+          image.className = "wiredove-inline-image";
+          row.append(image);
+        } else {
+          const label = document.createElement("span");
+          label.className = "wiredove-legacy-image-label";
+          label.textContent = "Image: " + (imageAlt || "Attached image");
+          label.title = "This legacy image is not available here.";
+          row.append(label);
+        }
+      } else if (linkLabel !== undefined) {
         const link = document.createElement("a");
-        link.href = part;
+        link.href = linkTarget;
         link.rel = "noreferrer";
-        link.textContent = part;
+        link.textContent = linkLabel || linkTarget;
         row.append(link);
-      } else if (/^#[A-Za-z0-9_]+$/.test(part)) {
+      } else if (/^https?:\/\//.test(token)) {
+        const link = document.createElement("a");
+        link.href = token;
+        link.rel = "noreferrer";
+        link.textContent = token;
+        row.append(link);
+      } else {
         const tag = document.createElement("a");
-        tag.href = `#?${encodeURIComponent(part)}`;
-        tag.textContent = part;
+        tag.href = "#?" + encodeURIComponent(token);
+        tag.textContent = token;
         row.append(tag);
-      } else row.append(document.createTextNode(part));
+      }
+      cursor = match.index + whole.length;
     }
+    row.append(document.createTextNode(line.slice(cursor)));
     target.append(row);
   }
 };
@@ -139,12 +170,16 @@ class WiredoveMessage extends HTMLElement {
       renderAndFSMedia(parsed, body);
       const actions = document.createElement("div");
       actions.className = "message-actions";
-      const reply = document.createElement("a");
-      reply.className = "material-symbols-outlined";
-      reply.href = "#";
-      reply.textContent = "Chat_Bubble";
+      const reply = document.createElement("button");
+      reply.className = "reply-action";
+      reply.type = "button";
+      reply.setAttribute("aria-label", "Reply to this post");
+      const icon = document.createElement("span");
+      icon.className = "material-symbols-outlined";
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = "chat_bubble";
+      reply.append(icon);
       reply.addEventListener("click", (event) => {
-        event.preventDefault();
         this._onReply?.(post);
       });
       actions.append(reply);

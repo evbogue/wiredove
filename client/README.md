@@ -26,5 +26,10 @@ The module also loads `client/render.js` and `style.css` from wiredove.net.
 The host still supplies verified posts and publishing callbacks; importing
 the module does not fetch a feed or publish messages by itself.
 
+Message bodies render common Markdown links and HTTP(S) images as DOM nodes.
+Legacy image references without a browser-readable URL remain visible as
+captions. The Reply control is a labeled button that calls the host's
+`onReply` callback.
+
 Open `client/embed-demo.html` from a Wiredove server for a working example of
 composing every layer one brick at a time.
