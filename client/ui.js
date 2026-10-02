@@ -4,7 +4,6 @@ import { displayName, human, renderAndFSMedia, visual } from "./render.js";
 
 const css = `
 :host { display:block; color:inherit; font:inherit; }
-.material-symbols-outlined { font-family:"Material Symbols Outlined"; font-size:20px; font-style:normal; font-weight:normal; line-height:1; font-variant-ligatures:common-ligatures; font-feature-settings:"liga" 1; }
 .controls { align-items:center; display:flex; flex-wrap:wrap; gap:.5rem; }
 .status { color:var(--wiredove-muted, #777); font-size:.875rem; min-height:1.2em; }
 .message-actions { margin-top:.25rem; }
@@ -14,18 +13,13 @@ const css = `
 .message-body .wiredove-legacy-image-label { display:block; color:var(--wiredove-muted, #777); font-size:.88rem; }
 `;
 const wiredoveStyleURL = new URL("../style.css", import.meta.url).href;
-const materialStyleURL = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&icon_names=chat_bubble&display=block";
-
 const applyWiredoveStyles = (root) => {
   const stylesheet = document.createElement("link");
   stylesheet.rel = "stylesheet";
   stylesheet.href = wiredoveStyleURL;
-  const material = document.createElement("link");
-  material.rel = "stylesheet";
-  material.href = materialStyleURL;
   const local = document.createElement("style");
   local.textContent = css;
-  root.append(stylesheet, material, local);
+  root.append(stylesheet, local);
 };
 
 const appendFormattedText = (target, text) => {
@@ -174,11 +168,7 @@ class WiredoveMessage extends HTMLElement {
       reply.className = "reply-action";
       reply.type = "button";
       reply.setAttribute("aria-label", "Reply to this post");
-      const icon = document.createElement("span");
-      icon.className = "material-symbols-outlined";
-      icon.setAttribute("aria-hidden", "true");
-      icon.textContent = "chat_bubble";
-      reply.append(icon);
+      reply.textContent = "Reply";
       reply.addEventListener("click", (event) => {
         this._onReply?.(post);
       });
