@@ -51,10 +51,14 @@ const handleBlobRequest = async (request) => {
   return new Response('method not allowed', { status: 405, headers: { allow: 'GET, HEAD, PUT' } })
 }
 
-Deno.serve(async (r) => {
+Deno.serve({ port: Number(Deno.env.get('PORT') || 8000) }, async (r) => {
   const blobResponse = await handleBlobRequest(r)
   if (blobResponse) return blobResponse
   const handled = await notifications.handleRequest(r)
   if (handled) return handled
-  return serveDir(r, { quiet: 'True' })
+  const response = await serveDir(r, { quiet: 'True' })
+  if (new URL(r.url).pathname.startsWith('/client/')) {
+    response.headers.set('Access-Control-Allow-Origin', '*')
+  }
+  return response
 })
