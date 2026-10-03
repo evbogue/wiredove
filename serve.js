@@ -57,7 +57,8 @@ Deno.serve({ port: Number(Deno.env.get('PORT') || 8000) }, async (r) => {
   const handled = await notifications.handleRequest(r)
   if (handled) return handled
   const response = await serveDir(r, { quiet: 'True' })
-  if (new URL(r.url).pathname.startsWith('/client/')) {
+  if (new URL(r.url).pathname.startsWith('/client/') ||
+      ['/embed.js', '/style.css'].includes(new URL(r.url).pathname)) {
     response.headers.set('Access-Control-Allow-Origin', '*')
   }
   return response

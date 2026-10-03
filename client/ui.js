@@ -1,5 +1,6 @@
 // Optional browser UI. Hosts retain ownership of storage, signing, relay
-// behavior, moderation, and styling; these elements only render and emit intent.
+// behavior, moderation, and styling. Widgets optionally load public feeds.
+import { loadWiredoveFeed } from "./feed.js";
 import { displayName, human, renderAndFSMedia, visual } from "./render.js";
 
 const css = `
@@ -339,7 +340,50 @@ class WiredoveThread extends HTMLElement {
 }
 
 class WiredoveWidget extends HTMLElement {
+  static get observedAttributes() { return ["feed", "relay", "limit"]; }
+  get feed() { return this.getAttribute("feed"); }
+  set feed(value) {
+    if (value == null) this.removeAttribute("feed");
+    else this.setAttribute("feed", value);
+  }
+  attributeChangedCallback() { if (this.isConnected) this.refresh(); }
+  disconnectedCallback() { this._loadController?.abort(); }
+  async refresh() {
+    this._loadController?.abort();
+    const controller = new AbortController();
+    this._loadController = controller;
+    this._loadError = null;
+    this._loading = Boolean(this.feed);
+    this._posts = [];
+    this.render();
+    if (!this.feed) return;
+    try {
+      const posts = await loadWiredoveFeed({
+        feed: this.feed,
+        baseURL: this.getAttribute("relay") || "https://pub.wiredove.net",
+        limit: this.getAttribute("limit") || 40,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      this._posts = posts;
+      this.dispatchEvent(new CustomEvent("wiredove-loaded", {
+        detail: { posts }, bubbles: true,
+      }));
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      this._loadError = error.message || "Could not load feed.";
+      this.dispatchEvent(new CustomEvent("wiredove-error", {
+        detail: error, bubbles: true,
+      }));
+    } finally {
+      if (!controller.signal.aborted) { this._loading = false; this.render(); }
+    }
+  }
+
   set posts(value) {
+    this._loadController?.abort();
+    this._loading = false;
+    this._loadError = null;
     this._posts = Array.isArray(value) ? value : [];
     this.render();
   }
@@ -352,6 +396,7 @@ class WiredoveWidget extends HTMLElement {
   }
   connectedCallback() {
     this.render();
+    if (this.feed) this.refresh();
   }
   navigate(route) {
     this._route = route;
@@ -393,7 +438,19 @@ class WiredoveWidget extends HTMLElement {
     if (this.hasAttribute("interactive")) {
       nav.append(button("Write", { type: "compose" }));
     }
+    if (this.feed) {
+      const refresh = button("Refresh", { type: "feed" });
+      refresh.onclick = () => this.refresh();
+      nav.append(refresh);
+    }
     root.append(nav);
+    if (this._loading || this._loadError) {
+      const status = document.createElement("div");
+      status.setAttribute("role", "status");
+      status.textContent = this._loading ? "Loading verified feed…" : this._loadError;
+      root.append(status);
+      return;
+    }
     const view = document.createElement("div");
     view.className = "widget-view";
     const attachFeed = (items) => {
