@@ -67,3 +67,33 @@ obsolete results; in-flight requests retain the relay's 10-second timeout.
 
 Run adapter authentication tests with `node --test client/feed_test.js` or
 `deno test client/feed_test.js`.
+
+## Individual UI modules
+
+The widgets are now individually importable. Register only what a host needs:
+
+```js
+import { defineWiredoveMessage } from "https://wiredove.net/client/ui/message.js";
+defineWiredoveMessage();
+```
+
+Modules export their element class and registration function. `ui/message.js`,
+`ui/composer.js`, `ui/feed.js`, `ui/thread.js`, `ui/media.js`, and `ui/widget.js`
+contain the existing widget implementations. `ui/feed.js` retains the public
+`wiredove-thread-feed` name. `wiredove-media` accepts an `attachment` property
+for current AndFS gateway media. It does not yet implement the website's legacy
+media adapter. Registration functions explicitly register required child elements
+and are idempotent. Imports alone do not register elements or load a feed.
+
+`client/ui.js` preserves the original convenience API; `client/render.js` preserves
+DOM-free helper imports. Canonical helpers live in `ui/format.js`, `ui/body.js`,
+`ui/media-render.js`, and `ui/styles.js`. The aggregate `client/index.js` still
+imports the complete UI set; use individual modules for narrow dependencies.
+
+The website has not yet migrated to these widgets. See
+[the feature inventory](../docs/SHARED_UI_INVENTORY.md) and
+[work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
+in `core/contracts.js`; adapters implementing them are a later stage.
+
+Run module registration/import checks with `node --test client/ui/modules_test.js`.
+These checks do not establish browser layout or website/embed rendering parity.

@@ -366,3 +366,21 @@ mocked, or skipped acceptance checks as observed success.
 - [ ] Cross-origin embed and website integration have observed browser acceptance.
 - [ ] Obsolete production renderers and temporary bridges are removed.
 - [ ] Instructions, examples, architecture checks and validation record agree with code.
+
+## Implementation checkpoint — 2026-10-03
+
+First implementation extracts the existing client widget classes into individual
+`client/ui/` modules and preserves `client/ui.js`/`client/render.js` compatibility
+entry points. It adds an individually registered AndFS gateway media wrapper,
+shared helper modules, target JSDoc contracts, and a feature/DOM-boundary inventory.
+
+- S01: partial. Inventory and target contracts recorded in
+  `docs/SHARED_UI_INVENTORY.md` and `client/core/contracts.js`; full APDS cache
+  verification audit, baseline screenshots and browser checks remain outstanding.
+- S02: structural extraction implemented. Existing behavior tests and registration/
+  dependency checks cover compatibility; actual browser demo verification is pending.
+- S03–S08: not implemented. The website still uses its original renderer, composer,
+  media and transport paths. No shared-website acceptance claim is made.
+
+Next: close the S01 verification/DOM-boundary checkpoints, then wire canonical
+message/media widgets into a website message slice while retaining richer features.
