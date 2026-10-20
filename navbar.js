@@ -55,7 +55,7 @@ export const navbar = async () => {
     if (event.key === 'Escape') searchInput.blur()
     if (event.key === 'Enter') { event.preventDefault(); searchInput.blur() }
   })
-  const span = h('span')
+  const span = h('span', { classList: 'navbar-profile' })
   const publishDesc = h('span', {
     id: 'publish-desc',
     classList: 'publish-desc',

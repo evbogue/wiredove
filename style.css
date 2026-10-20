@@ -386,6 +386,7 @@ iframe {
 .navbar-left, .navbar-right { display: inline-flex; align-items: center; gap: 4px; }
 .navbar-left { flex-shrink: 0; }
 .navbar-right { margin-left: auto; min-width: 0; }
+.navbar-profile { display: inline-flex; align-items: center; flex: 0 0 28px; }
 #navbar .nav-icon, #navbar .notifications-link {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; flex: 0 0 28px; margin: 0; padding: 0;
