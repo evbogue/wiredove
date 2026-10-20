@@ -84,3 +84,25 @@ Prefer implementation over long planning documents when the next step is clear.
 For substantial code changes, inspect the current repository structure first rather than assuming how Wiredove imports ANProto or publishes artifacts.
 
 Keep scope tight: prove the simplest working media path before adding transcoding, adaptive bitrate, live streaming, CDN logic, or a custom media stack.
+
+## Shared UI architecture requirement
+
+Ev requested a single shared UI implementation for the website and embeds on
+2026-10-03. Follow `SHARED_UI_WORK_ORDER.md` for the restructuring.
+
+- Both application frames must consume the same individually importable rendering
+  and UI widgets. The website is the primary consumer, not a parallel renderer.
+- Frames own layout, top-level navigation, adapter selection and capability settings.
+  Shared widgets own message, media, feed, thread, profile, search and composer UI.
+- Put fixes in shared modules. Do not copy rendering code into a frame or maintain
+  separate website/embed versions of body formatting, media or composer behavior.
+- Keep verification/normalization and service contracts shared; storage, identity,
+  transport and moderation policy may be supplied through explicit adapters.
+- Public widget imports must not boot the website, initialize its identity/storage,
+  register its service worker, or require its import map.
+- Preserve website features and immutable signed bytes. Migrate one vertical slice
+  at a time, beginning with shared message/media widgets used by both frames.
+- Current code is not yet compliant: website rendering and client widget rendering
+  are separate. Do not describe the planned restructuring as completed.
+- Require cross-frame behavior checks and an observed separate-origin browser embed
+  before claiming full shared-widget acceptance. Unit tests alone do not prove it.

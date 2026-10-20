@@ -1,123 +1,83 @@
-import {h} from 'h'
-import {apds} from 'apds'
+import { h } from 'h'
+import { apds } from 'apds'
 
-const nameDiv = async () => {
-  const name = await apds.get('name')
-
-  const namer = h('input', {
-    placeholder: name || 'Name yourself'
-  })
-
-  const namerDiv = h('span', [
-    namer,
-    h('button', {onclick: async () => {
-      if (namer.value) {
-        namer.placeholder = namer.value
-        await apds.put('name', namer.value)
-        namer.value = ''
-        namerDiv.replaceWith(await genDiv())
-      }
-    }}, ['Save'])
-  ])
-
-  return namerDiv
-}
-
-const saveButton = async (keypair) => {
-  const button = h('button', {
-    id: 'saveButton',
-    onclick: async () => {
-      await apds.put('keypair', keypair)
-      document.location.reload()
-    }
-  }, ['Save'])
-
-  return button
-} 
-
-export const genDiv = async () => {
-  const initial = await apds.generate()
-  const name = await apds.get('name')
-  const pubkey = h('span', {classList: 'pubkey'})
-  const button = h('button', {
-    onclick: async () => {
-      if (name.length > 1) {
-        const alreadyButton = document.getElementById('saveButton')
-        if (alreadyButton) { alreadyButton.remove() }
-        let done = true
-        const genInterval = setInterval(async _ => {
-          const keypair = await apds.generate()
-          pubkey.textContent = keypair.substring(0, 10)
-          if (keypair.substring(0, 2).toUpperCase() === name.substring(0, 2).toUpperCase()) {
-            clearInterval(genInterval)
-            pubkey.after(await saveButton(keypair))
-          }
-        }, .000001)
+const openIdentitySetup = () => {
+  const existing = document.getElementById('identity-setup')
+  if (existing) { existing.showModal(); return }
+  const dialog = h('dialog', { id: 'identity-setup', classList: 'identity-dialog', 'aria-labelledby': 'identity-title' })
+  const step = h('p', { classList: 'profile-help' }, ['Step 1 of 3'])
+  const title = h('h2', { id: 'identity-title' }, ['Create your identity'])
+  const explanation = h('p', ['Your identity is stored in this browser. You can back it up and import it on another device.'])
+  const name = h('input', { required: true, maxlength: 100, autocomplete: 'nickname', placeholder: 'How should people know you?' })
+  const nameLabel = h('label', { classList: 'profile-field' }, [h('span', ['Display name']), name])
+  const status = h('p', { role: 'status', 'aria-live': 'polite' })
+  const submit = h('button', { type: 'submit', classList: 'primary-action' }, ['Create identity'])
+  const cancel = h('button', { type: 'button', onclick: () => dialog.close() }, ['Cancel'])
+  const mode = h('button', { type: 'button' }, ['Import existing identity'])
+  const key = h('textarea', { rows: 4, placeholder: 'Paste your identity backup', autocomplete: 'off', spellcheck: false })
+  const keyLabel = h('label', { classList: 'profile-field' }, [h('span', ['Identity backup']), key])
+  keyLabel.hidden = true
+  let importing = false
+  let busy = false
+  mode.onclick = () => {
+    importing = !importing
+    step.hidden = importing
+    nameLabel.hidden = importing
+    name.required = !importing
+    keyLabel.hidden = !importing
+    key.required = importing
+    title.textContent = importing ? 'Import your identity' : 'Create your identity'
+    submit.textContent = importing ? 'Import identity' : 'Create identity'
+    mode.textContent = importing ? 'Create a new identity instead' : 'Import existing identity'
+    status.textContent = ''
+    ;(importing ? key : name).focus()
+  }
+  const form = h('form', { onsubmit: async (event) => {
+    event.preventDefault()
+    if (busy) return
+    busy = true
+    submit.disabled = mode.disabled = cancel.disabled = true
+    status.textContent = importing ? 'Checking your identity…' : 'Creating your identity…'
+    try {
+      let keypair
+      if (importing) {
+        keypair = key.value.trim()
+        // Verify that the secret key signs for the public key before storing it.
+        const { an } = await import('https://esm.sh/gh/evbogue/anproto@ddc040c/an.js')
+        const challenge = await an.hash('Wiredove identity import check')
+        const signed = await an.sign(challenge, keypair)
+        if (!(await an.open(signed)).endsWith(challenge) || signed.substring(0, 44) !== keypair.substring(0, 44)) throw new Error('Invalid identity backup. Check that you pasted the complete keypair.')
       } else {
-        await apds.put('keypair', initial)
-        document.location.reload()
+        if (!name.value.trim()) { name.focus(); return }
+        keypair = await apds.generate()
+        await apds.put('name', name.value.trim())
       }
+      await apds.put('keypair', keypair)
+      const pubkey = await apds.pubkey()
+      if (!importing) sessionStorage.setItem('wiredove.setup', pubkey)
+      window.location.hash = pubkey
+      window.location.reload()
+    } catch (error) {
+      status.textContent = importing ? 'Could not import this backup. Check that you pasted the complete, original keypair.' : 'Could not create your identity. Please try again.'
+    } finally {
+      busy = false
+      submit.disabled = mode.disabled = cancel.disabled = false
     }
-  }, ['Generate'])
-  button.click()
-  const div = h('span', [
-    h('span', [name]),
-    button,
-    ' ',
-    pubkey,
-    ' ',
-  ])
-  return div
+  } }, [nameLabel, keyLabel, h('div', { classList: 'profile-actions' }, [submit, cancel]), status, mode])
+  dialog.append(step, title, explanation, form)
+  dialog.addEventListener('cancel', (event) => { if (busy) event.preventDefault() })
+  dialog.addEventListener('close', () => dialog.remove(), { once: true })
+  document.body.append(dialog)
+  dialog.showModal()
+  name.focus()
 }
 
 export const identify = async () => {
   const span = h('span')
-
-  const start = h('button', {
-    id: 'generate-keypair-button',
-    onclick: async () => {
-      const div2 = h('span', [
-        await nameDiv()
-      ])
-
-      div1.replaceWith(div2)
-    }
-  }, ['Generate Keypair'])
-
-  const div1 = h('span', [start])
-
-
-  if (!await apds.pubkey()) {
-    span.appendChild(div1)    
-  }
+  if (!await apds.pubkey()) span.append(h('button', { id: 'generate-keypair-button', onclick: openIdentitySetup }, ['Create identity']))
   return span
 }
 
-export const promptKeypair = (message = 'Generate a keypair to post or reply.') => {
-  const button = document.getElementById('generate-keypair-button')
-  if (button) {
-    button.classList.add('keypair-highlight')
-    button.focus?.()
-    setTimeout(() => {
-      button.classList.remove('keypair-highlight')
-    }, 1800)
-  }
-
-  const existing = document.getElementById('keypair-notice')
-  const notice = existing || h('div', {id: 'keypair-notice', classList: 'keypair-notice'}, [''])
-  notice.textContent = message
-  notice.classList.add('show')
-
-  if (!existing) {
-    const navbar = document.getElementById('navbar')
-    if (navbar && navbar.parentNode) {
-      navbar.parentNode.insertBefore(notice, navbar.nextSibling)
-    } else {
-      document.body.appendChild(notice)
-    }
-  }
-
-  setTimeout(() => {
-    notice.classList.remove('show')
-  }, 3000)
+export const promptKeypair = (message = 'Create an identity to post or reply.') => {
+  openIdentitySetup()
 }

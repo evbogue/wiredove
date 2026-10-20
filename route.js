@@ -64,32 +64,6 @@ const activatePanel = (key, panel) => {
   }
 }
 
-const waitForFirstRenderedAuthor = (container, timeoutMs = 6000) => new Promise((resolve) => {
-  if (!container) { resolve(null); return }
-  const existing = container.querySelector('[data-author]')
-  if (existing && existing.dataset.author) {
-    resolve(existing.dataset.author)
-    return
-  }
-  let resolved = false
-  const observer = new MutationObserver(() => {
-    if (resolved) { return }
-    const found = container.querySelector('[data-author]')
-    if (found && found.dataset.author) {
-      resolved = true
-      observer.disconnect()
-      resolve(found.dataset.author)
-    }
-  })
-  observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-author'] })
-  setTimeout(() => {
-    if (resolved) { return }
-    resolved = true
-    observer.disconnect()
-    resolve(null)
-  }, timeoutMs)
-})
-
 const scheduleReplyIndexBuild = () => {
   void render.buildReplyIndex().then(() => {
     render.refreshVisibleReplies?.()
@@ -218,12 +192,8 @@ export const route = async () => {
       if (!ctx.isActive()) { return }
       adder(log || [], src, panel)
       const canEdit = !!(selfKey && selfKey === src)
-      void waitForFirstRenderedAuthor(panel).then(async (author) => {
-        if (!ctx.isActive()) { return }
-        if (!author || author !== src) { return }
-        const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
-        if (header) { panel.prepend(header) }
-      })
+      const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
+      if (ctx.isActive() && header) panel.prepend(header)
       if (!log || !log[0]) {
         await send(src)
       }

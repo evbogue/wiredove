@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wiredove widget demo</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+    rel="stylesheet"
+  >
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="./embed-demo.css">
+  <script type="module" src="./embed-demo.js"></script>
+  <body>
+    <main>
+      <header>
+        <p>WIREDOVE CLIENT / SOCIAL WIDGET</p>
+        <h1>Wiredove widget demo.</h1>
+        <p>Sample posts and identities show the component interface. Publishing here only changes this demo page.</p>
+        <pre><code>&lt;script type="module"&gt;
+  import { defineWiredoveElements } from "/client/index.js";
+  defineWiredoveElements();
+&lt;/script&gt;
+&lt;wiredove-widget interactive&gt;&lt;/wiredove-widget&gt;</code></pre>
+      </header>
+
+      <section class="embed-grid">
+        <section class="embed" id="widget-example">
+          <wiredove-widget id="widget" interactive></wiredove-widget>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

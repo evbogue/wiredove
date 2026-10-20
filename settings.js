@@ -1,6 +1,6 @@
 import { h } from 'h'
 import { apds } from 'apds'
-import { nameDiv, avatarSpan } from './profile.js'
+import { downloadIdentityBackup } from './identity_backup.js'
 import { clearQueue, getQueueSize, queueSend } from './network_queue.js'
 import { addBlockedAuthor, getModerationState, removeBlockedAuthor, saveModerationState, splitTextList } from './moderation.js'
 
@@ -385,11 +385,13 @@ export const settings = async () => {
     queueTicker = setInterval(updateQueueUi, 500)
   }
   const div = h('div', {classList: 'message'}, [
-    h('p', ['Upload photo']),
-    await avatarSpan(),
+    h('h2', ['Your profile']),
+    h('p', ['Update your photo, name, bio, and links from your profile.']),
+    h('a', { href: '#' + await apds.pubkey() }, ['Open your profile']),
     h('hr'),
-    h('p', ['New name']),
-    await nameDiv(),
+    h('h3', ['Identity backup']),
+    h('p', ['Keep this backup private. Anyone with it can use your identity.']),
+    h('button', { type: 'button', onclick: downloadIdentityBackup }, ['Download identity backup']),
     h('hr'),
     //h('p', ['Did:web']),
     //await didweb(),

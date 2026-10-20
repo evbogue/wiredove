@@ -10,9 +10,25 @@ For new message notifications subscribe via https://ntfy.sh/wiredove since Wired
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
+### Shared UI restructuring
+
+The website and embeds are planned to consume the same individually importable UI widgets, composed by separate application frames. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the current gaps, module boundaries, staged migration, compatibility requirements, and acceptance checks. The current website and widget rendering paths are still separate.
+
 ### AndFS migration
 
 New multimedia storage is planned to move to AndFS, compatible with the evbogue.com timeline. See [WORK_ORDER.md](WORK_ORDER.md) for the message contract, implementation tickets, legacy anblob preservation, and cross-client acceptance checks. The current runtime still uses anblob.
+
+### Creating and backing up an identity
+
+Choose **Create identity**, enter a display name, then add an optional photo,
+bio and profile links. You can edit an empty profile before making your first
+post. Profile saves publish public signed updates; previous versions may remain
+available.
+
+Download an identity backup after setup or from Settings. Keep it private:
+anyone with the file can use the identity. On another browser, choose
+**Create identity → Import existing identity** and paste the backup. Clearing
+browser storage without a backup can lose access to the identity.
 
 ### Running with Docker
 

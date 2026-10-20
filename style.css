@@ -1,6 +1,19 @@
+/* Shared by the application and embeddable Wiredove components. */
+:root {
+  --wiredove-page: #f2f2f2;
+  --wiredove-text: #444;
+  --wiredove-muted: #777;
+  --wiredove-surface: #f8f8f8;
+  --wiredove-border: #f5f5f5;
+  --wiredove-control: #fff;
+  --wiredove-control-hover: #f2f2f2;
+  --wiredove-control-border: #e4e4e4;
+  --wiredove-radius: 5px;
+}
+
 body {
-  background-color: #f2f2f2;
-  color: #444;
+  background-color: var(--wiredove-page);
+  color: var(--wiredove-text);
   font-family: "Source Sans 3", sans-serif;
   max-width: 100%;
   margin-top: 45px;
@@ -28,6 +41,48 @@ body {
   margin: 0;
   border-radius: 50%;
 }
+
+.profile-bio {
+  text-align: left;
+}
+
+.profile-links, .profile-links.profile-view-only {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.profile-links:empty, .profile-links.profile-view-only:empty { display: none; }
+.profile-editing .profile-links.profile-view-only { display: none; }
+
+.profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--wiredove-control-border);
+  border-radius: var(--wiredove-radius);
+  color: inherit;
+  background: var(--wiredove-control);
+  font-size: .9em;
+}
+
+.profile-link:hover { background: var(--wiredove-control-hover); }
+.profile-link span { overflow-wrap: anywhere; min-width: 0; }
+.profile-link:focus-visible { outline: 2px solid #796afd; outline-offset: 2px; }
+.profile-link-icon { width: 18px; height: 18px; flex: 0 0 18px; }
+.profile-header-content { min-width: 0; }
+.profile-links-editor { border: 0; padding: 0; margin: 10px 0; min-width: 0; text-align: left; }
+.profile-links-editor legend { font-weight: 600; }
+.profile-links-editor p { font-size: .9em; }
+.profile-link-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.profile-link-row input { min-width: 0; flex: none; box-sizing: border-box; width: 100%; }
+
+.profile-link-row button { margin-left: 0; }
 
 .profile-bio p {
   margin-bottom: 0;
@@ -73,7 +128,7 @@ blockquote { border-left: 5px solid #f5f5f5; margin-left: none; padding-left: 10
 p, h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 5px;}
 
 pre {
-  //color: #dd1144;
+  /* color: #dd1144; */
   background: #f5f5f5;
   width: 100%;
   display: block;
@@ -102,17 +157,17 @@ code, pre {
 button {
   margin-left: 5px;
   font-size: .85em;
-  background: #fff;
+  background: var(--wiredove-control);
   background-image: linear-gradient(to bottom, #ffffff, #f2f2f2);
-  border: 1px solid #e4e4e4;
+  border: 1px solid var(--wiredove-control-border);
   padding: 5px 10px 5px 10px;
-  border-radius: 5px;
+  border-radius: var(--wiredove-radius);
 }
 
 hr { border: 1px solid #e4e4e4;}
 
 button:hover {
-  background: #f2f2f2;
+  background: var(--wiredove-control-hover);
   cursor: pointer;
 }
 
@@ -166,7 +221,7 @@ textarea, input, select {
   background: #f8f8f8;
   color: #555;
   padding: 5px;
-  //box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
 }
 
 .composer { margin-left: 0; margin-top: 0;}
@@ -405,11 +460,11 @@ iframe {
 
 .message {
   padding: .75em;
-  background: #f8f8f8;
-  border: 1px solid #f5f5f5;
+  background: var(--wiredove-surface);
+  border: 1px solid var(--wiredove-border);
   margin-top: 5px;
   min-height: 35px;
-  border-radius: 5px;
+  border-radius: var(--wiredove-radius);
   overflow: hidden;
   position: relative;
 }
@@ -468,6 +523,17 @@ iframe {
   border: 1px solid #eee;
 }
 
+/* Layout defaults for the browser-native embed primitives. Their internal
+   styles consume the variables above, while hosts remain free to override
+   them at any container boundary. */
+wiredove-thread-feed, wiredove-message, wiredove-composer {
+  display: block;
+}
+
+wiredove-message, wiredove-composer {
+  margin-top: 5px;
+}
+
 .new-posts-banner {
   position: sticky;
   top: 52px;
@@ -484,9 +550,25 @@ iframe {
 }
 
 @media (prefers-color-scheme: dark) {
+  :root {
+    --wiredove-page: #181818;
+    --wiredove-text: #ccc;
+    --wiredove-muted: #aaa;
+    --wiredove-surface: #222;
+    --wiredove-border: #1e1e1e;
+    --wiredove-control: #222;
+    --wiredove-control-hover: #2a2a2a;
+    --wiredove-control-border: #444;
+  }
   body { 
-    background-color: #181818;
-    color: #ccc;
+    background-color: var(--wiredove-page);
+    color: var(--wiredove-text);
+  }
+  button {
+    background: var(--wiredove-control);
+    background-image: none;
+    border-color: var(--wiredove-control-border);
+    color: inherit;
   }
   #navbar {  background-color: rgba(34,34,34,0.5); border-bottom: 1px solid #333; }
   .publish-state { border-color: #4a4a4a; background: #5a5a5a; }
@@ -494,7 +576,7 @@ iframe {
   .publish-state.is-ok { border-color: #3f8050; background: #3cb371; }
   .publish-state.is-fail { border-color: #8c4a4a; background: #d9534f; }
   .publish-desc { color: #bcbcbc; }
-  .message { background-color: #222; border: 1px solid #1e1e1e;}
+  .message { background-color: var(--wiredove-surface); border: 1px solid var(--wiredove-border);}
   .message:hover { border: 1px solid #333;}
   .new-posts-button { background: #3a2f12; border: 1px solid #6b5320; color: #f5d27a; }
 
@@ -985,4 +1067,58 @@ video.media-player {
   .media-status.error {
     color: #f28b82;
   }
+}
+
+/* Shared identity setup and profile editing surfaces. */
+[hidden] { display: none !important; }
+.identity-dialog {
+  width: min(440px, calc(100vw - 40px));
+  max-height: calc(100dvh - 48px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--wiredove-control-border);
+  border-radius: 12px;
+  background: var(--wiredove-surface);
+  color: var(--wiredove-text);
+  font: inherit;
+}
+.identity-dialog::backdrop { background: rgb(0 0 0 / .6); }
+.identity-dialog h2 { margin-bottom: 12px; }
+.identity-dialog p { margin-bottom: 16px; }
+.identity-dialog button, .profile-header button { margin: 0; min-height: 40px; cursor: pointer; }
+.profile-field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin: 16px 0; font-weight: 600; }
+.profile-field input, .profile-field textarea {
+  width: 100%; box-sizing: border-box; margin: 0; padding: 10px 12px;
+  border: 1px solid var(--wiredove-control-border); border-radius: 6px;
+  background: var(--wiredove-control); color: var(--wiredove-text);
+  font: inherit; font-weight: 400; min-height: 44px;
+}
+.profile-field textarea { height: auto; resize: vertical; }
+.profile-field input:focus-visible, .profile-field textarea:focus-visible { outline: 2px solid #796afd !important; outline-offset: 2px; }
+.profile-actions:not(.profile-edit-only), .profile-editing .profile-actions.profile-edit-only { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+button.primary-action { background: #6552d9; color: white; border-color: #6552d9; }
+button:disabled { cursor: default; opacity: .6; }
+.profile-help { color: var(--wiredove-muted); font-size: .9em; line-height: 1.5; }
+.profile-header .profile-avatar { width: 120px; height: 120px; object-fit: cover; flex: 0 0 auto; }
+.profile-header-layout { grid-template-columns: 120px minmax(0, 1fr); gap: 20px; }
+.profile-photo-editor button { display: block; margin-top: 12px; }
+.profile-photo-editor .profile-help { max-width: 140px; }
+.profile-header .profile-links-editor { padding: 0; margin-top: 20px; }
+.profile-link-row { display: block; padding: 12px; border: 1px solid var(--wiredove-control-border); border-radius: 8px; margin: 12px 0; }
+.profile-link-row .profile-field { margin: 8px 0; }
+.profile-link-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.profile-link-controls button { font-size: .85em; }
+.profile-bio-status:empty { display: none; }
+.identity-backup { margin-top: 20px; padding: 16px; border: 1px solid var(--wiredove-control-border); border-radius: 8px; }
+.identity-backup p { margin-bottom: 12px; }
+.photo-crop-preview { display: block; width: min(256px, 100%); height: auto; margin: 16px auto; border-radius: 50%; }
+.profile-setup-intro p { margin-bottom: 12px; }
+@media (max-width: 640px) {
+  .profile-header-layout { grid-template-columns: minmax(0, 1fr); text-align: left; gap: 16px; }
+  .profile-header .profile-avatar { margin: 0; width: 96px; height: 96px; }
+  .profile-editing .profile-photo-editor.profile-edit-only { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+  .profile-photo-editor button { margin: 0; }
+  .profile-photo-editor .profile-help { max-width: none; flex-basis: 100%; }
+  .identity-dialog { padding: 20px; }
 }
