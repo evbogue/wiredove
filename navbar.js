@@ -1,5 +1,5 @@
-import { h } from 'h'
-import { identify, promptKeypair } from './identify.js'
+import { h as element } from 'h'
+import { promptKeypair } from './identify.js'
 import { imageSpan } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
@@ -7,13 +7,25 @@ import { notificationsButton } from "./notifications.js"
 import { getPublishStatusSnapshot, subscribePublishStatus } from './publish_status.js'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from './network_queue.js'
 
+// The legacy helper sets properties; ARIA names must be HTML attributes.
+const h = (tag, attributes, children) => {
+  const node = element(tag, attributes, children)
+  if (attributes && !Array.isArray(attributes)) {
+    for (const [name, value] of Object.entries(attributes)) {
+      if (name.startsWith('aria-')) node.setAttribute(name, value)
+    }
+  }
+  return node
+}
+
 const PUBLISH_STATUS_FLASH_MS = 8000
 
 const composeButton = async () => {
-  const hasKey = !!(await apds.pubkey())
-  return h('a', {
-    href: '#',
-    classList: hasKey ? 'material-symbols-outlined' : 'material-symbols-outlined disabled',
+  return h('button', {
+    type: 'button',
+    title: 'Compose',
+    'aria-label': 'Compose',
+    classList: 'nav-icon material-symbols-outlined',
     onclick: async (e) => {
       e.preventDefault()
       if (!await apds.pubkey()) {
@@ -23,33 +35,37 @@ const composeButton = async () => {
       const compose = await composer()
       document.body.appendChild(compose)
     }
-  }, ['Edit_Square'])
+  }, ['edit_square'])
 }
 
-const searchInput = h('input', {
-  id: 'search',
-  placeholder: 'Search',
-  classList: 'material-symbols-outlined',
-  style: 'width: 75px; height: 14px;',
-  oninput: () => {
-    searchInput.classList = ''
-    window.location.hash = '?' + searchInput.value
-    if (!searchInput.value) { searchInput.classList = 'material-symbols-outlined' }
-    if (searchInput.value === '?') {searchInput.value = ''} 
-  }
-})
-
 export const navbar = async () => {
+  const searchInput = h('input', {
+    id: 'search', type: 'search', placeholder: 'Search',
+    'aria-label': 'Search Wiredove', autocomplete: 'off',
+    oninput: () => { window.location.hash = searchInput.value ? '?' + searchInput.value : '' }
+  })
+  const syncSearch = () => {
+    const hash = window.location.hash.slice(1)
+    try { searchInput.value = hash.startsWith('?') ? decodeURI(hash.slice(1)) : '' }
+    catch { searchInput.value = hash.startsWith('?') ? hash.slice(1) : '' }
+  }
+  window.addEventListener('hashchange', syncSearch)
+  syncSearch()
+  searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') searchInput.blur()
+    if (event.key === 'Enter') { event.preventDefault(); searchInput.blur() }
+  })
   const span = h('span')
   const publishDesc = h('span', {
     id: 'publish-desc',
     classList: 'publish-desc',
     'aria-live': 'polite'
   }, [''])
-  const publishState = h('span', {
+  const publishState = h('button', {
     id: 'publish-state',
     classList: 'publish-state is-idle',
-    tabindex: '0'
+    type: 'button',
+    'aria-describedby': 'publish-desc'
   }, [''])
   let showPublishDesc = false
   const renderPublishDesc = () => {
@@ -71,6 +87,10 @@ export const navbar = async () => {
     showPublishDesc = false
     renderPublishDesc()
   })
+  publishState.addEventListener('click', () => { showPublishDesc = true; renderPublishDesc() })
+  publishState.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { showPublishDesc = false; renderPublishDesc() }
+  })
   const publishWrap = h('span', { classList: 'publish-wrap' }, [
     publishDesc,
     publishState
@@ -79,6 +99,7 @@ export const navbar = async () => {
     publishState.className = className
     publishState.textContent = ''
     publishState.dataset.desc = description
+    publishState.title = description
     publishState.setAttribute('aria-label', description)
     renderPublishDesc()
   }
@@ -134,8 +155,8 @@ export const navbar = async () => {
   })
 
   const left = h('span', {classList: 'navbar-left'}, [
-    h('a', {href: '#', classList: 'material-symbols-outlined'}, [
-      h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})
+    h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
+      h('img', {src: './dovepurple_sm.png', classList: 'avatar_small', alt: ''})
     ]),
     await composeButton(),
   ])
@@ -143,19 +164,22 @@ export const navbar = async () => {
   const right = h('span', {classList: 'navbar-right'}, [
     publishWrap,
     searchInput,
-    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Folder_Data']),
+    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'nav-icon nav-source material-symbols-outlined', title: 'Source on GitHub', 'aria-label': 'Source on GitHub'}, ['folder_data']),
     notificationsButton(),
-    h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Settings']),
+    h('a', {href: '#settings', classList: 'nav-icon material-symbols-outlined', title: 'Settings', 'aria-label': 'Settings'}, ['settings']),
     span,
   ])
 
-  const div = h('div', {id: 'navbar'}, [left, right])
+  const div = h('nav', {id: 'navbar', 'aria-label': 'Main navigation'}, [left, right])
 
   if (!await apds.keypair()) {
-    div.appendChild(await identify())
+    span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair() }, ['person_add']))
   } else {
-    span.appendChild(h('a', {href: '#' + await apds.pubkey(), 'aria-label': 'Your profile'},[await imageSpan()]))
+    const avatar = await imageSpan()
+    avatar.alt = ''
+    span.appendChild(h('a', {href: '#' + await apds.pubkey(), classList: 'nav-icon', title: 'Your profile', 'aria-label': 'Your profile'}, [avatar]))
   }
 
+  renderPublishState()
   return div
 }
