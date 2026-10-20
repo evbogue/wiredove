@@ -42,6 +42,10 @@ body {
   border-radius: 50%;
 }
 
+.profile-bio {
+  text-align: left;
+}
+
 .profile-bio p {
   margin-bottom: 0;
 }
