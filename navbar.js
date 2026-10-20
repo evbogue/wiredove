@@ -1,4 +1,4 @@
-import { h as element } from 'h'
+import { h } from 'h'
 import { identify, promptKeypair } from './identify.js'
 import { imageSpan } from './profile.js'
 import { apds } from 'apds'
@@ -7,74 +7,68 @@ import { notificationsButton } from "./notifications.js"
 import { getPublishStatusSnapshot, subscribePublishStatus } from './publish_status.js'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from './network_queue.js'
 
-// The legacy element helper assigns properties; ARIA needs HTML attributes.
-const h = (tag, attributes, children) => {
-  const node = element(tag, attributes, children)
-  if (attributes && !Array.isArray(attributes)) {
-    for (const [name, value] of Object.entries(attributes)) {
-      if (name.startsWith('aria-')) node.setAttribute(name, value)
-    }
-  }
-  return node
-}
-
 const PUBLISH_STATUS_FLASH_MS = 8000
 
-const icon = (name) => h('span', { classList: 'material-symbols-outlined', 'aria-hidden': 'true' }, [name])
+const composeButton = async () => {
+  const hasKey = !!(await apds.pubkey())
+  return h('a', {
+    href: '#',
+    classList: hasKey ? 'material-symbols-outlined' : 'material-symbols-outlined disabled',
+    onclick: async (e) => {
+      e.preventDefault()
+      if (!await apds.pubkey()) {
+        promptKeypair()
+        return
+      }
+      const compose = await composer()
+      document.body.appendChild(compose)
+    }
+  }, ['Edit_Square'])
+}
 
-const composeButton = () => h('button', {
-  type: 'button', classList: 'nav-compose', title: 'Compose a post',
-  onclick: async () => {
-    if (!await apds.pubkey()) { promptKeypair(); return }
-    document.body.appendChild(await composer())
+const searchInput = h('input', {
+  id: 'search',
+  placeholder: 'Search',
+  classList: 'material-symbols-outlined',
+  style: 'width: 75px; height: 14px;',
+  oninput: () => {
+    searchInput.classList = ''
+    window.location.hash = '?' + searchInput.value
+    if (!searchInput.value) { searchInput.classList = 'material-symbols-outlined' }
+    if (searchInput.value === '?') {searchInput.value = ''} 
   }
-}, [icon('edit_square'), h('span', ['Compose'])])
+})
 
 export const navbar = async () => {
-  const searchInput = h('input', {
-    id: 'search', type: 'search', placeholder: 'Search Wiredove',
-    'aria-label': 'Search Wiredove', autocomplete: 'off',
-    oninput: () => { window.location.hash = searchInput.value ? '?' + searchInput.value : '' }
-  })
-  const syncSearch = () => {
-    const hash = window.location.hash.slice(1)
-    try { searchInput.value = hash.startsWith('?') ? decodeURI(hash.slice(1)) : '' }
-    catch { searchInput.value = hash.startsWith('?') ? hash.slice(1) : '' }
-  }
-  window.addEventListener('hashchange', syncSearch)
-  syncSearch()
-  const search = h('form', { classList: 'nav-search', role: 'search',
-    onsubmit: (event) => { event.preventDefault(); searchInput.focus() }
-  }, [icon('search'), searchInput])
-  const searchToggle = h('button', {
-    type: 'button', classList: 'nav-search-toggle', title: 'Search Wiredove',
-    'aria-label': 'Search Wiredove', 'aria-expanded': 'false', 'aria-controls': 'search',
-    onclick: () => {
-      const open = div.classList.toggle('search-open')
-      searchToggle.setAttribute('aria-expanded', String(open))
-      if (open) searchInput.focus()
-    }
-  }, [icon('search')])
+  const span = h('span')
   const publishDesc = h('span', {
     id: 'publish-desc',
     classList: 'publish-desc',
     'aria-live': 'polite'
   }, [''])
-  const publishState = h('button', {
+  const publishState = h('span', {
     id: 'publish-state',
     classList: 'publish-state is-idle',
-    type: 'button',
-    'aria-expanded': 'false',
-    'aria-controls': 'publish-desc'
+    tabindex: '0'
   }, [''])
   let showPublishDesc = false
   const renderPublishDesc = () => {
-    publishDesc.textContent = publishState.dataset.desc || ''
-    publishDesc.hidden = !showPublishDesc
-    publishState.setAttribute('aria-expanded', String(showPublishDesc))
+    publishDesc.textContent = showPublishDesc ? (publishState.dataset.desc || '') : ''
   }
-  publishState.addEventListener('click', () => {
-    showPublishDesc = !showPublishDesc
+  publishState.addEventListener('mouseenter', () => {
+    showPublishDesc = true
+    renderPublishDesc()
+  })
+  publishState.addEventListener('mouseleave', () => {
+    showPublishDesc = false
+    renderPublishDesc()
+  })
+  publishState.addEventListener('focus', () => {
+    showPublishDesc = true
+    renderPublishDesc()
+  })
+  publishState.addEventListener('blur', () => {
+    showPublishDesc = false
     renderPublishDesc()
   })
   const publishWrap = h('span', { classList: 'publish-wrap' }, [
@@ -83,8 +77,7 @@ export const navbar = async () => {
   ])
   const setPublishIndicator = (className, description) => {
     publishState.className = className
-    publishState.replaceChildren(h('span', { classList: 'publish-dot', 'aria-hidden': 'true' }))
-    publishState.title = description
+    publishState.textContent = ''
     publishState.dataset.desc = description
     publishState.setAttribute('aria-label', description)
     renderPublishDesc()
@@ -103,24 +96,24 @@ export const navbar = async () => {
       if (queueReady) {
         setPublishIndicator(
           'publish-state is-pending',
-          'Sending queued updates'
+          `Gossip queue pending (${queueStatusState.high} high, ${queueStatusState.normal} normal, ${queueStatusState.low} low)`
         )
       } else {
-        setPublishIndicator('publish-state is-fail', 'Offline — updates waiting to send')
+        setPublishIndicator('publish-state is-fail', 'Queue has pending items but no active transport')
       }
       return
     }
     const pendingCount = publishStatusState?.pendingCount || 0
     const last = publishStatusState?.lastResult
     if (pendingCount > 0) {
-      setPublishIndicator('publish-state is-pending', 'Sending — waiting for server confirmation')
+      setPublishIndicator('publish-state is-pending', 'Waiting for pub confirmation')
       return
     }
     if (last && (Date.now() - last.at) < PUBLISH_STATUS_FLASH_MS) {
       if (last.ok) {
-        setPublishIndicator('publish-state is-ok', 'Saved — server confirmed your post')
+        setPublishIndicator('publish-state is-ok', 'Pub confirmed message persistence')
       } else if (last.reason === 'unconfirmed') {
-        setPublishIndicator('publish-state is-pending', 'Still waiting for server confirmation')
+        setPublishIndicator('publish-state is-pending', 'Publish not yet confirmed by pub')
       } else {
         setPublishIndicator('publish-state is-fail', `Publish failed (${last.reason || 'unknown'})`)
       }
@@ -129,7 +122,7 @@ export const navbar = async () => {
       }, PUBLISH_STATUS_FLASH_MS)
       return
     }
-    setPublishIndicator('publish-state is-idle', 'No posts waiting to send')
+    setPublishIndicator('publish-state is-idle', 'No recent publish activity')
   }
   subscribePublishStatus((state) => {
     publishStatusState = state
@@ -140,40 +133,29 @@ export const navbar = async () => {
     renderPublishState()
   })
 
-  const left = h('a', { href: '#', classList: 'nav-home', 'aria-label': 'Wiredove home', title: 'Home' }, [
-    h('img', { src: './dovepurple_sm.png', alt: '', classList: 'avatar_small' }),
-    h('span', { classList: 'nav-wordmark' }, ['Wiredove'])
+  const left = h('span', {classList: 'navbar-left'}, [
+    h('a', {href: '#', classList: 'material-symbols-outlined'}, [
+      h('img', {src: './dovepurple_sm.png', classList: 'avatar_small'})
+    ]),
+    await composeButton(),
   ])
-  const hasKey = !!(await apds.keypair())
-  const summary = h('summary', { 'aria-label': hasKey ? 'Account menu' : 'Wiredove menu', title: hasKey ? 'Account menu' : 'Wiredove menu' }, [
-    hasKey ? await imageSpan() : icon('menu')
+
+  const right = h('span', {classList: 'navbar-right'}, [
+    publishWrap,
+    searchInput,
+    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Folder_Data']),
+    notificationsButton(),
+    h('a', {href: '#settings', classList: 'material-symbols-outlined', style: 'margin-top: 3px;'}, ['Settings']),
+    span,
   ])
-  const links = h('div', { classList: 'nav-account-links' })
-  if (hasKey) links.append(h('a', { href: '#' + await apds.pubkey() }, ['Your profile']))
-  else links.append(await identify())
-  const notifications = notificationsButton()
-  notifications.append(h('span', ['Notifications']))
-  links.append(
-    notifications,
-    h('a', { href: '#settings' }, ['Settings']),
-    h('a', { href: 'https://github.com/evbogue/wiredove' }, ['Wiredove on GitHub'])
-  )
-  const account = h('details', { classList: 'nav-account' }, [summary, links])
-  links.addEventListener('click', (event) => { if (event.target.closest('a, button')) account.open = false })
-  const right = h('div', { classList: 'navbar-right' }, [
-    publishWrap, searchToggle, composeButton(), account
-  ])
-  const div = h('nav', { id: 'navbar', 'aria-label': 'Main navigation' }, [left, search, right])
-  const dismiss = () => { account.open = false; showPublishDesc = false; renderPublishDesc() }
-  document.addEventListener('click', (event) => { if (!account.contains(event.target)) account.open = false; if (!publishWrap.contains(event.target)) { showPublishDesc = false; renderPublishDesc() } })
-  div.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return
-    if (account.open) summary.focus()
-    if (div.classList.contains('search-open')) {
-      div.classList.remove('search-open'); searchToggle.setAttribute('aria-expanded', 'false'); searchToggle.focus()
-    }
-    dismiss()
-  })
-  renderPublishState()
+
+  const div = h('div', {id: 'navbar'}, [left, right])
+
+  if (!await apds.keypair()) {
+    div.appendChild(await identify())
+  } else {
+    span.appendChild(h('a', {href: '#' + await apds.pubkey(), 'aria-label': 'Your profile'},[await imageSpan()]))
+  }
+
   return div
 }
