@@ -2,6 +2,8 @@ import { apds } from 'apds'
 import { h } from 'h'
 import { markdown } from './markdown.js'
 import { send } from './send.js'
+import { profileLinksFromHistory } from './client/profile-links.js'
+import { renderProfileLinks, createProfileLinksEditor } from './client/ui/profile-links.js'
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
@@ -70,14 +72,16 @@ const buildProfileData = async (messages, fallbackName) => {
     bio,
     background,
     image: latestImage,
+    links: profileLinksFromHistory(sorted),
   }
 }
 
-const publishProfileUpdate = async ({ bio, name, image }) => {
+const publishProfileUpdate = async ({ bio, name, image, links }) => {
   const meta = {}
   if (bio !== null && bio !== undefined && bio !== '') { meta.bio = bio }
   if (name !== null && name !== undefined && name !== '') { meta.name = name }
   if (image) { meta.image = image }
+  if (links !== null && links !== undefined) { meta.links = links }
   const published = await apds.compose('', meta)
   const signed = await apds.get(published)
   const opened = await apds.open(signed)
@@ -95,6 +99,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   const fallbackVisualSrc = fallbackVisual && fallbackVisual.src ? fallbackVisual.src : null
   let currentName = profile.name || label
   let currentBio = profile.bio || ''
+  let currentLinks = profile.links || []
   let currentImageHash = profile.image || null
 
   if (canEdit && pubkey) {
@@ -103,6 +108,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
       const localProfile = await buildProfileData(localLog, label)
       if (localProfile.name) { currentName = localProfile.name }
       if (localProfile.bio) { currentBio = localProfile.bio }
+      if (localProfile.links !== null) { currentLinks = localProfile.links }
       if (localProfile.image) { currentImageHash = localProfile.image }
     }
     const localName = await apds.get('name')
@@ -201,7 +207,12 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     placeholder: currentBio ? 'Update your bio' : 'Write a short bio'
   })
   input.value = currentBio
-  const status = h('div', { classList: 'profile-bio-status profile-edit-only' })
+  const linksView = h('nav', { classList: 'profile-view-only' })
+  renderProfileLinks(linksView, currentLinks)
+  const linksEditor = createProfileLinksEditor()
+  linksEditor.setLinks(currentLinks)
+  const status = h('div', { classList: 'profile-bio-status profile-edit-only', role: 'status' })
+  status.setAttribute('aria-live', 'polite')
   const editButton = h('button', { type: 'button', classList: canEdit ? 'profile-view-only' : 'hidden' }, ['Edit profile'])
   if (!canEdit) { editButton.style.display = 'none' }
   const saveButton = h('button', { type: 'button', classList: 'profile-edit-only' }, ['Save profile'])
@@ -213,25 +224,36 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   }
 
   saveButton.onclick = async () => {
+    let linksValue
+    try { linksValue = linksEditor.getLinks() }
+    catch (error) { status.textContent = error.message; return }
+    const linksChanged = JSON.stringify(linksValue) !== JSON.stringify(currentLinks)
     const value = input.value.trim()
     const nameValue = nameEditor.value.trim()
     const nameChanged = nameValue && nameValue !== currentName
     const bioChanged = value && value !== currentBio
     const imageChanged = draftImageHash && draftImageHash !== currentImageHash
-    if (!nameChanged && !bioChanged && !imageChanged) {
+    if (!nameChanged && !bioChanged && !imageChanged && !linksChanged) {
       setEditing(false)
       return
     }
     saveButton.disabled = true
+    cancelButton.disabled = true
+    linksEditor.disabled = true
+    input.disabled = true
+    nameEditor.disabled = true
     status.textContent = 'Saving...'
     try {
       await publishProfileUpdate({
         bio: bioChanged ? value : null,
         name: nameChanged ? nameValue : null,
-        image: imageChanged ? draftImageHash : null
+        image: imageChanged ? draftImageHash : null,
+        links: linksChanged ? linksValue : null
       })
       if (nameChanged) { await apds.put('name', nameValue) }
       if (imageChanged) { await apds.put('image', draftImageHash) }
+      if (linksChanged) { currentLinks = linksValue }
+      renderProfileLinks(linksView, currentLinks)
       if (nameChanged) { currentName = nameValue }
       if (bioChanged) { currentBio = value }
       if (imageChanged) {
@@ -249,10 +271,15 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
       status.textContent = 'Failed to save profile.'
     } finally {
       saveButton.disabled = false
+      cancelButton.disabled = false
+      linksEditor.disabled = false
+      input.disabled = false
+      nameEditor.disabled = false
     }
   }
 
   editButton.onclick = () => {
+    linksEditor.setLinks(currentLinks)
     input.value = currentBio || ''
     nameEditor.value = currentName || ''
     if (draftImageSrc && editAvatarImgRef) { editAvatarImgRef.src = draftImageSrc }
@@ -260,6 +287,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   }
 
   cancelButton.onclick = () => {
+    linksEditor.setLinks(currentLinks)
     input.value = currentBio || ''
     nameEditor.value = currentName || ''
     draftImageHash = currentImageHash
@@ -274,8 +302,10 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     nameText,
     nameEditor,
     bioPreview,
+    linksView,
     editButton,
     input,
+    linksEditor.element,
     saveButton,
     cancelButton,
     status

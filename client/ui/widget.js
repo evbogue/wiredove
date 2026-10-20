@@ -4,6 +4,8 @@ import { displayName } from "./format.js";
 import { defineWiredoveThreadFeed } from "./feed.js";
 import { defineWiredoveThread } from "./thread.js";
 import { defineWiredoveComposer } from "./composer.js";
+import { profileLinksFromHistory } from "../profile-links.js";
+import { renderProfileLinks } from "./profile-links.js";
 import { loadWiredoveFeed } from "../feed.js";
 
 export class WiredoveWidget extends HTMLElement {
@@ -137,7 +139,9 @@ export class WiredoveWidget extends HTMLElement {
       const key = document.createElement("div");
       key.className = "pubkey widget-profile";
       key.textContent = route.author || "";
-      view.append(heading, key);
+      const links = document.createElement("nav");
+      renderProfileLinks(links, profileLinksFromHistory(profilePosts) || []);
+      view.append(heading, key, links);
       attachFeed(profilePosts);
     } else if (route.type === "post") {
       const post = posts.find((item) => item.id === route.id);
