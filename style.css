@@ -1122,3 +1122,58 @@ button:disabled { cursor: default; opacity: .6; }
   .profile-photo-editor .profile-help { max-width: none; flex-basis: 100%; }
   .identity-dialog { padding: 20px; }
 }
+
+/* Application frame navigation. */
+body { margin-top: 76px; }
+#navbar {
+  min-height: 64px; padding: 8px 20px; gap: 24px; z-index: 10;
+  flex-wrap: nowrap; background: rgb(248 248 248 / .95);
+}
+#navbar a { text-decoration: none; color: inherit; }
+#navbar button, #navbar summary, #navbar .notifications-link, #navbar .nav-home {
+  min-width: 44px; min-height: 44px; box-sizing: border-box; margin: 0;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  border-radius: 8px; flex-shrink: 0;
+}
+#navbar button { background: transparent; border: 1px solid transparent; color: inherit; font: inherit; padding: 8px; }
+#navbar :is(a, button, summary, input):focus-visible { outline: 2px solid #796afd; outline-offset: 2px; }
+#navbar :is(button, summary, .notifications-link):hover { background: var(--wiredove-control-hover); }
+.nav-home { gap: 8px; font-weight: 700; font-size: 20px; }
+.navbar-right { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.nav-search { display: flex; align-items: center; gap: 8px; width: min(100%, 420px); min-width: 0; margin: 0 auto;
+  background: var(--wiredove-control); border: 1px solid var(--wiredove-control-border); border-radius: 8px; padding: 0 12px; box-sizing: border-box; }
+.nav-search > span { color: var(--wiredove-muted); }
+#navbar .nav-search input { width: 100%; min-width: 0; min-height: 44px; padding: 0; margin: 0; border: 0; background: transparent; font: inherit; color: inherit; }
+#navbar .nav-compose { gap: 8px; padding: 8px 14px; background: #6552d9; color: white; font-weight: 600; }
+#navbar .nav-compose:hover { background: #5441c8; }
+#navbar .nav-search-toggle { display: none; }
+.nav-account { position: relative; }
+.nav-account summary { list-style: none; }
+.nav-account summary::-webkit-details-marker { display: none; }
+.nav-account-links { position: absolute; right: 0; top: calc(100% + 8px); width: 210px; padding: 6px; border-radius: 10px;
+  background: var(--wiredove-control); border: 1px solid var(--wiredove-control-border); box-shadow: 0 8px 30px rgb(0 0 0 / .15); }
+#navbar .nav-account-links a, #navbar .nav-account-links button { display: flex; min-height: 44px; align-items: center; padding: 8px 12px; box-sizing: border-box; width: 100%; border-radius: 6px; font: inherit; text-align: left; justify-content: flex-start; }
+#navbar .nav-account-links a:hover { background: var(--wiredove-control-hover); }
+#navbar .nav-account-links .notifications-link { gap: 8px; }
+.publish-wrap { position: relative; display: flex; width: auto; }
+#navbar .publish-state { width: 44px; height: 44px; padding: 0; }
+.publish-dot { width: 10px; height: 10px; border-radius: 50%; background: #888; border: 1px solid #777; }
+#navbar .publish-state { background: transparent; border-color: transparent; }
+.is-pending .publish-dot { background: #f2c94c; border-color: #c4a353; }
+.is-ok .publish-dot { background: #3cb371; border-color: #6bb77d; }
+.is-fail .publish-dot { background: #d9534f; border-color: #d98b8b; }
+.publish-desc { position: fixed; right: 8px; top: 72px; transform: none; width: max-content; max-width: min(280px, 80vw); padding: 12px;
+  background: var(--wiredove-control); color: var(--wiredove-text); border: 1px solid var(--wiredove-control-border); border-radius: 8px; font-size: 14px; box-shadow: 0 8px 30px rgb(0 0 0 / .15); white-space: normal; text-align: left; }
+.publish-desc[hidden] { display: none; }
+@media (prefers-color-scheme: dark) { #navbar { background: rgb(34 34 34 / .95); } }
+@media (max-width: 760px) {
+  #navbar { padding: 8px; gap: 8px; }
+  #navbar .nav-wordmark { display: none; }
+  #navbar .nav-search { display: none; }
+  #navbar .nav-search-toggle { display: inline-flex; }
+  #navbar .nav-compose { padding: 8px 10px; }
+  #navbar.search-open { flex-wrap: wrap; }
+  #navbar.search-open .nav-search { display: flex; order: 3; width: 100%; max-width: none; }
+  body:has(#navbar.search-open) { margin-top: 130px; }
+}
+@media (max-width: 380px) { #navbar .nav-compose .material-symbols-outlined { display: none; } }
