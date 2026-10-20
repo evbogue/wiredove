@@ -106,3 +106,88 @@ Ev requested a single shared UI implementation for the website and embeds on
   are separate. Do not describe the planned restructuring as completed.
 - Require cross-frame behavior checks and an observed separate-origin browser embed
   before claiming full shared-widget acceptance. Unit tests alone do not prove it.
+
+## Production deployment (verified 2026-10-20)
+
+- SSH: `ssh root@evbogue.com`. Read `/root/AGENTS.md` for host operations.
+- Public site: `https://wiredove.net/`; backend port: `8081`.
+- Service: `wiredove.service`, unit: `/etc/systemd/system/wiredove.service`.
+- HTTPS uses the existing custom Deno `reverse-proxy.service`, not nginx/Caddy.
+  `/root/reverse-proxy/domains.json` maps `wiredove.net` to `8081`.
+  Ordinary Wiredove releases do not require proxy, DNS, or certificate changes.
+- `/root/wiredove` is the original checkout and contains production-only edits.
+  Preserve it; do not reset/clean it or overwrite its `serve.js`/`style.css`.
+- Releases use detached Git worktrees: `/root/wiredove-release-<short-sha>`.
+  Inspect `systemctl cat wiredove.service` to discover the active release;
+  do not assume the newest directory is active. Last deployed application commit
+  in this session: `d98b0bb`.
+- Runtime configuration: `PORT=8081` and
+  `VAPID_CONFIG_PATH=/root/wiredove/config.json`.
+  Each release's `data` symlinks to `/root/wiredove/data` so notification state,
+  subscriptions, and stored media survive release changes. Do not copy repository
+  defaults over production configuration or log its secrets.
+
+Deployment procedure:
+
+1. Inspect local Git status and fetch origin. Preserve unfinished work. A divergent
+   checkout with media edits is not automatically the release to deploy; use the
+   reviewed commit. Do not resolve unrelated merge conflicts as part of deployment.
+2. Run relevant checks and browser flows, commit the intended changes, and push to
+   GitHub. A push alone does not deploy this server; no automatic production deploy
+   workflow is configured in the repository.
+3. On the host, fetch in `/root/wiredove`, then create a new detached release:
+   `git worktree add --detach /root/wiredove-release-<short-sha> <full-sha>`.
+   Link its `data` to `/root/wiredove/data` and run `deno check serve.js` there.
+4. Back up the current service unit. Change only its `WorkingDirectory` to the new
+   release, keeping the runtime environment and permissions intact. Run
+   `systemctl daemon-reload` and `systemctl restart wiredove.service`.
+5. Confirm `systemctl is-active wiredove.service reverse-proxy.service`, inspect
+   `journalctl -u wiredove.service -n 20 --no-pager`, and check public HTTP responses.
+   Compare important live JS/CSS files with the reviewed release using SHA-256;
+   HTTP 200 alone does not prove the new version is deployed.
+6. Smoke-test the live UI at mobile width. Retain the previous release and unit
+   backup. Roll back by restoring the previous `WorkingDirectory`/unit, reloading
+   systemd, restarting Wiredove, and verifying the public site again. Code rollback
+   does not undo published signed updates or data migrations.
+
+For local evaluation, run `PORT=8000 deno run --allow-net --allow-read --allow-write --allow-env serve.js` from the chosen checkout. Use another free
+port and an isolated browser context when testing a fresh identity.
+
+## Identity and profile implementation lessons
+
+- New identities must have an editable profile before their first post. Do not
+  gate the profile header on finding a rendered author message.
+- `client/ui/profile-editor.js` owns shared editor fields and photo cropping;
+  `client/ui/profile-links.js` owns link editing/rendering. Frames provide storage,
+  signing, publication, and identity. Onboarding and later edits use the same editor.
+- At the pinned APDS version, `compose()` overwrites explicit name/image metadata
+  with local values. Profile updates construct the intended metadata with
+  `createYaml()` and `sign()`, retaining the previous-message reference. Check the
+  signed payload, not only the optimistic preview, when testing metadata changes.
+- APDS normally persists hash/opened indexes on a timer. A successful profile save
+  explicitly flushes them before reporting success so immediate reload is safe.
+  Recheck this behavior if upgrading APDS.
+- Empty bio is an explicit signed value. Distinguish missing metadata from an empty
+  string, and stop searching older history once an explicit empty bio is found.
+- Identity backups contain secret keys. Never commit, screenshot, or log them.
+  Test import in memory/isolated contexts; validate signing against the public key
+  before accepting a backup. Keep backup download accessible from Settings.
+
+## Browser testing and UI verification
+
+- `tests/profile-setup.browser.js` is a Playwright suite function, run through the
+  browser testing tool against a local server. It uses isolated contexts so it
+  cannot replace the user's active identity. See `client/README.md` for coverage.
+- Localhost uses the normal network transport: publishing from a local UI can
+  broadcast public signed updates. Use clearly named test identities, minimal
+  fixtures, and never use the user's real identity for automated publication tests.
+- Check mobile and desktop, light and dark themes, keyboard focus, empty states,
+  save/cancel, invalid links, photo crop, backup import, and immediate reload.
+  Review screenshots as well as accessibility snapshots: passing interactions do
+  not prove the layout looks correct.
+- Reset inherited flex properties when moving inputs into vertically stacked
+  labels. A leftover `flex-basis: 120px/200px` made link inputs excessively tall.
+- `sw.js` caches app assets with stale-while-revalidate. Account for service-worker
+  cache updates when deploying UI changes; bump the shell cache version for a
+  coordinated refresh. Test warm-cache upgrades as well as fresh contexts, and
+  never clear browser identity storage just to refresh the application.
