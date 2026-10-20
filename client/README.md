@@ -97,3 +97,20 @@ in `core/contracts.js`; adapters implementing them are a later stage.
 
 Run module registration/import checks with `node --test client/ui/modules_test.js`.
 These checks do not establish browser layout or website/embed rendering parity.
+
+### Profile editing
+
+`ui/profile-editor.js` exports `createProfileEditor({ name, bio, links,
+imageSrc, onImageChange })`. This UI-only module supplies labeled name/bio
+fields, the shared links editor, and an accessible photo crop dialog. Frames
+own loading, signing, persistence and publishing. `onImageChange` receives the
+confirmed PNG crop; `reset(...)` discards drafts and `disabled` locks the editor
+during publication. The website uses this same editor for initial setup and
+later profile changes.
+
+`tests/profile-setup.browser.js` is a browser-suite function to run with a page
+on a local Wiredove origin. It creates isolated browser contexts and covers new
+identities without posts, crop apply/cancel, link validation/reordering, signed
+metadata, immediate-reload persistence, cancel, backup download/import, and
+skipping optional setup. It publishes clearly named test profile updates through
+the app's normal transport. It does not modify the active browser identity.

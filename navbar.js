@@ -154,7 +154,7 @@ export const navbar = async () => {
   if (!await apds.keypair()) {
     div.appendChild(await identify())
   } else {
-    span.appendChild(h('a', {href: '#' + await apds.pubkey()},[await imageSpan()]))
+    span.appendChild(h('a', {href: '#' + await apds.pubkey(), 'aria-label': 'Your profile'},[await imageSpan()]))
   }
 
   return div

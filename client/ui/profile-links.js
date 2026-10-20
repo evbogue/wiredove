@@ -69,7 +69,15 @@ export function createProfileLinksEditor() {
       url.placeholder = 'https://example.com';
       url.value = draft.url;
       url.oninput = () => { draft.url = url.value; icon.replaceChildren(...createProfileLinkIcon(draft.url).childNodes); };
-      row.append(icon, label, url);
+      const labelField = document.createElement('label');
+      labelField.className = 'profile-field';
+      labelField.append('Label (optional)', label);
+      const urlField = document.createElement('label');
+      urlField.className = 'profile-field';
+      urlField.append('URL', url);
+      const controls = document.createElement('div');
+      controls.className = 'profile-link-controls';
+      row.append(icon, labelField, urlField, controls);
       const control = (text, action, disabled = false) => {
         const button = document.createElement('button');
         button.type = 'button';
@@ -77,10 +85,10 @@ export function createProfileLinksEditor() {
         button.setAttribute('aria-label', `${text} link ${index + 1}`);
         button.disabled = disabled;
         button.onclick = () => { action(); draw(); };
-        row.append(button);
+        controls.append(button);
       };
-      control('Move up', () => { [drafts[index - 1], drafts[index]] = [drafts[index], drafts[index - 1]]; }, index === 0);
-      control('Move down', () => { [drafts[index + 1], drafts[index]] = [drafts[index], drafts[index + 1]]; }, index === drafts.length - 1);
+      if (drafts.length > 1) control('Move up', () => { [drafts[index - 1], drafts[index]] = [drafts[index], drafts[index - 1]]; }, index === 0);
+      if (drafts.length > 1) control('Move down', () => { [drafts[index + 1], drafts[index]] = [drafts[index], drafts[index + 1]]; }, index === drafts.length - 1);
       control('Remove', () => drafts.splice(index, 1));
       rows.append(row);
     });
