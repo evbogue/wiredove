@@ -74,6 +74,8 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
           await page.evaluate(()=>Promise.all([...bodyNode.querySelectorAll('wiredove-image-gallery')].flatMap(g=>[...g.querySelectorAll('img')].map(img=>img.complete?Promise.resolve():new Promise(r=>{img.addEventListener('load',r,{once:true});img.addEventListener('error',r,{once:true});})))));
           for(const width of [240,320,660]) {
             await page.locator('#fixture').evaluate((el,width)=>el.style.width=width+'px',width);
+            // Let container queries and percentage image sizes settle after resizing.
+            await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
             const size=await gallery.boundingBox();assert.ok(size.width<=width+1);assert.ok(size.height>50&&size.height<1000,JSON.stringify({count,width,size}));
             assert.equal(await gallery.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,JSON.stringify({surface,count,width,detail:await gallery.evaluate(el=>({scroll:el.scrollWidth,client:el.clientWidth,html:el.outerHTML,display:getComputedStyle(el).display}))}));
           }
