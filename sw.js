@@ -18,13 +18,14 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v7-composer-layout'
+const CACHE_VERSION = 'v8-image-popover-close'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/client/ui/image-popover.js',
   '/manifest.json',
   '/favicon.ico',
   '/dovepurple_sm.png',
