@@ -15,7 +15,10 @@ const mocks = {
       visual: async () => null, put: async () => {},
       get: async key => key === 'published' ? 'signed-proof' : key === 'content-hash' ? 'encoded-content' : null,
       open: async () => '1234567890123content-hash',
-      compose: async (body, meta) => {
+      getHashLog: async () => [], getOpenedLog: async () => [],
+      createYaml: async meta => JSON.stringify(meta),
+      sign: async text => {
+        const meta = JSON.parse(text);
         if (window.failSave) throw Error('offline');
         window.published.push(structuredClone(meta));
         window.historyMessages.unshift({ts: Date.now(), text: JSON.stringify(meta)});
@@ -28,7 +31,7 @@ const mocks = {
     for (const child of content) if (child) el.append(child);
     return el;
   }`,
-  '/markdown.js': `export const markdown = async text => { const p = document.createElement('p'); p.textContent = text; return p.outerHTML; };`,
+  '/markdown.js': `export const appendMarkdown = (target, text) => { const p = document.createElement('p'); p.textContent = text; target.append(p); }; `,
   '/send.js': 'export const send = async value => { window.sent.push(value); };',
 };
 const harness = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css">
@@ -57,7 +60,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   const port = server.address().port;
-  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox'] });
   try {
     const page = await browser.newPage({ viewport: { width: 375, height: 900 } });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -72,7 +75,7 @@ const server = http.createServer(async (req, res) => {
     await page.getByLabel('Link 2 label', {exact:true}).fill('GitHub');
     await page.getByLabel('Link 2 URL', {exact:true}).fill('https://github.com/example');
     await page.getByRole('button', {name:'Move up link 2', exact:true}).click();
-    await page.getByRole('button', {name:'Save profile', exact:true}).click();
+    await page.getByRole('button', {name:'Save changes', exact:true}).click();
     await page.waitForFunction(() => !document.querySelector('.profile-editing'));
     assert.deepEqual(await page.locator('.profile-links a').allTextContents(), ['GitHub', 'Home']);
     assert.deepEqual(await page.evaluate(() => window.sent), ['signed-proof', 'encoded-content']);
@@ -84,16 +87,16 @@ const server = http.createServer(async (req, res) => {
     assert.equal(await page.locator('.profile-links a').first().innerText(), 'GitHub');
     await page.getByRole('button', {name:'Edit profile', exact:true}).click();
     await page.getByLabel('Link 1 URL', {exact:true}).fill('javascript:alert(1)');
-    await page.getByRole('button', {name:'Save profile', exact:true}).click();
-    assert.match(await page.getByRole('status').innerText(), /Link 1/);
+    await page.getByRole('button', {name:'Save changes', exact:true}).click();
+    assert.match(await page.locator('.profile-bio-status').innerText(), /Link 1/);
     assert.equal(await page.evaluate(() => window.published.length), 1);
     await page.getByLabel('Link 1 URL', {exact:true}).fill('https://bsky.app/profile/example.com');
     await page.evaluate(() => { window.failSave = true; });
-    await page.getByRole('button', {name:'Save profile', exact:true}).click();
-    await page.waitForFunction(() => document.querySelector('[role=status]').textContent.includes('Failed'));
-    assert.equal(await page.getByRole('button', {name:'Save profile', exact:true}).isEnabled(), true);
+    await page.getByRole('button', {name:'Save changes', exact:true}).click();
+    await page.waitForFunction(() => document.querySelector('.profile-bio-status').textContent.includes('Failed'));
+    assert.equal(await page.getByRole('button', {name:'Save changes', exact:true}).isEnabled(), true);
     await page.evaluate(() => { window.failSave = false; });
-    await page.getByRole('button', {name:'Save profile', exact:true}).click();
+    await page.getByRole('button', {name:'Save changes', exact:true}).click();
     await page.waitForFunction(() => !document.querySelector('.profile-editing'));
     for (const width of [375, 1100]) for (const colorScheme of ['light', 'dark']) {
       await page.setViewportSize({width,height:900}); await page.emulateMedia({colorScheme});
@@ -103,7 +106,7 @@ const server = http.createServer(async (req, res) => {
     await page.getByRole('button', {name:'Edit profile', exact:true}).click();
     await page.getByRole('button', {name:'Remove link 1', exact:true}).click();
     await page.getByRole('button', {name:'Remove link 1', exact:true}).click();
-    await page.getByRole('button', {name:'Save profile', exact:true}).click();
+    await page.getByRole('button', {name:'Save changes', exact:true}).click();
     await page.waitForFunction(() => !document.querySelector('.profile-editing'));
     assert.deepEqual(await page.evaluate(() => window.published.at(-1).links), []);
     await page.evaluate(() => window.mount());

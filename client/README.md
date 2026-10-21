@@ -26,9 +26,10 @@ The module also loads `client/render.js` and `style.css` from wiredove.net.
 Without a `feed` attribute, hosts still supply verified posts and publishing
 callbacks. A configured widget can load its own public feed.
 
-Message bodies render common Markdown links and HTTP(S) images as DOM nodes.
-Legacy image references without a browser-readable URL remain visible as
-captions. The Reply control is a labeled button that calls the host's
+Message bodies use the same ordered Markdown/gallery renderer as the website.
+Consecutive images form galleries; prose, lists, quotes and code retain their
+authored positions. Legacy APDS images require a host `presentation.resolveImage`
+adapter; unavailable references keep a stable tile with Retry. The Reply control is a labeled button that calls the host's
 `onReply` callback.
 
 Open `client/embed-demo.html` from a Wiredove server for a working example of
@@ -90,7 +91,8 @@ DOM-free helper imports. Canonical helpers live in `ui/format.js`, `ui/body.js`,
 `ui/media-render.js`, and `ui/styles.js`. The aggregate `client/index.js` still
 imports the complete UI set; use individual modules for narrow dependencies.
 
-The website has not yet migrated to these widgets. See
+The website now uses the shared body/gallery renderer and image viewer, but has
+not yet migrated its whole message shell, actions or data services. See
 [the feature inventory](../docs/SHARED_UI_INVENTORY.md) and
 [work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
 in `core/contracts.js`; adapters implementing them are a later stage.
@@ -114,3 +116,41 @@ identities without posts, crop apply/cancel, link validation/reordering, signed
 metadata, immediate-reload persistence, cancel, backup download/import, and
 skipping optional setup. It publishes clearly named test profile updates through
 the app's normal transport. It does not modify the active browser identity.
+
+### Image galleries
+
+`ui/body.js` exports `parseMessageBody(text)` (DOM-free ordered model) and
+`appendFormattedText(target, text, { resolveImage, onOpen })`. The website's
+`markdown.js` supplies its APDS storage/transport adapter. The pinned Marked lexer
+is vendored locally; rendering constructs safe DOM and treats raw HTML as text.
+
+`ui/image-gallery.js` exports `createImageGallery({ images, resolveImage, onOpen,
+document })`. Each image is `{ src, alt, title?, link? }`. Calling the factory
+lazily registers `wiredove-image-gallery`; importing the module is inert.
+Adjacent runs show at most four previews. A ten-image run displays “+6 more”;
+opening a preview starts at that occurrence and exposes the entire run.
+
+`resolveImage(hash, { signal })` may return a browser-readable image URL or a
+raster image data URL from the host's legacy adapter. It must honor lifecycle
+cancellation where possible. URL/reference authentication does not establish
+image-byte verification. Typed AndFS images use the same gallery; native
+AndFS audio/video controls are retained.
+
+By default, `ui/image-popover.js` mounts one native modal dialog per document.
+Gallery actions work explicitly across shadow roots and inside a separate-origin
+iframe; they do not inspect a parent site's DOM. To own modal mounting, supply
+`onOpen(request)` (or `presentation.onOpenGallery` on a message). The request has
+`images`, `index`, `trigger`, `owner`, and `resolveImage`; return a cleanup
+function. Built-in viewing supports buttons, arrow keys, swipe, image/backdrop
+click, Escape, focus restoration, and automatic close when the owner disconnects.
+
+Checks:
+
+- `node --test tests/image-gallery.test.js client/ui/modules_test.js client/feed_test.js`
+- `NODE_PATH=<Playwright modules> CHROMIUM_EXECUTABLE=<optional binary> node tests/image-gallery.browser.cjs`
+
+The browser suite runs actual website `render.content` and embed message widgets
+with local image/identity fixtures. It never signs or publishes. It covers counts,
+inline ordering, source errors, duplicate occurrences, edited bodies, nested
+replies, keyboard/touch controls, light/dark layouts, narrow containers, an actual
+separate-origin iframe, and warm service-worker cache upgrades preserving storage.

@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v8-image-popover-close'
+const CACHE_VERSION = 'v9-image-galleries'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -26,6 +26,11 @@ const APP_SHELL_ASSETS = [
   '/style.css',
   '/app.js',
   '/client/ui/image-popover.js',
+  '/client/ui/image-source.js',
+  '/client/ui/image-gallery.js',
+  '/client/ui/image-gallery.css',
+  '/client/ui/body.js',
+  '/vendor/marked/marked.esm.js',
   '/manifest.json',
   '/favicon.ico',
   '/dovepurple_sm.png',

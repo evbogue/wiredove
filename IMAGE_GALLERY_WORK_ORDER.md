@@ -1,6 +1,6 @@
 # Image galleries within Wiredove messages
 
-Requested by Ev, 2026-10-21. Status: planned; this document does not change runtime behavior.
+Requested by Ev, 2026-10-21. Status: implemented in the shared renderer/gallery/viewer; validation and release notes follow below.
 
 ## Outcome
 
@@ -103,53 +103,53 @@ Extend/reuse the existing shared image viewer rather than adding a competing mod
 
 ### G01 — Ordered body model and fixtures
 
-- [ ] Inventory actual website/embed Markdown, legacy source resolution, and typed attachment paths.
-- [ ] Define shared ordered text/image segments and deterministic grouping boundaries.
-- [ ] Fix mixed-paragraph image reordering as part of adopting this model.
-- [ ] Preserve existing supported formatting, hashtags, internal links, replies, and unavailable legacy captions.
-- [ ] Add fixtures for the placement examples above, including formatting around inline images and duplicate references.
+- [x] Inventory actual website/embed Markdown, legacy source resolution, and typed attachment paths.
+- [x] Define shared ordered text/image segments and deterministic grouping boundaries.
+- [x] Fix mixed-paragraph image reordering as part of adopting this model.
+- [x] Preserve existing supported formatting, hashtags, internal links, replies, and unavailable legacy captions.
+- [x] Add fixtures for the placement examples above, including formatting around inline images and duplicate references.
 
 Acceptance: parsing/grouping preserves authored semantic order without changing stored message bytes. Formatting regressions are caught before layout work.
 
 ### G02 — Shared gallery widget and responsive styling
 
-- [ ] Add an individually importable module, provisionally `client/ui/image-gallery.js`, with explicit image/source adapter inputs and an `onOpen` callback.
-- [ ] Implement count-based layout and the four-thumbnail overflow rule.
-- [ ] Handle loading/failure states, repeated occurrences, keyboard controls, and light/dark themes.
-- [ ] Use container-aware styles and avoid assumptions about full website width.
-- [ ] Imports must not boot Wiredove, create identity/storage, or register a service worker.
+- [x] Add an individually importable module, provisionally `client/ui/image-gallery.js`, with explicit image/source adapter inputs and an `onOpen` callback.
+- [x] Implement count-based layout and the four-thumbnail overflow rule.
+- [x] Handle loading/failure states, repeated occurrences, keyboard controls, and light/dark themes.
+- [x] Use container-aware styles and avoid assumptions about full website width.
+- [x] Imports must not boot Wiredove, create identity/storage, or register a service worker.
 
 Acceptance: the same module handles 1, 2, 3, 4, 5, 10, and 30 images in narrow and wide message containers.
 
 ### G03 — Shared multi-image viewer
 
-- [ ] Extend `client/ui/image-popover.js` with a gallery list and selected index.
-- [ ] Implement navigation, position indicator, swipe handling, focus management, and cleanup.
-- [ ] Preserve tap-image-to-close, backdrop, Close button, and Escape.
-- [ ] Connect through explicit widget/host actions, including shadow-root instances.
+- [x] Extend `client/ui/image-popover.js` with a gallery list and selected index.
+- [x] Implement navigation, position indicator, swipe handling, focus management, and cleanup.
+- [x] Preserve tap-image-to-close, backdrop, Close button, and Escape.
+- [x] Connect through explicit widget/host actions, including shadow-root instances.
 
 Acceptance: every image in a ten-image gallery can be reached; opening/closing returns to the same message and scroll context.
 
 ### G04 — Website and embed integration
 
-- [ ] Wire the same body grouping/gallery/viewer modules into website messages and embedded messages.
-- [ ] Remove superseded image extraction/grouping and overlapping image-open handlers from migrated paths.
-- [ ] Cover full posts, nested replies, thread views, edited/rerendered messages, and multiple widgets on one page.
-- [ ] Update feature inventory and module documentation honestly about remaining shared-renderer work.
-- [ ] Bump the service-worker shell version and include any required new shell assets.
+- [x] Wire the same body grouping/gallery/viewer modules into website messages and embedded messages.
+- [x] Remove superseded image extraction/grouping and overlapping image-open handlers from migrated paths.
+- [x] Cover full posts, nested replies, thread views, edited/rerendered messages, and multiple widgets on one page.
+- [x] Update feature inventory and module documentation honestly about remaining shared-renderer work.
+- [x] Bump the service-worker shell version and include any required new shell assets.
 
 Acceptance: website and separate-origin embed render matching gallery groups and preserve text order for identical content. No claim of full shared-UI migration from this slice alone.
 
 ### G05 — Browser verification and release
 
-- [ ] Run focused parser/grouping and module import checks.
-- [ ] Inspect screenshots and interactions on desktop and mobile, light and dark themes.
-- [ ] Verify 240 px/320 px embed containers, mobile feed width, desktop posts, and nested replies.
-- [ ] Exercise all counts above, long text between galleries, mixed aspect ratios, screenshots, broken/slow sources, duplicate references, linked images, lists, quotations, and code.
-- [ ] Verify focus restoration, keyboard navigation, touch tap versus swipe, overflow counting, download/link controls, and close without immediate reopening.
-- [ ] Observe an actual separate-origin iframe embed; mocks alone do not establish cross-frame acceptance.
-- [ ] Check fresh loads and warm service-worker upgrades without clearing identity storage.
-- [ ] Record observed checks and limitations. Commit/push the reviewed change; follow the repository deployment procedure when deployment is authorized.
+- [x] Run focused parser/grouping and module import checks.
+- [x] Inspect screenshots and interactions on desktop and mobile, light and dark themes.
+- [x] Verify 240 px/320 px embed containers, mobile feed width, desktop posts, and nested replies.
+- [x] Exercise all counts above, long text between galleries, mixed aspect ratios, screenshots, broken/slow sources, duplicate references, linked images, lists, quotations, and code.
+- [x] Verify focus restoration, keyboard navigation, touch tap versus swipe, overflow counting, download/link controls, and close without immediate reopening.
+- [x] Observe an actual separate-origin iframe embed; mocks alone do not establish cross-frame acceptance.
+- [x] Check fresh loads and warm service-worker upgrades without clearing identity storage.
+- [x] Record observed checks and limitations. Commit/push the reviewed change; follow the repository deployment procedure when deployment is authorized.
 
 Use local fixtures and isolated test contexts. No public posting is necessary for gallery verification.
 
@@ -158,3 +158,46 @@ Use local fixtures and isolated test contexts. No public posting is necessary fo
 First prove ordered text/image grouping and the one-to-four/overflow layouts in the shared gallery module. Then wire the viewer and both consumers before calling the gallery feature complete.
 
 Do not include media storage changes, video/audio redesign, AI captions, image editing, uploads/reordering, masonry libraries, thumbnail services, or zoom/pan in this work order. Preserve existing browser image gestures where available. Those can have separate follow-up work if requested.
+
+## Implementation and validation — 2026-10-21
+
+Implemented:
+
+- Shared ordered Markdown model/DOM renderer in `client/ui/body.js`, used by the
+  website adapter and embedded messages; preserved prose/image order and nested
+  container boundaries. Reused the website's pinned Marked lexer as a local vendor
+  asset. Raw HTML is rendered as text rather than trusted markup.
+- `client/ui/image-gallery.js` and its shared CSS provide bounded one-to-four
+  layouts, overflow counts, lazy previews, per-occurrence loading/retry, and
+  cancellation on disconnect. Single images use a contained, bounded frame to
+  preserve the full picture and reserve layout space before loading.
+- The shared native dialog supports position indicators, all-image navigation,
+  mobile swipe, keyboard/focus behavior, tap-image/backdrop close, original-link
+  actions, and lifecycle cleanup. Host callbacks work through shadow roots.
+- Typed AndFS images use the gallery; explicit matching attachment URLs suppress
+  attachment duplicates while repeated authored images remain separate occurrences.
+- App shell cache advanced to `v9-image-galleries`, including the parser/gallery
+  modules and stylesheet. No identity or signed-message format changes.
+
+Observed verification:
+
+- 17 focused Node checks passed across grouping, safe sources/cancellation, import
+  boundaries, authenticated feed adapters, and existing profile route ordering.
+- `tests/image-gallery.browser.cjs` passed with Chromium on desktop and emulated
+  mobile, light/dark themes, 1/2/3/4/5/10/30-image runs, 240/320/660 px containers,
+  actual website `render.content`, embedded message widgets, edited bodies,
+  nested thread replies, duplicate legacy references, delayed source cancellation,
+  broken sources, authored ordering, literal code, linked images, focus restoration,
+  arrow keys, touch swipe/tap, and full viewer navigation. Screenshots were inspected.
+- An actual separate-origin iframe exercised gallery opening, navigation and close.
+- A warm service-worker cache upgrade removed the old shell cache, loaded the new
+  renderer, and preserved a storage sentinel without clearing identity storage.
+- The profile-links browser suite passed after its outdated signing mock, save
+  button label and status selector were aligned with the current profile editor.
+- Modified production JavaScript syntax and `git diff --check` passed.
+
+Limits: browser verification uses local fixtures and mocked identity/transport;
+there were no public posts, live media storage changes, Safari/device testing, or
+production deployment. Website message shells/actions still have their existing
+implementation; full S03 shared-widget migration is not claimed. Deployment remains
+an explicit release step under `AGENTS.md`.

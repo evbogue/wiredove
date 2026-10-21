@@ -20,6 +20,7 @@ document.body.appendChild(await navbar())
 document.body.appendChild(createImagePopover({
   getImage: (hash) => apds.get(hash),
   requestImage: send,
+  delegateRoot: document.body,
 }))
 const connectPromise = connect()
 await route()

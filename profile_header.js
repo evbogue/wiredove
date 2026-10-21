@@ -1,6 +1,6 @@
 import { apds } from 'apds'
 import { h } from 'h'
-import { markdown } from './markdown.js'
+import { appendMarkdown } from './markdown.js'
 import { send } from './send.js'
 import { profileLinksFromHistory } from './client/profile-links.js'
 import { renderProfileLinks } from './client/ui/profile-links.js'
@@ -160,7 +160,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   const nameText = h('h2', { classList: 'profile-view-only' }, [currentName || label])
   const nameEditor = editor.nameInput
   const bioPreview = h('div', { classList: 'profile-bio profile-view-only' })
-  bioPreview.innerHTML = await markdown(currentBio || '')
+  appendMarkdown(bioPreview, currentBio || '')
 
   const input = editor.bioInput
   const linksView = h('nav', { classList: 'profile-view-only' })
@@ -219,8 +219,8 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
         currentImageHash = draftImageHash
         currentImageSrc = draftImageSrc
       }
-      const rendered = await markdown(currentBio || '')
-      bioPreview.innerHTML = rendered
+      bioPreview.replaceChildren()
+      appendMarkdown(bioPreview, currentBio || '')
       nameText.textContent = currentName || label
       if (draftImageSrc && viewAvatarImgRef && viewAvatarImgRef.tagName === 'IMG') {
         viewAvatarImgRef.src = draftImageSrc

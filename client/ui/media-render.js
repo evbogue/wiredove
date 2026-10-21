@@ -1,4 +1,5 @@
-export const renderAndFSMedia = (yaml, container) => {
+import { createImageGallery } from './image-gallery.js';
+export const renderAndFSMedia = (yaml, container, galleryOptions = {}) => {
   if (!yaml?.andfs || !["image", "audio", "video"].includes(yaml.type)) {
     return false;
   }
@@ -15,21 +16,21 @@ export const renderAndFSMedia = (yaml, container) => {
     container.appendChild(wrap);
     return true;
   }
-  // ANProto calls this kind "image"; HTML calls the element "img".
-  const player = document.createElement(
-    yaml.type === "image" ? "img" : yaml.type,
-  );
-  player.className = "media-player";
-  player.src = source;
-  if (yaml.type === "image") {
-    player.alt = yaml.media_name || "Attached image";
-    player.loading = "lazy";
-  } else {
-    player.controls = true;
-    player.preload = yaml.type === "video" ? "metadata" : "none";
-    if (yaml.type === "video") player.playsInline = true;
+  if (yaml.type === 'image') {
+    // Only suppress an attachment duplicate with matching explicit source evidence.
+    if ([...container.querySelectorAll('wiredove-image-gallery')].some(gallery =>
+      gallery.items.some(item => item.src === source))) return true;
+    wrap.append(createImageGallery({ ...galleryOptions, images: [{ src: source, alt: yaml.media_name || 'Attached image' }], document: container.ownerDocument }));
   }
-  wrap.appendChild(player);
+  const player = yaml.type === 'image' ? null : document.createElement(yaml.type);
+  if (player) {
+    player.className = 'media-player';
+    player.src = source;
+    player.controls = true;
+    player.preload = yaml.type === 'video' ? 'metadata' : 'none';
+    if (yaml.type === 'video') player.playsInline = true;
+    wrap.appendChild(player);
+  }
   const link = document.createElement("a");
   link.href = source;
   link.textContent = yaml.media_name || "Download attachment";

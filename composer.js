@@ -6,7 +6,7 @@ import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js' 
 import { ntfy } from './ntfy.js' 
 import { send } from './send.js'
-import { markdown } from './markdown.js'
+import { appendMarkdown } from './markdown.js'
 import { imgUpload } from './upload.js'
 import { beginPublishVerification, finishPublishVerification } from './publish_status.js'
 import { createMediaComposer } from './media.js'
@@ -334,7 +334,6 @@ export const composer = async (sig, options = {}) => {
       content.textContent = buildEventYaml()
       return
     }
-    const bodyHtml = await markdown(textarea.value)
     const timeLine = tz
       ? `${dateValue} • ${startLabel}–${endLabel} • ${tz}`
       : `${dateValue} • ${startLabel}–${endLabel}`
@@ -343,7 +342,7 @@ export const composer = async (sig, options = {}) => {
       h('div', {classList: 'event-preview-meta'}, [loc])
     ])
     const body = h('div')
-    body.innerHTML = bodyHtml
+    appendMarkdown(body, textarea.value)
     content.appendChild(summary)
     content.appendChild(body)
   }
@@ -353,7 +352,8 @@ export const composer = async (sig, options = {}) => {
       content.textContent = textarea.value
       return
     }
-    content.innerHTML = await markdown(textarea.value)
+    content.replaceChildren()
+    appendMarkdown(content, textarea.value)
   }
 
   let messageToggle
@@ -606,7 +606,8 @@ export const composer = async (sig, options = {}) => {
     onPublish: publishMessage,
     publishLabel: isEdit ? 'Save changes' : sig ? 'Reply' : 'Publish',
     onPreview: async target => {
-      target.innerHTML = await markdown(textarea.value)
+      target.replaceChildren()
+      appendMarkdown(target, textarea.value)
     }
   })
   publishButton = surface.publish

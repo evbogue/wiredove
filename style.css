@@ -1,3 +1,5 @@
+@import url("./client/ui/image-gallery.css");
+
 /* Shared by the application and embeddable Wiredove components. */
 :root, :host {
   --wiredove-page: #f2f2f2;
@@ -349,12 +351,7 @@ img.post-image {
   margin: 0;
 }
 
-.post-image-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 6px 0 8px 0;
-}
+
 
 img.post-image.profile-avatar {
   border-radius: 50%;
@@ -915,78 +912,6 @@ wiredove-message, wiredove-composer {
   max-width: 600px;
   z-index: 1001;
 }
-
-.image-popover {
-  position: fixed;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 1100;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.image-popover.open {
-  display: flex;
-}
-
-.image-popover-frame {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-.image-popover-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  border: 0;
-  background: transparent;
-  border-radius: 999px;
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.image-popover-close:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.image-popover-image {
-  cursor: zoom-out;
-  width: auto;
-  height: auto;
-  max-width: 90vw;
-  max-height: 90vh;
-  object-fit: contain;
-  border-radius: 6px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-  background: #fff;
-}
-
-@media (prefers-color-scheme: dark) {
-  .image-popover-close {
-    background: transparent;
-    color: #ddd;
-  }
-
-  .image-popover-close:hover {
-    background: rgba(0, 0, 0, 0.35);
-  }
-
-  .image-popover-image {
-    background: #222;
-  }
-}
-
 
 /* ANProto audio/video prototype */
 .media-composer {

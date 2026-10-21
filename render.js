@@ -3,7 +3,8 @@ import { h } from 'h'
 import { send } from './send.js'
 import { queueSend } from './network_queue.js'
 import { composer } from './composer.js'
-import { markdown } from './markdown.js'
+import { appendMarkdown } from './markdown.js'
+import { renderAndFSMedia } from './client/ui/media-render.js'
 import { noteSeen } from './sync.js'
 import { promptKeypair } from './identify.js'
 import { addBlockedAuthor, addHiddenHash, addMutedAuthor, isBlockedAuthor, removeHiddenHash, removeMutedAuthor, shouldHideMessage } from './moderation.js'
@@ -160,15 +161,23 @@ render.refreshVisibleReplies = () => {
 }
 
 const renderBody = async (body, replyHash) => {
-  let html = body ? await markdown(body) : ''
+  const fragment = document.createDocumentFragment()
   if (replyHash) {
-    const preview = "<span class='reply-preview' data-reply-preview='" + replyHash + "'>" +
-      "<span class='material-symbols-outlined reply-preview-icon'>Subdirectory_Arrow_left</span>" +
-      "<a href='#" + replyHash + "' class='reply-preview-link'>" +
-      replyHash.substring(0, 10) + "...</a></span>"
-    html = preview + html
+    const preview = document.createElement('span')
+    preview.className = 'reply-preview'
+    preview.dataset.replyPreview = replyHash
+    const icon = document.createElement('span')
+    icon.className = 'material-symbols-outlined reply-preview-icon'
+    icon.textContent = 'Subdirectory_Arrow_left'
+    const link = document.createElement('a')
+    link.href = '#' + replyHash
+    link.className = 'reply-preview-link'
+    link.textContent = replyHash.substring(0, 10) + '...'
+    preview.append(icon, link)
+    fragment.append(preview)
   }
-  return html
+  appendMarkdown(fragment, body)
+  return fragment
 }
 
 const buildRawControls = (blob, opened, contentBlob) => {
@@ -704,7 +713,9 @@ render.refreshEdits = async (hash, options = {}) => {
     ? currentEdit.yaml.body
     : state.baseYaml.body
   state.currentBody = bodySource
-  state.contentDiv.innerHTML = await renderBody(bodySource, baseReply)
+  state.contentDiv.replaceChildren(await renderBody(bodySource, baseReply))
+  renderAndFSMedia(state.baseYaml, state.contentDiv)
+  await renderMedia(state.baseYaml, state.contentDiv)
   await highlightCodeIn(state.contentDiv)
   hydrateReplyPreviews(state.contentDiv)
   const profileYaml = currentEdit && currentEdit.yaml
@@ -1193,15 +1204,15 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
 
   if (yaml && yaml.bio && (!yaml.body || !yaml.body.trim())) {
     div.classList.remove('material-symbols-outlined')
-    const bioHtml = await markdown(yaml.bio)
-    div.innerHTML = `<p><strong>New bio:</strong></p>${bioHtml}`
+    div.innerHTML = '<p><strong>New bio:</strong></p>'
+    appendMarkdown(div, yaml.bio)
     await highlightCodeIn(div)
     await applyProfile(contentHash, yaml)
     await queueLinkedHashes(yaml)
     return
   }
 
-  if (yaml && (yaml.body || (yaml.blob && ['audio', 'video'].includes(yaml.type)))) {
+  if (yaml && (yaml.body || (yaml.blob && ['audio', 'video'].includes(yaml.type)) || (yaml.andfs && ['image', 'audio', 'video'].includes(yaml.type)))) {
     div.className = 'content'
     if (yaml.replyHash) { yaml.reply = yaml.replyHash }
     if (messageHash && yaml.reply) {
@@ -1211,7 +1222,8 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       addReplyToIndex(yaml.reply, messageHash, messageTs, messageOpened)
       updateReplyCount(yaml.reply)
     }
-    div.innerHTML = await renderBody(yaml.body || '', yaml.reply)
+    div.replaceChildren(await renderBody(yaml.body || '', yaml.reply))
+    renderAndFSMedia(yaml, div)
     await renderMedia(yaml, div)
     await highlightCodeIn(div)
     hydrateReplyPreviews(div)
@@ -1283,7 +1295,12 @@ render.blob = async (blob, meta = {}) => {
     }
   }
 
-  const getimg = document.getElementById('inlineimage' + hash)
+  const imageSource = blob && /^data:image\//i.test(blob) ? blob : null
+  if (imageSource) {
+    for (const gallery of document.querySelectorAll('wiredove-image-gallery')) {
+      gallery.refreshSource?.(hash, imageSource)
+    }
+  }
   if (opened && div && !div.childNodes[1]) {
     await render.meta(blob, opened, hash, div, { forceShow, contentBlob, yaml: parsedYaml })
     //await render.comments(hash, blob, div)
@@ -1296,8 +1313,6 @@ render.blob = async (blob, meta = {}) => {
       div.replaceWith(message)
       await render.content(hash, blob, content, null, parsedYaml)
     }
-  } else if (getimg) {
-    getimg.src = blob
   } 
   await flushPendingReplies(hash)
   perfEnd(token)
