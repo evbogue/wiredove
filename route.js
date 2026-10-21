@@ -168,13 +168,10 @@ export const route = async () => {
       const { query, primaryKey } = await ctx.orchestrator.startAlias(src)
       if (!ctx.isActive()) { return }
       adder(query || [], src, panel)
-      if (query.length) {
-        const header = await buildProfileHeader({ label: src, messages: query, canEdit: false, pubkey: primaryKey })
-        if (header) { panel.appendChild(header) }
-      } else {
-        const header = await buildProfileHeader({ label: src, messages: [], canEdit: false, pubkey: primaryKey })
-        if (header) { panel.appendChild(header) }
-      }
+      const header = await buildProfileHeader({ label: src, messages: query || [], canEdit: false, pubkey: primaryKey })
+      // Keep the profile ahead of feed rows and loading placeholders, just as
+      // on public-key routes. Header construction can outlive a route change.
+      if (ctx.isActive() && header) panel.prepend(header)
       panel.dataset.ready = 'true'
       return
     }
