@@ -45,7 +45,6 @@ export const makeRoom = async (pubkey) => {
 
     onHash(async (hash, id) => {
       console.log(`Received: ${hash}`)
-      noteReceived(hash)
       const get = await apds.get(hash)
       if (get) { sendBlob(get, id)}
       const latest = await apds.getLatest(hash)

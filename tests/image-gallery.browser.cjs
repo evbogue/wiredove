@@ -12,7 +12,6 @@ const deps = {
   '/test-apds.js': `export const apds = {get: async hash => window.sourceResolver ? window.sourceResolver(hash) : hash.startsWith('a') ? ${JSON.stringify(png)} : null, pubkey: async()=>null, query: async()=>window.editFixtures||[], human:async()=> 'now', parseYaml:async text=>JSON.parse(text)};`,
   '/test-h.js': `export function h(tag, attrs={}, children=[]) {const el=document.createElement(tag); for(const [key,value] of Object.entries(attrs)) { if(key==='classList')el.className=value;else el[key]=value;} for(const child of children)if(child)el.append(child); return el;}`,
   '/send.js': 'export const send = async()=>{};',
-  '/network_queue.js': 'export const queueSend = async()=>{};',
   '/composer.js': 'export const composer = async()=>{};',
   '/sync.js': 'export const noteSeen = ()=>{};',
   '/identify.js': 'export const promptKeypair = ()=>{};',
@@ -172,6 +171,42 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
       }
       assert.deepEqual(errors,[]);await context.close();console.log(`Website + embed: ${mobile?'mobile':'desktop'} ${theme} passed`);
     }
+    // Real queue events drive both placeholders and the open viewer, without networking.
+    const statusPage=await browser.newPage({viewport:{width:390,height:844}});
+    await statusPage.goto(origin+'/site');await statusPage.waitForFunction(()=>window.ready);
+    await statusPage.evaluate(async()=>{
+      const queue=await import('/network_queue.js');
+      const {createImageGallery}=await import('/client/ui/image-gallery.js');
+      const hash='z'.repeat(43)+'=';
+      window.statusQueue=queue; window.statusHash=hash;
+      window.imageArrived=false;
+      // The adapter must return a safe absolute URL.
+      const adapter=async(hash,{retry}={})=>{if(window.imageArrived)return location.origin+'/image/1.svg';queue.queueSend(hash,{retry});return null;};
+      adapter.subscribe=queue.subscribeHashRequest;
+      document.getElementById('fixture').append(createImageGallery({images:[{src:hash,alt:'Pending photo'}],resolveImage:adapter}));
+      queue.queueSend(hash);
+    });
+    await statusPage.getByText('Waiting to request image…',{exact:true}).waitFor();
+    assert.equal(await statusPage.locator('.image-gallery-retry').isVisible(),false);
+    await statusPage.screenshot({path:'/tmp/gallery-sync-queued.png'});
+    await statusPage.evaluate(()=>statusQueue.registerNetworkSenders({hasWs:()=>true,sendWs:()=>{}}));
+    await statusPage.locator('.image-gallery-status').filter({hasText:'Asking peers for image…'}).waitFor();
+    await statusPage.locator('.image-gallery-tile').click();
+    await statusPage.locator('.image-popover-status').filter({hasText:'Asking peers for image…'}).waitFor();
+    assert.equal(await statusPage.locator('.image-gallery-retry, .image-popover-stage button').count(),2);
+    assert.equal(await statusPage.locator('.image-popover-stage button').isVisible(),false);
+    await statusPage.getByRole('button',{name:'Close image',exact:true}).click();
+    await statusPage.screenshot({path:'/tmp/gallery-sync-requested.png'});
+    await statusPage.locator('.image-gallery-status').filter({hasText:'Image hasn’t arrived'}).waitFor({timeout:20000});
+    assert.equal(await statusPage.locator('.image-gallery-retry').isVisible(),true);
+    await statusPage.screenshot({path:'/tmp/gallery-sync-idle.png'});
+    await statusPage.locator('.image-gallery-retry').click();
+    await statusPage.locator('.image-gallery-status').filter({hasText:'Asking peers for image…'}).waitFor();
+    await statusPage.evaluate(()=>{window.imageArrived=true;statusQueue.completeHashRequest(statusHash)});
+    await statusPage.waitForFunction(()=>document.querySelector('.image-gallery-tile img').naturalWidth>0);
+    assert.equal(await statusPage.locator('.image-gallery-retry').isVisible(),false);
+    await statusPage.evaluate(()=>statusQueue.clearQueue());await statusPage.close();
+    console.log('Real queue: queued/requested/timeout/retry/arrival, thumbnail and viewer passed');
     const page=await browser.newPage();await page.goto(`http://127.0.0.1:${parent.address().port}/parent`);const frame=page.frames().find(f=>f.url().startsWith(origin+'/embed'));await frame.waitForFunction(()=>window.ready);await frame.evaluate(text=>mount(text),run(10));await frame.locator('.image-gallery-tile').nth(3).click();assert.equal(await frame.locator('.image-popover-counter').textContent(),'4 of 10');await frame.getByRole('button',{name:'Next image',exact:true}).click();assert.equal(await frame.locator('.image-popover-counter').textContent(),'5 of 10');await frame.getByRole('button',{name:'Close image',exact:true}).click();
     console.log('Observed separate-origin iframe: shared gallery + viewer passed');await page.close();
     const cacheContext=await browser.newContext();const cachePage=await cacheContext.newPage();
@@ -189,7 +224,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await cachePage.locator('.image-gallery-more').textContent(),'+6 more');
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v9-image-galleries'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v10-image-sync-status'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

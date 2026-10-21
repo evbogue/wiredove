@@ -42,9 +42,9 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
   download.target = '_blank'; download.rel = 'noopener noreferrer';
   footer.append(caption, original, download);
   dialog.append(controls, stage, footer);
-  let active, controller, sequence = 0, gesture, suppressClick = false;
+  let stopStatus, active, controller, sequence = 0, gesture, suppressClick = false;
   const clear = () => {
-    sequence++; controller?.abort();
+    sequence++; controller?.abort(); stopStatus?.(); stopStatus = null;
     image.removeAttribute('src'); download.removeAttribute('href'); original.removeAttribute('href');
     const previousActive = active; active = null;
     if (previousActive?.trigger?.isConnected) previousActive.trigger.focus({ preventScroll: true });
@@ -53,13 +53,15 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
   dialog.addEventListener('close', () => { if (!dialog.open) clear(); });
   const closeViewer = () => { if (dialog.open) { dialog.close(); clear(); } };
   close.onclick = closeViewer;
-  const show = async () => {
+  const show = async (retryRequest = false) => {
     if (!active) return;
+    stopStatus?.(); stopStatus = null;
     const request = active;
     const item = request.images[request.index];
     const current = ++sequence;
     controller?.abort(); controller = new AbortController();
     image.removeAttribute('src'); image.alt = item.alt || 'Post image';
+    status.classList.remove('image-sync-active');
     status.textContent = 'Loading image…'; retry.hidden = true;
     download.hidden = true;
     previous.disabled = request.index === 0;
@@ -70,18 +72,25 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
     original.hidden = !href;
     if (href) original.href = href;
     try {
-      const src = await resolveImageSource(item, request.resolveImage, controller.signal);
+      const src = await resolveImageSource(item, request.resolveImage, controller.signal, retryRequest);
       if (current !== sequence || !active) return;
       if (!src) throw Error('Unavailable');
       image.src = src; download.href = src; download.hidden = false;
     } catch {
       if (current !== sequence || !active) return;
-      status.textContent = 'Image unavailable'; retry.hidden = false;
+      status.textContent = 'Image hasn’t arrived'; retry.hidden = false;
+      if (request.resolveImage?.subscribe) stopStatus = request.resolveImage.subscribe(item.src, ({ state }) => {
+        if (current !== sequence || !active) return;
+        if (state === 'received') { void show(); return; }
+        const busy = state === 'queued' || state === 'requested';
+        status.textContent = state === 'queued' ? 'Waiting to request image…' : state === 'requested' ? 'Asking peers for image…' : 'Image hasn’t arrived';
+        status.classList.toggle('image-sync-active', busy); retry.hidden = busy;
+      });
     }
   };
   image.onload = () => { if (active) { status.textContent = ''; retry.hidden = true; } };
-  image.onerror = () => { if (active) { status.textContent = 'Image unavailable'; retry.hidden = false; } };
-  retry.onclick = show;
+  image.onerror = () => { if (active) { status.textContent = 'Image hasn’t arrived'; retry.hidden = false; } };
+  retry.onclick = () => show(true);
   const move = delta => {
     if (!active) return;
     const index = active.index + delta;

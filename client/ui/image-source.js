@@ -14,11 +14,11 @@ export const safeLinkURL = value => {
   if (/^#[^\s]*$/.test(value) || /^mailto:[^\s<>]+$/i.test(value)) return value;
   return safeImageURL(value);
 };
-export const resolveImageSource = async (item, resolveImage, signal) => {
+export const resolveImageSource = async (item, resolveImage, signal, retry = false) => {
   if (signal?.aborted) return null;
   const direct = safeImageURL(item.src);
   if (direct) return direct;
   if (!isLegacyImage(item.src) || !resolveImage) return null;
-  const result = await resolveImage(item.src, { signal });
+  const result = await resolveImage(item.src, { signal, retry });
   return signal?.aborted ? null : safeImageURL(result, { resolved: true });
 };

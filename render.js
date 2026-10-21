@@ -1,7 +1,7 @@
 import { apds } from 'apds'
 import { h } from 'h'
 import { send } from './send.js'
-import { queueSend } from './network_queue.js'
+import { queueSend, completeHashRequest } from './network_queue.js'
 import { composer } from './composer.js'
 import { appendMarkdown } from './markdown.js'
 import { renderAndFSMedia } from './client/ui/media-render.js'
@@ -1270,6 +1270,7 @@ render.blob = async (blob, meta = {}) => {
   let wrapper = hash ? document.getElementById(hash) : null
   if (!hash && wrapper) { hash = wrapper.id }
   if (!hash) { hash = await apds.hash(blob) }
+  completeHashRequest(hash)
   if (!wrapper && hash) { wrapper = document.getElementById(hash) }
 
   let opened = meta.opened || (wrapper && wrapper.dataset ? wrapper.dataset.opened : null)

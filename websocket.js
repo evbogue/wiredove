@@ -89,7 +89,7 @@ const processIncomingBatch = async (messages) => {
 }
 
 const handleIncoming = async (msg) => {
-  noteReceived(msg)
+  if (!isHash(msg)) noteReceived(msg)
   if (isHash(msg)) {
     const blob = await apds.get(msg)
     if (blob) {

@@ -7,6 +7,8 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
   get items() { return this._options?.images || []; }
   connectedCallback() { this.observe(); }
   disconnectedCallback() {
+    this._subscriptions?.forEach(stop => stop());
+    this._subscriptions = [];
     this._observer?.disconnect();
     this._controller?.abort();
     if (typeof this._stopViewer === 'function') this._stopViewer();
@@ -30,6 +32,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       image.decoding = 'async';
       const status = this.ownerDocument.createElement('span');
       status.className = 'image-gallery-status';
+      status.setAttribute('role', 'status');
       status.textContent = 'Loading image…';
       const retry = this.ownerDocument.createElement('button');
       retry.type = 'button';
@@ -39,31 +42,47 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       const cell = this.ownerDocument.createElement('div');
       cell.className = 'image-gallery-cell';
       const failed = () => {
-        status.textContent = 'Image unavailable';
+        status.textContent = 'Image hasn’t arrived';
+        status.classList.remove('image-sync-active');
         tile.classList.add('image-unavailable');
         retry.hidden = false;
       };
       image.addEventListener('load', () => {
         if (!this.isConnected) return;
         status.textContent = '';
+        status.classList.remove('image-sync-active');
         tile.classList.remove('image-unavailable');
         tile.classList.add('image-loaded');
         retry.hidden = true;
       });
       image.addEventListener('error', failed);
-      tile._load = async () => {
+      tile._load = async (retryRequest = false) => {
         if (this._controller.signal.aborted || !this.isConnected) return;
         const controller = this._controller;
         retry.hidden = true;
         status.textContent = 'Loading image…';
         try {
-          const src = await resolveImageSource(item, this._options.resolveImage, controller.signal);
+          const src = await resolveImageSource(item, this._options.resolveImage, controller.signal, retryRequest);
           if (controller.signal.aborted || !this.isConnected) return;
           if (src) image.src = src;
-          else failed();
+          else { failed(); tile._watch?.(); }
         } catch { if (!controller.signal.aborted) failed(); }
       };
-      retry.onclick = () => tile._load();
+      retry.onclick = () => tile._load(true);
+      tile._watch = () => {
+        tile._stop?.();
+        if (!this._options.resolveImage?.subscribe) return;
+        const stop = this._options.resolveImage.subscribe(item.src, ({ state }) => {
+          if (!this.isConnected || tile.classList.contains('image-loaded')) return;
+          if (state === 'received') { void tile._load(); return; }
+          const active = state === 'queued' || state === 'requested';
+          status.textContent = state === 'queued' ? 'Waiting to request image…' : state === 'requested' ? 'Asking peers for image…' : 'Image hasn’t arrived';
+          status.classList.toggle('image-sync-active', active);
+          retry.hidden = active;
+        });
+        tile._stop = stop;
+        this._subscriptions.push(stop);
+      };
       tile.addEventListener('click', event => {
         event.preventDefault();
         event.stopPropagation();

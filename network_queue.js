@@ -25,6 +25,48 @@ const senders = {
   hasGossip: null
 }
 const queueListeners = new Set()
+const hashRequests = new Map()
+const hashListeners = new Map()
+const publishHashState = (hash, state) => {
+  hashListeners.get(hash)?.forEach(listener => {
+    try { listener({ state }) } catch (err) { console.warn('hash status listener failed', err) }
+  })
+}
+export const subscribeHashRequest = (hash, listener) => {
+  if (!hashListeners.has(hash)) hashListeners.set(hash, new Set())
+  hashListeners.get(hash).add(listener)
+  listener({ state: hashRequests.get(hash)?.state || 'idle' })
+  return () => {
+    const listeners = hashListeners.get(hash)
+    listeners?.delete(listener)
+    if (!listeners?.size) hashListeners.delete(hash)
+  }
+}
+export const completeHashRequest = hash => {
+  clearTimeout(hashRequests.get(hash)?.timer)
+  hashRequests.delete(hash)
+  noteReceived(hash)
+  publishHashState(hash, 'received')
+}
+const abandonHashRequest = hash => {
+  clearTimeout(hashRequests.get(hash)?.timer)
+  hashRequests.delete(hash)
+  publishHashState(hash, 'idle')
+}
+const trackHashRequest = (hash, state) => {
+  const previous = hashRequests.get(hash)
+  clearTimeout(previous?.timer)
+  const request = { state }
+  hashRequests.set(hash, request)
+  if (state === 'requested') request.timer = setTimeout(() => {
+    hashRequests.delete(hash)
+    const item = pending.get(hash)
+    if (item) { pending.delete(hash); removeFromQueue(queues[item.priority], item) }
+    publishHashState(hash, 'idle')
+    notifyQueueListeners()
+  }, 15000)
+  publishHashState(hash, state)
+}
 
 const normalizePriority = (priority) => {
   if (priority === 'high' || priority === 'normal' || priority === 'low') { return priority }
@@ -60,18 +102,18 @@ const trimOverflow = () => {
   while (totalQueueSize() > MAX_QUEUE_ITEMS) {
     const low = queues.low.shift()
     if (low) {
-      if (low.key) { pending.delete(low.key) }
+      if (low.key) { pending.delete(low.key); abandonHashRequest(low.key) }
       continue
     }
     const normal = queues.normal.shift()
     if (normal) {
-      if (normal.key) { pending.delete(normal.key) }
+      if (normal.key) { pending.delete(normal.key); abandonHashRequest(normal.key) }
       continue
     }
     // Never drop high-priority traffic automatically unless the queue is only high.
     const high = queues.high.shift()
     if (!high) { break }
-    if (high.key) { pending.delete(high.key) }
+    if (high.key) { pending.delete(high.key); abandonHashRequest(high.key) }
   }
 }
 
@@ -149,6 +191,7 @@ const trySendItem = (item, lane, index) => {
     const target = pickHashTarget(item)
     if (!target) { return false }
     sendToTarget(target, item.msg)
+    trackHashRequest(item.msg, 'requested')
     item.sent[target] = true
     item.sentAt[target] = Date.now()
     if (!item.firstTarget) {
@@ -219,7 +262,7 @@ export const queueSend = (msg, options = {}) => {
   if (isHash(msg)) {
     const now = Date.now()
     const last = hashCooldown.get(msg) || 0
-    if (now - last < HASH_QUEUE_COOLDOWN_MS) { return false }
+    if (!options.retry && now - last < HASH_QUEUE_COOLDOWN_MS) { return false }
     hashCooldown.set(msg, now)
   }
 
@@ -232,6 +275,7 @@ export const queueSend = (msg, options = {}) => {
     sentAt: { ws: 0, gossip: 0 },
     firstTarget: null
   }
+  if (item.kind === 'hash') trackHashRequest(msg, 'queued')
   queues[priority].push(item)
   if (key) { pending.set(key, item) }
   trimOverflow()
@@ -264,6 +308,8 @@ export const clearQueue = () => {
   queues.high.length = 0
   queues.normal.length = 0
   queues.low.length = 0
+  for (const [hash, request] of hashRequests) { clearTimeout(request.timer); publishHashState(hash, 'idle') }
+  hashRequests.clear()
   pending.clear()
   hashCooldown.clear()
   if (drainTimer) {

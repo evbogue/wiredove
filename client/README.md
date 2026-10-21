@@ -154,3 +154,13 @@ with local image/identity fixtures. It never signs or publishes. It covers count
 inline ordering, source errors, duplicate occurrences, edited bodies, nested
 replies, keyboard/touch controls, light/dark layouts, narrow containers, an actual
 separate-origin iframe, and warm service-worker cache upgrades preserving storage.
+
+Image sync activity: a `resolveImage(hash, {signal, retry})` adapter may expose
+`resolveImage.subscribe(hash, listener)`, returning an unsubscribe function.
+Listeners receive `{state}` with `queued`, `requested`, `received`, or `idle`.
+The shared gallery/viewer shows waiting/request activity and hides Retry while
+active; `received` re-resolves the bytes. The website adapter uses the real network
+queue. Requests expire 15 seconds after the last transport dispatch; a user retry
+bypasses the normal 30-second hash cooldown. Incoming peer requests do not count
+as receiving image bytes. No percentage or receiving-bytes claim is made because
+these transports deliver complete blobs rather than reporting byte progress.

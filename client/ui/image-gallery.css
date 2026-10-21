@@ -25,7 +25,7 @@ wiredove-image-gallery.image-gallery {
   height: 100%; max-height: 640px; min-height: 0; object-fit: contain;
 }
 .image-gallery .image-gallery-status {
-  position: absolute; inset: 0; display: grid; place-items: center; padding: 8px; box-sizing: border-box; overflow-wrap: anywhere; text-align: center;
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding: 8px; box-sizing: border-box; overflow-wrap: anywhere; text-align: center;
   font-size: .85rem; pointer-events: none;
 }
 .image-gallery .image-gallery-status:empty { display: none; }
@@ -66,7 +66,15 @@ dialog.image-popover::backdrop { background: #000a; }
   object-fit: contain; cursor: zoom-out; margin: 0; border-radius: 4px; background: transparent; box-shadow: none;
 }
 .image-popover .image-popover-image:not([src]) { display: none; }
-.image-popover .image-popover-status { color: #ddd; }
+.image-popover .image-popover-status { color: #ddd; display: flex; align-items: center; gap: 8px; }
 .image-popover .image-popover-footer { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: center; align-items: center; font-size: .875rem; min-height: 1.5em; }
 .image-popover .image-popover-footer a { color: #c6c0ff; }
 .image-popover .image-popover-caption { max-width: 65ch; overflow-wrap: anywhere; max-height: 4em; overflow: auto; }
+
+.image-sync-active::before {
+  content: ''; display: inline-block; width: 16px; height: 16px;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: image-sync-spin 1s linear infinite;
+}
+@keyframes image-sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .image-sync-active::before { animation: none; } }
