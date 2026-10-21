@@ -171,7 +171,8 @@ export const route = async () => {
       const header = await buildProfileHeader({ label: src, messages: query || [], canEdit: false, pubkey: primaryKey })
       // Keep the profile ahead of feed rows and loading placeholders, just as
       // on public-key routes. Header construction can outlive a route change.
-      if (ctx.isActive() && header) panel.prepend(header)
+      if (!ctx.isActive()) { return }
+      if (header) panel.prepend(header)
       panel.dataset.ready = 'true'
       return
     }

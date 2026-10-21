@@ -1,3 +1,5 @@
+import { createComposerSurface, iconButton } from './client/ui/composer-surface.js'
+import { createComposerDialog } from './client/frames/composer-dialog.js'
 import { apds } from 'apds'
 import { render } from './render.js'
 import { h } from 'h'
@@ -70,15 +72,6 @@ export const composer = async (sig, options = {}) => {
   if (typeof options.initialBody === 'string' && !isEdit) { textarea.value = options.initialBody }
   if (isEdit && typeof options.editBody === 'string') { textarea.value = options.editBody }
 
-  const cancel = h('a', {classList: 'material-symbols-outlined', onclick: () => {
-      if (sig) {
-        div.remove()
-      } else {
-        overlay.remove()
-      }
-    }
-  }, ['Cancel'])
-
   const replyObj = {}
 
   if (sig) {
@@ -101,6 +94,37 @@ export const composer = async (sig, options = {}) => {
   }
   let composerMode = 'message'
   let mediaAttachment = null
+  let mediaBusy = false
+  let imageBusy = false
+  let publishing = false
+  let closed = false
+  const draftKey = `wiredove-composer-draft:${pubkey || 'anon'}:${isEdit ? 'edit:' + options.editHash : sig ? 'reply:' + obj.replyHash : 'new'}`
+  const storage = (() => { try { return window.sessionStorage } catch { return null } })()
+  try {
+    const saved = storage?.getItem(draftKey)
+    if (saved) {
+      const draft = JSON.parse(saved)
+      textarea.value = draft.body || ''
+      mediaAttachment = draft.attachment || null
+    }
+  } catch {}
+  const saveDraft = () => {
+    if (closed) return
+    try { storage?.setItem(draftKey, JSON.stringify({ body: textarea.value, attachment: mediaAttachment })) } catch {}
+  }
+  textarea.addEventListener('input', saveDraft)
+  const updatePublishState = () => {
+    publishButton.disabled = publishing || mediaBusy || imageBusy || (!textarea.value.trim() && !mediaAttachment)
+  }
+  textarea.addEventListener('input', () => updatePublishState())
+  const closeComposer = () => {
+    if (publishing) return
+    saveDraft()
+    closed = true
+    mediaControls.destroy?.()
+    uploadControls.destroy?.()
+    overlay.remove()
+  }
 
   const eventDate = h('input', {type: 'date'})
   const makeSelect = (placeholder, values) => {
@@ -389,140 +413,167 @@ export const composer = async (sig, options = {}) => {
     return meta
   }
 
-  const publishButton = h('button', {style: 'float: right;', onclick: async (e) => {
-    const button = e.target
-    button.disabled = true
-    button.textContent = 'Publishing...'
-    if (ENABLE_EVENT_COMPOSER && composerMode === 'event') {
-      const dateValue = eventDate.value
-      const startLabel = eventStartTime.value
-      const endLabel = eventEndTime.value
-      const startValue = startLabel ? parseTime(startLabel) : ''
-      const endValue = endLabel ? parseTime(endLabel) : ''
-      const loc = (eventLocation.dataset.full || eventLocation.value).trim()
-      const startMs = (dateValue && startValue)
-        ? new Date(`${dateValue}T${startValue}`).getTime()
-        : NaN
-      const endMs = (dateValue && endValue)
-        ? new Date(`${dateValue}T${endValue}`).getTime()
-        : NaN
-      const setHelp = (msg, focusEl) => {
-        eventHelp.textContent = msg
-        eventHelp.style = 'display: block; color: #b00020; font-size: 12px; margin: 4px 0;'
-        if (focusEl) { focusEl.focus() }
-      }
-      eventHelp.style = 'display: none;'
-      if (!loc) {
-        setHelp('Location is required.', eventLocation)
-        button.disabled = false
-        button.textContent = 'Publish'
-        return
-      }
-      if (!dateValue) {
-        setHelp('Event date is required.', eventDate)
-        button.disabled = false
-        button.textContent = 'Publish'
-        return
-      }
-      if (!startValue) {
-        setHelp('Start time is required.', eventStartTime)
-        button.disabled = false
-        button.textContent = 'Publish'
-        return
-      }
-      if (!endValue) {
-        setHelp('End time is required.', eventEndTime)
-        button.disabled = false
-        button.textContent = 'Publish'
-        return
-      }
-      if (endMs < startMs) {
-        setHelp('End time must be after the start time.', eventEndTime)
-        button.disabled = false
-        button.textContent = 'Publish'
-        return
-      }
-    }
-    const published = await apds.compose(textarea.value, buildComposeMeta())
-    textarea.value = ''
-    mediaControls.destroy?.()
-    const signed = await apds.get(published)
-    const opened = await apds.open(signed)
-
-    const blob = await apds.get(opened.substring(13))
-    await ntfy(signed)
-    await ntfy(blob)
-    await send(signed)
-    await send(blob)
-    const hash = await apds.hash(signed)
-    pushLocalNotification({ hash, author: signed.substring(0, 44), text: blob })
-
-    const confirmTargets = [signed]
-    const images = blob.match(/!\[.*?\]\((.*?)\)/g)
-    if (images) {
-      for (const image of images) {
-        const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
-        const imgBlob = await apds.get(src)
-        if (imgBlob) {
-          await send(imgBlob)
+  const publishMessage = async (e) => {
+    const button = e.currentTarget
+    if (publishing || mediaBusy || imageBusy) return
+    publishing = true
+    surface.status.textContent = ''
+    surface.tools.inert = true
+    textarea.readOnly = true
+    try {
+      button.disabled = true
+      button.textContent = 'Publishing...'
+      if (ENABLE_EVENT_COMPOSER && composerMode === 'event') {
+        const dateValue = eventDate.value
+        const startLabel = eventStartTime.value
+        const endLabel = eventEndTime.value
+        const startValue = startLabel ? parseTime(startLabel) : ''
+        const endValue = endLabel ? parseTime(endLabel) : ''
+        const loc = (eventLocation.dataset.full || eventLocation.value).trim()
+        const startMs = (dateValue && startValue)
+          ? new Date(`${dateValue}T${startValue}`).getTime()
+          : NaN
+        const endMs = (dateValue && endValue)
+          ? new Date(`${dateValue}T${endValue}`).getTime()
+          : NaN
+        const setHelp = (msg, focusEl) => {
+          eventHelp.textContent = msg
+          eventHelp.style = 'display: block; color: #b00020; font-size: 12px; margin: 4px 0;'
+          if (focusEl) { focusEl.focus() }
+        }
+        eventHelp.style = 'display: none;'
+        if (!loc) {
+          setHelp('Location is required.', eventLocation)
+          button.disabled = false
+          button.textContent = 'Publish'
+          return
+        }
+        if (!dateValue) {
+          setHelp('Event date is required.', eventDate)
+          button.disabled = false
+          button.textContent = 'Publish'
+          return
+        }
+        if (!startValue) {
+          setHelp('Start time is required.', eventStartTime)
+          button.disabled = false
+          button.textContent = 'Publish'
+          return
+        }
+        if (!endValue) {
+          setHelp('End time is required.', eventEndTime)
+          button.disabled = false
+          button.textContent = 'Publish'
+          return
+        }
+        if (endMs < startMs) {
+          setHelp('End time must be after the start time.', eventEndTime)
+          button.disabled = false
+          button.textContent = 'Publish'
+          return
         }
       }
-    }
-    const verifyId = beginPublishVerification({ hash })
-    void (async () => {
-      try {
-        const { confirmMessagesPersisted } = await import('./websocket.js')
-        const openedTs = parseOpenedTimestamp(opened)
-        const since = openedTs ? Math.max(0, openedTs - 10000) : undefined
-        const persisted = await confirmMessagesPersisted(confirmTargets, { since })
-        finishPublishVerification(verifyId, persisted)
-        if (!persisted.ok) {
-          console.warn('publish confirmation failed', persisted)
-        }
-      } catch (err) {
-        console.warn('publish confirmation errored', err)
-        finishPublishVerification(verifyId, { ok: false, reason: 'unconfirmed', missing: confirmTargets })
-      }
-    })()
-
-    if (isEdit) {
-      render.invalidateEdits(options.editHash)
-      await render.refreshEdits(options.editHash, { forceLatest: true })
-      overlay.remove()
-      return
-    }
-
-    if (sig) {
-      div.id = hash
-      if (opened) { div.dataset.opened = opened }
-      await render.blob(signed, { hash, opened })
-    } else {
-      overlay.remove()
-      const scroller = document.getElementById('scroller')
+      const attachmentUrl = mediaAttachment?.media_url
+      const body = attachmentUrl && !textarea.value.includes(attachmentUrl)
+        ? [textarea.value.trim(), attachmentUrl].filter(Boolean).join('\n\n')
+        : textarea.value
+      const published = await apds.compose(body, buildComposeMeta())
+      closed = true
+      try { storage?.removeItem(draftKey) } catch {}
+      mediaControls.destroy?.()
+      uploadControls.destroy?.()
+      const signed = await apds.get(published)
       const opened = await apds.open(signed)
-      const ts = opened ? opened.substring(0, 13) : Date.now().toString()
-      if (window.__feedEnqueue) {
-        const src = window.location.hash.substring(1)
-        // UX: if you just posted, show it immediately.
-        // adder.js normally hides new posts behind a "Show N new posts" banner when you're scrolled.
-        // That's good for other people's posts, but bad for *your own* just-published post.
-        const queued = await window.__feedEnqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed, opened, local: true })
-        if (!queued) {
+
+      const blob = await apds.get(opened.substring(13))
+      await ntfy(signed)
+      await ntfy(blob)
+      await send(signed)
+      await send(blob)
+      const hash = await apds.hash(signed)
+      pushLocalNotification({ hash, author: signed.substring(0, 44), text: blob })
+
+      const confirmTargets = [signed]
+      const images = blob.match(/!\[.*?\]\((.*?)\)/g)
+      if (images) {
+        for (const image of images) {
+          const src = image.match(/!\[.*?\]\((.*?)\)/)[1]
+          const imgBlob = await apds.get(src)
+          if (imgBlob) {
+            await send(imgBlob)
+          }
+        }
+      }
+      const verifyId = beginPublishVerification({ hash })
+      void (async () => {
+        try {
+          const { confirmMessagesPersisted } = await import('./websocket.js')
+          const openedTs = parseOpenedTimestamp(opened)
+          const since = openedTs ? Math.max(0, openedTs - 10000) : undefined
+          const persisted = await confirmMessagesPersisted(confirmTargets, { since })
+          finishPublishVerification(verifyId, persisted)
+          if (!persisted.ok) {
+            console.warn('publish confirmation failed', persisted)
+          }
+        } catch (err) {
+          console.warn('publish confirmation errored', err)
+          finishPublishVerification(verifyId, { ok: false, reason: 'unconfirmed', missing: confirmTargets })
+        }
+      })()
+
+      if (isEdit) {
+        render.invalidateEdits(options.editHash)
+        await render.refreshEdits(options.editHash, { forceLatest: true })
+        overlay.remove()
+        return
+      }
+
+      if (sig) {
+        overlay.remove()
+        const parent = document.getElementById(obj.replyHash)
+        if (parent && !document.getElementById(hash)) {
+          const reply = h('div', { id: hash, classList: 'message reply' })
+          if (opened) reply.dataset.opened = opened
+          parent.after(reply)
+          await render.blob(signed, { hash, opened })
+        }
+      } else {
+        overlay.remove()
+        const scroller = document.getElementById('scroller')
+        const opened = await apds.open(signed)
+        const ts = opened ? opened.substring(0, 13) : Date.now().toString()
+        if (window.__feedEnqueue) {
+          const src = window.location.hash.substring(1)
+          // UX: if you just posted, show it immediately.
+          // adder.js normally hides new posts behind a "Show N new posts" banner when you're scrolled.
+          // That's good for other people's posts, but bad for *your own* just-published post.
+          const queued = await window.__feedEnqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed, opened, local: true })
+          if (!queued) {
+            const placeholder = render.insertByTimestamp(scroller, hash, ts)
+            if (placeholder) {
+              if (opened) { placeholder.dataset.opened = opened }
+              await render.blob(signed, { hash, opened })
+            }
+          }
+        } else {
           const placeholder = render.insertByTimestamp(scroller, hash, ts)
           if (placeholder) {
             if (opened) { placeholder.dataset.opened = opened }
             await render.blob(signed, { hash, opened })
           }
         }
-      } else {
-        const placeholder = render.insertByTimestamp(scroller, hash, ts)
-        if (placeholder) {
-          if (opened) { placeholder.dataset.opened = opened }
-          await render.blob(signed, { hash, opened })
-        }
       }
+    } catch (error) {
+      surface.status.textContent = error.message || 'Could not publish. Your draft is still here.'
+    } finally {
+      publishing = false
+      surface.tools.inert = false
+      textarea.readOnly = false
+      button.textContent = isEdit ? 'Save changes' : sig ? 'Reply' : 'Publish'
+      updatePublishState()
     }
-  }}, ['Publish'])
+  }
+  let publishButton
 
   if (ENABLE_EVENT_COMPOSER) {
     messageToggle = h('button', {type: 'button', onclick: () => setComposerMode('message')}, ['Message'])
@@ -536,125 +587,53 @@ export const composer = async (sig, options = {}) => {
     updateToggleState()
   }
 
-  const rawDiv = h('div', {classList: 'message-raw'})
-  let rawshow = true
-  let rawContent
-  let rawText = ''
-  const updateRawText = () => {
-    rawText = (ENABLE_EVENT_COMPOSER && composerMode === 'event') ? buildEventYaml() : textarea.value
-    if (rawContent) { rawContent.textContent = rawText }
-  }
-  const rawToggle = h('a', {classList: 'material-symbols-outlined', onclick: () => {
-    updateRawText()
-    if (rawshow) {
-      if (!rawContent) {
-        rawContent = h('pre', {classList: 'hljs'}, [rawText])
-      }
-      rawDiv.appendChild(rawContent)
-      rawshow = false
-    } else {
-      rawContent.parentNode.removeChild(rawContent)
-      rawshow = true
-    }
-  }}, ['Code'])
-
-  const renderPreview = async () => {
-    updateRawText()
-    if (ENABLE_EVENT_COMPOSER && composerMode === 'event') {
-      await renderEventPreview(false)
-    } else {
-      await renderMessagePreview(false)
-    }
-  }
-
-  const uploadControls = await imgUpload(textarea)
-  const mediaControls = createMediaComposer({
-    onAttachment: (attachment) => { mediaAttachment = attachment }
+  const uploadControls = await imgUpload(textarea, {
+    onBusy: value => { imageBusy = value; updatePublishState() },
+    onChange: () => { saveDraft(); updatePublishState() }
   })
-
-  const previewButton = h('button', {style: 'float: right;', onclick: async () => {
-    textareaDiv.style = 'display: none;'
-    previewDiv.style = 'display: block;'
-    uploadControls.style = 'display: none;'
-    mediaControls.style = 'display: none;'
-    await renderPreview()
-  }}, ['Preview'])
-
-  const textareaDiv = h('div', {classList: 'composer'}, ENABLE_EVENT_COMPOSER
-    ? [modeToggle, eventFields, textarea, previewButton]
-    : [textarea, previewButton]
-  )
-
-  const content = h('div')
-
-  const previewControls = h('div', {classList: 'preview-controls'}, [
-    publishButton,
-    h('button', {style: 'float: right;', onclick: () => { 
-     textareaDiv.style = 'display: block;'
-     previewDiv.style = 'display: none;'
-     uploadControls.style = 'display: block;'
-     mediaControls.style = 'display: block;'
-    }}, ['Cancel'])
-  ])
-
-  const previewDiv = h('div', {style: 'display: none;'}, [
-    content,
-    rawDiv,
-    previewControls
-  ])
-
-  const meta = h('span', {classList: 'message-meta'}, [
-    h('span', {classList: 'pubkey'}, [pubkey ? pubkey.substring(0, 6) : 'anon']),
-    ' ',
-    rawToggle,
-    ' ',
-    cancel,
-  ])
-
-  const bodyWrap = h('div', {classList: 'message-body'}, [
-    contextDiv,
-    textareaDiv,
-    previewDiv,
-    mediaControls,
-    uploadControls
-  ])
-
-  const composerHeader = h('div', {classList: 'composer-header'}, ENABLE_EVENT_COMPOSER
-    ? [await nameSpan(), modeToggle]
-    : [await nameSpan()]
-  )
-
-  const composerDiv = h('div', [
-    meta,
-    h('div', {classList: 'message-main'}, [
-      h('span', [await avatarSpan()]),
-      h('div', {classList: 'message-stack'}, [
-        composerHeader,
-        bodyWrap
-      ])
-    ])
-  ])
-
-  const div = h('div', {classList: 'message modal-content'}, [
-    composerDiv
-  ])
-
-  if (sig) { 
-    div.className = 'message reply'
-    div.id = 'reply-composer-' + obj.replyHash
-  }
-
-  const overlay = h('div', {
-    classList: 'modal-overlay',
-    onclick: (e) => {
-      if (e.target === overlay) {
-        overlay.remove()
-      }
+  const mediaControls = createMediaComposer({
+    reply: replyObj.reply,
+    replyto: replyObj.replyto,
+    onBusy: value => { mediaBusy = value; updatePublishState() },
+    onAttachment: attachment => { if (closed) return; mediaAttachment = attachment; saveDraft(); updatePublishState() }
+  })
+  const identity = h('div', {classList: 'composer-person'}, [await avatarSpan(), await nameSpan()])
+  if (sig) contextDiv.prepend(document.createTextNode('Replying to '))
+  if (isEdit) contextDiv.prepend(document.createTextNode('Editing '))
+  const surface = createComposerSurface({
+    textarea, identity, context: contextDiv,
+    onClose: closeComposer,
+    onPublish: publishMessage,
+    publishLabel: isEdit ? 'Save changes' : sig ? 'Reply' : 'Publish',
+    onPreview: async target => {
+      target.innerHTML = await markdown(textarea.value)
     }
-  }, [div])
-
-  if (sig) { return div }
-
+  })
+  publishButton = surface.publish
+  surface.tools.append(uploadControls, mediaControls.actions)
+  surface.attachments.append(uploadControls.preview, mediaControls)
+  if (mediaAttachment) mediaControls.restore(mediaAttachment)
+  // Keep raw inspection available without competing with attachment actions.
+  const raw = h('pre', {classList: 'hljs composer-raw', hidden: true})
+  const rawToggle = iconButton('Show raw message', 'code', () => {
+    raw.hidden = !raw.hidden
+    raw.textContent = textarea.value
+    rawToggle.setAttribute('aria-pressed', String(!raw.hidden))
+  })
+  surface.header.insertBefore(rawToggle, surface.header.lastChild)
+  surface.body.append(raw)
+  const content = surface.preview
+  const overlay = createComposerDialog(surface.root, {
+    onClose: closeComposer,
+    onOpen: () => textarea.focus({ preventScroll: true }),
+    onDispose: () => {
+      saveDraft()
+      closed = true
+      mediaControls.destroy?.()
+      uploadControls.destroy?.()
+    }
+  })
+  if (sig) overlay.id = 'reply-composer-' + obj.replyHash
+  updatePublishState()
   return overlay
-  
 }

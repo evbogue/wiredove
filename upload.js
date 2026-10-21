@@ -1,68 +1,52 @@
 import { apds } from 'apds'
-import { h } from 'h'
+import { iconButton } from './client/ui/composer-surface.js'
 
-export const imgUpload = async (textarea) => {
-  const uploadButton = h('button', {
-    classList: 'material-symbols-outlined',
-    onclick: () => { uploader.click() }
-  }, ['image_arrow_up'])
-  
-  const uploader = h('input', { type: 'file', style: 'display: none;'})
-  
-  uploader.addEventListener('change', (e) => {
-    const file = e.target.files[0]
-    const reader = new FileReader()
-  
-    reader.onload = (e) => {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      const img = new Image()
-  
-      img.onload = async () => {
-        //const size = 256
-        //if (img.width > size || img.height > size) {
-        //  const width = img.width
-        //  const height = img.height
-        //  let cropWidth
-        //  let cropHeight
-        //  if (width > height) {
-        //    cropWidth = size
-        //    cropHeight = cropWidth * (height / width)
-        //  } else {
-        //    cropHeight = size
-        //    cropWidth = cropHeight * (width / height)
-        //  }
-  
-        //  canvas.width = cropWidth
-        //  canvas.height = cropHeight
-        //  ctx.drawImage(img, 0, 0, width, height, 0, 0, cropWidth, cropHeight)
-        //  const croppedImage = canvas.toDataURL()
-        //  avatarImg.src = croppedImage
-        //  const hash = await apds.make(croppedImage)
-        //  await apds.put('image', hash)
-        //} else {
-          const croppedImage = canvas.toDataURL()
-          const hash = await apds.make(img.src)
-          const mdimg = `![](${hash})`
-          console.log(await apds.get(hash))
-          if (textarea.value) {
-            textarea.value = textarea.value + '\n' + mdimg
-          } else {
-            textarea.value = mdimg
-          }
-        //  await apds.put('image', hash)
-        //}
-      }
-      img.src = e.target.result
-    }
-    reader.readAsDataURL(file)
+export const imgUpload = async (textarea, { onBusy, onChange } = {}) => {
+  const root = document.createElement('div')
+  root.className = 'composer-image-upload'
+  const input = document.createElement('input')
+  input.type = 'file'; input.accept = 'image/*'; input.hidden = true
+  const status = document.createElement('span')
+  status.className = 'composer-image-status'
+  status.setAttribute('role', 'status')
+  const preview = document.createElement('div')
+  preview.className = 'composer-image-previews'
+  let disposed = false
+  const button = iconButton('Upload image', 'image_arrow_up', () => input.click())
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0]; input.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) { status.textContent = 'Choose an image file'; return }
+    button.disabled = true; onBusy?.(true); status.textContent = 'Adding image…'
+    try {
+      const source = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = () => reject(new Error('Could not read image'))
+        reader.readAsDataURL(file)
+      })
+      const image = new Image()
+      image.src = source
+      await image.decode()
+      if (disposed) return
+      const hash = await apds.make(source)
+      if (disposed) return
+      textarea.value = [textarea.value, `![](${hash})`].filter(Boolean).join('\n')
+      const card = document.createElement('div')
+      card.className = 'composer-image-card'
+      const thumbnail = document.createElement('img')
+      thumbnail.src = source; thumbnail.alt = file.name
+      card.append(thumbnail, iconButton('Remove image', 'close', () => {
+        textarea.value = textarea.value.replace(`![](${hash})`, '').trim()
+        card.remove(); onChange?.()
+      }))
+      preview.append(card)
+      onChange?.(); status.textContent = ''
+    } catch (error) { if (!disposed) status.textContent = error.message || 'Could not add image' }
+    finally { if (!disposed) { button.disabled = false; onBusy?.(false) } }
   })
-
-
-
-  return h('div', [
-    uploadButton,
-    uploader 
-  ])
+  root.append(button, input, status)
+  root.preview = preview
+  root.destroy = () => { disposed = true }
+  return root
 }
-

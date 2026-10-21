@@ -22,7 +22,7 @@ async function fixture(query, src = 'ev') {
       this.parentNode = null;
     }
   });
-  const window = { location: { hash: '#' + src }, scrollY: 0 };
+  const window = { location: { hash: '#' + src }, scrollY: 0, scrollTo() {} };
   const header = node('div', { classList: 'profile-header' });
   let resolveHeader;
   let headerStarted;
@@ -42,6 +42,7 @@ async function fixture(query, src = 'ev') {
     FeedOrchestrator: class {
       async startAlias() { return { query, primaryKey: 'a'.repeat(44) }; }
       async startAuthor() { return { log: query }; }
+      async startSearch() { return { log: [] }; }
       stop() {}
     },
     perfStart() {}, perfEnd() {}, noteInterest: async () => {},
@@ -65,7 +66,11 @@ async function fixture(query, src = 'ev') {
   const run = router.namespace.route();
   await started;
   const panel = elements.get('scroller').children[0];
-  return { window, panel, header, finish: async () => { resolveHeader(header); await run; } };
+  return {
+    window, panel, header,
+    navigate: async hash => { window.location.hash = hash; await window.onhashchange(); },
+    finish: async () => { resolveHeader(header); await run; }
+  };
 }
 
 for (const query of [[], [{ text: 'post' }], null]) {
@@ -82,6 +87,20 @@ test('late alias metadata cannot insert a header after navigation away', async (
   f.window.location.hash = '#other';
   await f.finish();
   assert.equal(f.panel.children.includes(f.header), false);
+});
+
+test('returning to an alias rebuilds a header interrupted by navigation', async () => {
+  const f = await fixture([{ text: 'post' }]);
+  await f.navigate('#?away');
+  await f.finish();
+  assert.equal(f.panel.children.includes(f.header), false);
+  assert.notEqual(f.panel.dataset.ready, 'true');
+
+  await f.navigate('#ev');
+  assert.equal(f.panel.children[0], f.header);
+  assert.equal(f.panel.dataset.ready, 'true');
+  assert.equal(f.panel.children.filter(child => child.classList === 'premessage').length, 1);
+  assert.equal(f.panel.children.at(-1).classList, 'scroll-sentinel');
 });
 
 test('public-key profiles also keep the header before feed placeholders', async () => {
