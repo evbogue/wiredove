@@ -95,6 +95,8 @@ export class WiredoveMessage extends HTMLElement {
       this._onNavigate({ type: "post", id: post.id });
     });
     meta.append(pubkey, " ", time);
+    const main = createMessageMain({ avatarLink, authorNode: author });
+    const stack = main.querySelector('.message-stack');
     if (parsed.body || parsed.andfs) {
       const body = document.createElement("div");
       body.className = "message-body";
@@ -116,9 +118,6 @@ export class WiredoveMessage extends HTMLElement {
       body.append(actions);
       stack.append(body);
     }
-    const main = createMessageMain({ avatarLink, authorNode: author });
-    // Existing body construction appends to the shared stack.
-    const stack = main.querySelector('.message-stack');
     article.append(meta, main);
     root.append(article);
   }
