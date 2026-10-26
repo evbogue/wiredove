@@ -9,7 +9,7 @@ const http=require('node:http');
       const response=await fetch(upstream+req.url);
       let body=Buffer.from(await response.arrayBuffer());
       if(req.url==='/') body=Buffer.from(body.toString().replace("<script type='module' src='app.js'></script>",''));
-      if(req.url==='/sw.js') {if(!upgraded)body=Buffer.from(body.toString().replace('v10-profile-photo-crop','v9-andfs-images'));res.setHeader('Cache-Control','no-store');}
+      if(req.url==='/sw.js') {if(!upgraded)body=Buffer.from(body.toString().replace('v11-andfs-image-gallery','v9-andfs-images'));res.setHeader('Cache-Control','no-store');}
       if(req.url==='/client/ui/profile-editor.js'&&!upgraded)body=Buffer.from('// previous profile editor fixture');
       res.statusCode=response.status;
       if(response.headers.get('content-type'))res.setHeader('Content-Type',response.headers.get('content-type'));
@@ -35,7 +35,7 @@ const http=require('node:http');
     await page.waitForFunction(async()=>{const cache=await caches.open('wiredove-app-shell-v9-andfs-images');return !!(await cache.match('/client/ui/profile-editor.js'));});
     upgraded=true;
     await page.evaluate(async()=>await(await navigator.serviceWorker.getRegistration()).update());
-    await page.waitForFunction(async()=>{const keys=await caches.keys();return keys.includes('wiredove-app-shell-v10-profile-photo-crop')&&!keys.includes('wiredove-app-shell-v9-andfs-images');});
+    await page.waitForFunction(async()=>{const keys=await caches.keys();return keys.includes('wiredove-app-shell-v11-andfs-image-gallery')&&!keys.includes('wiredove-app-shell-v9-andfs-images');});
     await page.reload();
     const after=await page.evaluate(async()=>{
       const {apds}=await import('apds');await apds.start('warm-profile-upgrade-test');

@@ -101,10 +101,10 @@ async (page) => {
     await reader.evaluate(async post => {
       const { an } = await import('/vendor/anproto/an.js');
       if ((await an.open(post.signature)).slice(13) !== await an.hash(post.content)) throw new Error('Invalid signed image post');
-      const { markdown } = await import('/markdown.js'); document.body.innerHTML = await markdown(post.parsed.body);
+      const { appendMarkdown } = await import('/markdown.js'); document.body.replaceChildren(); appendMarkdown(document.body, post.parsed.body);
     }, post);
-    await reader.waitForFunction(() => document.querySelectorAll('wiredove-inline-image img').length === 4 && [...document.querySelectorAll('wiredove-inline-image img')].every(img => img.complete && img.naturalWidth > 0 && img.src.startsWith('blob:')));
-    const copied = await reader.locator('wiredove-inline-image img').evaluateAll(async images => Promise.all(images.map(async img => [...new Uint8Array(await (await fetch(img.src)).arrayBuffer())])));
+    await reader.waitForFunction(() => document.querySelectorAll('wiredove-image-gallery img').length === 4 && [...document.querySelectorAll('wiredove-image-gallery img')].every(img => img.complete && img.naturalWidth > 0 && img.src.startsWith('data:image/')));
+    const copied = await reader.locator('wiredove-image-gallery img').evaluateAll(async images => Promise.all(images.map(async img => [...new Uint8Array(await (await fetch(img.src)).arrayBuffer())])));
     const expected = [fixtures[1], fixtures[2], fixtures[3], fixtures[0]];
     copied.forEach((bytes, i) => check(Buffer.from(bytes).equals(Buffer.from(expected[i].data, 'base64')), 'Image bytes changed in transit'));
     await reader.screenshot({ path: '/tmp/wiredove-andfs-images-mobile.png' });
@@ -114,17 +114,17 @@ async (page) => {
     results.push('uploader closed; fresh website reader verifies and decodes all four original image files');
     await reader.goto(origin.replace('127.0.0.1', 'localhost'));
     await reader.evaluate(async ({ origin, post }) => { const { defineWiredoveMessage } = await import(origin + '/client/ui/message.js'); defineWiredoveMessage(); document.body.replaceChildren(); const message = document.createElement('wiredove-message'); message.post = post; document.body.append(message); }, { origin, post });
-    await reader.waitForFunction(() => { const images = document.querySelector('wiredove-message').shadowRoot.querySelectorAll('wiredove-inline-image img'); return images.length === 4 && [...images].every(img => img.complete && img.naturalWidth > 0 && img.src.startsWith('blob:')); });
+    await reader.waitForFunction(() => { const images = document.querySelector('wiredove-message').shadowRoot.querySelectorAll('wiredove-image-gallery img'); return images.length === 4 && [...images].every(img => img.complete && img.naturalWidth > 0 && img.src.startsWith('data:image/')); });
     results.push('separate-origin embed verifies and displays the same inline images');
     await reader.goto(origin);
     const legacy = await reader.evaluate(async data => {
       const { apds } = await import('apds'); await apds.start('legacy-image-read-test');
       const hash = await apds.make('data:image/png;base64,' + data);
-      const { markdown } = await import('/markdown.js'); document.body.innerHTML = await markdown(`![](${hash})`);
+      const { appendMarkdown } = await import('/markdown.js'); document.body.replaceChildren(); appendMarkdown(document.body, `![](${hash})`);
       return hash;
     }, fixtures[0].data);
-    await reader.waitForFunction(hash => { const image = document.getElementById('inlineimage' + hash); return image?.complete && image.naturalWidth > 0 && image.src.startsWith('data:image/png'); }, legacy);
-    check(await reader.locator('img.post-image').getAttribute('data-hash') === legacy, 'Historical APDS image hash changed');
+    await reader.waitForFunction(hash => { const gallery = document.querySelector('wiredove-image-gallery'); const image = gallery?.items[0]?.src === hash ? gallery.querySelector('img') : null; return image?.complete && image.naturalWidth > 0 && image.src.startsWith('data:image/png'); }, legacy);
+    check(await reader.locator('wiredove-image-gallery').evaluate(el => el.items[0].src) === legacy, 'Historical APDS image hash changed');
     results.push('historical APDS image still loads through its original immutable hash');
     return { results };
   } finally { await Promise.all(contexts.map(context => context.close())); }

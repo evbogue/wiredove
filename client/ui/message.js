@@ -102,8 +102,8 @@ export class WiredoveMessage extends HTMLElement {
       body.className = "message-body";
       if (this._presentation?.renderBody) {
         this._presentation.renderBody(parsed.body, body, post);
-      } else appendFormattedText(body, parsed.body);
-      renderAndFSMedia(parsed, body);
+      } else appendFormattedText(body, parsed.body, { resolveImage: this._presentation?.resolveImage, onOpen: this._presentation?.onOpenGallery });
+      renderAndFSMedia(parsed, body, { resolveImage: this._presentation?.resolveImage, onOpen: this._presentation?.onOpenGallery });
       const actions = document.createElement("div");
       actions.className = "message-actions";
       const reply = document.createElement("button");

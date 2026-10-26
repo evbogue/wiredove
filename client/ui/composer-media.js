@@ -7,7 +7,7 @@ const recorderMime = (kind) => {
 }
 
 // Upload adapter owns persistence; this widget owns recording and attachment UI.
-export function createMediaControls({ onAttachment, onBusy, persistMedia } = {}) {
+export function createMediaControls({ onAttachment, onBusy, persistMedia, resolveAttachment } = {}) {
   const root = document.createElement('div');
   root.className = 'media-composer';
   const actions = document.createElement('div');
@@ -120,12 +120,23 @@ export function createMediaControls({ onAttachment, onBusy, persistMedia } = {})
     reset(); await persist(file);
   });
   root.attach = async file => { reset(); await persist(file); };
-  root.restore = attachment => {
+  root.restore = async attachment => {
+    const token = generation;
     const player = document.createElement(attachment.type === 'video' ? 'video' : 'audio');
     player.controls = true; player.playsInline = true; player.className = 'media-player';
-    player.src = attachment.media_url;
     preview.append(player, iconButton('Remove attachment', 'close', reset));
-    setStatus('Attachment ready');
+    try {
+      if (resolveAttachment) {
+        setStatus('Loading attachment…');
+        const blob = await resolveAttachment(attachment);
+        if (disposed || token !== generation) return;
+        currentUrl = URL.createObjectURL(blob);
+        player.src = currentUrl;
+      } else player.src = attachment.media_url;
+      setStatus('Attachment ready');
+    } catch (error) {
+      if (!disposed && token === generation) setStatus('Attachment preview unavailable. Remove it to choose another.', true);
+    }
   };
   root.reset = reset;
   root.actions = actions;

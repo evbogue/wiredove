@@ -26,9 +26,10 @@ The module also loads `client/render.js` and `style.css` from wiredove.net.
 Without a `feed` attribute, hosts still supply verified posts and publishing
 callbacks. A configured widget can load its own public feed.
 
-Message bodies render common Markdown links and HTTP(S) images as DOM nodes.
-Legacy image references without a browser-readable URL remain visible as
-captions. The Reply control is a labeled button that calls the host's
+Message bodies use the same ordered Markdown/gallery renderer as the website.
+Consecutive images form galleries; prose, lists, quotes and code retain their
+authored positions. Legacy APDS images require a host `presentation.resolveImage`
+adapter; unavailable references keep a stable tile with Retry. The Reply control is a labeled button that calls the host's
 `onReply` callback.
 
 Open `client/embed-demo.html` from a Wiredove server for a working example of
@@ -93,6 +94,9 @@ imports the complete UI set; use individual modules for narrow dependencies.
 
 The website uses the shared AndFS media widget and profile/composer helpers, but
 its full message renderer has not yet migrated to these widgets. See
+
+The website now uses the shared body/gallery renderer and image viewer, but has
+not yet migrated its whole message shell, actions or data services. See
 [the feature inventory](../docs/SHARED_UI_INVENTORY.md) and
 [work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
 in `core/contracts.js`; adapters implementing them are a later stage.
@@ -156,11 +160,10 @@ signed Markdown body. Each URL contains the authenticated manifest hash and its
 source path; `andfsImageMetadata()` resolves that path without changing the signed
 body. This does not overwrite the profile `image` field or the audio/video metadata.
 
-`ui/inline-image.js` supplies the shared inline image element used by the website
-Markdown renderer and embed body formatter. It uses the same verified block reader
-as audio/video, retains image-gallery keyboard/click targets, and releases object
-URLs on disconnect. Legacy 44-character APDS image references still follow the
-website's original reader; embeds retain their existing legacy-image placeholder.
+`ui/image-gallery.js` supplies the shared image gallery used by website Markdown
+and embed messages. AndFS sources pass through the verified block reader before
+display or enlargement. Legacy APDS references use the host's existing resolver;
+signed image references and ordering remain unchanged.
 
 `tests/images.browser.js` checks actual PNG/JPEG/GIF/WebP uploads and byte equality,
 multiple-image drafts, removal, publication blocking while uploading, failures,
@@ -199,3 +202,51 @@ no upscaling, upload retry, cancellation, signed metadata, and re-cropping after
 proxy, verifying that stale profile code is replaced while the identity, local storage,
 and profile-photo state remain intact. Run it with Playwright available and pass a
 local Wiredove origin. It uses a disposable browser, not the active user identity.
+
+### Image galleries
+
+`ui/body.js` exports `parseMessageBody(text)` (DOM-free ordered model) and
+`appendFormattedText(target, text, { resolveImage, onOpen })`. The website's
+`markdown.js` supplies its APDS storage/transport adapter. The pinned Marked lexer
+is vendored locally; rendering constructs safe DOM and treats raw HTML as text.
+
+`ui/image-gallery.js` exports `createImageGallery({ images, resolveImage, onOpen,
+document })`. Each image is `{ src, alt, title?, link? }`. Calling the factory
+lazily registers `wiredove-image-gallery`; importing the module is inert.
+Adjacent runs show at most four previews. A ten-image run displays “+6 more”;
+opening a preview starts at that occurrence and exposes the entire run.
+
+`resolveImage(hash, { signal })` may return a browser-readable image URL or a
+raster image data URL from the host's legacy adapter. It must honor lifecycle
+cancellation where possible. URL/reference authentication does not establish
+image-byte verification. Typed AndFS images use the same gallery; native
+AndFS audio/video controls are retained.
+
+By default, `ui/image-popover.js` mounts one native modal dialog per document.
+Gallery actions work explicitly across shadow roots and inside a separate-origin
+iframe; they do not inspect a parent site's DOM. To own modal mounting, supply
+`onOpen(request)` (or `presentation.onOpenGallery` on a message). The request has
+`images`, `index`, `trigger`, `owner`, and `resolveImage`; return a cleanup
+function. Built-in viewing supports buttons, arrow keys, swipe, image/backdrop
+click, Escape, focus restoration, and automatic close when the owner disconnects.
+
+Checks:
+
+- `node --test tests/image-gallery.test.js client/ui/modules_test.js client/feed_test.js`
+- `NODE_PATH=<Playwright modules> CHROMIUM_EXECUTABLE=<optional binary> node tests/image-gallery.browser.cjs`
+
+The browser suite runs actual website `render.content` and embed message widgets
+with local image/identity fixtures. It never signs or publishes. It covers counts,
+inline ordering, source errors, duplicate occurrences, edited bodies, nested
+replies, keyboard/touch controls, light/dark layouts, narrow containers, an actual
+separate-origin iframe, and warm service-worker cache upgrades preserving storage.
+
+Image sync activity: a `resolveImage(hash, {signal, retry})` adapter may expose
+`resolveImage.subscribe(hash, listener)`, returning an unsubscribe function.
+Listeners receive `{state}` with `queued`, `requested`, `received`, or `idle`.
+The shared gallery/viewer shows waiting/request activity and hides Retry while
+active; `received` re-resolves the bytes. The website adapter uses the real network
+queue. Requests expire 15 seconds after the last transport dispatch; a user retry
+bypasses the normal 30-second hash cooldown. Incoming peer requests do not count
+as receiving image bytes. No percentage or receiving-bytes claim is made because
+these transports deliver complete blobs rather than reporting byte progress.

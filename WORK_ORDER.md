@@ -167,3 +167,23 @@ also passed. A warm service-worker upgrade replaced old profile code while prese
 the disposable identity, profile-photo state and local storage; that check is retained
 in `tests/profile-cache-upgrade.cjs`. No browser identity storage was cleared to refresh
 the app. Public cropper module CORS is enabled alongside the existing public UI modules.
+
+## Upstream integration checkpoint — 2026-10-25
+
+Merged origin/master at `89fbcef` with the local AndFS implementation. Upstream's
+ordered shared image galleries and network queue status are retained. Gallery
+thumbnails and enlarged AndFS images resolve verified bytes through the shared
+image source module; website and embed use the same path. Composer draft media
+previews also reconstruct verified bytes. Public module CORS includes vendored
+Marked, and the shell cache is `v11-andfs-image-gallery`.
+
+Validation repeated on the combined tree: Deno server check, 17 media/client tests,
+12 routing/gallery/network queue tests, and isolated Chromium composer, image,
+profile photo, audio/video, and onboarding suites. The upstream gallery browser
+suite passed desktop/mobile light/dark, a separate-origin iframe, queue state
+transitions, and warm cache upgrades. The profile cache upgrade passed while
+preserving identity and photo state. Local Timeline integration passed both
+media directions, exact signatures/blocks, and service restart recovery.
+Mobile gallery and desktop dark photo crop screenshots were reviewed. Physical
+mobile/Safari and production deployment remain pending; no public test posts
+were published. Vendored upstream source bytes remain unchanged.

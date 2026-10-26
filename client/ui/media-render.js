@@ -1,3 +1,4 @@
+import { createImageGallery } from './image-gallery.js';
 import { andfsSource, readAndFSMedia } from '../andfs.js';
 
 const disposers = new WeakMap();
@@ -9,6 +10,16 @@ export function disposeMedia(container) {
 // Playback receives a local object URL only after all blocks pass verification.
 export const renderAndFSMedia = (yaml, container, options = {}) => {
   if (!yaml?.andfs || !['image', 'audio', 'video'].includes(yaml.type)) return false;
+  if (yaml.type === 'image' && !options.inlineImage) {
+    const source = yaml.media_url;
+    if ([...container.querySelectorAll('wiredove-image-gallery')].some(gallery =>
+      gallery.items.some(item => item.src === source))) return true;
+    const wrap = document.createElement('div');
+    wrap.className = 'media-post';
+    wrap.append(createImageGallery({ ...options, images: [{ src: source, alt: yaml.media_name || 'Attached image' }], document: container.ownerDocument }));
+    container.append(wrap);
+    return true;
+  }
   const wrap = document.createElement('div');
   wrap.className = 'media-post';
   const status = document.createElement('div');

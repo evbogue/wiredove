@@ -8,7 +8,7 @@ and records S01 contracts. Website migration (S03 onwards) remains outstanding.
 | Existing owner | Behavior to preserve | Target shared owner | Frame/adapter responsibility |
 | --- | --- | --- | --- |
 | render.js, client/ui.js | Message DOM, author, body, metadata, reply actions | ui/message.js | Supply verified post and action handlers |
-| markdown.js, client/ui.js | Markdown, hashtags, links, images, unavailable captions | ui/body.js | Navigation mapping; richer website Markdown still to migrate |
+| markdown.js, client/ui/message.js | Ordered Markdown, hashtags, links, image galleries and unavailable tiles | ui/body.js, ui/image-gallery.js | APDS image resolution and host actions |
 | APDS, client/render.js | Name/time/avatar fallbacks | ui/format.js | Provide profile updates; deduplicate APDS helper usage later |
 | media.js | Legacy anblob playback, loading/failure, downloads | ui/media.js | Legacy blob resolution and verified storage |
 | client/render.js | AndFS gateway image/audio/video, safe URLs, lazy load | ui/media.js, ui/media-render.js | Supply gateway/byte-verification adapter; URL signing is not byte verification |
@@ -62,3 +62,15 @@ that individual widgets register dependencies and repeated registration is safe.
 Website/embed baseline screenshots and separate-origin browser acceptance remain outstanding.
 Browser installation failed in the earlier session. S01 is therefore partial; S02 can be
 structurally tested, but don't claim observed browser equivalence or shared website rendering.
+
+## Image-gallery slice (2026-10-21)
+
+Website message bodies, edit rerenders, profile/composer previews and embedded
+messages now consume `ui/body.js` and `ui/image-gallery.js`. AndFS image attachments
+also use that gallery. `ui/image-popover.js` owns explicit gallery navigation in a
+native dialog; only legacy profile-photo opening retains body delegation.
+
+The website still owns its message shell, metadata, moderation/edit controls,
+legacy audio/video resolution and services. S03 is partial; this is not a complete
+migration of the website to `wiredove-message`. The separate-origin gallery/viewer
+slice has observed browser coverage in `tests/image-gallery.browser.cjs`.

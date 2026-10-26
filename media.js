@@ -1,7 +1,7 @@
 import { createMediaControls } from './client/ui/composer-media.js'
 import { IndexedDBBlobStore, HttpBlobStore, getBlob, putBlob } from './anproto_blob.js'
 import { createAndFS } from './vendor/andfs/andfs.js'
-import { createAndFSMediaClient } from './client/andfs.js'
+import { createAndFSMediaClient, readAndFSMedia } from './client/andfs.js'
 import { defineWiredoveMedia } from './client/ui/media.js'
 import { browserStore } from './vendor/andfs/stores.js'
 import { an } from './vendor/anproto/an.js'
@@ -48,6 +48,10 @@ export async function storeMedia(input, options = {}) {
 export async function renderMedia(yaml, container) {
   if (!yaml || !['image', 'audio', 'video'].includes(yaml.type)) return false
   if (typeof yaml.andfs === 'string') {
+    if (yaml.type === 'image') {
+      const { renderAndFSMedia } = await import('./client/ui/media-render.js')
+      return renderAndFSMedia(yaml, container)
+    }
     defineWiredoveMedia()
     const media = document.createElement('wiredove-media')
     media.mediaOptions = { store: await andfsStorePromise }
@@ -103,5 +107,10 @@ export async function renderMedia(yaml, container) {
 
 // Media UI is shared; this adapter supplies authenticated durable storage.
 export function createMediaComposer(options = {}) {
-  return createMediaControls({ ...options, persistMedia: blob => storeMedia(blob, options) })
+  return createMediaControls({
+    ...options, persistMedia: blob => storeMedia(blob, options),
+    resolveAttachment: async attachment => new Blob([attachment.andfs
+      ? await readAndFSMedia(attachment, { store: await andfsStorePromise })
+      : await loadLegacyMediaBytes(attachment.blob)], { type: attachment.mime || '' })
+  })
 }

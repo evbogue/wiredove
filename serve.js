@@ -71,7 +71,7 @@ Deno.serve({ port: Number(Deno.env.get('PORT') || 8000) }, async (r) => {
   const handled = await notifications.handleRequest(r)
   if (handled) return handled
   const response = await serveDir(r, { quiet: 'True' })
-  if (pathname.startsWith('/client/') || (pathname.startsWith('/vendor/andfs/') || pathname.startsWith('/vendor/cropperjs/')) ||
+  if (pathname.startsWith('/client/') || (pathname.startsWith('/vendor/andfs/') || pathname.startsWith('/vendor/cropperjs/') || pathname.startsWith('/vendor/marked/')) ||
       ['/embed.js', '/style.css'].includes(new URL(r.url).pathname)) {
     response.headers.set('Access-Control-Allow-Origin', '*')
   }
