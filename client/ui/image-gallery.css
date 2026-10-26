@@ -2,14 +2,14 @@
 wiredove-image-gallery.image-gallery {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px; width: 100%; min-width: 0; margin-block: 10px;
+  aspect-ratio: 4 / 3; grid-template-rows: minmax(0, 1fr);
   border-radius: 12px; overflow: hidden; container-type: inline-size;
   background: var(--wiredove-surface, #f4f4f4);
 }
-.image-gallery .image-gallery-cell { position: relative; min-width: 0; min-height: 0; aspect-ratio: 1 / 1; }
+.image-gallery .image-gallery-cell { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .image-gallery[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
-.image-gallery[data-count="1"] .image-gallery-cell { width: 100%; aspect-ratio: 4 / 3; min-height: 0; max-height: 640px; }
-.image-gallery[data-count="3"] { grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.image-gallery[data-count="3"] .image-gallery-cell:first-child { grid-row: span 2; aspect-ratio: auto; }
+.image-gallery[data-count="3"], .image-gallery[data-count="4"] { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.image-gallery[data-count="3"] .image-gallery-cell:first-child { grid-row: span 2; }
 .image-gallery .image-gallery-tile {
   display: block; position: relative; width: 100%; height: 100%; min-height: inherit;
   margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--wiredove-surface, #eee);
@@ -22,7 +22,7 @@ wiredove-image-gallery.image-gallery {
 .image-gallery .image-loaded img { opacity: 1; }
 .image-gallery[data-count="1"] .image-gallery-tile { height: 100%; }
 .image-gallery[data-count="1"] .image-gallery-tile img {
-  height: 100%; max-height: 640px; min-height: 0; object-fit: contain;
+  height: 100%; min-height: 0; object-fit: contain;
 }
 .image-gallery .image-gallery-status {
   position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding: 8px; box-sizing: border-box; overflow-wrap: anywhere; text-align: center;
@@ -39,10 +39,6 @@ wiredove-image-gallery.image-gallery {
 }
 .image-gallery button:focus-visible { outline: 3px solid #796afd; outline-offset: -3px; }
 .image-gallery [hidden], .image-popover [hidden] { display: none !important; }
-@container (max-width: 300px) {
-  .image-gallery[data-count="3"] .image-gallery-cell:first-child { grid-row: auto; aspect-ratio: 1; }
-  .image-gallery[data-count="3"] .image-gallery-cell:last-child { grid-column: span 2; aspect-ratio: 2; }
-}
 dialog.image-popover {
   box-sizing: border-box; position: fixed; inset: 0; width: 100%; height: 100%;
   max-width: none; max-height: none; margin: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));

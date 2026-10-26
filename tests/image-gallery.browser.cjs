@@ -76,6 +76,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
             // Let container queries and percentage image sizes settle after resizing.
             await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
             const size=await gallery.boundingBox();assert.ok(size.width<=width+1);assert.ok(size.height>50&&size.height<1000,JSON.stringify({count,width,size}));
+            assert.ok(Math.abs(size.height-size.width*3/4)<2,JSON.stringify({surface,count,width,size}));
             assert.equal(await gallery.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,JSON.stringify({surface,count,width,detail:await gallery.evaluate(el=>({scroll:el.scrollWidth,client:el.clientWidth,html:el.outerHTML,display:getComputedStyle(el).display}))}));
           }
           await page.locator('#fixture').evaluate(el=>el.style.width='');
@@ -224,7 +225,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await cachePage.locator('.image-gallery-more').textContent(),'+6 more');
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v11-andfs-image-gallery'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v12-consistent-photo-layout'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
