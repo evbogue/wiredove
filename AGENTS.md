@@ -10,7 +10,7 @@ This file records project context and session-specific lessons so future agents 
 - Default branch: `master`
 - Audio/video planning document: `AUDIO_VIDEO_PROPOSAL.md`
 - The current first milestone is intentionally small:
-  `record/upload → blob → ANProto artifact → fetch → verify → play`
+  `record/upload → AndFS → signed ANProto artifact → fetch → verify → play`
 
 ## Product direction
 
@@ -28,24 +28,37 @@ For media:
 
 The broader project direction is sustainable, portable internet fame rather than protocol completeness for its own sake.
 
-## AndFS migration work order
+## Preserve legacy blobs — compatibility requirement
 
-Ev requested new media use AndFS on 2026-09-17. Follow `WORK_ORDER.md` for this migration. The architecture below describes the existing anblob implementation, which must remain readable for old signed posts; it is not the target for new writes.
+Ev explicitly confirmed on 2026-10-21 that legacy blob support must remain for
+historical content, even when new uploads move to AndFS.
+
+- Preserve APDS image blobs: data URLs stored by `apds.make()` and referenced by
+  their original hashes in Markdown (`![](hash)`), including profile images.
+- Preserve historical `blob: anblob:v1:...` audio/video and its legacy reader,
+  storage, endpoints, and backups.
+- Do not delete legacy readers or stored blobs as AndFS cleanup. Never rewrite
+  signed historical posts or reinterpret legacy hashes as AndFS manifest hashes.
+- Any future upload migration changes new writes only; verify historical image
+  and audio/video reads alongside the new path.
+
+New post image uploads in `upload.js` use AndFS through the shared signed upload
+client. Multiple inline images retain Markdown `![](media_url)` references; the
+signed body authenticates each manifest hash embedded in its URL. The shared
+`client/ui/inline-image.js` reader verifies those blocks before display in both
+website and embeds. New profile photos also use the shared AndFS upload helper:
+retain the original bytes and a separate square PNG crop (up to 1024 px, without
+upscaling). Signed profile metadata uses `image` for the cropped URL,
+`image_original` for the original URL, and versioned `image_crop` settings.
+Preserve all three when publishing later profile edits. The shared Cropper.js UI
+supports drag/pinch, rotation, a circular preview and re-cropping from the original.
+Historical APDS image references and anblob media remain supported.
 
 ## Audio/video architecture
 
-ANProto now has content-addressed blob support in the ANProto repository.
+New audio/video uploads use the pinned AndFS v1 implementation in `vendor/andfs/`. Keep its upstream files unchanged. Use explicit `createAndFS({ store })` instances and the `{ type, andfs, mime, media_name, media_size, media_url, media_source }` signed metadata contract. The upload endpoint requires an ANProto signature over the exact authorization JSON and persists verified blocks. Old `blob: anblob:v1:...` posts must continue to use the legacy reader; never reinterpret or rewrite their IDs.
 
-Relevant concepts:
-
-- Small blobs are raw SHA-256-addressed blobs.
-- Large blobs are deterministic 1 MiB chunks plus a hashed manifest.
-- `putBlob()`, `getBlob()`, `verifyBlob()`, `downloadBlob()`, and `streamBlob()` exist.
-- Media artifacts should contain references such as:
-  `{ type: "video", blob: "...", mime: "video/webm" }`
-- The media artifact still needs to go through Wiredove's existing ANProto signing/publishing path. The helper that constructs a media artifact does not itself sign it.
-- Do not rely on ANProto's demo in-memory HTTP blob endpoint for production storage; it is ephemeral.
-- Do not overclaim universal progressive browser playback. Arbitrary 1 MiB storage chunks are not guaranteed to be valid MediaSource segments.
+Follow `WORK_ORDER.md` for the remaining migration and cross-client acceptance work. The Wiredove UI verifies AndFS blocks before playback. The server also provides a verified byte-range media endpoint; native storage chunks are not codec segments, and there is no transcoding or adaptive streaming.
 
 ## Mockup / image upload lesson
 
@@ -159,7 +172,9 @@ port and an isolated browser context when testing a fresh identity.
   gate the profile header on finding a rendered author message.
 - `client/ui/profile-editor.js` owns shared editor fields and photo cropping;
   `client/ui/profile-links.js` owns link editing/rendering. Frames provide storage,
-  signing, publication, and identity. Onboarding and later edits use the same editor.
+  signing, publication, and identity. `uploadProfilePhoto()` in `upload.js` uses the
+  same AndFS uploader as post images; `profile_image.js` resolves both verified
+  AndFS URLs and legacy APDS hashes for website avatars. Onboarding and later edits use the same editor.
 - At the pinned APDS version, `compose()` overwrites explicit name/image metadata
   with local values. Profile updates construct the intended metadata with
   `createYaml()` and `sign()`, retaining the previous-message reference. Check the

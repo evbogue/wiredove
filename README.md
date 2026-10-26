@@ -14,9 +14,9 @@ The entire application stack runs in a browser window, so there is no installati
 
 The website and embeds are planned to consume the same individually importable UI widgets, composed by separate application frames. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the current gaps, module boundaries, staged migration, compatibility requirements, and acceptance checks. The current website and widget rendering paths are still separate.
 
-### AndFS migration
+### AndFS media
 
-New multimedia storage is planned to move to AndFS, compatible with the evbogue.com timeline. See [WORK_ORDER.md](WORK_ORDER.md) for the message contract, implementation tickets, legacy anblob preservation, and cross-client acceptance checks. The current runtime still uses anblob.
+New post images and audio/video attachments use AndFS v1 with signed upload authorization, persistent server storage, and verified display/playback. Historical APDS images and anblob attachments remain readable; profile photos preserve the original in AndFS alongside an editable crop of up to 1024 × 1024 pixels. See [MEDIA_PROTOTYPE.md](MEDIA_PROTOTYPE.md) for the local workflow and [WORK_ORDER.md](WORK_ORDER.md) for the cross-client acceptance checks. These local changes are not deployed to production.
 
 ### Creating and backing up an identity
 
