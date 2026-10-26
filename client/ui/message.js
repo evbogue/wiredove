@@ -1,8 +1,9 @@
+import { verifiedImageSource } from './image-source.js';
 import { applyWiredoveStyles } from "./styles.js";
 import { registerElement } from "./element.js";
 import { displayName, human, visual } from "./format.js";
 import { appendFormattedText } from "./body.js";
-import { renderAndFSMedia } from "./media-render.js";
+import { renderAndFSMedia, disposeMedia } from "./media-render.js";
 
 export class WiredoveMessage extends HTMLElement {
   set post(value) {
@@ -27,11 +28,13 @@ export class WiredoveMessage extends HTMLElement {
   connectedCallback() {
     this.render();
   }
+  disconnectedCallback() { if (this.shadowRoot) disposeMedia(this.shadowRoot); }
   render() {
     const post = this._post;
     if (!post) return;
     const parsed = post.parsed || post;
     const root = this.shadowRoot || this.attachShadow({ mode: "open" });
+    disposeMedia(root);
     root.replaceChildren();
     applyWiredoveStyles(root);
     const article = document.createElement("article");
@@ -48,6 +51,11 @@ export class WiredoveMessage extends HTMLElement {
     avatar.alt = "";
     const customAvatar = this._presentation?.avatarURL?.(post);
     if (customAvatar) avatar.src = customAvatar;
+    else if (parsed.image) {
+      void verifiedImageSource(parsed.image).then(source => {
+        if (source && this._post === post && avatar.isConnected) avatar.src = source;
+      }).catch(() => {});
+    }
     const avatarLink = document.createElement("a");
     avatarLink.href = this._presentation?.authorURL?.(post) ||
       `https://wiredove.net/#${encodeURIComponent(post.author || "")}`;

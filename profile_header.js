@@ -5,6 +5,8 @@ import { send } from './send.js'
 import { profileLinksFromHistory } from './client/profile-links.js'
 import { renderProfileLinks } from './client/ui/profile-links.js'
 import { createProfileEditor } from './client/ui/profile-editor.js'
+import { resolveImageSrc } from './profile_image.js'
+import { uploadProfilePhoto } from './upload.js'
 import { downloadIdentityBackup } from './identity_backup.js'
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
@@ -12,17 +14,6 @@ const isHash = (value) => typeof value === 'string' && value.length === 44
 const isReplyYaml = (yaml) => {
   if (!yaml) { return false }
   return Boolean(yaml.reply || yaml.replyHash || yaml.replyto || yaml.replyTo)
-}
-
-const resolveImageSrc = async (value) => {
-  if (!value || typeof value !== 'string') { return null }
-  if (isHash(value)) {
-    const blob = await apds.get(value)
-    if (blob) { return blob }
-    await send(value)
-    return null
-  }
-  return value
 }
 
 const normalizeMessages = async (messages) => {
@@ -74,11 +65,15 @@ const buildProfileData = async (messages, fallbackName) => {
     bio: bio ?? '',
     background,
     image: latestImage,
+    photoState: (() => {
+      const row = sorted.find(entry => entry.yaml.image === latestImage && entry.yaml.image_original && entry.yaml.image_crop);
+      return row ? { image: latestImage, original: row.yaml.image_original, crop: row.yaml.image_crop } : null;
+    })(),
     links: profileLinksFromHistory(sorted),
   }
 }
 
-const publishProfileUpdate = async ({ bio, name, image, links }) => {
+const publishProfileUpdate = async ({ bio, name, image, links, photoState }) => {
   const meta = {}
   if (bio !== null && bio !== undefined) { meta.bio = bio }
   if (name !== null && name !== undefined && name !== '') { meta.name = name }
@@ -91,6 +86,11 @@ const publishProfileUpdate = async ({ bio, name, image, links }) => {
   const previous = await apds.get('previous')
   if (!meta.name && localName) meta.name = localName
   if (!meta.image && localImage) meta.image = localImage
+  const storedPhoto = photoState || await apds.get('profile_photo')
+  if (storedPhoto?.image === meta.image && storedPhoto.original && storedPhoto.crop) {
+    meta.image_original = storedPhoto.original
+    meta.image_crop = storedPhoto.crop
+  }
   if (previous) meta.previous = previous
   const published = await apds.sign(await apds.createYaml(meta, ''))
   // APDS normally flushes these indexes on a timer. A saved profile must survive
@@ -102,7 +102,7 @@ const publishProfileUpdate = async ({ bio, name, image, links }) => {
   const blob = await apds.get(opened.substring(13))
   await send(signed)
   await send(blob)
-  if (image) { await send(image) }
+  if (isHash(image)) { await send(image) }
   return { signed, blob }
 }
 
@@ -115,6 +115,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   let currentBio = profile.bio || ''
   let currentLinks = profile.links || []
   let currentImageHash = profile.image || null
+  let currentPhotoState = profile.photoState
 
   if (canEdit && pubkey) {
     const localLog = await apds.query(pubkey)
@@ -123,18 +124,22 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
       if (localProfile.name) { currentName = localProfile.name }
       currentBio = localProfile.bio
       if (localProfile.links !== null) { currentLinks = localProfile.links }
-      if (localProfile.image) { currentImageHash = localProfile.image }
+      if (localProfile.image) { currentImageHash = localProfile.image; currentPhotoState = localProfile.photoState }
     }
     const localName = await apds.get('name')
     if (localName) { currentName = localName }
     const localImage = await apds.get('image')
     if (localImage) { currentImageHash = localImage }
+    const localPhoto = await apds.get('profile_photo')
+    if (localPhoto?.image === currentImageHash) currentPhotoState = localPhoto
   }
 
   const profileImage = await resolveImageSrc(currentImageHash)
   let currentImageSrc = profileImage || fallbackVisualSrc || ''
   let draftImageHash = currentImageHash
   let draftImageSrc = currentImageSrc
+  let draftPhotoState = currentPhotoState
+  let photoBusy = false
   let viewAvatarImgRef = null
   const header = h('div', { classList: 'message profile-header' })
 
@@ -144,9 +149,14 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
 
   const editor = createProfileEditor({
     name: currentName, bio: currentBio, links: currentLinks, imageSrc: draftImageSrc,
-    onImageChange: async (src) => {
-      draftImageHash = await apds.make(src)
+    photoState: draftPhotoState,
+    onBusy: value => { photoBusy = value; saveButton.disabled = cancelButton.disabled = value },
+    onImageChange: async (src, cropped, options) => {
+      const saved = await uploadProfilePhoto(cropped, options)
+      draftImageHash = saved.image
+      draftPhotoState = saved
       draftImageSrc = src
+      return saved
     }
   })
   const viewAvatar = h('img', {
@@ -180,6 +190,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   }
 
   saveButton.onclick = async () => {
+    if (photoBusy) return
     let linksValue
     try { linksValue = linksEditor.getLinks() }
     catch (error) { status.textContent = error.message; return }
@@ -207,16 +218,18 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
         bio: bioChanged ? value : null,
         name: nameChanged ? nameValue : null,
         image: imageChanged ? draftImageHash : null,
+        photoState: draftPhotoState,
         links: linksChanged ? linksValue : null
       })
       if (nameChanged) { await apds.put('name', nameValue) }
-      if (imageChanged) { await apds.put('image', draftImageHash) }
+      if (imageChanged) { await apds.put('image', draftImageHash); await apds.put('profile_photo', draftPhotoState) }
       if (linksChanged) { currentLinks = linksValue }
       renderProfileLinks(linksView, currentLinks)
       if (nameChanged) { currentName = nameValue }
       if (bioChanged) { currentBio = value }
       if (imageChanged) {
         currentImageHash = draftImageHash
+        currentPhotoState = draftPhotoState
         currentImageSrc = draftImageSrc
       }
       const rendered = await markdown(currentBio || '')
@@ -246,7 +259,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     linksEditor.setLinks(currentLinks)
     input.value = currentBio || ''
     nameEditor.value = currentName || ''
-    editor.reset({ name: currentName, bio: currentBio, links: currentLinks, imageSrc: currentImageSrc })
+    editor.reset({ name: currentName, bio: currentBio, links: currentLinks, imageSrc: currentImageSrc, photoState: currentPhotoState })
     setEditing(true)
     nameEditor.focus()
   }
@@ -255,9 +268,10 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     linksEditor.setLinks(currentLinks)
     input.value = currentBio || ''
     nameEditor.value = currentName || ''
+    draftPhotoState = currentPhotoState
     draftImageHash = currentImageHash
     draftImageSrc = currentImageSrc
-    editor.reset({ name: currentName, bio: currentBio, links: currentLinks, imageSrc: currentImageSrc })
+    editor.reset({ name: currentName, bio: currentBio, links: currentLinks, imageSrc: currentImageSrc, photoState: currentPhotoState })
     setEditing(false)
   }
 

@@ -4,13 +4,21 @@ async (page) => {
   const origin = new URL(page.url()).origin;
   const browser = page.context().browser();
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', colorScheme: 'dark', acceptDownloads: true });
+  const secure = async ctx => {
+    await ctx.routeWebSocket('**', socket => socket.close());
+    await ctx.route('**/*', route => {
+      const request = route.request(), host = new URL(request.url()).hostname;
+      return !['127.0.0.1','localhost'].includes(host) && request.method() !== 'GET' ? route.abort() : route.continue();
+    });
+  };
+  await secure(context);
   const check = (condition, message) => { if (!condition) throw new Error(message); };
   const results = [];
   let imported;
   try {
     const test = await context.newPage();
     await test.goto(origin);
-    await test.locator('#generate-keypair-button').click();
+    await test.getByRole('button', { name: 'Create or import identity', exact: true }).click();
     await test.getByLabel('Display name', { exact: true }).fill('Wiredove Browser Test');
     await test.getByRole('dialog').getByRole('button', { name: 'Create identity', exact: true }).click();
     await test.getByRole('heading', { name: 'Make yourself at home' }).waitFor();
@@ -84,9 +92,10 @@ async (page) => {
     check(signed[0].bio === '', 'Empty bio not present in signed metadata');
     results.push('Reload persistence, signed name/photo/empty bio, and Cancel passed');
     imported = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    await secure(imported);
     const importPage = await imported.newPage();
     await importPage.goto(origin);
-    await importPage.locator('#generate-keypair-button').click();
+    await importPage.getByRole('button', { name: 'Create or import identity', exact: true }).click();
     await importPage.getByRole('button', { name: 'Import existing identity', exact: true }).click();
     await importPage.getByLabel('Identity backup', { exact: true }).fill('invalid');
     await importPage.getByRole('button', { name: 'Import identity', exact: true }).click();
@@ -97,10 +106,11 @@ async (page) => {
     await importPage.getByRole('button', { name: 'Edit profile', exact: true }).waitFor();
     results.push('Invalid backup rejection and valid backup import passed');
     const skippedContext = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
+    await secure(skippedContext);
     try {
       const skipped = await skippedContext.newPage();
       await skipped.goto(origin);
-      await skipped.locator('#generate-keypair-button').click();
+      await skipped.getByRole('button', { name: 'Create or import identity', exact: true }).click();
       await skipped.getByLabel('Display name', { exact: true }).fill('Skip Setup Test');
       await skipped.getByRole('dialog').getByRole('button', { name: 'Create identity', exact: true }).click();
       await skipped.getByRole('button', { name: 'Skip for now', exact: true }).click();

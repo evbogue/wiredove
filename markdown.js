@@ -1,3 +1,6 @@
+import { andfsImageMetadata } from './client/andfs.js'
+import { defineWiredoveInlineImage } from './client/ui/inline-image.js'
+
 import { h } from 'h'
 import { apds } from 'apds'
 import { marked } from 'https://esm.sh/gh/evbogue/bog5@de70376265/lib/marked.esm.js'
@@ -6,10 +9,10 @@ import { send } from './send.js'
 const renderer = new marked.Renderer()
 
 renderer.paragraph = function (paragraph) {
-  const images = paragraph.match(/<img\b[^>]*>/gi) || []
+  const images = paragraph.match(/<img\b[^>]*>|<wiredove-inline-image\b[^>]*><\/wiredove-inline-image>/gi) || []
   if (images.length) {
     const textOnly = paragraph
-      .replace(/<img\b[^>]*>/gi, ' ')
+      .replace(/<img\b[^>]*>|<wiredove-inline-image\b[^>]*><\/wiredove-inline-image>/gi, ' ')
       .replace(/<br\s*\/?>/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim()
@@ -71,7 +74,12 @@ renderer.link = function (href, title, text) {
   }
 }
 
+const escapeAttribute = value => String(value || '').replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 renderer.image = function (src, title, text) {
+  if (andfsImageMetadata(src)) {
+    defineWiredoveInlineImage()
+    return `<wiredove-inline-image source="${escapeAttribute(src)}" alt="${escapeAttribute(text)}"></wiredove-inline-image>`
+  }
   if (src && src.length === 44) {
     apds.get(src).then(async (img) => {
       if (img) {

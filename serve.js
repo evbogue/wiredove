@@ -1,9 +1,15 @@
 import { serveDir } from 'https://deno.land/std@0.224.0/http/file_server.ts'
 import { createNotificationsService } from './notifications_server.js'
+import { createAndFsMediaService } from './andfs_media_server.js'
 
 const notifications = await createNotificationsService()
 const BLOB_DIR = Deno.env.get('BLOB_DIR') || './data/blobs'
 await Deno.mkdir(BLOB_DIR, { recursive: true })
+const media = await createAndFsMediaService({
+  dataDir: Deno.env.get('MEDIA_DATA_DIR') || './data',
+  maxMediaBytes: Number(Deno.env.get('MEDIA_MAX_BYTES') || 32 * 1024 * 1024),
+  quotaBytes: Number(Deno.env.get('MEDIA_QUOTA_BYTES') || 1024 * 1024 * 1024)
+})
 
 const validBlobId = (id) => /^anblob:v1:(raw|chunked):sha256:[A-Za-z0-9_-]+$/.test(id)
 
@@ -52,12 +58,20 @@ const handleBlobRequest = async (request) => {
 }
 
 Deno.serve({ port: Number(Deno.env.get('PORT') || 8000) }, async (r) => {
+  let pathname
+  try { pathname = decodeURIComponent(new URL(r.url).pathname) }
+  catch { return new Response(null, { status: 400 }) }
+  if (/^\/(?:data(?:\/|$)|config\.json$|\.git(?:\/|$))/.test(pathname)) {
+    return new Response(null, { status: 404 })
+  }
+  const mediaResponse = await media.handleRequest(r)
+  if (mediaResponse) return mediaResponse
   const blobResponse = await handleBlobRequest(r)
   if (blobResponse) return blobResponse
   const handled = await notifications.handleRequest(r)
   if (handled) return handled
   const response = await serveDir(r, { quiet: 'True' })
-  if (new URL(r.url).pathname.startsWith('/client/') ||
+  if (pathname.startsWith('/client/') || (pathname.startsWith('/vendor/andfs/') || pathname.startsWith('/vendor/cropperjs/')) ||
       ['/embed.js', '/style.css'].includes(new URL(r.url).pathname)) {
     response.headers.set('Access-Control-Allow-Origin', '*')
   }

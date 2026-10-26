@@ -112,7 +112,7 @@ export class HttpBlobStore {
   constructor(baseUrl, { fetchImpl = fetch } = {}) {
     if (!baseUrl) throw new TypeError("HttpBlobStore requires a base URL");
     this.baseUrl = String(baseUrl).replace(/\/$/, "");
-    this.fetch = fetchImpl;
+    this.fetch = fetchImpl.bind(globalThis);
   }
 
   #url(id) {

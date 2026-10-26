@@ -1,3 +1,4 @@
+import { resolveImageSrc } from './profile_image.js'
 import { apds } from 'apds'
 import { h } from 'h'
 import { send } from './send.js'
@@ -223,11 +224,11 @@ const applyProfile = async (contentHash, yaml) => {
       if (cache.get(yaml.image)) {
         get.src = cache.get(yaml.image)
       } else {
-        const image = await apds.get(yaml.image)
+        const image = await resolveImageSrc(yaml.image)
         cache.set(yaml.image, image)
         if (image) {
           get.src = image
-        } else { send(yaml.image) }
+        }
       }
     }
   }
@@ -1116,7 +1117,7 @@ render.comments = async (hash, blob, div, actionsRow) => {
     onclick: async () => {
       if (document.getElementById('reply-composer-' + hash)) { return }
       if (await apds.pubkey()) {
-        div.after(await composer(blob))
+        document.body.appendChild(await composer(blob))
         return
       }
       promptKeypair()
@@ -1201,7 +1202,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
     return
   }
 
-  if (yaml && (yaml.body || (yaml.blob && ['audio', 'video'].includes(yaml.type)))) {
+  if (yaml && (yaml.body || (yaml.andfs && ['image', 'audio', 'video'].includes(yaml.type)) || (yaml.blob && ['audio', 'video'].includes(yaml.type)))) {
     div.className = 'content'
     if (yaml.replyHash) { yaml.reply = yaml.replyHash }
     if (messageHash && yaml.reply) {

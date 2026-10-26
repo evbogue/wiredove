@@ -1,3 +1,6 @@
+import { andfsImageMetadata } from '../andfs.js';
+import { createInlineImage } from './inline-image.js';
+
 export const appendFormattedText = (target, text) => {
   for (const line of String(text || "").split("\n")) {
     const row = document.createElement("div");
@@ -8,6 +11,11 @@ export const appendFormattedText = (target, text) => {
       row.append(document.createTextNode(line.slice(cursor, match.index)));
       if (imageAlt !== undefined) {
         if (/^https?:\/\//.test(imageSource)) {
+          if (andfsImageMetadata(imageSource)) {
+            row.append(createInlineImage(imageSource, imageAlt));
+            cursor = match.index + whole.length;
+            continue;
+          }
           const image = document.createElement("img");
           image.src = imageSource;
           image.alt = imageAlt || "Attached image";
