@@ -1,6 +1,6 @@
 # Wiredove shared widgets and application frames
 
-Requested by Ev, 2026-10-03. Status: planned; this document does not implement the restructuring.
+Requested by Ev, 2026-10-03. Status (reviewed 2026-10-26): partially implemented in shared body/gallery, AndFS media, and composer/profile subcomponents; full website/embed convergence remains unfinished. This file is a tracking work order, not an implementation.
 Baseline: master at `bd62381` (public author-feed embed).
 
 ## Outcome and architectural requirement
@@ -367,7 +367,7 @@ mocked, or skipped acceptance checks as observed success.
 - [ ] Obsolete production renderers and temporary bridges are removed.
 - [ ] Instructions, examples, architecture checks and validation record agree with code.
 
-## Implementation checkpoint — 2026-10-03
+## Historical implementation checkpoint — 2026-10-03
 
 First implementation extracts the existing client widget classes into individual
 `client/ui/` modules and preserves `client/ui.js`/`client/render.js` compatibility
@@ -382,5 +382,87 @@ shared helper modules, target JSDoc contracts, and a feature/DOM-boundary invent
 - S03–S08: not implemented. The website still uses its original renderer, composer,
   media and transport paths. No shared-website acceptance claim is made.
 
-Next: close the S01 verification/DOM-boundary checkpoints, then wire canonical
-message/media widgets into a website message slice while retaining richer features.
+Next steps from that checkpoint were superseded by the 2026-10-26 reconciliation below.
+
+
+## Implementation reconciliation — 2026-10-26
+
+This checkpoint reconciles the original 2026-10-03 plan with changes since the shared-UI inventory baseline `ea32306` (41 commits through `651ae371`). Earlier unchecked S01–S08 entries above are **original scope**, not an assertion that no work has shipped. This section is the current delivery record. Do not mark an entire milestone done because one of its vertical slices works.
+
+### Implemented on master (source-backed, not necessarily production-deployed)
+
+- [x] **S02 module decomposition:** individually importable modules exist under `client/ui/` for message, feed, thread, composer, media and widget, with preserved aggregate entry points; see `client/README.md` and `docs/SHARED_UI_INVENTORY.md`.
+- [x] **S03 body/gallery slice:** website message bodies and embeds share `client/ui/body.js`, `image-gallery.js`, and `image-popover.js`. Inline image grouping preserves authored order, including images interleaved with text. Gallery viewer provides shared controls. Website edit rerenders and preview paths use the body/gallery renderer. See `IMAGE_GALLERY_WORK_ORDER.md` and `tests/image-gallery.browser.cjs`.
+- [x] **S03 AndFS attachment slice:** website mounts `wiredove-media`, sharing `client/ui/media-render.js` with embedded messages for verified AndFS audio/video. New post images use `client/ui/inline-image.js` with block verification. `client/andfs.js` and `upload.js` provide the signed upload path. Legacy APDS images and anblob audio/video retain separate readers. See `WORK_ORDER.md`, `MEDIA_PROTOTYPE.md`, and `AGENTS.md`.
+- [x] **S06 partial composer UI extraction:** `client/ui/composer-surface.js`, `composer-media.js`, and `client/frames/composer-dialog.js` exist, and recent changes unify composer controls and constrain post/reply layout. This does **not** mean signing, publishing, draft state, and lifecycle are wholly migrated to a shared host-independent composer service.
+- [x] **Partial shared profile UI:** `client/ui/profile-editor.js`, `profile-links.js`, and `photo-cropper.js` support reusable editing/link/cropping UI. Newly uploaded profile photos use AndFS originals plus an editable crop, with signed `image`, `image_original`, and `image_crop` metadata; legacy photos remain readable.
+- [x] **Target interfaces documented:** `client/core/contracts.js` and `docs/SHARED_UI_INVENTORY.md` define intended record, capability, and lifecycle boundaries. They are **not** evidence that all adapters are working.
+
+### Open coherence blockers (work in this order)
+
+#### C01 — Complete shared canonical message component (S01/S03) — P0
+
+- [ ] Audit website `render.js` versus `client/ui/message.js` field by field: metadata/name/avatar/timestamps, replies, edit history, moderation stubs/actions, raw-data and QR/share controls, loading/unavailable/error states, profile edits, and async updates.
+- [ ] Audit APDS cache provenance before normalization; verified signature/content/hash and merely cached/unverified feed rows must remain distinguishable.
+- [ ] Decide how widget-owned DOM refs/events replace website document IDs/selectors, including shadow-root policy and route lifecycle. Record the decision in `docs/SHARED_UI_INVENTORY.md`.
+- [ ] Move richer website message-shell behavior into the canonical widget without reducing existing website features; switch website message construction to that same widget used in embeds.
+- [ ] Keep legacy anblob and APDS media resolution injectable, alongside verified AndFS; retain unchanged signed message bytes and historical references.
+- [ ] Run the same signed fixtures in the website and a **separate-origin embed**. Test edits/moderation/replies, gallery ordering, light/dark, narrow/mobile viewports, keyboard/focus, async disposal and navigation races.
+- [ ] Remove parallel message rendering only after browser-equivalent functionality is observed.
+
+**Gate:** no website-specific duplicate message presentation logic remains; both frames consume the same message widget and formatting/media modules with explicit host adapters.
+
+#### C02 — Unify verified records and services (S04) — P0
+
+- [ ] Implement real adapters for website APDS/FeedStore/FeedOrchestrator, public-relay embeds and verified media using `client/core/contracts.js`; do not treat the contract declaration as implementation.
+- [ ] Preserve author identity, signed exact YAML, previous/reply links, timestamps and provenance in one normalized record.
+- [ ] Report bounded history, missing replies, unavailable blobs and incomplete sync truthfully (an embed author feed is not a global thread search).
+- [ ] Define cancellable subscriptions, stale-response handling, retries and disconnect cleanup; test cached/remote race conditions.
+- [ ] Keep ANProto for provenance, AndFS for verified media bytes, and APDS/relays/storage as replaceable distribution adapters. Do not make UI or networking changes to the protocol just for convenience.
+
+**Gate:** the same fixture produces the same verified record and UI result through the local-first and public-relay adapters.
+
+#### C03 — Finish remaining shared UI surfaces (S05/S06/S07) — P1
+
+- [ ] Migrate feeds, reply/thread indexing, profile header/feed, search and composer into shared canonical widgets, retaining website ordering, incremental insertion, draft/edit state, profile history and moderation.
+- [ ] Bind existing composer UI to an injected publishing service: identity selection, ANProto signing, previous-message linkage, upload durability, relay confirmation and retries stay out of presentation modules.
+- [ ] Preserve inline-at-cursor image placement, galleries within authored message position, media upload/recording cleanup, profile photo edits and profile links. Avoid introducing a rich-text editor solely for image insertion.
+- [ ] Make website and embed frames compose widgets with explicit capabilities; preserve existing public `embed.js` and `client/ui.js` APIs and avoid booting IndexedDB, identity, service workers or global routing from imports.
+- [ ] Retire duplicate frame-owned renderers/bridges only after the shared replacements meet feature parity.
+
+**Gate:** a change to a shared message, composer, profile or media control needs one patch rather than separate website and embed patches.
+
+#### C04 — Finish media compatibility and cross-client acceptance — P1
+
+- [ ] Track outstanding `WORK_ORDER.md` W04/W05: inventory/back up historical anblob storage, real mobile/Safari recording/playback, full bidirectional Wiredove/evbogue.com testing, edit/profile compatibility and reverse-order relay imports.
+- [ ] Keep legacy APDS image and anblob readers/endpoints/backups. Never reinterpret legacy IDs as AndFS hashes or modify old signed YAML.
+- [ ] Validate new image/audio/video/profile photo writes, upload failure recovery, block verification and separate-origin display in both frames.
+- [ ] Record deployment separately from local test success; `README.md` explicitly says the newest AndFS changes have not been deployed.
+
+**Gate:** cross-client round trips and historical reads are observed, and a release checklist can state precisely what is production-ready.
+
+#### C05 — Runtime / release integration — P1, separately tracked
+
+- [ ] Treat `DENO_TO_NODE_WORK_ORDER.md` as the authoritative staged runtime migration; do not couple it to the shared UI refactor or silently replace the independent reverse proxy.
+- [ ] Add root test/package metadata and CI for browser + shared-widget + signature/provenance + AndFS regressions. The current workflow `.github/workflows/media-prototype.yml` performs limited syntax checks, not comprehensive main-branch acceptance.
+- [ ] Add a structural dependency guard: frames must not reintroduce duplicate body/message/media renderers.
+- [ ] Track `master` commit, staging commit, and actually deployed commit distinctly. Per `AGENTS.md`, pushes do not deploy production; verify served assets and browser smoke tests against the intended detached-worktree release.
+- [ ] Review stale OpenClaw/CLI PR #4 against current publishing contracts and Node direction; resolve its unmergeable state deliberately, without conflating an agent publishing client with browser UI sharing.
+- [ ] Keep README, AGENTS, demos, inventories and work orders synchronized with observed behavior after each completed gate.
+
+**Gate:** CI provides meaningful coverage on `master`, and deployment/rollback notes identify exactly which revision users see.
+
+### Acceptance checklist for declaring project coherence
+
+- [ ] One canonical message renderer used by both website and embed.
+- [ ] Shared verified post/service contracts used by both local-first and relay adapters.
+- [ ] Shared feed, thread, profile and composer features without functionality regression.
+- [ ] New AndFS verified media plus immutable legacy APDS/anblob read compatibility.
+- [ ] Browser-tested separate-origin embeds and website, including mobile/layout/accessibility/lifecycle scenarios.
+- [ ] CI checks signatures, layout-critical fixtures, media and architectural boundaries.
+- [ ] Documented and verified production revision, with staging and rollback.
+- [ ] Docs reflect the running implementation; no historical checkpoint presented as current status.
+
+### Immediate next implementation slice
+
+Start with **C01**. Build a website/embed feature-parity fixture matrix, settle verification and DOM ownership, then mount the complete shared `wiredove-message` shell into one website feed while preserving edit/moderation/replies, galleries, and legacy media. Do not expand the scope into another independent UI, new editor or runtime rewrite in the same commit.
