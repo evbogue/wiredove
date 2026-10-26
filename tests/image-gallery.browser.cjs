@@ -68,15 +68,16 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
           await page.evaluate(text=>mount(text),run(count));
           const gallery=page.locator('wiredove-image-gallery');
           await gallery.waitFor();assert.equal(await gallery.count(),1);
-          assert.equal(await gallery.locator('.image-gallery-tile').count(),Math.min(count,4));
-          if(count>4)assert.equal(await gallery.locator('.image-gallery-more').textContent(),`+${count-4} more`);
+          assert.equal(await gallery.locator('.image-gallery-tile').count(),count);
           await page.evaluate(()=>Promise.all([...bodyNode.querySelectorAll('wiredove-image-gallery')].flatMap(g=>[...g.querySelectorAll('img')].map(img=>img.complete?Promise.resolve():new Promise(r=>{img.addEventListener('load',r,{once:true});img.addEventListener('error',r,{once:true});})))));
           for(const width of [240,320,660]) {
             await page.locator('#fixture').evaluate((el,width)=>el.style.width=width+'px',width);
             // Let container queries and percentage image sizes settle after resizing.
             await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-            const size=await gallery.boundingBox();assert.ok(size.width<=width+1);assert.ok(size.height>50&&size.height<1000,JSON.stringify({count,width,size}));
-            assert.ok(Math.abs(size.height-size.width*3/4)<2,JSON.stringify({surface,count,width,size}));
+            const size=await gallery.boundingBox();assert.ok(size.width<=width+1);assert.ok(size.height>50&&size.height<5000,JSON.stringify({count,width,size}));
+            const cells=await gallery.locator('.image-gallery-cell').evaluateAll(nodes=>nodes.map(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,top:r.top,radius:getComputedStyle(el).borderRadius};}));
+            for(const cell of cells){assert.ok(Math.abs(cell.width-cell.height)<1);assert.ok(cell.width<=(count===1?220:140));assert.equal(cell.radius,'12px');}
+            if(count>4)assert.ok(cells.at(-1).top>cells[0].top);
             assert.equal(await gallery.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,JSON.stringify({surface,count,width,detail:await gallery.evaluate(el=>({scroll:el.scrollWidth,client:el.clientWidth,html:el.outerHTML,display:getComputedStyle(el).display}))}));
           }
           await page.locator('#fixture').evaluate(el=>el.style.width='');
@@ -222,10 +223,10 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     });
     await cachePage.reload();await cachePage.waitForFunction(()=>window.ready);
     await cachePage.evaluate(text=>mount(text),run(10));
-    assert.equal(await cachePage.locator('.image-gallery-more').textContent(),'+6 more');
+    assert.equal(await cachePage.locator('.image-gallery-tile').count(),10);
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v12-consistent-photo-layout'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v13-square-photo-previews'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

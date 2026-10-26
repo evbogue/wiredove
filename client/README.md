@@ -213,8 +213,10 @@ is vendored locally; rendering constructs safe DOM and treats raw HTML as text.
 `ui/image-gallery.js` exports `createImageGallery({ images, resolveImage, onOpen,
 document })`. Each image is `{ src, alt, title?, link? }`. Calling the factory
 lazily registers `wiredove-image-gallery`; importing the module is inert.
-Adjacent runs show at most four previews. A ten-image run displays “+6 more”;
-opening a preview starts at that occurrence and exposes the entire run.
+Adjacent images wrap into rows of 140px square previews with 6px gaps and
+12px corners on each photo. Single images use a 220px square. Previews shrink
+to fit narrow containers; every image remains visible in the run and opens
+the full original in the viewer.
 
 `resolveImage(hash, { signal })` may return a browser-readable image URL or a
 raster image data URL from the host's legacy adapter. It must honor lifecycle

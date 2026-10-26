@@ -17,11 +17,11 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
     this.disconnectedCallback();
     this.replaceChildren();
     this.className = 'image-gallery';
-    this.dataset.count = String(Math.min(this.items.length, 4));
+    this.dataset.count = String(this.items.length);
     this.setAttribute('role', 'group');
     this.setAttribute('aria-label', `${this.items.length} image${this.items.length === 1 ? '' : 's'}`);
     this._controller = new AbortController();
-    this.items.slice(0, 4).forEach((item, index) => {
+    this.items.forEach((item, index) => {
       const tile = this.ownerDocument.createElement('button');
       tile.type = 'button';
       tile.className = 'image-gallery-tile';
@@ -91,14 +91,6 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         this._stopViewer = (this._options.onOpen || openImageGallery)(request);
       });
       tile.append(image, status);
-      if (index === 3 && this.items.length > 4) {
-        const more = this.ownerDocument.createElement('span');
-        more.className = 'image-gallery-more';
-        more.textContent = `+${this.items.length - 4} more`;
-        more.setAttribute('aria-hidden', 'true');
-        tile.setAttribute('aria-label', `${tile.getAttribute('aria-label')}; ${this.items.length - 4} more images available`);
-        tile.append(more);
-      }
       cell.append(tile, retry);
       this.append(cell);
     });
@@ -120,7 +112,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
   }
   refreshSource(hash, src) {
     this.items.forEach((item, index) => {
-      if (item.src !== hash || index >= 4) return;
+      if (item.src !== hash) return;
       const image = this.querySelectorAll('.image-gallery-tile img')[index];
       const safe = safeImageURL(src, { resolved: true });
       if (image && safe) image.src = safe;
