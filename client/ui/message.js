@@ -1,3 +1,4 @@
+import { createMessageMain } from './message-layout.js';
 import { verifiedImageSource } from './image-source.js';
 import { applyWiredoveStyles } from "./styles.js";
 import { registerElement } from "./element.js";
@@ -39,8 +40,7 @@ export class WiredoveMessage extends HTMLElement {
     applyWiredoveStyles(root);
     const article = document.createElement("article");
     article.className = "message";
-    const main = document.createElement("div");
-    main.className = "message-main";
+
     let avatar;
     try {
       avatar = visual(post.author);
@@ -65,8 +65,7 @@ export class WiredoveMessage extends HTMLElement {
       this._onNavigate({ type: "profile", author: post.author });
     });
     avatarLink.append(avatar);
-    const stack = document.createElement("div");
-    stack.className = "message-stack";
+
     const author = document.createElement("a");
     author.className = "avatarlink";
     author.textContent = displayName(parsed, post.author);
@@ -96,7 +95,6 @@ export class WiredoveMessage extends HTMLElement {
       this._onNavigate({ type: "post", id: post.id });
     });
     meta.append(pubkey, " ", time);
-    stack.append(author);
     if (parsed.body || parsed.andfs) {
       const body = document.createElement("div");
       body.className = "message-body";
@@ -118,7 +116,9 @@ export class WiredoveMessage extends HTMLElement {
       body.append(actions);
       stack.append(body);
     }
-    main.append(avatarLink, stack);
+    const main = createMessageMain({ avatarLink, authorNode: author });
+    // Existing body construction appends to the shared stack.
+    const stack = main.querySelector('.message-stack');
     article.append(meta, main);
     root.append(article);
   }
