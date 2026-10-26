@@ -1,3 +1,4 @@
+import { createMessageMain } from './client/ui/message-layout.js'
 import { resolveImageSrc } from './profile_image.js'
 import { apds } from 'apds'
 import { h } from 'h'
@@ -409,13 +410,8 @@ const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
   ])
 }
 
-const buildEditSummaryRow = ({ avatarLink, summary }) => {
-  const stack = h('div', {classList: 'message-stack'}, [summary])
-  return h('div', {classList: 'message-main'}, [
-    avatarLink || '',
-    stack
-  ])
-}
+const buildEditSummaryRow = ({ avatarLink, summary }) =>
+  createMessageMain({ avatarLink, authorNode: summary })
 
 const buildEditMessageShell = ({ id, right, summaryRow, rawDiv, qrTarget }) => {
   return h('div', {id, classList: 'message edit-message'}, [
@@ -1082,18 +1078,16 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
 
   const meta = h('div', {classList: 'message'}, [
     right,
-    h('div', {classList: 'message-main'}, [
-      h('a', {href: '#' + author}, [img]),
-      h('div', {classList: 'message-stack'}, [
-        h('a', {href: '#' + author}, [name]),
-        h('div', {classList: 'message-body'}, [
-          h('div', {id: 'reply' + contentHash}),
-          content,
-          rawDiv,
-          actionsRow
-        ])
+    createMessageMain({
+      avatarLink: h('a', {href: '#' + author}, [img]),
+      authorNode: h('a', {href: '#' + author}, [name]),
+      bodyNode: h('div', {classList: 'message-body'}, [
+        h('div', {id: 'reply' + contentHash}),
+        content,
+        rawDiv,
+        actionsRow
       ])
-    ]),
+    }),
     qrTarget
   ])
 
