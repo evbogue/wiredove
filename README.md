@@ -109,13 +109,13 @@ Compare to Secure-Scuttlebot
 
 ### ANProto directory
 
-ANProto protocol messages are long enough to not be memorable, to bust thru Zooko's triangle]] we can deploy centralized directory services that map usernames to arrays of keypairs. 
+Pubkeys are not memorable, and a person may use several of them or lose one, so Wiredove resolves short handles to arrays of pubkeys through a directory service. This is the human-meaningful side of [Zooko's triangle](https://en.wikipedia.org/wiki/Zooko%27s_triangle): the handle is easy to remember, and the pubkeys it returns do the actual identification.
 
-Here's an example JSON server: https://pub.wiredove.net/ev
+For example, this JSON maps the handle `ev` to its pubkeys: https://pub.wiredove.net/ev
 
 Try it out in your browser: https://wiredove.net/#ev
 
-The code for this is at https://github.com/evbogue/dovepub
+The directory is served by [APDS](https://github.com/evbogue/apds). It used to live in a standalone repo called Dovepub; that code has been integrated into APDS and the Dovepub repo is unmaintained.
 
 ### ANProto messages
 
