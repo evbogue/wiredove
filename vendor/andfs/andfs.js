@@ -292,4 +292,3 @@ export const add = async (file, onProgress) =>
 /** @param {*} manifest @param {Function} [onProgress] */
 export const get = async (manifest, onProgress) =>
   (await fs()).get(manifest, { onProgress })
-

@@ -1,6 +1,9 @@
 # Wiredove widget parity work order
 
-Status: planned. This file describes the work; it does not mark any widget feature complete.
+Status: historical planning notes from the original local widget checkout.
+The checkout was committed and reconciled with upstream on 2026-10-29.
+Use `../SHARED_UI_WORK_ORDER.md` and `../WORK_ORDER.md` for current architecture
+and acceptance status; the starting-point inventory below predates that merge.
 
 ## Outcome
 

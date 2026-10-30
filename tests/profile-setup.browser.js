@@ -1,0 +1,128 @@
+// Run with the browser testing suite against a running Wiredove origin.
+// Uses isolated contexts; never replaces the user's active identity.
+async (page) => {
+  const origin = new URL(page.url()).origin;
+  const browser = page.context().browser();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', colorScheme: 'dark', acceptDownloads: true });
+  const secure = async ctx => {
+    await ctx.routeWebSocket('**', socket => socket.close());
+    await ctx.route('**/*', route => {
+      const request = route.request(), host = new URL(request.url()).hostname;
+      return !['127.0.0.1','localhost'].includes(host) && request.method() !== 'GET' ? route.abort() : route.continue();
+    });
+  };
+  await secure(context);
+  const check = (condition, message) => { if (!condition) throw new Error(message); };
+  const results = [];
+  let imported;
+  try {
+    const test = await context.newPage();
+    await test.goto(origin);
+    await test.getByRole('button', { name: 'Create or import identity', exact: true }).click();
+    await test.getByLabel('Display name', { exact: true }).fill('Wiredove Browser Test');
+    await test.getByRole('dialog').getByRole('button', { name: 'Create identity', exact: true }).click();
+    await test.getByRole('heading', { name: 'Make yourself at home' }).waitFor();
+    const profileURL = test.url();
+    check(await test.getByLabel('Display name', { exact: true }).inputValue() === 'Wiredove Browser Test', 'Name lost during creation');
+    check(await test.locator('.profile-header').count() === 1, 'New identity has no profile');
+    check(await test.locator('[data-author]').count() === 0, 'Profile setup required a post');
+    await test.getByRole('button', { name: 'Add link', exact: true }).click();
+    await test.getByRole('textbox', { name: 'Link 1 URL', exact: true }).fill('javascript:alert(1)');
+    await test.getByRole('button', { name: 'Save changes', exact: true }).click();
+    check((await test.locator('.profile-bio-status').innerText()).includes('http'), 'Unsafe URL was accepted');
+    await test.getByRole('textbox', { name: 'Link 1 URL', exact: true }).fill('https://example.com/photos');
+    await test.getByRole('textbox', { name: 'Link 1 label', exact: true }).fill('Portfolio');
+    check(await test.getByRole('button', { name: 'Move up link 1' }).count() === 0, 'Single link has ordering controls');
+    await test.getByRole('button', { name: 'Add link', exact: true }).click();
+    await test.getByRole('textbox', { name: 'Link 2 URL', exact: true }).fill('https://example.org');
+    await test.getByRole('button', { name: 'Move up link 2', exact: true }).click();
+    check(await test.getByRole('textbox', { name: 'Link 1 URL', exact: true }).inputValue() === 'https://example.org', 'Link ordering failed');
+    await test.getByRole('button', { name: 'Remove link 1', exact: true }).click();
+    await test.getByLabel('Display name', { exact: true }).fill('Wiredove Updated Test');
+    await test.getByLabel('Bio (optional)', { exact: true }).fill('A profile created without a first post.');
+    await test.locator('.profile-photo-editor input[type=file]').setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: await (await test.request.get(origin + '/dove_sm.png')).body() });
+    await test.getByRole('heading', { name: 'Frame your photo' }).waitFor();
+    await test.getByRole('button', { name: 'Cancel crop', exact: true }).click();
+    await test.locator('.profile-photo-editor input[type=file]').setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: await (await test.request.get(origin + '/dove_sm.png')).body() });
+    await test.getByRole('heading', { name: 'Frame your photo' }).waitFor();
+    await test.getByLabel('Zoom', { exact: true }).fill('1.5');
+    await test.getByRole('button', { name: 'Use photo', exact: true }).click();
+    await test.getByText('Photo ready. Save changes to publish it.').waitFor();
+    check(await test.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile editor overflows');
+    await test.evaluate(() => window.scrollTo(0, 0));
+    await test.screenshot({ path: '.playwright-mcp/profile-editor-improved-mobile.png', fullPage: true });
+    await test.setViewportSize({ width: 1280, height: 900 });
+    await test.evaluate(() => window.scrollTo(0, 0));
+    await test.screenshot({ path: '.playwright-mcp/profile-editor-improved-desktop.png' });
+    await test.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await test.getByRole('heading', { name: 'Your identity is ready' }).waitFor();
+    check(!await test.getByRole('button', { name: 'Save changes', exact: true }).isVisible(), 'Save visible outside editor');
+    const downloadPromise = test.waitForEvent('download');
+    await test.getByRole('button', { name: 'Download identity backup', exact: true }).click();
+    const download = await downloadPromise;
+    let backup = '';
+    for await (const chunk of await download.createReadStream()) backup += chunk.toString('utf8');
+    check(backup.length > 44 && !backup.includes('\n'), 'Invalid backup format');
+    results.push('Fresh identity, empty profile, URL validation, link ordering, photo crop, mobile/desktop layout, and backup passed');
+    await test.reload();
+    await test.getByRole('button', { name: 'Edit profile', exact: true }).waitFor();
+    check(await test.getByRole('heading', { name: 'Wiredove Updated Test', exact: true }).count() === 1, 'Name did not persist');
+    check(await test.getByRole('link', { name: 'Portfolio', exact: true }).count() === 1, 'Link did not persist');
+    await test.getByRole('button', { name: 'Edit profile', exact: true }).click();
+    await test.getByLabel('Bio (optional)', { exact: true }).fill('');
+    await test.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await test.getByText('Profile saved. Updates are queued for sharing.', { exact: true }).waitFor();
+    await test.reload();
+    await test.getByRole('button', { name: 'Edit profile', exact: true }).waitFor();
+    check(await test.locator('.profile-bio').innerText() === '', 'Cleared bio came back after reload');
+    await test.getByRole('button', { name: 'Edit profile', exact: true }).click();
+    await test.getByLabel('Display name', { exact: true }).fill('Discard this name');
+    await test.getByLabel('Bio (optional)', { exact: true }).fill('Discard this bio');
+    await test.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await test.getByRole('button', { name: 'Edit profile', exact: true }).click();
+    check(await test.getByLabel('Display name', { exact: true }).inputValue() === 'Wiredove Updated Test', 'Cancel retained name');
+    check(await test.getByLabel('Bio (optional)', { exact: true }).inputValue() === '', 'Cancel retained bio');
+    const signed = await test.evaluate(async () => {
+      const { apds } = await import('apds');
+      const log = await apds.query(await apds.pubkey());
+      const parsed = await Promise.all(log.map(async m => ({ ts: m.ts, data: await apds.parseYaml(m.text) })));
+      return parsed.sort((a,b) => b.ts-a.ts).map(m => ({ name:m.data.name, bio:m.data.bio, image:!!m.data.image }));
+    });
+    check(signed.some(m => m.name === 'Wiredove Updated Test' && m.image), 'Signed name/photo differs from saved preview');
+    check(signed[0].bio === '', 'Empty bio not present in signed metadata');
+    results.push('Reload persistence, signed name/photo/empty bio, and Cancel passed');
+    imported = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    await secure(imported);
+    const importPage = await imported.newPage();
+    await importPage.goto(origin);
+    await importPage.getByRole('button', { name: 'Create or import identity', exact: true }).click();
+    await importPage.getByRole('button', { name: 'Import existing identity', exact: true }).click();
+    await importPage.getByLabel('Identity backup', { exact: true }).fill('invalid');
+    await importPage.getByRole('button', { name: 'Import identity', exact: true }).click();
+    await importPage.getByText('Could not import this backup. Check that you pasted the complete, original keypair.').waitFor();
+    await importPage.getByLabel('Identity backup', { exact: true }).fill(backup);
+    await importPage.getByRole('button', { name: 'Import identity', exact: true }).click();
+    await importPage.waitForURL(profileURL);
+    await importPage.getByRole('button', { name: 'Edit profile', exact: true }).waitFor();
+    results.push('Invalid backup rejection and valid backup import passed');
+    const skippedContext = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
+    await secure(skippedContext);
+    try {
+      const skipped = await skippedContext.newPage();
+      await skipped.goto(origin);
+      await skipped.getByRole('button', { name: 'Create or import identity', exact: true }).click();
+      await skipped.getByLabel('Display name', { exact: true }).fill('Skip Setup Test');
+      await skipped.getByRole('dialog').getByRole('button', { name: 'Create identity', exact: true }).click();
+      await skipped.getByRole('button', { name: 'Skip for now', exact: true }).click();
+      await skipped.getByRole('heading', { name: 'Your identity is ready' }).waitFor();
+      await skipped.reload();
+      await skipped.getByRole('button', { name: 'Edit profile', exact: true }).waitFor();
+      check(await skipped.getByRole('heading', { name: 'Skip Setup Test', exact: true }).count() === 1, 'Skipped setup lost profile');
+      results.push('Skip setup keeps an editable empty profile after reload');
+    } finally { await skippedContext.close(); }
+    return results;
+  } finally {
+    await imported?.close();
+    await context.close();
+  }
+}

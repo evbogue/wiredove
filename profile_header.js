@@ -1,25 +1,19 @@
 import { apds } from 'apds'
 import { h } from 'h'
-import { markdown } from './markdown.js'
+import { appendMarkdown } from './markdown.js'
 import { send } from './send.js'
-import { visual } from './client/render.js'
+import { profileLinksFromHistory } from './client/profile-links.js'
+import { renderProfileLinks } from './client/ui/profile-links.js'
+import { createProfileEditor } from './client/ui/profile-editor.js'
+import { resolveImageSrc } from './profile_image.js'
+import { uploadProfilePhoto } from './upload.js'
+import { downloadIdentityBackup } from './identity_backup.js'
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
 const isReplyYaml = (yaml) => {
   if (!yaml) { return false }
   return Boolean(yaml.reply || yaml.replyHash || yaml.replyto || yaml.replyTo)
-}
-
-const resolveImageSrc = async (value) => {
-  if (!value || typeof value !== 'string') { return null }
-  if (isHash(value)) {
-    const blob = await apds.get(value)
-    if (blob) { return blob }
-    await send(value)
-    return null
-  }
-  return value
 }
 
 const normalizeMessages = async (messages) => {
@@ -45,7 +39,7 @@ const buildProfileData = async (messages, fallbackName) => {
   const sorted = nonReplies.sort((a, b) => b.ts - a.ts)
 
   let name = ''
-  let bio = ''
+  let bio = null
   let background = null
   let latestImage = null
 
@@ -57,7 +51,7 @@ const buildProfileData = async (messages, fallbackName) => {
     if (!name && typeof entry.yaml.name === 'string') {
       name = entry.yaml.name.trim()
     }
-    if (!bio && typeof entry.yaml.bio === 'string') {
+    if (bio === null && typeof entry.yaml.bio === 'string') {
       bio = entry.yaml.bio.trim()
     }
     if (!background && typeof entry.yaml.background === 'string') {
@@ -68,55 +62,84 @@ const buildProfileData = async (messages, fallbackName) => {
 
   return {
     name: name || fallbackName,
-    bio,
+    bio: bio ?? '',
     background,
     image: latestImage,
+    photoState: (() => {
+      const row = sorted.find(entry => entry.yaml.image === latestImage && entry.yaml.image_original && entry.yaml.image_crop);
+      return row ? { image: latestImage, original: row.yaml.image_original, crop: row.yaml.image_crop } : null;
+    })(),
+    links: profileLinksFromHistory(sorted),
   }
 }
 
-const publishProfileUpdate = async ({ bio, name, image }) => {
+const publishProfileUpdate = async ({ bio, name, image, links, photoState }) => {
   const meta = {}
-  if (bio !== null && bio !== undefined && bio !== '') { meta.bio = bio }
+  if (bio !== null && bio !== undefined) { meta.bio = bio }
   if (name !== null && name !== undefined && name !== '') { meta.name = name }
   if (image) { meta.image = image }
-  const published = await apds.compose('', meta)
+  if (links !== null && links !== undefined) { meta.links = links }
+  // compose() overrides explicit name/image with local values. Sign the intended
+  // profile metadata with the same previous-message contract instead.
+  const localName = await apds.get('name')
+  const localImage = await apds.get('image')
+  const previous = await apds.get('previous')
+  if (!meta.name && localName) meta.name = localName
+  if (!meta.image && localImage) meta.image = localImage
+  const storedPhoto = photoState || await apds.get('profile_photo')
+  if (storedPhoto?.image === meta.image && storedPhoto.original && storedPhoto.crop) {
+    meta.image_original = storedPhoto.original
+    meta.image_crop = storedPhoto.crop
+  }
+  if (previous) meta.previous = previous
+  const published = await apds.sign(await apds.createYaml(meta, ''))
+  // APDS normally flushes these indexes on a timer. A saved profile must survive
+  // an immediate reload, including an explicit empty bio.
+  await apds.put('hashlog', JSON.stringify(await apds.getHashLog()))
+  await apds.put('openedlog', JSON.stringify(await apds.getOpenedLog()))
   const signed = await apds.get(published)
   const opened = await apds.open(signed)
   const blob = await apds.get(opened.substring(13))
   await send(signed)
   await send(blob)
-  if (image) { await send(image) }
+  if (isHash(image)) { await send(image) }
   return { signed, blob }
 }
 
 export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null }) => {
   const profile = await buildProfileData(messages, label)
   const backgroundImage = await resolveImageSrc(profile.background)
-  const fallbackVisual = pubkey ? visual(pubkey) : null
+  const fallbackVisual = pubkey ? await apds.visual(pubkey) : null
   const fallbackVisualSrc = fallbackVisual && fallbackVisual.src ? fallbackVisual.src : null
   let currentName = profile.name || label
   let currentBio = profile.bio || ''
+  let currentLinks = profile.links || []
   let currentImageHash = profile.image || null
+  let currentPhotoState = profile.photoState
 
   if (canEdit && pubkey) {
     const localLog = await apds.query(pubkey)
     if (localLog && localLog.length) {
       const localProfile = await buildProfileData(localLog, label)
       if (localProfile.name) { currentName = localProfile.name }
-      if (localProfile.bio) { currentBio = localProfile.bio }
-      if (localProfile.image) { currentImageHash = localProfile.image }
+      currentBio = localProfile.bio
+      if (localProfile.links !== null) { currentLinks = localProfile.links }
+      if (localProfile.image) { currentImageHash = localProfile.image; currentPhotoState = localProfile.photoState }
     }
     const localName = await apds.get('name')
     if (localName) { currentName = localName }
     const localImage = await apds.get('image')
     if (localImage) { currentImageHash = localImage }
+    const localPhoto = await apds.get('profile_photo')
+    if (localPhoto?.image === currentImageHash) currentPhotoState = localPhoto
   }
 
   const profileImage = await resolveImageSrc(currentImageHash)
   let currentImageSrc = profileImage || fallbackVisualSrc || ''
   let draftImageHash = currentImageHash
   let draftImageSrc = currentImageSrc
-  let editAvatarImgRef = null
+  let draftPhotoState = currentPhotoState
+  let photoBusy = false
   let viewAvatarImgRef = null
   const header = h('div', { classList: 'message profile-header' })
 
@@ -124,89 +147,42 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     header.style.backgroundImage = `url(${backgroundImage})`
   }
 
-  let avatar
-  if (canEdit) {
-    const editAvatarImg = h('img', {
-      classList: 'profile-avatar profile-edit-only',
-      src: draftImageSrc,
-      alt: `${currentName || label} profile photo`
-    })
-    editAvatarImgRef = editAvatarImg
-    const uploader = h('input', { type: 'file', accept: 'image/*', style: 'display: none;' })
-    editAvatarImg.onclick = () => { uploader.click() }
-
-    draftImageSrc = editAvatarImg.src || ''
-
-    uploader.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0]
-      if (!file) { return }
-      const reader = new FileReader()
-      reader.onload = () => {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        const img = new Image()
-        img.onload = async () => {
-          const size = 256
-          const minSide = Math.min(img.width, img.height)
-          const sx = Math.floor((img.width - minSide) / 2)
-          const sy = Math.floor((img.height - minSide) / 2)
-          canvas.width = size
-          canvas.height = size
-          ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size)
-          const croppedImage = canvas.toDataURL()
-          editAvatarImg.src = croppedImage
-          draftImageSrc = croppedImage
-          draftImageHash = await apds.make(croppedImage)
-        }
-        img.src = reader.result
-      }
-      reader.readAsDataURL(file)
-    })
-
-    const editAvatar = h('span', { classList: 'profile-edit-only' }, [
-      editAvatarImg,
-      uploader
-    ])
-
-    const viewAvatar = h('img', {
-      classList: 'post-image profile-avatar profile-view-only',
-      src: draftImageSrc,
-      alt: `${currentName || label} profile photo`
-    })
-    viewAvatarImgRef = viewAvatar
-
-    avatar = h('div', { classList: 'profile-avatar-wrap' }, [
-      viewAvatar,
-      editAvatar
-    ])
-  } else {
-    avatar = h('img', {
-      classList: 'post-image profile-avatar',
-      src: draftImageSrc,
-      alt: `${currentName || label} profile photo`
-    })
-  }
+  const editor = createProfileEditor({
+    name: currentName, bio: currentBio, links: currentLinks, imageSrc: draftImageSrc,
+    photoState: draftPhotoState,
+    onBusy: value => { photoBusy = value; saveButton.disabled = cancelButton.disabled = value },
+    onImageChange: async (src, cropped, options) => {
+      const saved = await uploadProfilePhoto(cropped, options)
+      draftImageHash = saved.image
+      draftPhotoState = saved
+      draftImageSrc = src
+      return saved
+    }
+  })
+  const viewAvatar = h('img', {
+    classList: 'post-image profile-avatar profile-view-only', src: draftImageSrc,
+    alt: `${currentName || label} profile photo`
+  })
+  viewAvatarImgRef = viewAvatar
+  const avatar = h('div', { classList: 'profile-avatar-wrap' }, [viewAvatar])
+  if (canEdit) avatar.append(editor.photo)
 
   const nameText = h('h2', { classList: 'profile-view-only' }, [currentName || label])
-  const nameEditor = h('input', {
-    classList: 'profile-edit-only',
-    placeholder: currentName || label
-  })
-  nameEditor.value = currentName || ''
-
+  const nameEditor = editor.nameInput
   const bioPreview = h('div', { classList: 'profile-bio profile-view-only' })
-  bioPreview.innerHTML = await markdown(currentBio || '')
+  appendMarkdown(bioPreview, currentBio || '')
 
-  const input = h('textarea', {
-    classList: 'profile-edit-only',
-    placeholder: currentBio ? 'Update your bio' : 'Write a short bio'
-  })
-  input.value = currentBio
-  const status = h('div', { classList: 'profile-bio-status profile-edit-only' })
+  const input = editor.bioInput
+  const linksView = h('nav', { classList: 'profile-view-only' })
+  renderProfileLinks(linksView, currentLinks)
+  const linksEditor = editor.linksEditor
+  const status = h('div', { classList: 'profile-bio-status', role: 'status' })
+  status.setAttribute('aria-live', 'polite')
+  editor.fields.addEventListener('input', () => { status.textContent = '' })
   const editButton = h('button', { type: 'button', classList: canEdit ? 'profile-view-only' : 'hidden' }, ['Edit profile'])
   if (!canEdit) { editButton.style.display = 'none' }
-  const saveButton = h('button', { type: 'button', classList: 'profile-edit-only' }, ['Save profile'])
-  const cancelButton = h('button', { type: 'button', classList: 'profile-edit-only' }, ['Cancel'])
+  const saveButton = h('button', { type: 'button', classList: 'primary-action' }, ['Save changes'])
+  const cancelButton = h('button', { type: 'button' }, ['Cancel'])
 
   const setEditing = (isEditing) => {
     header.classList.toggle('profile-editing', isEditing)
@@ -214,79 +190,138 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
   }
 
   saveButton.onclick = async () => {
+    if (photoBusy) return
+    let linksValue
+    try { linksValue = linksEditor.getLinks() }
+    catch (error) { status.textContent = error.message; return }
+    const linksChanged = JSON.stringify(linksValue) !== JSON.stringify(currentLinks)
     const value = input.value.trim()
     const nameValue = nameEditor.value.trim()
-    const nameChanged = nameValue && nameValue !== currentName
-    const bioChanged = value && value !== currentBio
+    if (!nameValue) { status.textContent = 'Enter a display name.'; nameEditor.focus(); return }
+    const nameChanged = nameValue !== currentName || onboarding
+    const bioChanged = value !== currentBio
     const imageChanged = draftImageHash && draftImageHash !== currentImageHash
-    if (!nameChanged && !bioChanged && !imageChanged) {
+    if (!nameChanged && !bioChanged && !imageChanged && !linksChanged) {
       setEditing(false)
+      if (onboarding) finishSetup()
       return
     }
     saveButton.disabled = true
+    cancelButton.disabled = true
+    linksEditor.disabled = true
+    input.disabled = true
+    nameEditor.disabled = true
+    editor.disabled = true
     status.textContent = 'Saving...'
     try {
       await publishProfileUpdate({
         bio: bioChanged ? value : null,
         name: nameChanged ? nameValue : null,
-        image: imageChanged ? draftImageHash : null
+        image: imageChanged ? draftImageHash : null,
+        photoState: draftPhotoState,
+        links: linksChanged ? linksValue : null
       })
       if (nameChanged) { await apds.put('name', nameValue) }
-      if (imageChanged) { await apds.put('image', draftImageHash) }
+      if (imageChanged) { await apds.put('image', draftImageHash); await apds.put('profile_photo', draftPhotoState) }
+      if (linksChanged) { currentLinks = linksValue }
+      renderProfileLinks(linksView, currentLinks)
       if (nameChanged) { currentName = nameValue }
       if (bioChanged) { currentBio = value }
       if (imageChanged) {
         currentImageHash = draftImageHash
+        currentPhotoState = draftPhotoState
         currentImageSrc = draftImageSrc
       }
-      const rendered = await markdown(currentBio || '')
-      bioPreview.innerHTML = rendered
+      bioPreview.replaceChildren()
+      appendMarkdown(bioPreview, currentBio || '')
       nameText.textContent = currentName || label
       if (draftImageSrc && viewAvatarImgRef && viewAvatarImgRef.tagName === 'IMG') {
         viewAvatarImgRef.src = draftImageSrc
       }
       setEditing(false)
+      status.textContent = 'Profile saved. Updates are queued for sharing.'
+      if (onboarding) finishSetup()
+      const navImage = document.querySelector('#navbar .navbar-right .avatar_small')
+      if (navImage && imageChanged) navImage.src = draftImageSrc
     } catch {
       status.textContent = 'Failed to save profile.'
     } finally {
       saveButton.disabled = false
+      cancelButton.disabled = false
+      linksEditor.disabled = false
+      input.disabled = false
+      nameEditor.disabled = false
+      editor.disabled = false
     }
   }
 
   editButton.onclick = () => {
+    linksEditor.setLinks(currentLinks)
     input.value = currentBio || ''
     nameEditor.value = currentName || ''
-    if (draftImageSrc && editAvatarImgRef) { editAvatarImgRef.src = draftImageSrc }
+    editor.reset({ name: currentName, bio: currentBio, links: currentLinks, imageSrc: currentImageSrc, photoState: currentPhotoState })
     setEditing(true)
+    nameEditor.focus()
   }
 
   cancelButton.onclick = () => {
+    linksEditor.setLinks(currentLinks)
     input.value = currentBio || ''
     nameEditor.value = currentName || ''
+    draftPhotoState = currentPhotoState
     draftImageHash = currentImageHash
     draftImageSrc = currentImageSrc
-    if (editAvatarImgRef) { editAvatarImgRef.src = draftImageSrc }
+    editor.reset({ name: currentName, bio: currentBio, links: currentLinks, imageSrc: currentImageSrc, photoState: currentPhotoState })
     setEditing(false)
   }
 
-  setEditing(false)
+  let onboarding = canEdit && sessionStorage.getItem('wiredove.setup') === pubkey
+  const setupIntro = h('div', { classList: 'profile-setup-intro' }, [
+    h('p', { classList: 'profile-help' }, ['Step 2 of 3']),
+    h('h2', ['Make yourself at home']),
+    h('p', ['Add a photo, bio, or links. You can change these later.'])
+  ])
+  setupIntro.hidden = !onboarding
+  const backupButton = h('button', { type: 'button', onclick: async () => {
+    try { await downloadIdentityBackup(); backupStatus.textContent = 'Backup downloaded. Keep it somewhere private.' }
+    catch { backupStatus.textContent = 'Could not download your backup. Please try again.' }
+  } }, ['Download identity backup'])
+  const backupStatus = h('p', { role: 'status' })
+  const backupCard = h('section', { classList: 'identity-backup' }, [
+    h('p', { classList: 'profile-help' }, ['Step 3 of 3']),
+    h('h3', ['Your identity is ready']),
+    h('p', ['Save a private backup to use this identity on another device or recover it if browser data is cleared. Anyone with this file can use your identity.']),
+    backupButton, backupStatus
+  ])
+  backupCard.hidden = true
+  const finishSetup = () => {
+    onboarding = false
+    sessionStorage.removeItem('wiredove.setup')
+    setupIntro.hidden = true
+    backupCard.hidden = false
+    cancelButton.textContent = 'Cancel'
+  }
+  if (onboarding) {
+    cancelButton.textContent = 'Skip for now'
+    const cancel = cancelButton.onclick
+    cancelButton.onclick = () => { cancel(); finishSetup() }
+  }
+  setEditing(onboarding)
 
   const content = h('div', { classList: 'profile-header-content' }, [
+    setupIntro,
     nameText,
-    nameEditor,
     bioPreview,
+    linksView,
     editButton,
-    input,
-    saveButton,
-    cancelButton,
-    status
+    editor.fields,
+    h('p', { classList: 'profile-help profile-edit-only' }, ['Saving publishes a public profile update. Previous versions may remain available.']),
+    h('div', { classList: 'profile-actions profile-edit-only' }, [saveButton, cancelButton]),
+    status,
+    backupCard
   ])
 
-  const layout = h('div', { classList: 'profile-header-layout' }, [
-    avatar,
-    content
-  ])
-
+  const layout = h('div', { classList: 'profile-header-layout' }, [avatar, content])
   header.appendChild(layout)
   return header
 }

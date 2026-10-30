@@ -64,32 +64,6 @@ const activatePanel = (key, panel) => {
   }
 }
 
-const waitForFirstRenderedAuthor = (container, timeoutMs = 6000) => new Promise((resolve) => {
-  if (!container) { resolve(null); return }
-  const existing = container.querySelector('[data-author]')
-  if (existing && existing.dataset.author) {
-    resolve(existing.dataset.author)
-    return
-  }
-  let resolved = false
-  const observer = new MutationObserver(() => {
-    if (resolved) { return }
-    const found = container.querySelector('[data-author]')
-    if (found && found.dataset.author) {
-      resolved = true
-      observer.disconnect()
-      resolve(found.dataset.author)
-    }
-  })
-  observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-author'] })
-  setTimeout(() => {
-    if (resolved) { return }
-    resolved = true
-    observer.disconnect()
-    resolve(null)
-  }, timeoutMs)
-})
-
 const scheduleReplyIndexBuild = () => {
   void render.buildReplyIndex().then(() => {
     render.refreshVisibleReplies?.()
@@ -194,13 +168,11 @@ export const route = async () => {
       const { query, primaryKey } = await ctx.orchestrator.startAlias(src)
       if (!ctx.isActive()) { return }
       adder(query || [], src, panel)
-      if (query.length) {
-        const header = await buildProfileHeader({ label: src, messages: query, canEdit: false, pubkey: primaryKey })
-        if (header) { panel.appendChild(header) }
-      } else {
-        const header = await buildProfileHeader({ label: src, messages: [], canEdit: false, pubkey: primaryKey })
-        if (header) { panel.appendChild(header) }
-      }
+      const header = await buildProfileHeader({ label: src, messages: query || [], canEdit: false, pubkey: primaryKey })
+      // Keep the profile ahead of feed rows and loading placeholders, just as
+      // on public-key routes. Header construction can outlive a route change.
+      if (!ctx.isActive()) { return }
+      if (header) panel.prepend(header)
       panel.dataset.ready = 'true'
       return
     }
@@ -218,12 +190,8 @@ export const route = async () => {
       if (!ctx.isActive()) { return }
       adder(log || [], src, panel)
       const canEdit = !!(selfKey && selfKey === src)
-      void waitForFirstRenderedAuthor(panel).then(async (author) => {
-        if (!ctx.isActive()) { return }
-        if (!author || author !== src) { return }
-        const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
-        if (header) { panel.prepend(header) }
-      })
+      const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
+      if (ctx.isActive() && header) panel.prepend(header)
       if (!log || !log[0]) {
         await send(src)
       }

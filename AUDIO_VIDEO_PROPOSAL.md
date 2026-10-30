@@ -1,158 +1,38 @@
-# Proposal: Audio and Video in Wiredove
+# Wiredove audio and video
 
 ## Goal
 
-Let Wiredove publish and play audio/video using ANProto blobs.
+Let Wiredove record, upload, sign, verify, and play audio/video attachments shared with the evbogue.com timeline. New media bytes use AndFS v1. Historical ANProto `anblob` posts remain readable but are never written by the new composer.
 
-## UI direction
+## Signed media contract
 
-![Wiredove audio/video concept](docs/wiredove-audio-video-concept.jpg)
+New media metadata belongs in the signed YAML front matter:
 
-Use this mockup as the visual target for integrating media into the existing mobile Wiredove feed.
-
-## User flow
-
-```text
-record or upload
-      ↓
-putBlob()
-      ↓
-publish ANProto artifact
-      ↓
-another Wiredove loads it
-      ↓
-download + verify blob
-      ↓
-play audio/video
+```yaml
+type: video
+andfs: <43-character URL-safe unpadded AndFS manifest hash>
+mime: video/webm
+media_name: clip.webm
+media_size: 123456
+media_url: https://example.test/media/<manifest-hash>
+media_source: https://example.test
 ```
 
-## What to add
+The body includes `media_url` as a plain link for older clients. Do not put an AndFS hash in the legacy `blob` field. The signature envelope and signed YAML bytes remain the existing ANProto/APDS format.
 
-### 1. Blob support
+AndFS v1 uses 256 KiB chunks, SHA-256 URL-safe unpadded hashes, and a byte-exact ordered JSON manifest. MIME and filename are signed presentation metadata outside the byte identity. The pinned AndFS implementation is in `vendor/andfs/`; do not alter its upstream files.
 
-Use the ANProto blob API:
+## Upload and playback
 
-- `putBlob()`
-- `getBlob()`
-- `verifyBlob()`
-- `downloadBlob()`
-- `streamBlob()`
+The browser adds media to IndexedDB through an explicit `createAndFS({ store })` instance. It signs the exact `andfs-upload-v1` authorization JSON with the current ANProto identity and uploads the bytes. The server verifies signature freshness, media metadata, size, manifest identity, quotas, and rate limits before writing the blocks and metadata to persistent storage. Publishing is enabled only after the upload succeeds.
 
-Use IndexedDB in the browser for local caching.
+The browser fetches AndFS blocks from the signed `media_source`, verifies their SHA-256 identities, reconstructs the file, and assigns the verified bytes to a native audio/video player. The server also exposes a verified media endpoint with GET, HEAD, and byte ranges. This first implementation downloads the full file before browser playback; it is not peer-to-peer streaming.
 
-### 2. Media posts
+Existing signed posts with `blob: anblob:v1:...` keep their original reader and endpoint. The two formats have different manifests and chunk sizes and must never be relabeled or conflated.
 
-A video post can stay tiny:
+## Limits and next checks
 
-```js
-{
-  type: "video",
-  blob: "anblob:v1:chunked:sha256:...",
-  mime: "video/webm",
-  title: "Chicago River"
-}
-```
-
-Audio uses the same shape with `type: "audio"`.
-
-### 3. Composer
-
-Add:
-
-```text
-[ Write ]
-[ Record audio ]
-[ Record video ]
-[ Upload ]
-```
-
-On phones:
-
-- Record audio → microphone
-- Record video → camera + microphone
-- Upload → camera roll / files
-
-### 4. Playback
-
-Render:
-
-```html
-<audio controls>
-<video controls playsinline>
-```
-
-Wiredove fetches and verifies the referenced blob before/during playback.
-
-### 5. Multi-source downloads
-
-Large media already has a manifest of chunk hashes.
-
-Wiredove can fetch pieces from:
-
-- local cache
-- wiredove server
-- another peer
-- SSB
-- IPFS
-- any HTTP blob source
-
-`downloadBlob()` already handles:
-
-- randomized source order
-- parallel chunk fetches
-- hash verification
-- corrupt-source fallback
-- reassembly
-
-### 6. Streaming
-
-Use `streamBlob()` for large media.
-
-```text
-peer A → chunk 1 ┐
-peer C → chunk 2 ├→ Wiredove player
-peer B → chunk 3 ┤
-peer A → chunk 4 ┘
-```
-
-Each chunk is verified before use.
-
-## Storage policy
-
-Keep this simple:
-
-```text
-posts        → keep
-small images → cache automatically
-audio/video  → fetch on demand
-pinned media → keep offline
-```
-
-## First milestone
-
-Only prove this:
-
-1. Record a video on a phone.
-2. Store it with `putBlob()`.
-3. Publish an ANProto artifact pointing to it.
-4. Open that post in another Wiredove client.
-5. Fetch + verify the chunks.
-6. Play the video.
-
-Audio should then work with essentially the same code.
-
-## Not yet
-
-Do not build:
-
-- transcoding
-- adaptive bitrate
-- custom codecs
-- live streaming
-- CDN logic
-
-Start with browser-native media formats.
-
-## Core idea
-
-> Wiredove owns the media experience. ANProto authenticates the artifact. Blob hashes authenticate the bytes.
+- Browser-native `MediaRecorder` formats are used; unsupported codecs can still fail to play on another device.
+- There is no transcoding, adaptive bitrate, resumable upload, or live streaming.
+- Cross-client checks must cover Wiredove and evbogue.com uploads, signature and byte verification, server restart recovery, reply compatibility, and audio/video seeking. See `WORK_ORDER.md`.
+- Local implementation changes do not imply production deployment; production behavior changes only after review and deployment.

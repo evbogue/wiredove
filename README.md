@@ -10,9 +10,25 @@ For new message notifications subscribe via https://ntfy.sh/wiredove since Wired
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
-### AndFS migration
+### Shared UI restructuring
 
-New multimedia storage is planned to move to AndFS, compatible with the evbogue.com timeline. See [WORK_ORDER.md](WORK_ORDER.md) for the message contract, implementation tickets, legacy anblob preservation, and cross-client acceptance checks. The current runtime still uses anblob.
+The website and embeds are planned to consume the same individually importable UI widgets, composed by separate application frames. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the current gaps, module boundaries, staged migration, compatibility requirements, and acceptance checks. The current website and widget rendering paths are still separate.
+
+### AndFS media
+
+New post images and audio/video attachments use AndFS v1 with signed upload authorization, persistent server storage, and verified display/playback. Historical APDS images and anblob attachments remain readable; profile photos preserve the original in AndFS alongside an editable crop of up to 1024 × 1024 pixels. See [MEDIA_PROTOTYPE.md](MEDIA_PROTOTYPE.md) for the local workflow and [WORK_ORDER.md](WORK_ORDER.md) for the cross-client acceptance checks. These local changes are not deployed to production.
+
+### Creating and backing up an identity
+
+Choose **Create identity**, enter a display name, then add an optional photo,
+bio and profile links. You can edit an empty profile before making your first
+post. Profile saves publish public signed updates; previous versions may remain
+available.
+
+Download an identity backup after setup or from Settings. Keep it private:
+anyone with the file can use the identity. On another browser, choose
+**Create identity → Import existing identity** and paste the backup. Clearing
+browser storage without a backup can lose access to the identity.
 
 ### Running with Docker
 
@@ -93,13 +109,13 @@ Compare to Secure-Scuttlebot
 
 ### ANProto directory
 
-ANProto protocol messages are long enough to not be memorable, to bust thru Zooko's triangle]] we can deploy centralized directory services that map usernames to arrays of keypairs. 
+Pubkeys are not memorable, and a person may use several of them or lose one, so Wiredove resolves short handles to arrays of pubkeys through a directory service. This is the human-meaningful side of [Zooko's triangle](https://en.wikipedia.org/wiki/Zooko%27s_triangle): the handle is easy to remember, and the pubkeys it returns do the actual identification.
 
-Here's an example JSON server: https://pub.wiredove.net/ev
+For example, this JSON maps the handle `ev` to its pubkeys: https://pub.wiredove.net/ev
 
 Try it out in your browser: https://wiredove.net/#ev
 
-The code for this is at https://github.com/evbogue/dovepub
+The directory is served by [APDS](https://github.com/evbogue/apds). It used to live in a standalone repo called Dovepub; that code has been integrated into APDS and the Dovepub repo is unmaintained.
 
 ### ANProto messages
 

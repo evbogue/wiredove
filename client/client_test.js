@@ -25,7 +25,7 @@ Deno.test("AndFS client signs the exact Timeline upload contract", async () => {
     origin: () => "https://wiredove.example",
     fetchImpl: async (url, init) => {
       request = { url, init };
-      return new Response("{}", { status: 201 });
+      return Response.json({ andfs: "A".repeat(43), mime: "image/webp", media_size: 5 }, { status: 201 });
     },
   });
   const attachment = await client.upload(

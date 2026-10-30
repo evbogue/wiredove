@@ -1,6 +1,8 @@
 import { h } from 'h'
 import { apds } from 'apds'
-import { visual } from './client/render.js'
+import { resolveImageSrc } from './profile_image.js'
+import { createProfileEditor } from './client/ui/profile-editor.js'
+import { uploadProfilePhoto } from './upload.js'
 
 const cache = new Map()
 setInterval(() => { cache.clear() }, 60000)
@@ -33,7 +35,7 @@ export const nameSpan = async () => {
 }
 
 export const imageSpan = async () => {
-  const avatarImg = visual(await apds.pubkey())
+  const avatarImg = await apds.visual(await apds.pubkey())
 
   const existingImage = await apds.get('image')
 
@@ -41,9 +43,8 @@ export const imageSpan = async () => {
     if (cache.get(existingImage)) {
       avatarImg.src = cache.get(existingImage)
     } else {
-      const src = await apds.get(existingImage)
-      avatarImg.src = src
-      cache.set(existingImage, src)
+      const src = await resolveImageSrc(existingImage)
+      if (src) { avatarImg.src = src; cache.set(existingImage, src) }
     }
   }
 
@@ -53,7 +54,7 @@ export const imageSpan = async () => {
 }
 
 export const avatarSpan = async () => {
-  const avatarImg = visual(await apds.pubkey())
+  const avatarImg = await apds.visual(await apds.pubkey())
 
   const existingImage = await apds.get('image')
   
@@ -61,68 +62,26 @@ export const avatarSpan = async () => {
     if (cache.get(existingImage)) {
       avatarImg.src = cache.get(existingImage)
     } else {
-      const src = await apds.get(existingImage)
-      avatarImg.src = src
-      cache.set(existingImage, src)
+      const src = await resolveImageSrc(existingImage)
+      if (src) { avatarImg.src = src; cache.set(existingImage, src) }
     }
   }
 
   avatarImg.classList = 'avatar'
 
-  avatarImg.onclick = () => {uploader.click()}
-
-  const uploader = h('input', { type: 'file', style: 'display: none;'})
-
-  uploader.addEventListener('change', (e) => {
-    const file = e.target.files[0]
-    const reader = new FileReader()
-
-    reader.onload = (e) => {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      const img = new Image()
-
-      img.onload = async () => {
-        const size = 256
-        if (img.width > size || img.height > size) {
-          const width = img.width
-          const height = img.height
-          let cropWidth
-          let cropHeight
-
-          if (width > height) {
-            cropWidth = size
-            cropHeight = cropWidth * (height / width)
-          } else {
-            cropHeight = size
-            cropWidth = cropHeight * (width / height)
-          }
-
-          canvas.width = cropWidth
-          canvas.height = cropHeight
-          ctx.drawImage(img, 0, 0, width, height, 0, 0, cropWidth, cropHeight)
-          const croppedImage = canvas.toDataURL()
-          avatarImg.src = croppedImage
-          const hash = await apds.make(croppedImage)
-          await apds.put('image', hash)
-          cache.set(hash, croppedImage)
-        } else {
-          const croppedImage = canvas.toDataURL()
-          avatarImg.src = img.src
-          const hash = await apds.make(img.src)
-          await apds.put('image', hash)
-          cache.set(hash, img.src)
-        }
-      }
-      img.src = e.target.result
+  const editor = createProfileEditor({
+    imageSrc: avatarImg.src,
+    onImageChange: async (data, cropped, options) => {
+      const saved = await uploadProfilePhoto(cropped, options)
+      await apds.put('image', saved.image)
+      await apds.put('profile_photo', saved)
+      avatarImg.src = data; cache.set(saved.image, data)
+      return saved
     }
-    reader.readAsDataURL(file)
   })
-
-  const span = h('span', [
-    avatarImg,
-    uploader
-  ]) 
+  editor.photo.hidden = true
+  avatarImg.onclick = () => editor.choosePhoto()
+  const span = h('span', [avatarImg, editor.photo])
 
   return span
 }
