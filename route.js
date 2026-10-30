@@ -188,6 +188,18 @@ const route = async () => {
       return
     }
 
+    if (src.length === 44 && await apds.open(await apds.get(src) || '')) {
+      if (panel.dataset.ready === 'true') return
+      panel.replaceChildren()
+      const signed = await apds.get(src), opened = await apds.open(signed)
+      if (!isActive() || await isBlockedAuthor(signed.substring(0,44))) return
+      await render.buildReplyIndex()
+      render.insertByTimestamp(panel, src, Number(opened.substring(0,13)))
+      await render.blob(signed, { hash: src, opened })
+      panel.dataset.ready = 'true'
+      return
+    }
+
     if (src.length === 44) {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
@@ -274,7 +286,7 @@ const onNavigate = async () => {
 }
 
 const unsubscribe = navigation.subscribe(onNavigate)
-return { route, navigate: (...args) => navigation.navigate(...args), destroy() {
+return { route, invalidate() { for (const panel of routePanels.values()) delete panel.dataset.ready }, navigate: (...args) => navigation.navigate(...args), destroy() {
   disposed = true
   clearTimeout(scrollTimer)
   for (const timer of deferred) clearTimeout(timer)

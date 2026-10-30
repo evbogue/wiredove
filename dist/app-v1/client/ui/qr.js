@@ -10,7 +10,7 @@ export function createQRTarget({ document: doc = globalThis.document } = {}) {
 }
 
 export function createQRControl({
-  blob, target, loadQRious, document: doc = globalThis.document,
+  blob, destination, target, loadQRious, document: doc = globalThis.document,
 } = {}) {
   const link = doc.createElement('a');
   link.className = 'material-symbols-outlined';
@@ -34,7 +34,7 @@ export function createQRControl({
       ));
       try {
         const QRious = await loadQRious();
-        const href = (view && view.location ? view.location.href : '') + (blob || '');
+        const href = destination || (view && view.location ? view.location.href : '') + (blob || '');
         new QRious({ element: canvas, value: href, size, background, foreground });
       } catch (err) {
         console.warn('QRious load failed', err);

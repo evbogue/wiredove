@@ -16,20 +16,32 @@ export const createApplication = async ({ root, navigation, scroll, session = nu
   application.router = createRouter({ ...settings,
     root, navigation, scroll, feeds: application.feeds, render: application.render,
     compose: (sig, options) => composer(sig, { ...options, application }),
-    profileHeader: options => buildProfileHeader({ ...options, root, runExclusive: session?.runExclusive }),
+    profileHeader: options => buildProfileHeader({ ...options, root, runExclusive: session?.runExclusive, session }),
   })
-  const nav = await navbar(application)
+  let nav = await navbar(application)
   root.appendChild(nav)
   // Hash links remain real shareable links; only this root owns their UI action.
   const onClick = event => {
-    const anchor = event.target.closest?.('a[href^="#"]')
+    const anchor = event.target.closest?.('a[href]')
     if (!anchor || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    const href = anchor.getAttribute('href')
+    const canonical = session?.policy?.canonicalURL + '/#'
+    const route = href.startsWith('#') ? href.slice(1) : session?.policy && href.startsWith(canonical) ? href.slice(canonical.length) : null
+    if (route === null) return
     event.preventDefault()
-    void navigation.navigate(anchor.getAttribute('href').slice(1))
+    void navigation.navigate(route)
   }
   root.addEventListener('click', onClick)
   let destroyed = false
   let disposal
+  application.identityChanged = async () => {
+    application.render.resetIdentity?.()
+    nav.remove()
+    nav = await navbar(application)
+    root.prepend(nav)
+    application.router.invalidate()
+    await navigation.navigate(await import('https://esm.sh/gh/evbogue/apds@4934fac/apds.js').then(m => m.apds.pubkey()) || '')
+  }
   application.navigate = (...args) => navigation.navigate(...args)
   application.start = () => application.router.route()
   application.destroy = () => {
@@ -41,7 +53,7 @@ export const createApplication = async ({ root, navigation, scroll, session = nu
         application.feeds.destroy()
         application.render.destroy()
         root.removeEventListener('click', onClick)
-        for (const cleanup of [...application.cleanup]) cleanup?.()
+        for (const cleanup of [...application.cleanup]) await cleanup?.()
         application.cleanup.length = 0
         nav.remove()
       } finally { await session?.release() }

@@ -111,6 +111,10 @@ export const navbar = async (application) => {
       clearTimeout(clearTimer)
       clearTimer = null
     }
+    if (application.session?.artifacts && !application.session.legacyNetwork) {
+      setPublishIndicator('publish-state is-idle', 'Verified backend archive; pending delivery appears in Retry pending publication')
+      return
+    }
     const queueTotal = queueStatusState?.total || 0
     const queueReady = Boolean(queueStatusState?.wsReady || queueStatusState?.gossipReady)
     if (queueTotal > 0) {
@@ -158,14 +162,14 @@ export const navbar = async (application) => {
     h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
       h('img', {src: new URL('./dovepurple_sm.png', import.meta.url).href, classList: 'avatar_small', alt: ''})
     ]),
-    await composeButton(application),
+    ...(application.session?.policy?.capabilities?.compose === false ? [] : [await composeButton(application)]),
   ])
 
   const right = h('span', {classList: 'navbar-right'}, [
     publishWrap,
     searchInput,
     h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'nav-icon nav-source material-symbols-outlined', title: 'Source on GitHub', 'aria-label': 'Source on GitHub'}, ['folder_data']),
-    notificationsButton(),
+    ...(application.session?.policy?.capabilities?.notifications === false ? [] : [notificationsButton()]),
     h('a', {href: '#settings', classList: 'nav-icon material-symbols-outlined', title: 'Settings', 'aria-label': 'Settings'}, ['settings']),
     span,
   ])
@@ -182,5 +186,18 @@ export const navbar = async (application) => {
 
   application.cleanup.push(() => clearTimeout(clearTimer))
   renderPublishState()
+  if (application.session?.artifacts) {
+    const retry = h('button', { type: 'button' }, ['Retry pending publication'])
+    retry.hidden = !(await application.session.artifacts.pending()).length
+    retry.onclick = async () => {
+      retry.disabled = true
+      try { await application.session.retry(); retry.hidden = true; application.feeds.status('Delivery confirmed') }
+      catch (error) { application.feeds.status(error.message) }
+      finally { retry.disabled = false }
+    }
+    right.prepend(retry)
+    const timer = setInterval(async () => { retry.hidden = !(await application.session.artifacts.pending()).length }, 1000)
+    application.cleanup.push(() => clearInterval(timer))
+  }
   return div
 }

@@ -35,9 +35,11 @@ async function loadLegacyMediaBytes(id) {
 }
 
 export async function storeMedia(input, options = {}) {
+  if (options.service?.capabilities?.upload === false) throw Error('Uploads are disabled for this application')
   const localStore = await getAndFSStore()
   const client = createAndFSMediaClient({
     files: createAndFS({ store: localStore }),
+    ...(options.service ? { endpoint: options.service.mediaURL + '/api/media', origin: () => options.service.mediaURL } : {}),
     async signPayload(authorization) {
       const keypair = await apds.keypair()
       if (!keypair) throw new Error('Create or import an identity before uploading media')

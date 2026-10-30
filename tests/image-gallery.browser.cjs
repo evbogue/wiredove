@@ -142,7 +142,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
             await raw.click();assert.equal(await page.locator('.message-raw').textContent(),'');
             if(kind!=='edit') {
               assert.equal(await main.locator('.message-actions-edit a').filter({hasText:'Edit'}).count(),1);
-              assert.equal(await main.locator('.message-actions-reply a').count(),1);
+              assert.equal(await main.locator('.message-actions-reply button').count(),1);
               if(kind==='reply')await main.locator('.reply-preview-author').filter({hasText:'Parent Author'}).waitFor();
             }
           } else {
@@ -289,7 +289,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await cachePage.locator('.image-gallery-tile').count(),10);
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v18-shadow-application'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v19-application-flow'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

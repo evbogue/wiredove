@@ -2,6 +2,9 @@ import { serveDir } from 'https://deno.land/std@0.224.0/http/file_server.ts'
 import { createNotificationsService } from './notifications_server.js'
 import { createAndFsMediaService } from './andfs_media_server.js'
 
+import { createApplicationBackend } from './application_backend.js'
+const applicationBackend = await createApplicationBackend({ dataDir: Deno.env.get('APPLICATION_DATA_DIR') || './data/application' })
+
 const notifications = await createNotificationsService()
 const BLOB_DIR = Deno.env.get('BLOB_DIR') || './data/blobs'
 await Deno.mkdir(BLOB_DIR, { recursive: true })
@@ -64,6 +67,8 @@ Deno.serve({ port: Number(Deno.env.get('PORT') || 8000) }, async (r) => {
   if (/^\/(?:data(?:\/|$)|config\.json$|\.git(?:\/|$))/.test(pathname)) {
     return new Response(null, { status: 404 })
   }
+  const applicationResponse = await applicationBackend.handleRequest(r)
+  if (applicationResponse) return applicationResponse
   const mediaResponse = await media.handleRequest(r)
   if (mediaResponse) return mediaResponse
   const blobResponse = await handleBlobRequest(r)

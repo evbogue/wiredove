@@ -74,7 +74,7 @@ const buildProfileData = async (messages, fallbackName) => {
   }
 }
 
-const publishProfileUpdate = async ({ bio, name, image, links, photoState }) => {
+const publishProfileUpdate = async ({ bio, name, image, links, photoState, session }) => {
   const meta = {}
   if (bio !== null && bio !== undefined) { meta.bio = bio }
   if (name !== null && name !== undefined && name !== '') { meta.name = name }
@@ -88,12 +88,13 @@ const publishProfileUpdate = async ({ bio, name, image, links, photoState }) => 
   if (!meta.name && localName) meta.name = localName
   if (!meta.image && localImage) meta.image = localImage
   const storedPhoto = photoState || await apds.get('profile_photo')
-  if (storedPhoto?.image === meta.image && storedPhoto.original && storedPhoto.crop) {
+  if (storedPhoto && storedPhoto.image === meta.image && storedPhoto.original && storedPhoto.crop) {
     meta.image_original = storedPhoto.original
     meta.image_crop = storedPhoto.crop
   }
   if (previous) meta.previous = previous
-  const published = await apds.sign(await apds.createYaml(meta, ''))
+  const result = session?.artifacts ? await session.artifacts.publish('', meta) : null
+  const published = result?.id || await apds.sign(await apds.createYaml(meta, ''))
   // APDS normally flushes these indexes on a timer. A saved profile must survive
   // an immediate reload, including an explicit empty bio.
   await apds.put('hashlog', JSON.stringify(await apds.getHashLog()))
@@ -101,13 +102,12 @@ const publishProfileUpdate = async ({ bio, name, image, links, photoState }) => 
   const signed = await apds.get(published)
   const opened = await apds.open(signed)
   const blob = await apds.get(opened.substring(13))
-  await send(signed)
-  await send(blob)
+  if (!result || session?.legacyNetwork) { await send(signed); await send(blob) }
   if (isHash(image)) { await send(image) }
   return { signed, blob }
 }
 
-export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null, root = document, runExclusive = serializeWebsiteWrite }) => {
+export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null, root = document, runExclusive = serializeWebsiteWrite, session }) => {
   const profile = await buildProfileData(messages, label)
   const backgroundImage = await resolveImageSrc(profile.background)
   const fallbackVisual = pubkey ? await apds.visual(pubkey) : null
@@ -153,7 +153,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     photoState: draftPhotoState,
     onBusy: value => { photoBusy = value; saveButton.disabled = cancelButton.disabled = value },
     onImageChange: async (src, cropped, options) => {
-      const saved = await uploadProfilePhoto(cropped, options)
+      const saved = await uploadProfilePhoto(cropped, { ...options, service: session?.policy })
       draftImageHash = saved.image
       draftPhotoState = saved
       draftImageSrc = src
@@ -217,6 +217,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     try {
       await runExclusive(async () => {
         await publishProfileUpdate({
+          session,
           bio: bioChanged ? value : null,
           name: nameChanged ? nameValue : null,
           image: imageChanged ? draftImageHash : null,
@@ -246,8 +247,8 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
       if (onboarding) finishSetup()
       const navImage = root.querySelector('#navbar .navbar-right .avatar_small')
       if (navImage && imageChanged) navImage.src = draftImageSrc
-    } catch {
-      status.textContent = 'Failed to save profile.'
+    } catch (error) {
+      status.textContent = 'Failed to save profile: ' + error.message
     } finally {
       saveButton.disabled = false
       cancelButton.disabled = false

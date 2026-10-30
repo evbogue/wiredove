@@ -10,8 +10,8 @@ export const imgUpload = async (textarea, { reply, replyto, ...options } = {}) =
     persistMedia: (file, status) => uploadImage(file, { reply, replyto, ...status })
   })
 
-export async function uploadProfilePhoto(cropped, { original, crop, onStatus } = {}) {
-  const source = await uploadImage(original, { onStatus })
-  const photo = await uploadImage(cropped, { onStatus })
+export async function uploadProfilePhoto(cropped, { original, crop, onStatus, service } = {}) {
+  const source = await uploadImage(original, { onStatus, service })
+  const photo = await uploadImage(cropped, { onStatus, service })
   return { image: photo.media_url, original: source.media_url, crop }
 }

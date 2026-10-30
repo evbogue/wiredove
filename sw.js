@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v18-shadow-application'
+const CACHE_VERSION = 'v19-application-flow'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -26,7 +26,11 @@ const APP_SHELL_ASSETS = [
   '/style.css',
   '/app.js',
   '/client/runtime/mount.js',
+  '/client/runtime/default-session.js',
+  '/client/runtime/artifact-session.js',
+  '/client/runtime/browser-store.js',
   '/client/application.css',
+  '/vendor/material-symbols/outlined-v382.ttf',
   '/client/runtime/application.js',
   '/client/runtime/service-session.js',
   '/client/runtime/website-session.js',
@@ -67,7 +71,7 @@ const isNavigationRequest = (request) => request.mode === 'navigate'
 
 const isStaticAssetRequest = (request) => {
   const url = new URL(request.url)
-  return /\.(?:js|css|png|jpg|jpeg|svg|ico|webmanifest|json)$/i.test(url.pathname)
+  return /\.(?:js|css|png|jpg|jpeg|svg|ico|ttf|webmanifest|json)$/i.test(url.pathname)
 }
 
 const canCacheResponse = (response) => Boolean(response && response.ok)

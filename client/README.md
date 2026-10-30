@@ -353,7 +353,9 @@ APDS database handle and its persistence timers remain page-lifetime resources. 
 suite; it does not publish to public relays.
 
 
-`runtime/website-session.js` is the website's explicit shared session. Acquire a
+`runtime/website-session.js` retains the earlier shared transport lease API for
+compatibility; current website startup uses `runtime/default-session.js` below.
+Do not start both managers against the pinned APDS singleton in one page. Acquire a
 lease with `websiteSession.acquire('wiredovedbversion1')` and pass it as `session`
 to `createApplication`. A different database is rejected in that page; independent
 identity namespaces are not supported by the pinned singleton APDS adapter.
@@ -364,61 +366,73 @@ Post/profile and identity writes share `runtime/signing-queue.js`. Suspending th
 network queue retains exact bytes in memory for resumption; this is not a durable
 website outbox across page reloads. No existing identity storage is migrated.
 
-### Experimental Shadow DOM application mount
+### Shared application mount (milestone 1)
 
-The website and the JavaScript host now call `runtime/mount.js:mountApplication`.
-The browser entry `/app-embed.js` exports it as `mountWiredove` through the generated
-`/dist/app-v1/app-embed.js` graph. Importing this entry requires no host import map
-and does not start APDS, open media databases or register a service worker.
+The website and JavaScript embed call `runtime/mount.js:mountApplication`.
+`/app-embed.js` exports it as `mountWiredove` through `dist/app-v1`. Imports do not
+start APDS, open media databases or register a service worker.
 
 ```js
 import { mountWiredove } from 'https://YOUR-WIREDOVE-SERVER/app-embed.js';
 const app = await mountWiredove(document.querySelector('#wiredove'), {
-  session: compatibleSessionLease,
+  initialRoute: '', // existing website route string; a message ID opens a thread
+  // backendURL, mediaURL and canonicalURL default to the module's source origin.
+  capabilities: { compose: true, reply: true, upload: true,
+    recording: false, notifications: false },
 });
 await app.navigate('?search');
+await app.session.refresh();
 await app.destroy();
 ```
 
-This API is experimental: a compatible initialized APDS session lease is required;
-a ready default backend/identity adapter for arbitrary hosts is still open. A lease
-provides serialized `runExclusive(operation)` and `release()` operations and must
-own the same APDS singleton used by this graph. Passing an arbitrary publisher or
-lease does not replace that data/identity implementation. Do not treat this as the
-completed real publication embed or enable it for public writes yet. Routes remain
-website route strings. Internal navigation is default; the website explicitly
-supplies its hash adapter. Named initialRoute/theme/capability options in the work
-order remain design targets. Theme currently follows the browser color scheme.
+`runtime/default-session.js` provides the working default: origin-owned APDS
+identity/storage, a verified paged archive at `/api/application`, signed media
+uploads at `/api/media`, durable exact-byte outbox/retry and serialized writes.
+It selects `wiredovedbversion1` by default, preserving website identity storage.
+Advanced hosts can select `database`, `backendURL`, `mediaURL`, `canonicalURL`,
+and capabilities. One module graph shares one identity/session; conflicting
+configurations are rejected. This does not supply arbitrary protocol/storage
+replacement or independent identities per root. Legacy compatible `session`
+leases remain an internal compatibility option, not a generic publisher callback.
 
-An application creates its own open shadow root, stylesheet, scroll surface and
-root-owned dialogs. Existing shadow roots are rejected; a root created by Wiredove
-can be reused after `destroy()`. Root CSS/font styles and hash navigation remain
-separate from the host. The namespaced icon font uses the document font registry
-on explicit mount; it does not change host styles. Host scripts still share the
-origin's execution/storage context: Shadow DOM is UI containment, not isolation
-of secrets. Identity/settings reload actions, backend/media URL policy and browser
-capability controls remain part of the next adapter slice.
+Each mount owns a Shadow DOM root, styles, scroll surface and dialogs. Internal
+navigation preserves the host hash/body; the website opts into window hash routing.
+Use a stable host element ID for restoring its open composer after reload.
+Text/uploaded attachment metadata persists in localStorage. Unuploaded files are
+not saved. Pending signed artifacts persist in IndexedDB before delivery; use
+**Retry pending publication** after an outage. A new message cannot be signed while
+another is pending. Identity changes must settle pending publications first.
 
-Run `npm run build:embed` after source edits. `scripts/build-app-embed.js` copies the
-reachable application graph and assets, resolves APDS/h to pinned explicit CDN
-URLs and emits SHA-256 hashes in `dist/app-v1/manifest.json`. Edit source files,
-never distribution copies. `npm run check` regenerates the graph. v1 is the
-experimental API namespace; pin the repository/release revision and its complete
-manifest for reproducibility. This source change does not publish or deploy it.
-The generated graph contains no website bootstrap/service-worker entry. Optional
-Node store imports in pinned AndFS remain guarded branches, never browser imports.
+The default backend's feed/search/thread scope is its verified archive and local
+cache, not global relay discovery. `GET /api/application?after=N` returns up to 100
+exact artifacts, sequence cursor, `more`, and `scope: "backend-archive"`.
+`POST /api/application` accepts `{id,signature,content}`; the server recomputes the
+ID, verifies the signature/content hash and atomically stores before acknowledging.
+Retries deduplicate by ID. The server stores state under `data/application` or
+`APPLICATION_DATA_DIR`; retain it alongside existing media state on release changes.
+The website also retains its legacy discovery/notification transport. Embeds do not
+start that transport or register host-origin service workers. Recording and
+notifications default off; browser/host permissions still apply if enabled.
 
-The server supplies CORS for the public entry and versioned graph. A static host
-must serve every graph file with correct MIME types and permissive read CORS;
-keep script/style/image dependencies on the application source origin. CSP must
-allow that origin, pinned esm.sh dependencies and the optional Google font/style
-origins. Highlight/QR scripts retain their explicit cdnjs URLs. Backend CORS and
-browser recording/notification policy are still pending adapter work.
+Shadow DOM does not protect identity secrets from host scripts. Keys/storage belong
+to the embedding origin; there is no automatic wiredove.net identity continuity.
+Local create/import/backup remain explicit. Do not load distinct source/distribution
+graphs with independent APDS startup in one page; use one release graph for all roots.
 
-`tests/application-shadow.browser.cjs` observes two non-iframe application mounts
-on a separate localhost origin without an import map. Offline APDS/session
-fixtures prove structural/style/lifecycle behavior, not cryptographic publication.
-It covers hostile host CSS, host hash/body preservation, internal navigation,
-identity/composer/gallery/crop dialog placement, keyboard close, remount, import
-inertness, and 1200/390/320px in light/dark themes. Screenshots are written under
-`test-results/application-shadow-*.png`.
+Run `npm run build:embed` after source edits. The builder emits the reachable graph,
+local icon font/license, and SHA-256 manifest. Edit sources, not distribution copies.
+Pin the repository/release revision and complete manifest. This does not deploy it.
+Static hosts must serve graph files with correct MIME types and read CORS. Backend
+and signed media upload endpoints support read/write preflights. CSP must allow the
+application source, pinned esm.sh/jsDelivr dependencies and optional Google body-font
+origins; highlight/QR retain explicit cdnjs URLs. The graph does not import website
+startup or register a service worker.
+
+`npm run test:browser` includes two-root structural isolation and real
+`application-flow.browser.cjs` acceptance: two local origins, real pinned APDS and
+cryptography, identity/profile → signed post/audio → thread → second-author reply,
+reload, durable draft and failed-delivery exact retry. It uses disposable storage
+and blocks public writes. `npm run test:media` includes archive restart/tampering/
+persistence tests. Milestone 1 acceptance and remaining milestones are recorded in
+[SHARED_UI_WORK_ORDER.md](../SHARED_UI_WORK_ORDER.md); full feature parity,
+evbogue.com replacement and production/device release acceptance remain open.

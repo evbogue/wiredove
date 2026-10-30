@@ -104,10 +104,12 @@ export const composer = async (sig, options = {}) => {
   let imageBusy = false
   let publishing = false
   let closed = false
+  if (application?.session?.policy?.capabilities?.[sig ? 'reply' : 'compose'] === false) throw Error('Publishing is disabled for this application')
+  const resumeKey = `wiredove-composer-open:${pubkey || 'anon'}:${application?.draftScope || 'page'}`
   const draftKey = `wiredove-composer-draft:${pubkey || 'anon'}:${isEdit ? 'edit:' + options.editHash : sig ? 'reply:' + obj.replyHash : 'new'}`
-  const storage = (() => { try { return window.sessionStorage } catch { return null } })()
+  const storage = (() => { try { return window.localStorage } catch { return null } })()
   try {
-    const saved = storage?.getItem(draftKey)
+    const saved = storage?.getItem(draftKey) || window.sessionStorage?.getItem(draftKey)
     if (saved) {
       const draft = JSON.parse(saved)
       textarea.value = draft.body || ''
@@ -116,7 +118,10 @@ export const composer = async (sig, options = {}) => {
   } catch {}
   const saveDraft = () => {
     if (closed) return
-    try { storage?.setItem(draftKey, JSON.stringify({ body: textarea.value, attachment: mediaAttachment })) } catch {}
+    try {
+      storage?.setItem(draftKey, JSON.stringify({ body: textarea.value, attachment: mediaAttachment }))
+      if (application?.session?.artifacts && (textarea.value.trim() || mediaAttachment)) storage?.setItem(resumeKey, JSON.stringify({ sig, editHash: options.editHash, editBody: options.editBody }))
+    } catch { surface.status.textContent = 'Draft could not be saved in this browser. Keep this window open.' }
   }
   textarea.addEventListener('input', saveDraft)
   const updatePublishState = () => {
@@ -126,6 +131,7 @@ export const composer = async (sig, options = {}) => {
   const closeComposer = () => {
     if (publishing) return
     saveDraft()
+    storage?.removeItem(resumeKey)
     closed = true
     mediaControls.destroy?.()
     uploadControls.destroy?.()
@@ -483,17 +489,26 @@ export const composer = async (sig, options = {}) => {
       const body = attachmentUrl && !textarea.value.includes(attachmentUrl)
         ? [textarea.value.trim(), attachmentUrl].filter(Boolean).join('\n\n')
         : textarea.value
-      const published = await (application?.session?.runExclusive || serializeWebsiteWrite)(() => apds.compose(body, buildComposeMeta()))
+      const result = application?.session?.publish
+        ? await application.session.publish(body, buildComposeMeta()) : null
+      if (result && !result.relayed) {
+        closed = true
+        storage?.removeItem(draftKey); storage?.removeItem(resumeKey)
+        mediaControls.destroy?.(); uploadControls.destroy?.()
+        overlay.remove()
+        application.feeds.status('Saved locally. Delivery is pending; use Retry pending publication in the navigation bar.', { sticky: true })
+        return
+      }
+      const published = result?.id || await (application?.session?.runExclusive || serializeWebsiteWrite)(() => apds.compose(body, buildComposeMeta()))
       closed = true
-      try { storage?.removeItem(draftKey) } catch {}
+      try { storage?.removeItem(draftKey); storage?.removeItem(resumeKey); window.sessionStorage?.removeItem(draftKey) } catch {}
       mediaControls.destroy?.()
       uploadControls.destroy?.()
       const signed = await apds.get(published)
       const opened = await apds.open(signed)
 
       const blob = await apds.get(opened.substring(13))
-      await send(signed)
-      await send(blob)
+      if (!result || application?.session?.legacyNetwork) { await send(signed); await send(blob) }
       const hash = await apds.hash(signed)
 
       const confirmTargets = [signed]
@@ -508,6 +523,7 @@ export const composer = async (sig, options = {}) => {
           }
         }
       }
+      if (!result || application?.session?.legacyNetwork) {
       const verifyId = beginPublishVerification({ hash })
       void (async () => {
         try {
@@ -544,6 +560,7 @@ export const composer = async (sig, options = {}) => {
         }
       })()
 
+      }
       if (isEdit) {
         render.invalidateEdits(options.editHash)
         await render.refreshEdits(options.editHash, { forceLatest: true })
@@ -611,12 +628,14 @@ export const composer = async (sig, options = {}) => {
   }
 
   const uploadControls = await imgUpload(textarea, {
+    service: application?.session?.policy,
     reply: replyObj.reply,
     replyto: replyObj.replyto,
     onBusy: value => { imageBusy = value; updatePublishState() },
     onChange: () => { saveDraft(); updatePublishState() }
   })
   const mediaControls = createMediaComposer({
+    service: application?.session?.policy,
     reply: replyObj.reply,
     replyto: replyObj.replyto,
     onBusy: value => { mediaBusy = value; updatePublishState() },
@@ -637,6 +656,9 @@ export const composer = async (sig, options = {}) => {
   })
   publishButton = surface.publish
   surface.tools.append(uploadControls, mediaControls.actions)
+  const capabilities = application?.session?.policy?.capabilities
+  if (capabilities?.upload === false) { uploadControls.hidden = true; mediaControls.actions.hidden = true }
+  if (capabilities?.recording === false) for (const button of mediaControls.actions.querySelectorAll('[aria-label^="Record"]')) button.hidden = true
   surface.attachments.append(uploadControls.preview, mediaControls)
   if (mediaAttachment) mediaControls.restore(mediaAttachment)
   // Keep raw inspection available without competing with attachment actions.

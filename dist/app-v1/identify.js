@@ -1,3 +1,4 @@
+import { validateIdentityBackup } from './identity_backup.js'
 import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
 import { showScopedDialog } from './client/ui/dialog-scope.js'
 import { h } from 'https://esm.sh/gh/evbogue/apds@78abedd/lib/h.js'
@@ -44,14 +45,10 @@ const openIdentitySetup = (application) => {
     status.textContent = importing ? 'Checking your identity…' : 'Creating your identity…'
     try {
       const pubkey = await (application?.session?.runExclusive || serializeWebsiteWrite)(async () => {
+        if ((await application?.session?.artifacts?.pending())?.length) throw Error('Retry pending publications before changing identity')
         let keypair
         if (importing) {
-          keypair = key.value.trim()
-          // Verify that the secret key signs for the public key before storing it.
-          const { an } = await import('https://esm.sh/gh/evbogue/anproto@ddc040c/an.js')
-          const challenge = await an.hash('Wiredove identity import check')
-          const signed = await an.sign(challenge, keypair)
-          if (!(await an.open(signed)).endsWith(challenge) || signed.substring(0, 44) !== keypair.substring(0, 44)) throw new Error('Invalid identity backup. Check that you pasted the complete keypair.')
+          keypair = await validateIdentityBackup(key.value)
         } else {
           if (!name.value.trim()) { name.focus(); return }
           keypair = await apds.generate()
@@ -62,9 +59,8 @@ const openIdentitySetup = (application) => {
       })
       if (!pubkey) return
       if (!importing) sessionStorage.setItem('wiredove.setup', pubkey)
-      if (application) await application.navigation.navigate(pubkey)
-      else window.location.hash = pubkey
-      window.location.reload()
+      if (application?.identityChanged) { await application.identityChanged(); dialog.close() }
+      else { window.location.hash = pubkey; window.location.reload() }
     } catch (error) {
       status.textContent = importing ? 'Could not import this backup. Check that you pasted the complete, original keypair.' : 'Could not create your identity. Please try again.'
     } finally {

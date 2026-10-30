@@ -17,6 +17,7 @@ const stubs = {
     try {
       const url = new URL(req.url,'http://localhost');
       res.setHeader('content-type',url.pathname.endsWith('.css')?'text/css':'text/javascript');
+      if (url.pathname === '/api/application') { res.setHeader('content-type','application/json');res.end(JSON.stringify({records:[],cursor:0,more:false,scope:'backend-archive'}));return; }
       if (url.pathname === '/gossip/poll') { res.setHeader('content-type','application/json');res.end(JSON.stringify({messages:[],nextSince:0}));return; }
       if (url.pathname === '/website') {
         res.setHeader('content-type','text/html');

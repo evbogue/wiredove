@@ -1,3 +1,5 @@
+import { acquireDefaultSession } from './default-session.js'
+import { composer } from '../../composer.js'
 import { apds } from 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js'
 import { send } from '../../send.js'
 import { createApplication } from './application.js'
@@ -5,7 +7,7 @@ import { createNavigation } from './application-context.js'
 import { createImagePopover } from '../ui/image-popover.js'
 
 const fontLoads = new WeakMap()
-const iconFontURL = 'https://fonts.gstatic.com/s/materialsymbolsoutlined/v382/kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzByHX9rA6RzaxHMPdY43zj-jCxv3fzvRNU22ZXGJpEpjC_1v-p_4MrImHCIJIZrDCvHOem.ttf'
+const iconFontURL = new URL('../../vendor/material-symbols/outlined-v382.ttf', import.meta.url).href
 const loadIcons = doc => {
   if (!fontLoads.has(doc)) {
     const face = new FontFace('Wiredove Symbols', `url(${iconFontURL})`)
@@ -19,12 +21,14 @@ const mounted = new WeakSet()
 const owned = new WeakSet()
 const stylesheet = new URL('../application.css', import.meta.url).href
 
-// Session selection is explicit at this boundary. The website supplies its shared
-// session; a host must currently supply a compatible initialized APDS session.
-export const mountApplication = async (host, { session, navigation = createNavigation(''), layout = 'embedded' } = {}) => {
+// Both frames use the same default services; advanced internal callers may
+// supply an already acquired compatible session lease.
+export const mountApplication = async (host, { session, navigation, initialRoute = '', layout = 'embedded', ...services } = {}) => {
   if (!host || mounted.has(host) || (host.shadowRoot && !owned.has(host))) throw new Error('Wiredove requires an unused mount element')
-  if (!session) throw new Error('A compatible service-session lease is required')
   mounted.add(host)
+  try { session ||= await acquireDefaultSession(services) }
+  catch (error) { mounted.delete(host); throw error }
+  navigation ||= createNavigation(initialRoute)
   let shadow
   try { shadow = host.shadowRoot || host.attachShadow({ mode: 'open' }) }
   catch (error) { mounted.delete(host); await session.release?.(); throw error }
@@ -48,13 +52,22 @@ export const mountApplication = async (host, { session, navigation = createNavig
     target: root, observerRoot: root, height: () => root.clientHeight }
   let app
   try {
-    void loadIcons(doc)
+    await loadIcons(doc)
     await ready
     app = await createApplication({ root, navigation, scroll, session })
     const viewer = createImagePopover({ document: doc, root: shadow, delegateRoot: root,
       getImage: hash => apds.get(hash), requestImage: send })
     app.cleanup.push(() => viewer.dispose())
+    if (session.subscribeRenderer) app.cleanup.push(session.subscribeRenderer(app.render))
+    app.draftScope = host.id || layout
     await app.start()
+    if (session.artifacts?.error) app.feeds.status('Backend unavailable. Showing locally verified content. ' + session.artifacts.error, { sticky: true })
+    if (session.artifacts) {
+      try {
+        const resume = localStorage.getItem(`wiredove-composer-open:${await apds.pubkey() || 'anon'}:${app.draftScope}`)
+        if (resume) { const draft = JSON.parse(resume); root.append(await composer(draft.sig, { ...draft, application: app })) }
+      } catch (error) { app.feeds.status('Could not restore the open draft: ' + error.message) }
+    }
     const destroy = app.destroy
     let disposal
     app.destroy = () => disposal ||= (async () => {

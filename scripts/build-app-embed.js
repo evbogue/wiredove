@@ -46,7 +46,7 @@ const entry = `export { mountWiredove, createNavigation } from './client/app-emb
 await writeFile(resolve(out,'app-embed.js'), entry)
 manifest['app-embed.js'] = createHash('sha256').update(entry).digest('hex')
 await emit(resolve(root,'client/application.css'))
-for (const license of ['vendor/andfs/LICENSE','vendor/cropperjs/LICENSE','vendor/marked/LICENSE.md','vendor/simple-icons/LICENSE.md']) await emit(resolve(root,license))
+for (const license of ['vendor/material-symbols/LICENSE','vendor/material-symbols/README.md','vendor/andfs/LICENSE','vendor/cropperjs/LICENSE','vendor/marked/LICENSE.md','vendor/simple-icons/LICENSE.md']) await emit(resolve(root,license))
 if ([...seen].some(path=>['app.js','client/runtime/website-application.js'].includes(relative(root,path)))) throw Error('Website bootstrap leaked into embed')
 await writeFile(resolve(out,'manifest.json'),JSON.stringify(Object.fromEntries(Object.entries(manifest).sort()),null,2)+'\n')
 console.log(`Built ${seen.size} application files in dist/app-v1`)

@@ -30,7 +30,7 @@ async function fixture(query, src = 'ev') {
   const pendingHeader = new Promise(resolve => { resolveHeader = resolve; });
   const deps = {
     scopeDocument: root => ({ body: root, getElementById: id => elements.get(id) }),
-    apds: { pubkey: async () => null }, h: node,
+    apds: { get: async () => null, open: async () => null, pubkey: async () => null }, h: node,
     render: { buildReplyIndex: async () => {} },
     adder(messages, src, panel) {
       // Include a loading row even when the feed is empty: the sentinel is

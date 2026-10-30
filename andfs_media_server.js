@@ -215,7 +215,15 @@ export async function createAndFsMediaService({
   return {
     async handleRequest(request) {
       const url = new URL(request.url)
-      if (url.pathname === '/api/media' && request.method === 'POST') return await enqueueUpload(request)
+      if (url.pathname === '/api/media') {
+        const uploadHeaders = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'X-ANProto-Content, X-ANProto-Signature, Content-Type' }
+        if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: uploadHeaders })
+        if (request.method === 'POST') {
+          const response = await enqueueUpload(request)
+          for (const [key, value] of Object.entries(uploadHeaders)) response.headers.set(key, value)
+          return response
+        }
+      }
       const match = /^\/(blobs|media)\/([A-Za-z0-9_-]{43})$/.exec(url.pathname)
       if (match && request.method === 'OPTIONS') return new Response(null, { status: 204, headers: publicHeaders })
       if (match && ['GET', 'HEAD'].includes(request.method)) {

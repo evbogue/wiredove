@@ -1,12 +1,16 @@
 import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
 import { h } from 'https://esm.sh/gh/evbogue/apds@78abedd/lib/h.js'
 import { apds } from 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js'
-import { downloadIdentityBackup } from './identity_backup.js'
+import { downloadIdentityBackup, validateIdentityBackup } from './identity_backup.js'
 import { clearQueue, getQueueSize, queueSend } from './network_queue.js'
 import { addBlockedAuthor, getModerationState, removeBlockedAuthor, saveModerationState, splitTextList } from './moderation.js'
 
 export const createSettings = (application) => {
-const runExclusive = application.session?.runExclusive || serializeWebsiteWrite
+const serialize = application.session?.runExclusive || serializeWebsiteWrite
+const runExclusive = operation => serialize(async () => {
+  if ((await application.session?.artifacts?.pending())?.length) throw Error('Retry pending publications before changing identity or storage')
+  return operation()
+})
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
 const importKey = async () => {
@@ -14,12 +18,10 @@ const importKey = async () => {
 
   const button = h('button', {
     onclick: async () => {
-      const trashkey = await apds.generate()
-      if (textarea.value && textarea.value.length === trashkey.length) {
-        await runExclusive(() => apds.put('keypair', textarea.value))
-        application.navigation.navigate('')
-        location.reload()
-      } else { alert('Invalid Keypair')}
+      try {
+        await runExclusive(async () => apds.put('keypair', await validateIdentityBackup(textarea.value)))
+        await application.identityChanged()
+      } catch (error) { application.feeds.status(error.message) }
     }
   }, ['Import key'])
 
@@ -38,19 +40,17 @@ const editKey = async () => {
     textarea,
     h('button', {
       onclick: async () => {
-        const keypair = await apds.keypair()
-        if (textarea.value.length === keypair.length) {
-          await runExclusive(() => apds.put('keypair', textarea.value))
-          application.navigation.navigate('')
-          location.reload()
-        } else { alert('Invalid Keypair')}
+        try {
+          await runExclusive(async () => apds.put('keypair', await validateIdentityBackup(textarea.value)))
+          await application.identityChanged()
+        } catch (error) { application.feeds.status(error.message) }
       }
     }, ['Import key']),
     h('button', {
       onclick: async () => {
         await runExclusive(() => apds.deletekey())
         application.navigation.navigate('')
-        location.reload()
+        void application.identityChanged()
       }
     }, ['Delete key']),
   ])
@@ -61,7 +61,7 @@ const deleteEverything = h('button', {
   onclick: async () => {
     await runExclusive(() => apds.clear())
     application.navigation.navigate('')
-    location.reload()
+    void application.identityChanged()
   }
 }, ['Delete everything'])
 
@@ -308,7 +308,7 @@ const moderationPanel = async () => {
           application.feeds?.status?.('Blocked author.')
         }
         setTimeout(() => {
-          location.reload()
+          void application.identityChanged()
         }, 600)
       },
       onRemove: async (value) => {

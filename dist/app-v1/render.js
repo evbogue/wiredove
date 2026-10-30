@@ -47,6 +47,8 @@ const getEditState = (hash) => {
   return editState.get(hash)
 }
 
+render.resetIdentity = () => { cachedPubkeyPromise = null }
+
 const getCachedPubkey = async () => {
   if (!cachedPubkeyPromise) {
     cachedPubkeyPromise = apds.pubkey().catch((err) => {
@@ -187,7 +189,8 @@ const buildMetaCluster = ({ author, hash, blob, opened, contentBlob, ts }) => {
   const right = createMessageMeta({
     post: { id: hash, author, signature: blob },
     controls: {
-      qr: createQRControl({ blob, target: qrTarget, loadQRious: ensureQRious, document }),
+      permalinkHref: application?.session?.policy ? application.session.policy.canonicalURL + '/#' + blob : undefined,
+      qr: createQRControl({ blob, destination: application?.session?.policy ? application.session.policy.canonicalURL + '/#' + blob : undefined, target: qrTarget, loadQRious: ensureQRious, document }),
       rawToggle,
       permalinkHref: '#' + blob,
       timestamp: ts,
@@ -690,8 +693,7 @@ render.refreshEdits = async (hash, options = {}) => {
     : state.baseYaml.body
   state.currentBody = bodySource
   state.contentDiv.replaceChildren(await renderBody(bodySource, baseReply))
-  renderAndFSMedia(state.baseYaml, state.contentDiv)
-  await renderMedia(state.baseYaml, state.contentDiv)
+  if (!renderAndFSMedia(state.baseYaml, state.contentDiv)) await renderMedia(state.baseYaml, state.contentDiv)
   await highlightCodeIn(state.contentDiv)
   hydrateReplyPreviews(state.contentDiv)
   const profileYaml = currentEdit && currentEdit.yaml
@@ -1046,7 +1048,9 @@ render.comments = async (hash, blob, div, actionsRow) => {
     observeReplies(wrapper, hash)
   }
 
-  const reply = h('a', {
+  if (application?.session?.policy?.capabilities?.reply === false) return
+  const reply = h('button', {
+    type: 'button', title: 'Reply',
     classList: 'material-symbols-outlined',
     onclick: async () => {
       if (document.getElementById('reply-composer-' + hash)) { return }
@@ -1057,6 +1061,7 @@ render.comments = async (hash, blob, div, actionsRow) => {
       promptKeypair(undefined, application)
     }
   }, ['Chat_Bubble'])
+  reply.setAttribute('aria-label', 'Reply')
 
   if (actionsRow) {
     const slot = actionsRow.querySelector('.message-actions-reply')
@@ -1147,8 +1152,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       updateReplyCount(yaml.reply)
     }
     div.replaceChildren(await renderBody(yaml.body || '', yaml.reply))
-    renderAndFSMedia(yaml, div)
-    await renderMedia(yaml, div)
+    if (!renderAndFSMedia(yaml, div)) await renderMedia(yaml, div)
     await highlightCodeIn(div)
     hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)

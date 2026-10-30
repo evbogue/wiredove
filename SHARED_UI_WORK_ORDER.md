@@ -1,9 +1,9 @@
 # Mountable Wiredove application work order
 
 Updated 2026-10-30 following Ev's request for a full Wiredove JavaScript embed.
-Status: experimental shared Shadow DOM mount and generated browser import graph
-implemented. Default host backend/capability adapters and full milestone-1
-acceptance remain open.
+Status: milestone 1 implemented and accepted locally: shared application mount,
+default verified archive/identity session, durable drafts/outbox and real two-author
+website ↔ separate-origin embed flow. Milestones 2–4 remain open; not deployed.
 Source-review baseline: `6f8d213`. This is the sole shared UI/application-embed work
 order. It replaces the earlier component-first plan, `client/WORK_ORDER.md`, and
 `docs/SHARED_MESSAGE_HANDOFF.md`; historical evidence remains in Git history.
@@ -24,8 +24,9 @@ Individually importable widgets remain supported for hosts that want only a piec
 ## Diagnosis and starting points
 
 - `app.js` calls `website-application.js`, which starts the shared APDS session and
-  creates the internal application UI runtime. Service-worker registration stays
-  in the website bootstrap. Default embed services remain open; the current mount API is experimental.
+  mounts the shared application with its default verified archive/identity session.
+  Service-worker registration and legacy transport stay explicit website choices.
+  The real first-flow acceptance is recorded in the final checkpoint below.
 - `route.js:createRouter` now owns panels, feed orchestration and scroll state per
   application through root/navigation/scroll/controller dependencies. The website
   supplies a window-hash adapter; internal navigation has no host hash effects.
@@ -106,7 +107,8 @@ Do not silently register a service worker on someone else's origin.
 
 ## Implementation sequence
 
-All milestones below remain open; completed substeps are marked. Complete vertical slices on both surfaces and record
+Milestone 1 is complete within the explicit backend-archive scope below. Milestones
+2–4 remain open. Complete vertical slices on both surfaces and record
 observed results here. Do not finish every component extraction before proving a
 mountable application. Do not claim a declaration, mock callback or screenshot proves
 runtime parity.
@@ -116,14 +118,14 @@ runtime parity.
 - [x] Inventory current website routes/actions and global dependencies, including
   home, author, alias/community feeds, search, thread, edit, profile, settings,
   moderation, notification and sync behavior. Record ownership and parity below.
-- [ ] Extract explicit startup/disposal from app.js. Introduce root refs, instance
+- [x] Extract explicit startup/disposal from app.js. Introduce root refs, instance
   route state and navigation/services dependencies. Adapt route panels, feed storage
   and orchestration; remove global selectors across this boundary.
 - [x] Switch the website bootstrap to the extracted application while preserving
   existing routes, cached panels, scroll restoration and all unmigrated features.
-- [ ] Mount that same application in a separate-origin plain HTML host via Shadow DOM.
+- [x] Mount that same application in a separate-origin plain HTML host via Shadow DOM.
   Supply real local test services, not host-created posts or a simulated publisher.
-- [ ] Prove profile → post → thread → reply in both mounts, including identity setup,
+- [x] Prove profile → post → thread → reply in both mounts, including identity setup,
   verified retrieval, reload, durable drafts, media and delivery status. Keep mounted
   playback/focus stable during updates. Include replies from a second author.
 
@@ -427,3 +429,97 @@ the composer fits its application scroll surface. Repeated destruction of an old
 instance is checked after remount and cannot clear the newer instance. The
 committed distribution contains 81 copied source/asset/license files plus its
 entry wrapper and manifest; pinned APDS/h remain explicit CDN dependencies.
+
+
+### 2026-10-30 milestone 1 acceptance — real default application services
+
+Milestone 1 is complete for the first real vertical slice. Source revision: the
+commit containing this entry. This is local source acceptance, not deployment,
+full feature parity, or completion of milestones 2–4.
+
+Implemented owners:
+
+- `client/runtime/default-session.js` selects the APDS identity/database, verified
+  backend archive, media source, canonical URL and capabilities. Plain hosts call
+  `mountWiredove(element)`; they do not create posts, sign, count replies or supply
+  publication callbacks. The source module origin is the default backend/media
+  origin. Multiple mounts in one graph share a reference-counted service session;
+  incompatible database/backend/capability selections are rejected. Last disposal
+  aborts/drains archive work and stops polling. APDS's existing persistence timers
+  remain page-lifetime resources, as explicitly accepted in the earlier checkpoint.
+- `application_backend.js`, mounted by `serve.js` at `/api/application`, stores exact
+  signature/content pairs only after ANProto and content-hash verification. Atomic
+  writes precede acknowledgement; duplicate concurrent retries are idempotent.
+  Sequence-cursor pages describe this backend's archive, independently of author
+  timestamps. State lives under `data/application` (or `APPLICATION_DATA_DIR`).
+- `client/runtime/artifact-session.js` verifies every retrieved artifact before
+  APDS ingestion/rendering. A durable IndexedDB outbox precedes author-chain state,
+  local ingestion and transmission. New signing is blocked while a record is
+  pending. Reload repairs pending local ingestion; retry preserves the exact ID,
+  signature and body. Failed outbox persistence leaves the draft and chain intact.
+- `composer.js` persists text/attachment metadata in localStorage, retaining the
+  prior sessionStorage draft reader. Open draft targets restore after reload;
+  closing keeps the saved draft available when that composer is reopened. Delivery
+  failure after durable signing becomes a locally saved pending publication, with
+  a navigation-bar retry action, rather than a second unsigned draft. Unuploaded
+  file selections are not claimed durable; media metadata is saved after upload.
+- Identity setup refreshes the mounted navbar/profile without reloading the host.
+  Settings identity actions refresh the application. The first profile can be
+  edited before any post; first-save missing photo metadata no longer throws.
+  Profile writes use the same session/outbox and preserve signed photo metadata.
+- Known message-hash routes open threads instead of being mistaken for authors.
+  Canonical share/QR destinations use configured application URLs. Media upload
+  URLs resolve against the configured media source, with signed CORS upload support.
+  Compose/reply/upload/recording/notification capability gates apply to this slice;
+  embeds default recording/notifications off and never register a service worker.
+  Website legacy transport and publication notification paths remain enabled by
+  its bootstrap. Historical image/blob readers and signed bytes are preserved.
+- Screenshots exposed duplicate AndFS audio rendering; the website now invokes the
+  shared AndFS renderer once and falls back to its legacy media reader. Icon font
+  bytes/license are bundled so Shadow DOM icons do not rely on remote font timing.
+  Shell cache is `v19-application-flow`.
+
+Observed acceptance: `tests/application-flow.browser.cjs` uses the real pinned
+APDS implementation, real vendored ANProto cryptography, disposable persistent
+browser contexts, and real local archive/AndFS HTTP services. One surface calls
+`startWebsiteApplication({network:false})`; the plain host on another origin calls
+`mountWiredove(element)` with no injected session or publisher, no iframe and no
+import map. All public writes are blocked. Test-only dependency routing supplies
+unaltered pinned APDS source from GitHub and its real IndexedDB helper, avoiding an
+unreliable esm.sh compilation response; signing/storage are not mocked.
+
+The observed flow creates two identities and saves their profiles, publishes a
+website post with uploaded WAV audio, retrieves and verifies it in the embed,
+opens its thread, publishes a second-author reply, retrieves it on the website,
+and restores it after embed reload. It checks focus and playing-node retention
+across refresh, open-draft reload recovery, POST failure, pending state after
+reload, exact-byte retry and one backend record for the original ID. Populated
+website/embed screenshots are captured at desktop, 390 and 320px in light/dark.
+See `test-results/application-flow-*.png` (generated, not committed). Existing
+structural suites cover two instances, host CSS/hash isolation, dialogs and remount.
+
+`tests/application-artifacts.test.js` additionally proves backend restart/concurrent
+retry durability, signature/content tampering rejection, failed local persistence,
+new-signature blocking, retry after session recreation and corrupt retrieval
+rejection before ingestion. It is included in `npm run test:media`; the real flow
+suite is included in `npm run test:browser`.
+
+Scope and remaining work: archive queries/search/replies cover verified locally
+cached and selected-backend records, not all public relays or global reply search.
+The website retains its existing legacy discovery transport. Backend-unavailable
+startup reports that local content is being shown. Global discovery, subscriptions,
+advanced storage/protocol overrides, all settings/moderation/edit parity, the
+object-shaped route/theme API, evbogue.com replacement, and broader device/release
+acceptance remain milestones 2–4. The pinned singleton is shared deliberately;
+independent identity namespaces in a single graph are not claimed. Embedding hosts
+share their origin's keys/storage and must be trusted. No identity storage migration,
+production deployment, public test publication or related-site change occurred.
+
+
+Final validation for this checkpoint: `npm run check`, `npm test` (35 tests),
+`npm run test:media` (12 tests), and `npm run test:browser` passed. The populated
+320px light embed and 390px dark website screenshots were inspected after the
+font/media fixes, as well as the desktop website. The real flow additionally
+checks immediate profile reload durability and reply-target draft restoration.
+Focused archive tests passed again after final retrieval-size bounds. GitHub
+synchronization is recorded by the containing commit; no deployment was performed.
