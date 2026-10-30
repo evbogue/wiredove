@@ -44,14 +44,18 @@ export const makeRoom = async (pubkey) => {
     room.sendBlob = sendBlob
 
     onHash(async (hash, id) => {
+      if (chan !== room) return
       console.log(`Received: ${hash}`)
       const get = await apds.get(hash)
+      if (chan !== room) return
       if (get) { sendBlob(get, id)}
       const latest = await apds.getLatest(hash)
+      if (chan !== room) return
       if (latest?.sig) { sendBlob(latest.sig) }
     }) 
 
     onBlob(async (blob, id) => {
+      if (chan !== room) return
       console.log(`Received: ${blob}`)
       noteReceived(blob)
       const author = blob.substring(0, 44)
@@ -64,12 +68,15 @@ export const makeRoom = async (pubkey) => {
     })
 
     room.onPeerJoin(async (id) => {
+      if (chan !== room) return
       console.log(id + ' joined the room ' + pubkey)
       const latest = await apds.getLatest(await apds.pubkey())
+      if (chan !== room) return
       if (latest?.hash) {
         sendHash(latest.hash)
       } else if (latest?.sig) {
         const sigHash = await apds.hash(latest.sig)
+        if (chan !== room) return
         sendHash(sigHash)
       }
     })
@@ -83,4 +90,11 @@ export const makeRoom = async (pubkey) => {
   }
 
   return roomReady
+}
+
+export const stopRoom = async () => {
+  const previous = chan
+  chan = null
+  roomReady = createRoomReady()
+  await previous?.leave()
 }

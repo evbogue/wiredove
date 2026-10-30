@@ -7,8 +7,8 @@ import { navbar } from '../../navbar.js'
 import { buildProfileHeader } from '../../profile_header.js'
 
 // UI ownership only. The caller still owns the APDS/transport session.
-export const createApplication = async ({ root, navigation, scroll }) => {
-  const application = { root, navigation, scroll, cleanup: [] }
+export const createApplication = async ({ root, navigation, scroll, session = null }) => {
+  const application = { root, navigation, scroll, session, cleanup: [] }
   application.render = createRenderer({ root, application })
   application.feeds = createFeedController({ root, navigation, scroll, render: application.render })
   const settings = createSettings(application)
@@ -16,7 +16,7 @@ export const createApplication = async ({ root, navigation, scroll }) => {
   application.router = createRouter({ ...settings,
     root, navigation, scroll, feeds: application.feeds, render: application.render,
     compose: (sig, options) => composer(sig, { ...options, application }),
-    profileHeader: options => buildProfileHeader({ ...options, root }),
+    profileHeader: options => buildProfileHeader({ ...options, root, runExclusive: session?.runExclusive }),
   })
   const nav = await navbar(application)
   root.appendChild(nav)
@@ -29,18 +29,24 @@ export const createApplication = async ({ root, navigation, scroll }) => {
   }
   root.addEventListener('click', onClick)
   let destroyed = false
+  let disposal
   application.navigate = (...args) => navigation.navigate(...args)
   application.start = () => application.router.route()
   application.destroy = () => {
-    if (destroyed) return
+    if (destroyed) return disposal
     destroyed = true
-    application.router.destroy()
-    application.feeds.destroy()
-    application.render.destroy()
-    root.removeEventListener('click', onClick)
-    for (const cleanup of [...application.cleanup]) cleanup?.()
-    application.cleanup.length = 0
-    nav.remove()
+    disposal = (async () => {
+      try {
+        application.router.destroy()
+        application.feeds.destroy()
+        application.render.destroy()
+        root.removeEventListener('click', onClick)
+        for (const cleanup of [...application.cleanup]) cleanup?.()
+        application.cleanup.length = 0
+        nav.remove()
+      } finally { await session?.release() }
+    })()
+    return disposal
   }
   return application
 }

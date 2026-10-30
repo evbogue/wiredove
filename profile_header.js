@@ -1,3 +1,4 @@
+import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
 import { apds } from 'apds'
 import { h } from 'h'
 import { appendMarkdown } from './markdown.js'
@@ -106,7 +107,7 @@ const publishProfileUpdate = async ({ bio, name, image, links, photoState }) => 
   return { signed, blob }
 }
 
-export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null, root = document }) => {
+export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null, root = document, runExclusive = serializeWebsiteWrite }) => {
   const profile = await buildProfileData(messages, label)
   const backgroundImage = await resolveImageSrc(profile.background)
   const fallbackVisual = pubkey ? await apds.visual(pubkey) : null
@@ -214,15 +215,17 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
     editor.disabled = true
     status.textContent = 'Saving...'
     try {
-      await publishProfileUpdate({
-        bio: bioChanged ? value : null,
-        name: nameChanged ? nameValue : null,
-        image: imageChanged ? draftImageHash : null,
-        photoState: draftPhotoState,
-        links: linksChanged ? linksValue : null
+      await runExclusive(async () => {
+        await publishProfileUpdate({
+          bio: bioChanged ? value : null,
+          name: nameChanged ? nameValue : null,
+          image: imageChanged ? draftImageHash : null,
+          photoState: draftPhotoState,
+          links: linksChanged ? linksValue : null
+        })
+        if (nameChanged) { await apds.put('name', nameValue) }
+        if (imageChanged) { await apds.put('image', draftImageHash); await apds.put('profile_photo', draftPhotoState) }
       })
-      if (nameChanged) { await apds.put('name', nameValue) }
-      if (imageChanged) { await apds.put('image', draftImageHash); await apds.put('profile_photo', draftPhotoState) }
       if (linksChanged) { currentLinks = linksValue }
       renderProfileLinks(linksView, currentLinks)
       if (nameChanged) { currentName = nameValue }

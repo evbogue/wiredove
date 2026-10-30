@@ -1,5 +1,6 @@
 import { createComposerSurface, iconButton } from './client/ui/composer-surface.js'
 import { createComposerDialog } from './client/frames/composer-dialog.js'
+import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
 import { apds } from 'apds'
 import { render as defaultRender } from './render.js'
 import { scopeDocument } from './client/runtime/application-context.js'
@@ -89,9 +90,10 @@ export const composer = async (sig, options = {}) => {
   let pubkey = await apds.pubkey()
   if (!pubkey && options.autoGenKeypair) {
     try {
-      const keypair = await apds.generate()
-      await apds.put('keypair', keypair)
-      pubkey = await apds.pubkey()
+      pubkey = await (application?.session?.runExclusive || serializeWebsiteWrite)(async () => {
+        if (!await apds.pubkey()) await apds.put('keypair', await apds.generate())
+        return await apds.pubkey()
+      })
     } catch (err) {
       // Fall back to anonymous composer if keygen fails.
     }
@@ -481,7 +483,7 @@ export const composer = async (sig, options = {}) => {
       const body = attachmentUrl && !textarea.value.includes(attachmentUrl)
         ? [textarea.value.trim(), attachmentUrl].filter(Boolean).join('\n\n')
         : textarea.value
-      const published = await apds.compose(body, buildComposeMeta())
+      const published = await (application?.session?.runExclusive || serializeWebsiteWrite)(() => apds.compose(body, buildComposeMeta()))
       closed = true
       try { storage?.removeItem(draftKey) } catch {}
       mediaControls.destroy?.()

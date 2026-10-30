@@ -16,6 +16,7 @@ const pending = new Map()
 const hashCooldown = new Map()
 let drainTimer = null
 let draining = false
+let paused = false
 let nextHashTarget = 'ws'
 
 const senders = {
@@ -223,6 +224,7 @@ const trySendItem = (item, lane, index) => {
 
 const drainQueue = () => {
   drainTimer = null
+  if (paused) return
   if (draining) {
     drainTimer = setTimeout(drainQueue, SEND_DELAY_MS)
     return
@@ -255,7 +257,7 @@ export const queueSend = (msg, options = {}) => {
   if (key && pending.has(key)) {
     const existing = pending.get(key)
     promoteItem(existing, priority)
-    if (!drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
+    if (!paused && !drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
     notifyQueueListeners()
     return false
   }
@@ -279,7 +281,7 @@ export const queueSend = (msg, options = {}) => {
   queues[priority].push(item)
   if (key) { pending.set(key, item) }
   trimOverflow()
-  if (!drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
+  if (!paused && !drainTimer) { drainTimer = setTimeout(drainQueue, 0) }
   notifyQueueListeners()
   return true
 }
@@ -317,5 +319,26 @@ export const clearQueue = () => {
     drainTimer = null
   }
   draining = false
+  notifyQueueListeners()
+}
+
+// Suspend delivery without discarding exact queued bytes or publication state.
+export const pauseQueue = () => {
+  paused = true
+  clearTimeout(drainTimer)
+  drainTimer = null
+  for (const [hash, request] of hashRequests) {
+    clearTimeout(request.timer)
+    publishHashState(hash, 'queued')
+  }
+}
+export const resumeQueue = () => {
+  paused = false
+  for (const item of pending.values()) {
+    item.sent = { ws: false, gossip: false }
+    item.sentAt = { ws: 0, gossip: 0 }
+    item.firstTarget = null
+  }
+  if (!drainTimer && totalQueueSize()) drainTimer = setTimeout(drainQueue, 0)
   notifyQueueListeners()
 }

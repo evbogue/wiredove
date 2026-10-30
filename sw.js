@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v16-application-state'
+const CACHE_VERSION = 'v17-service-session'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -26,6 +26,9 @@ const APP_SHELL_ASSETS = [
   '/style.css',
   '/app.js',
   '/client/runtime/application.js',
+  '/client/runtime/service-session.js',
+  '/client/runtime/website-session.js',
+  '/client/runtime/signing-queue.js',
   '/client/runtime/application-context.js',
   '/client/runtime/render-delivery.js',
   '/client/runtime/website-application.js',

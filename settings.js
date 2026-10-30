@@ -1,3 +1,4 @@
+import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
 import { h } from 'h'
 import { apds } from 'apds'
 import { downloadIdentityBackup } from './identity_backup.js'
@@ -5,6 +6,7 @@ import { clearQueue, getQueueSize, queueSend } from './network_queue.js'
 import { addBlockedAuthor, getModerationState, removeBlockedAuthor, saveModerationState, splitTextList } from './moderation.js'
 
 export const createSettings = (application) => {
+const runExclusive = application.session?.runExclusive || serializeWebsiteWrite
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
 const importKey = async () => {
@@ -14,7 +16,7 @@ const importKey = async () => {
     onclick: async () => {
       const trashkey = await apds.generate()
       if (textarea.value && textarea.value.length === trashkey.length) {
-        await apds.put('keypair', textarea.value)
+        await runExclusive(() => apds.put('keypair', textarea.value))
         application.navigation.navigate('')
         location.reload()
       } else { alert('Invalid Keypair')}
@@ -38,7 +40,7 @@ const editKey = async () => {
       onclick: async () => {
         const keypair = await apds.keypair()
         if (textarea.value.length === keypair.length) {
-          await apds.put('keypair', textarea.value)
+          await runExclusive(() => apds.put('keypair', textarea.value))
           application.navigation.navigate('')
           location.reload()
         } else { alert('Invalid Keypair')}
@@ -46,7 +48,7 @@ const editKey = async () => {
     }, ['Import key']),
     h('button', {
       onclick: async () => {
-        await apds.deletekey()
+        await runExclusive(() => apds.deletekey())
         application.navigation.navigate('')
         location.reload()
       }
@@ -57,7 +59,7 @@ const editKey = async () => {
 
 const deleteEverything = h('button', {
   onclick: async () => {
-    await apds.clear()
+    await runExclusive(() => apds.clear())
     application.navigation.navigate('')
     location.reload()
   }

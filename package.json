@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-vm-modules --test client/feed_test.js client/profile-links_test.js client/ui/modules_test.js client/ui/message-layout.test.js tests/image-gallery.test.js tests/network-image-status.test.js tests/profile-route.test.cjs tests/post-notifications.test.js",
+    "test": "node --experimental-vm-modules --test client/feed_test.js client/profile-links_test.js client/ui/modules_test.js client/ui/message-layout.test.js tests/image-gallery.test.js tests/network-image-status.test.js tests/profile-route.test.cjs tests/post-notifications.test.js tests/service-session.test.js",
     "test:media": "deno test --allow-read --allow-write tests/andfs-media.test.js client/client_test.js tests/monitor-posts.test.js client/runtime/publishing-session_test.js",
     "test:browser": "node tests/composer-notifications.browser.cjs && node tests/image-gallery.browser.cjs && node tests/shared-message.browser.cjs && node tests/application-state.browser.cjs",
     "check": "deno check --frozen serve.js scripts/monitor-posts.js"

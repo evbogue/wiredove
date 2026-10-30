@@ -7,9 +7,9 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const stubs = {
-  '/offline-apds.js': `export const apds={start:async()=>{},pubkey:async()=>null,keypair:async()=>null,query:async()=>[],visual:async()=>document.createElement('img'),get:async key=>key==='name'?'Offline fixture':null,parseYaml:async()=>({}),human:async()=>'',open:async()=>null};`,
-  '/connect.js': 'export const connect=async()=>{};',
-  '/sync.js': 'export const startSync=async()=>{},noteInterest=async()=>{},noteSeen=async()=>{};',
+  '/offline-apds.js': `export const apds={put:async()=>{},getHashLog:async()=>[],getOpenedLog:async()=>[],start:async()=>{},pubkey:async()=>null,keypair:async()=>null,query:async()=>[],visual:async()=>document.createElement('img'),get:async key=>key==='name'?'Offline fixture':null,parseYaml:async()=>({}),human:async()=>'',open:async()=>null};`,
+  '/connect.js': 'export const connect=async()=>{},disconnect=async()=>{};',
+  '/sync.js': 'export const startSync=async()=>{},stopSync=()=>{},noteInterest=async()=>{},noteSeen=async()=>{};',
   '/offline-h.js': `export function h(tag,attrs={},children=[]){if(Array.isArray(attrs)){children=attrs;attrs={}}const node=document.createElement(tag);for(const [k,v]of Object.entries(attrs)){if(k==='classList')node.className=v;else node[k]=v}for(const child of children)if(child)node.append(child);return node}`,
 };
 (async () => {
@@ -17,6 +17,7 @@ const stubs = {
     try {
       const url = new URL(req.url,'http://localhost');
       res.setHeader('content-type',url.pathname.endsWith('.css')?'text/css':'text/javascript');
+      if (url.pathname === '/gossip/poll') { res.setHeader('content-type','application/json');res.end(JSON.stringify({messages:[],nextSince:0}));return; }
       if (url.pathname === '/website') {
         res.setHeader('content-type','text/html');
         res.end(`<!doctype html><link rel="stylesheet" href="/style.css"><script type="importmap">{"imports":{"apds":"/offline-apds.js","h":"/offline-h.js"}}</script><script type="module" src="/app.js"></script>`);return;
@@ -107,6 +108,29 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
       remount.destroy();
     });
     assert.deepEqual(errors,[]);
+    await page.evaluate(async()=>{
+      const Original=window.WebSocket;
+      const sockets=[];
+      class FakeSocket {
+        static OPEN=1;static CONNECTING=0;
+        readyState=0;
+        constructor(){sockets.push(this)}
+        close(){this.readyState=3;this.closed=true}
+      }
+      window.WebSocket=FakeSocket;
+      const {makeWs,stopNetwork,hasWs}=await import('/websocket.js');
+      await makeWs(location.origin.replace('http:','ws:'),{waitForReady:false});
+      if(!hasWs())throw Error('HTTP fallback not started');
+      sockets[0].onerror();
+      stopNetwork();
+      if(hasWs() || !sockets[0].closed)throw Error('transport still active');
+      await new Promise(resolve=>setTimeout(resolve,1200));
+      if(sockets.length!==1)throw Error('reconnect survived disposal');
+      await makeWs(location.origin.replace('http:','ws:'),{waitForReady:false});
+      if(sockets.length!==2)throw Error('transport did not restart');
+      stopNetwork();
+      window.WebSocket=Original;
+    });
     await page.addStyleTag({content:'*,*::before,*::after{animation:none!important;transition:none!important}'});
     await fs.mkdir(path.join(root,'test-results'),{recursive:true});
     await page.screenshot({path:path.join(root,'test-results/application-state.png'),fullPage:true});

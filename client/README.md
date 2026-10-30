@@ -345,7 +345,21 @@ adapters and explicitly subscribes its renderer to the shared transport delivery
 
 This is an internal extraction boundary, not the public `mountWiredove` embed API.
 Callers still share the existing APDS/storage/transport session and require the
-website dependency setup. UI disposal does not dispose that session. See
+website dependency setup. When given a session lease, UI disposal releases that lease and returns its
+shutdown promise. The last lease stops transport/sync and flushes indexes; the
+APDS database handle and its persistence timers remain page-lifetime resources. See
 `SHARED_UI_WORK_ORDER.md` for the remaining service and embed acceptance work.
 `npm run test:browser` includes an offline two-root ownership and website-bootstrap
 suite; it does not publish to public relays.
+
+
+`runtime/website-session.js` is the website's explicit shared session. Acquire a
+lease with `websiteSession.acquire('wiredovedbversion1')` and pass it as `session`
+to `createApplication`. A different database is rejected in that page; independent
+identity namespaces are not supported by the pinned singleton APDS adapter.
+`runtime/service-session.js` supplies reference counting, ordered startup/shutdown
+and serialized write operations for adapters. `await app.destroy()` releases its
+lease; callers own a lease if application creation fails before returning an app.
+Post/profile and identity writes share `runtime/signing-queue.js`. Suspending the
+network queue retains exact bytes in memory for resumption; this is not a durable
+website outbox across page reloads. No existing identity storage is migrated.

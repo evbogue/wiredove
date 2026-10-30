@@ -6,6 +6,9 @@ import { adaptiveConcurrency } from './adaptive_concurrency.js'
 import { perfMeasure, perfStart, perfEnd } from './perf.js'
 
 const pubs = new Set()
+const sockets = new Set()
+let generation = 0
+let httpAbort = new AbortController()
 const wsBackoff = new Map()
 const HTTP_POLL_INTERVAL_MS = 5000
 const RECENT_LATEST_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -89,9 +92,11 @@ const processIncomingBatch = async (messages) => {
 }
 
 const handleIncoming = async (msg) => {
+  const current = generation
   if (!isHash(msg)) noteReceived(msg)
   if (isHash(msg)) {
     const blob = await apds.get(msg)
+    if (current !== generation) return
     if (blob) {
       if (pubs.size) {
         deliverWs(blob)
@@ -122,7 +127,7 @@ const pollHttpSince = async (since) => {
   try {
     const url = new URL('/gossip/poll', httpState.baseUrl)
     url.searchParams.set('since', String(normalizeSince(since)))
-    const res = await perfMeasure('net.http.poll', async () => fetch(url.toString(), { cache: 'no-store' }))
+    const res = await perfMeasure('net.http.poll', async () => fetch(url.toString(), { cache: 'no-store', signal: httpAbort.signal }))
     if (!res.ok) { return { ok: false, status: res.status } }
     const data = await res.json()
     return {
@@ -137,11 +142,12 @@ const pollHttpSince = async (since) => {
 }
 
 const scheduleHttpPoll = () => {
-  if (httpState.pollTimer) { return }
+  if (!httpState.ready || httpState.pollTimer) { return }
   httpState.pollTimer = setTimeout(pollHttp, HTTP_POLL_INTERVAL_MS)
 }
 
 const pollHttp = async () => {
+  const current = generation
   httpState.pollTimer = null
   if (!httpState.ready || pubs.size) {
     scheduleHttpPoll()
@@ -150,21 +156,24 @@ const pollHttp = async () => {
   try {
     const polled = await pollHttpSince(httpState.lastSince)
     if (polled?.ok) {
+      if (!httpState.ready || current !== generation) return
       await processIncomingBatch(polled.messages)
       if (Number.isFinite(polled.nextSince)) {
         httpState.lastSince = Math.max(httpState.lastSince, polled.nextSince)
       }
     }
   } finally {
-    scheduleHttpPoll()
+    if (current === generation) scheduleHttpPoll()
   }
 }
 
 const sendHttp = async (msg) => {
+  const current = generation
   if (!httpState.ready) { return }
   try {
     const url = new URL('/gossip', httpState.baseUrl)
     const res = await perfMeasure('net.http.send', async () => fetch(url.toString(), {
+      signal: httpAbort.signal,
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: msg
@@ -172,6 +181,7 @@ const sendHttp = async (msg) => {
     if (!res.ok) { return }
     const data = await res.json()
     const messages = Array.isArray(data.messages) ? data.messages : []
+    if (!httpState.ready || current !== generation) return
     await processIncomingBatch(messages)
   } catch (err) {
     console.warn('http gossip send failed', err)
@@ -180,10 +190,13 @@ const sendHttp = async (msg) => {
 
 export const startHttpGossip = async (baseUrl) => {
   if (httpState.ready) { return }
+  if (httpAbort.signal.aborted) httpAbort = new AbortController()
+  const current = generation
   httpState.baseUrl = baseUrl
   httpState.ready = true
   try {
     const q = await apds.query()
+    if (current !== generation) return
     if (q && q.length) {
       let ts = 0
       q.forEach((entry) => {
@@ -197,6 +210,7 @@ export const startHttpGossip = async (baseUrl) => {
   } catch (err) {
     console.warn('http gossip seed failed', err)
   }
+  if (current !== generation) return
   void pollHttp()
   scheduleHttpPoll()
 }
@@ -226,7 +240,7 @@ export const confirmMessagesPersisted = async (messages, options = {}) => {
   let cursor = normalizeSince(options.since ?? (Date.now() - lookbackMs))
   let attempts = 0
 
-  while (Date.now() <= deadline && pending.size) {
+  while (httpState.ready && Date.now() <= deadline && pending.size) {
     attempts += 1
     const polled = await pollHttpSince(cursor)
     if (polled?.ok) {
@@ -250,9 +264,11 @@ registerNetworkSenders({
   hasWs
 })
 
-export const makeWs = async (pub) => {
+export const makeWs = async (pub, { waitForReady = true } = {}) => {
+  const current = generation
   const httpBase = toHttpBase(pub)
   await startHttpGossip(httpBase)
+  if (current !== generation) return
 
   const getBackoff = () => {
     let state = wsBackoff.get(pub)
@@ -264,6 +280,7 @@ export const makeWs = async (pub) => {
   }
 
   const scheduleReconnect = () => {
+    if (current !== generation) return
     const state = getBackoff()
     if (state.timer) return
     state.timer = setTimeout(() => {
@@ -283,9 +300,12 @@ export const makeWs = async (pub) => {
   }
 
   const connectWs = () => {
+    if (current !== generation) return
     const ws = new WebSocket(pub)
+    sockets.add(ws)
 
     ws.onopen = async () => {
+      if (current !== generation) { ws.close(); return }
       console.log('OPEN')
     pubs.add(ws)
     resetBackoff()
@@ -338,6 +358,7 @@ export const makeWs = async (pub) => {
     }
 
   ws.onmessage = async (m) => {
+    if (current !== generation) return
     await handleIncoming(m.data)
   }
 
@@ -347,6 +368,7 @@ export const makeWs = async (pub) => {
 
     ws.onclose = async () => {
       console.log('CLOSED')
+      sockets.delete(ws)
       pubs.delete(ws)
       if (!pubs.size) {
         wsReady = createWsReadyPromise()
@@ -356,5 +378,22 @@ export const makeWs = async (pub) => {
   }
 
   connectWs()
-  return wsReady
+  return waitForReady ? wsReady : undefined
+}
+
+export const stopNetwork = () => {
+  generation += 1
+  httpState.ready = false
+  httpAbort.abort()
+  clearTimeout(httpState.pollTimer)
+  httpState.pollTimer = null
+  for (const state of wsBackoff.values()) clearTimeout(state.timer)
+  wsBackoff.clear()
+  for (const ws of sockets) {
+    ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null
+    ws.close()
+  }
+  sockets.clear()
+  pubs.clear()
+  wsReady = createWsReadyPromise()
 }

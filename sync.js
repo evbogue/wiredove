@@ -28,6 +28,7 @@ let pubkeys = []
 let tiered = { hot: [], warm: [], cold: [] }
 let tierIndex = { hot: 0, warm: 0, cold: 0 }
 let syncTimer = null
+let generation = 0
 let lastRefresh = 0
 let needsRebuild = true
 let tickRunning = false
@@ -138,7 +139,9 @@ export const noteInterest = async (pubkey) => {
 
 export const startSync = async (sendFn) => {
   if (syncTimer) { return }
+  const current = generation
   await refreshPubkeys()
+  if (current !== generation) return
   syncTimer = setInterval(async () => {
     if (tickRunning) { return }
     tickRunning = true
@@ -147,6 +150,7 @@ export const startSync = async (sendFn) => {
     if (now - lastRefresh > REFRESH_MS) {
       await refreshPubkeys()
     }
+    if (current !== generation) return
     if (needsRebuild) { rebuildTiers() }
     const hot = pickCandidates('hot', BATCH.hot, now)
     const warm = pickCandidates('warm', BATCH.warm, now)
@@ -161,4 +165,10 @@ export const startSync = async (sendFn) => {
       tickRunning = false
     }
   }, TICK_MS)
+}
+
+export const stopSync = () => {
+  generation += 1
+  clearInterval(syncTimer)
+  syncTimer = null
 }

@@ -1,3 +1,4 @@
+import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
 import { h } from 'h'
 import { apds } from 'apds'
 import { scopeDocument } from './client/runtime/application-context.js'
@@ -41,21 +42,24 @@ const openIdentitySetup = (application) => {
     submit.disabled = mode.disabled = cancel.disabled = true
     status.textContent = importing ? 'Checking your identity…' : 'Creating your identity…'
     try {
-      let keypair
-      if (importing) {
-        keypair = key.value.trim()
-        // Verify that the secret key signs for the public key before storing it.
-        const { an } = await import('https://esm.sh/gh/evbogue/anproto@ddc040c/an.js')
-        const challenge = await an.hash('Wiredove identity import check')
-        const signed = await an.sign(challenge, keypair)
-        if (!(await an.open(signed)).endsWith(challenge) || signed.substring(0, 44) !== keypair.substring(0, 44)) throw new Error('Invalid identity backup. Check that you pasted the complete keypair.')
-      } else {
-        if (!name.value.trim()) { name.focus(); return }
-        keypair = await apds.generate()
-        await apds.put('name', name.value.trim())
-      }
-      await apds.put('keypair', keypair)
-      const pubkey = await apds.pubkey()
+      const pubkey = await (application?.session?.runExclusive || serializeWebsiteWrite)(async () => {
+        let keypair
+        if (importing) {
+          keypair = key.value.trim()
+          // Verify that the secret key signs for the public key before storing it.
+          const { an } = await import('https://esm.sh/gh/evbogue/anproto@ddc040c/an.js')
+          const challenge = await an.hash('Wiredove identity import check')
+          const signed = await an.sign(challenge, keypair)
+          if (!(await an.open(signed)).endsWith(challenge) || signed.substring(0, 44) !== keypair.substring(0, 44)) throw new Error('Invalid identity backup. Check that you pasted the complete keypair.')
+        } else {
+          if (!name.value.trim()) { name.focus(); return }
+          keypair = await apds.generate()
+          await apds.put('name', name.value.trim())
+        }
+        await apds.put('keypair', keypair)
+        return await apds.pubkey()
+      })
+      if (!pubkey) return
       if (!importing) sessionStorage.setItem('wiredove.setup', pubkey)
       if (application) await application.navigation.navigate(pubkey)
       else window.location.hash = pubkey

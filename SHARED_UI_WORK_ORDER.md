@@ -302,3 +302,55 @@ Validation for this extraction: `npm run check`, `npm test` (30 tests),
 `npm run test:media` (10 tests) and `npm run test:browser` passed. Focused router
 and application-ownership checks also passed after the final lifecycle changes.
 Source revision is the commit containing this entry; no deployed revision changed.
+
+
+### 2026-10-30 shared website service lifecycle
+
+`client/runtime/website-session.js` now explicitly owns the existing page-wide
+APDS identity/storage adapter and transport/sync services. The database name stays
+`wiredovedbversion1`; no identity/data migration or clearing occurs. Applications
+receive a lease and `await app.destroy()` releases it. Concurrent acquisition
+starts storage/services once; only the final release drains outstanding writes,
+stops network work and flushes APDS hash/opened indexes. Reacquisition restarts
+services without calling `apds.start()` again. Different database names are rejected.
+
+The pinned APDS browser implementation was inspected: `start()` creates two
+intervals and exposes no close method. Its handle and persistence timers therefore
+remain page-lifetime resources, as do the existing shared data caches and media
+stores. This is an explicit shared-session policy, not independent identity support.
+A failed storage startup is latched rather than risking duplicate background timers.
+The website bootstrap releases its lease if UI startup fails.
+
+`sync.js:stopSync`, `websocket.js:stopNetwork` and `gossip.js:stopRoom` stop the
+owned sync interval, HTTP polling, pending fetches, open/connecting sockets,
+reconnect timers and peer room. Generation checks prevent canceled startup or old
+poll/reconnect callbacks from restarting services. Network queue pause/resume
+retains exact pending bytes in memory; teardown does not discard queued publication
+payloads. A durable website outbox across reloads remains open.
+
+Post composition, profile signing (including previous-reference reads and local
+profile metadata updates), identity setup/import and settings identity mutations
+share an ordered write queue. A rejected operation does not poison later writes;
+a released lease rejects new writes. This prevents concurrent UI roots from racing
+the existing shared author's publication chain. Existing signed bytes, legacy blob
+readers, AndFS vendor files and identity backup format are unchanged.
+
+Evidence: service-session unit tests cover concurrent leases, last-release ordering,
+reacquisition, database mismatch, released writes, concurrent publication-chain
+operations, failure recovery, exact queue bytes across pause/resume, and canceled
+sync startup/stale ticks. Browser ownership acceptance also exercises the real
+WebSocket/HTTP lifecycle using local HTTP responses and fake sockets: a connecting
+socket closes, a scheduled reconnect stays canceled, and a subsequent start works.
+External requests remain blocked; the actual website bootstrap still passes its
+offline startup/search/home checks. The shell cache is `v17-service-session`.
+
+Remaining before the public full-application embed: selectable backend/storage/
+identity adapters throughout legacy reads, explicit browser capability and URL
+policy, Shadow DOM style/asset isolation, inert self-contained imports and the real
+isolated two-author publish/retrieve/reply/reload flow. This lifecycle slice does
+not establish full milestone-1 acceptance. No production deployment or public test
+publication occurred. Source revision is the commit containing this entry.
+
+Validation: `npm run check`, `npm test` (35 tests), `npm run test:media`
+(10 tests) and `npm run test:browser` passed. Focused application/transport
+ownership acceptance passed again after the final stale-callback guards.
