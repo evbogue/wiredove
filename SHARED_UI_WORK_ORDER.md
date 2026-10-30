@@ -597,3 +597,72 @@ backfill, broader discovery, the remaining feature-parity items, evbogue.com
 replacement and device/release acceptance remain open. No production deployment,
 public publication, identity migration or related-repository change occurred.
 Source revision is the commit containing this entry.
+
+### 2026-10-30 evbogue.com replacement inspection — paused at Ev's request
+
+Completed shared application source remains `f97cbef` on Wiredove `master`, pushed
+and verified against GitHub. Milestone 1 and the cache/archive query slice above
+are accepted locally; the evbogue.com replacement has not been implemented or
+deployed. This checkpoint records inspection only. No application files, production
+configuration, browser identity storage or server data were changed during the
+replacement investigation. No new checks/browser acceptance were run for that
+replacement, and no public test messages were published.
+
+Ev explicitly requested replacing evbogue.com's existing timeline implementation
+with the new full application embed, removing the old widget/application glue
+rather than spending more time maintaining compatibility with that implementation.
+Treat this as the next implementation priority when Ev resumes the work. Preserve
+signed artifacts, stored media and existing browser storage; do not interpret the
+request to remove old UI code as permission to delete those data. Do not build a
+second site renderer or a new compatibility application. Deployment was requested
+as part of putting the replacement on evbogue.com, but work is now paused.
+
+Observed source state:
+
+- Both local repositories were clean and matched freshly fetched `origin/master`.
+  evbogue.com source was `8690a4c15850f1855760cf0900c193b1b30991ca`.
+- `timeline/client.js` still mounts `wiredove-widget`, supplies posts, calculates
+  reply counts, maps routes and coordinates refresh/publication. `timeline/session.js`
+  uses the older publishing session and `evbogue-wiredove` browser store. These are
+  the UI/application adapters to replace, not foundations to extend.
+- The site pins widget revision `4e56893506bf21e1b12e15129d4a8692a6a0ad34` through
+  `timeline/wiredove-client.json` and `scripts/pin-wiredove.js`. The pinning script
+  currently copies component assets, not the new full `dist/app-v1` application
+  graph. The homepage's `timeline/preview.js` also consumes that old component pin.
+- `serve.js` wraps `/timeline/` in site chrome and routes `/timeline/*` to
+  `timeline/server.js`. That server owns existing signed records, bounded relay
+  sync, historical APDS image resolution and `/timeline/media/*` plus
+  `/timeline/blobs/*` reads. Preserve the stored bytes and required readers even
+  when removing obsolete UI and write paths.
+- The full app expects `/api/application` under its configured `backendURL` and
+  `/api/media`, `/media/*`, `/blobs/*` under `mediaURL`. The old site API is not a
+  drop-in implementation. Shared upstream `application_backend.js` and
+  `andfs_media_server.js` are available; choose the simplest explicit backend/media
+  configuration and ship a working mount. No choice of self-hosted versus Wiredove
+  services, identity migration, or pin/distribution change was implemented.
+- New app storage defaults to `wiredovedbversion1` and its application outbox;
+  the older site's separate identity/draft/outbox store remains intact. Do not
+  claim existing identity/draft recovery in the new mount without testing it.
+
+Observed production state via read-only SSH:
+
+- `/root/evbogue.com` was at `8690a4c`, with untracked production-only
+  `sites/evbogue.com/assets/killhannah_wakeup.mp4` and a subscriber backup file.
+  Preserve both; never stage subscriber data or overwrite production-only files.
+- The site runs in tmux `10:0.0`, working directory `/root/evbogue.com`, port 8082.
+  Read `/root/AGENTS.md` and the site's `Agents/DEVOPS.md` again before deployment;
+  preserve the existing launch environment and reload only the site app.
+- `systemctl cat wiredove.service` identified `/root/wiredove-release-651ae37`
+  as Wiredove's configured release directory. This differs from older recorded
+  deployment checkpoints; rediscover the active release rather than assuming it.
+- Proxy/DNS/TLS were not modified. No deployment or live browser verification of
+  the new application occurred. The existing local two-origin acceptance does not
+  establish acceptance of the actual evbogue.com integration.
+
+Resume with implementation, not another broad compatibility investigation: replace
+the old timeline bootstrap with the shared mount and a pinned application graph,
+connect real verified backend/media services, preserve historical reads, and test
+the actual site locally with public writes blocked. Inspect desktop/mobile
+screenshots and profile/post/thread/reply/reload plus refresh/retry. Commit/push
+coordinated changes, then back up production timeline data and deploy/verify the
+reviewed replacement with a retained rollback. Milestones 2–4 otherwise remain open.
