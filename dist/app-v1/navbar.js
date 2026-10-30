@@ -165,9 +165,40 @@ export const navbar = async (application) => {
     ...(application.session?.policy?.capabilities?.compose === false ? [] : [await composeButton(application)]),
   ])
 
+  // Feed refresh lives behind a navbar icon instead of a feed toolbar row. The
+  // icon only appears on query-backed feed routes (home, author, search); the
+  // scope note lives in the tooltip rather than a status line.
+  const refreshFeed = h('button', {
+    type: 'button',
+    classList: 'nav-icon material-symbols-outlined',
+    title: 'Refresh feed — local cache and selected archive',
+    'aria-label': 'Refresh feed',
+  }, ['refresh'])
+  refreshFeed.hidden = true
+  let feedRefreshing = false
+  refreshFeed.addEventListener('click', async () => {
+    if (feedRefreshing) return
+    feedRefreshing = true
+    refreshFeed.disabled = true
+    refreshFeed.classList.add('is-refreshing')
+    try { await application.router.refreshFeed?.() }
+    finally {
+      feedRefreshing = false
+      refreshFeed.disabled = false
+      refreshFeed.classList.remove('is-refreshing')
+    }
+  })
+  const syncRefreshFeedVisibility = () => {
+    const src = application.navigation.get()
+    refreshFeed.hidden = !(src === '' || src.startsWith('?') || src.length === 44)
+  }
+  application.cleanup.push(application.navigation.subscribe(syncRefreshFeedVisibility))
+  syncRefreshFeedVisibility()
+
   const right = h('span', {classList: 'navbar-right'}, [
     publishWrap,
     searchInput,
+    refreshFeed,
     h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'nav-icon nav-source material-symbols-outlined', title: 'Source on GitHub', 'aria-label': 'Source on GitHub'}, ['folder_data']),
     ...(application.session?.policy?.capabilities?.notifications === false ? [] : [notificationsButton()]),
     h('a', {href: '#settings', classList: 'nav-icon material-symbols-outlined', title: 'Settings', 'aria-label': 'Settings'}, ['settings']),

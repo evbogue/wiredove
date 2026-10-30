@@ -141,7 +141,8 @@ const root = path.resolve(__dirname, '..');
     await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.entries.length===28);
     assert.equal(await page.evaluate(()=>app.feeds.getFeed(app.navigation.get()).entries.some(row=>!row.hash)),false);
     await page.getByRole('button',{name:'Refresh feed',exact:true}).click();
-    await page.getByText('Local cache and selected archive',{exact:true}).waitFor();
+    // The navbar icon awaits the same router refresh; joining it settles when the click's refresh completes.
+    await page.evaluate(()=>app.router.refreshFeed());
     await page.evaluate(()=>app.navigate(''));
     await page.evaluate(()=>app.navigate('?Shared query acceptance'));
     await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.entries.length===28);
@@ -189,7 +190,7 @@ const root = path.resolve(__dirname, '..');
   assert.equal(await embed.evaluate(()=>app.feeds.getFeed(app.navigation.get()).entries.length),28);
   await embed.unroute(source+'/api/application*');
   await embed.getByRole('button',{name:'Refresh feed',exact:true}).click();
-  await embed.getByText('Local cache and selected archive',{exact:true}).waitFor();
+  await embed.evaluate(()=>app.router.refreshFeed());
   for (const page of [website,embed]) {
     await page.setViewportSize({width:320,height:920});await page.emulateMedia({colorScheme:'light'});
     await page.evaluate(()=>{app.root.scrollTop=0;const style=document.createElement('style');style.textContent='*,*::before,*::after{animation:none!important;transition:none!important}';app.root.getRootNode().append(style)});

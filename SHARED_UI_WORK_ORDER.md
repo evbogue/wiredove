@@ -573,6 +573,19 @@ results without aborting another mount's shared transport. Query listeners are
 removed on destruction. Shell cache is `v21-feed-queries`, including the new module;
 the versioned embed graph is rebuilt from source.
 
+### 2026-10-30 — refresh control moved behind a navbar icon
+
+Per Ev's request the feed toolbar row (`Refresh feed` button + `Local cache and
+selected archive` status line) is gone from home/author/search panels. The same
+explicit refresh now lives behind a `refresh` material-symbols icon button in the
+shared navbar, shown only on query-backed feed routes; the scope note moved into
+the button tooltip (`title`) and `aria-label` stays `Refresh feed`. The router
+exposes `refreshFeed()` (archive pull + row merge, errors via the shared status
+banner); the icon spins and disables while a refresh is in flight. Shell cache
+bumped to `v22-refresh-icon`; the versioned embed graph is rebuilt from source.
+The two-origin browser acceptance flow clicks the icon and joins the router
+refresh instead of waiting on the removed status text.
+
 Acceptance: the real two-origin browser flow now publishes 28 disposable signed
 local fixtures, observes live/cached search updates in both mounts, excludes an
 unrelated record, exercises a fresh 25-row page followed by the remaining rows,

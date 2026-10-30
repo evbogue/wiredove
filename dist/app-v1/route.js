@@ -139,25 +139,21 @@ const scheduleRefresh = () => {
   queueMicrotask(() => { refreshQueued = false; if (!disposed) void refreshRows() })
 }
 const unsubscribeQueries = queries?.subscribe(scheduleRefresh)
+// Explicit feed refresh, triggered from the navbar refresh icon. A refresh
+// merges rows into the existing paginated feed. Never replace mounted
+// messages: playback, focus, scroll position and the new-post banner survive.
+const refreshFeed = async () => {
+  if (!queries || disposed) return
+  try {
+    await queries.refresh()
+    await refreshRows()
+  } catch {
+    if (!disposed) feeds.status?.('Backend unavailable. Local content remains available; retry refresh.')
+  }
+}
 const watchFeed = (src, panel) => {
   if (!queries || !(src === '' || src.startsWith('?') || src.length === 44)) return
   panel.dataset.queryFeed = 'true'
-  const toolbar = h('div', { classList: 'feed-query-tools' })
-  const status = h('span', { role: 'status' }, ['Local cache and selected archive'])
-  const button = h('button', { type: 'button' }, ['Refresh feed'])
-  button.addEventListener('click', async () => {
-    button.disabled = true
-    status.textContent = 'Refreshing…'
-    try {
-      await queries.refresh()
-      await refreshRows()
-      if (!disposed) status.textContent = 'Local cache and selected archive'
-    } catch {
-      if (!disposed) status.textContent = 'Backend unavailable. Local content remains available; retry refresh.'
-    } finally { button.disabled = false }
-  })
-  toolbar.append(button, status)
-  panel.prepend(toolbar)
   // Covers arrivals between the initial snapshot and feed registration.
   scheduleRefresh()
 }
@@ -356,7 +352,7 @@ const onNavigate = async () => {
 }
 
 const unsubscribe = navigation.subscribe(onNavigate)
-return { route, invalidate() { for (const panel of routePanels.values()) delete panel.dataset.ready }, navigate: (...args) => navigation.navigate(...args), destroy() {
+return { route, refreshFeed, invalidate() { for (const panel of routePanels.values()) delete panel.dataset.ready }, navigate: (...args) => navigation.navigate(...args), destroy() {
   disposed = true
   clearTimeout(scrollTimer)
   for (const timer of deferred) clearTimeout(timer)
