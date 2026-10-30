@@ -124,3 +124,22 @@ The site agent reports a real same-origin backend signed reply and failed-save
 retry passing with an injected disposable identity. This is useful integration
 evidence; it still does not establish a working identity-setup UI or a real relay
 round trip. Their `timeline/SHARED_WIDGET_HANDOFF.md` owns those remaining gates.
+
+## Interactive site release follow-up — 2026-10-30
+
+The shared runtime now supplies explicit opt-in browser identity, File draft and
+exact signed outbox persistence, plus identity create/import/backup/retry UI. The
+site integrates these through injected protocol, upload and verified host adapters.
+It also uses publication appearance, paginated cached roots and documented route
+callbacks. A normal reply is no longer dependent on an injected test identity.
+The canonical message view exposes signed Details and optional host reply counts;
+updating a reply count retains the mounted message/media view. Publishing retains
+existing signed profile presentation fields while extending the author chain.
+
+Current acceptance: upstream Node, Deno media/session, website/embed browser and
+warm-cache suites; site separate-origin identity create/import, owner publish,
+image draft reload, failed-save/outbox retry and thread reload. Public traffic is
+blocked in publication fixtures. A separate read-only local preview uses actual
+public owner records and verifies historical APDS photos/avatars through the site
+adapter. This release slice does not complete edit/moderation parity or physical
+Safari/mobile recording acceptance. evbogue.com owns deployment verification.

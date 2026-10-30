@@ -63,7 +63,11 @@ export function createPublishingSession({ store, protocol, host, uploadMedia, ow
       if ((await pending()).length) throw new Error('Retry the pending publication above before signing another post.');
       const { latest, remoteAvailable } = await host.latest(current.author);
       if (!remoteAvailable) throw new Error('Author history is unavailable. Keep your draft and try again when Wiredove reconnects.');
-      const metadata = { ...(current.name ? { name: current.name } : {}),
+      const profile = {};
+      for (const field of ['name', 'image', 'image_original', 'image_crop', 'bio', 'links']) {
+        if (latest?.parsed?.[field] !== undefined) profile[field] = latest.parsed[field];
+      }
+      const metadata = { ...profile, ...(current.name ? { name: current.name } : {}),
         ...(latest ? { previous: latest.id } : {}),
         ...(draft.replyTo ? { reply: draft.replyTo.id, replyto: draft.replyTo.author } : {}),
       };

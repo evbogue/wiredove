@@ -18,6 +18,7 @@ export class WiredoveMessage extends HTMLElement {
   set presentation(value) {
     const next = value || {}, previous = this._presentation || {};
     this._presentation = next;
+    this._view?.updateActions();
     const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
     if ([...keys].some(key => previous[key] !== next[key])) {
       this._renderKey = null;

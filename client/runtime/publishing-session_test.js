@@ -12,7 +12,7 @@ Deno.test('publishing session persists exact retry across reload, retains author
     compose: async (_key, body, metadata) => ({ id: 'post-' + (++signed), signature: 'signature-' + signed, content: body, parsed: metadata }),
   };
   const host = {
-    latest: async () => ({ latest: { id: 'previous' }, remoteAvailable: true }),
+    latest: async () => ({ latest: { id: 'previous', parsed: { name: 'Old name', image: 'existing-photo', bio: '' } }, remoteAvailable: true }),
     publishSigned: async record => { received.push(record); if (offline) throw new Error('offline'); return { saved: true, relayed: true, post: record }; },
   };
   const create = () => createPublishingSession({ store, protocol, host, owner: 'author' });
@@ -22,6 +22,9 @@ Deno.test('publishing session persists exact retry across reload, retains author
   await assert.rejects(() => session.publish({ body: 'Exact body', replyTo: { id: 'parent', author: 'owner' } }), /offline/);
   assert.equal((await session.pending())[0].parsed.previous, 'previous');
   assert.equal((await session.pending())[0].parsed.reply, 'parent');
+  assert.equal((await session.pending())[0].parsed.image, 'existing-photo');
+  assert.equal((await session.pending())[0].parsed.bio, '');
+  assert.equal((await session.pending())[0].parsed.name, 'Visitor');
   await assert.rejects(() => session.publish({ body: 'Another post' }), /Retry/);
   await assert.rejects(() => session.import('key'), /pending/);
   session = create(); await session.initialize();

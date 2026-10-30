@@ -282,7 +282,7 @@ export class WiredoveWidget extends HTMLElement {
           }
         } else more?.remove();
       }
-      else view.textContent = "No posts yet.";
+      else view.textContent = this._presentation?.emptyMessage || "No posts yet.";
     }
   }
 }

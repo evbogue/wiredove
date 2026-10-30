@@ -8,6 +8,7 @@ export function createIdentityPanel(session, { onChange, onRetry } = {}) {
     const node = document.createElement('button'); node.type = 'button'; node.textContent = label;
     node.onclick = async () => {
       if (busy) return;
+      status.textContent = '';
       busy = true; root.querySelectorAll('button').forEach(button => { button.disabled = true; });
       try { await action(); await render(); await onChange?.(); }
       catch (error) { status.textContent = error.message || 'Identity storage is unavailable.'; }

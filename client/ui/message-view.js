@@ -177,14 +177,32 @@ export function createMessageView({
     authorNode: author,
     content,
     replyContext: extensions.replyContext || replyContext,
-    raw: extensions.raw,
+    raw: extensions.raw || (() => {
+      if (!post.signature || !post.content) return null;
+      const details = doc.createElement('details');
+      const summary = doc.createElement('summary'); summary.textContent = 'Details';
+      const bytes = doc.createElement('pre'); bytes.textContent = post.id + '\n' + post.signature + '\n' + post.content;
+      details.append(summary, bytes); return details;
+    })(),
     actions: extensions.actions || actions,
     trailing: extensions.trailing,
     document: doc,
   });
+  let conversation;
   let reply;
   view.updateActions = () => {
     if (extensions.actions) return; // Website adapter owns its richer action set.
+    const count = presentation.replyCount?.(handlers.post || post);
+    if (count > 0) {
+      if (!conversation) {
+        conversation = doc.createElement('a');
+        conversation.href = presentationURL(presentation.postURL?.(post)) || '#' + encodeURIComponent(post.id);
+        conversation.style.marginRight = '.75rem';
+        conversation.addEventListener('click', event => navigate(event, { type: 'post', id: post.id }));
+        actions.prepend(conversation);
+      }
+      conversation.textContent = `View ${count} ${count === 1 ? 'reply' : 'replies'}`;
+    } else { conversation?.remove(); conversation = null; }
     if (typeof handlers.onReply !== 'function') { reply?.remove(); reply = null; return; }
     if (reply) return;
     reply = doc.createElement('button');
