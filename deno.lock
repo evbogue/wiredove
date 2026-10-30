@@ -1,7 +1,8 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:web-push@3.6.7": "3.6.7"
+    "npm:web-push@3.6.7": "3.6.7",
+    "npm:idb@8.0.3": "8.0.3"
   },
   "npm": {
     "agent-base@7.1.4": {
@@ -43,6 +44,9 @@
         "agent-base",
         "debug"
       ]
+    },
+    "idb@8.0.3": {
+      "integrity": "sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg=="
     },
     "inherits@2.0.4": {
       "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=="
