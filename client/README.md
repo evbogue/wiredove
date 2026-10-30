@@ -100,8 +100,7 @@ observer-bound metadata, content and rich controls in light DOM; the public
 custom element mounts the same component in shadow DOM. Website edit-event
 summaries and APDS data services remain compatibility paths; this does not claim
 complete edit/moderation/profile or service parity. See
-[the feature inventory](../SHARED_UI_WORK_ORDER.md#current-implementation-inventory) and
-[work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
+[application-embed work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
 in `core/contracts.js`; adapters implementing them are a later stage.
 
 Run module registration/import checks with `node --test client/ui/modules_test.js`.
@@ -308,7 +307,7 @@ shows an unavailable message. Existing `renderBody`, `resolveImage`, `avatarURL`
 `timestamp`, `authorURL` and `onOpenGallery` presentation hooks remain supported.
 The website retains its original legacy media reader and immutable references.
 
-See [the integration handoff](../docs/SHARED_MESSAGE_HANDOFF.md) for coordination,
+See [application-embed work order](../SHARED_UI_WORK_ORDER.md) for coordination,
 validation boundaries and release notes. `npm run test:browser` includes signed
 fixture, separate-origin, keyboard, draft failure/retry and playback-retention
 checks at desktop, 390px and 320px in light/dark modes. Publication callbacks in

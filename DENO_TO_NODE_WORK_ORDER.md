@@ -19,7 +19,7 @@ Sources:
 2. Keep ESM and standard Web APIs (fetch, Request, Response, URL, crypto) wherever possible. Prefer small explicit adapters and Node built-ins over a wholesale framework migration.
 3. Preserve existing URLs, payload shapes, signatures, message hashes, media blob IDs, notification subscriptions, VAPID keys and settings. No signed message rewrites or identity migrations.
 4. Preserve self-hosting, Docker and the existing Debian/systemd deployment model. Do not move hosting to Cloudflare as a side effect.
-5. Continue the shared website/embed widget architecture from SHARED_UI_WORK_ORDER.md; never create a parallel renderer for the Node server.
+5. Continue the shared mountable website/embed application architecture from SHARED_UI_WORK_ORDER.md; never create a parallel renderer for the Node server.
 6. Separate application-runtime migration from the **independent production Deno reverse proxy**. Do not switch both in a single release.
 7. No application code, infrastructure or production services change merely by creating this work order.
 

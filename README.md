@@ -12,7 +12,7 @@ The entire application stack runs in a browser window, so there is no installati
 
 ### Shared UI restructuring
 
-The website and embeds are planned to consume the same individually importable UI widgets, composed by separate application frames. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the current gaps, module boundaries, staged migration, compatibility requirements, and acceptance checks. The current website and widget rendering paths are still separate.
+The website and JavaScript embeds will mount the same Wiredove application, including navigation, services and shared screens. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the implementation sequence and acceptance criteria. The full application mount API is not implemented yet; current widgets remain supported.
 
 ### Development checks
 

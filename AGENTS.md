@@ -101,7 +101,9 @@ Keep scope tight: prove the simplest working media path before adding transcodin
 ## Shared UI architecture requirement
 
 Ev requested a single shared UI implementation for the website and embeds on
-2026-10-03. Follow `SHARED_UI_WORK_ORDER.md` for the restructuring.
+2026-10-03, clarified on 2026-10-30 as a mountable full Wiredove application,
+not just shared timeline components. Follow `SHARED_UI_WORK_ORDER.md`, the sole
+application-embed plan. Both bootstraps must mount the same application runtime.
 
 - Both application frames must consume the same individually importable rendering
   and UI widgets. The website is the primary consumer, not a parallel renderer.
@@ -114,12 +116,14 @@ Ev requested a single shared UI implementation for the website and embeds on
 - Public widget imports must not boot the website, initialize its identity/storage,
   register its service worker, or require its import map.
 - Preserve website features and immutable signed bytes. Migrate one vertical slice
-  at a time, beginning with shared message/media widgets used by both frames.
+  at a time, beginning with a shared application instance and the real
+  profile → post → thread → reply flow in both mounts.
 - Ordinary website posts and public messages use `client/ui/message-view.js`.
   Website node extensions retain rich APDS controls and observer-bound content;
   edit-event summaries and services remain compatibility paths. The full shared
   widget migration and cross-client acceptance are not complete. See
-  `docs/SHARED_MESSAGE_HANDOFF.md` for the current host API and limitations.
+  `client/README.md` for the current widget API and `SHARED_UI_WORK_ORDER.md`
+  for the application migration and remaining acceptance.
 - Require cross-frame behavior checks and an observed separate-origin browser embed
   before claiming full shared-widget acceptance. Unit tests alone do not prove it.
 
