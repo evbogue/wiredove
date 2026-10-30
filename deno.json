@@ -4,6 +4,8 @@
     "https://esm.sh/gh/evbogue/anproto@ddc040c/an.js": "./vendor/anproto/an.js",
     "https://esm.sh/gh/evbogue/apds@d9326cb/apds.js": "https://esm.sh/gh/evbogue/apds@d9326cb/denonext/__apds.mjs",
     "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/apds.js": "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/denonext/__apds.mjs",
-    "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/lib/yaml.js": "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/denonext/lib/yaml.mjs"
+    "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/lib/yaml.js": "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/denonext/lib/yaml.mjs",
+    "https://cdn.jsdelivr.net/npm/idb@8/+esm": "npm:idb@8.0.3",
+    "https://cdn.jsdelivr.net/npm/idb@8.0.3/+esm": "npm:idb@8.0.3"
   }
 }
