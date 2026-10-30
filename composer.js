@@ -1,7 +1,8 @@
 import { createComposerSurface, iconButton } from './client/ui/composer-surface.js'
 import { createComposerDialog } from './client/frames/composer-dialog.js'
 import { apds } from 'apds'
-import { render } from './render.js'
+import { render as defaultRender } from './render.js'
+import { scopeDocument } from './client/runtime/application-context.js'
 import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js'
 import { ntfy } from './ntfy.js'
@@ -36,6 +37,9 @@ async function pushLocalNotification({ hash, author, text }) {
 }
 
 export const composer = async (sig, options = {}) => {
+  const application = options.application
+  const document = application ? scopeDocument(application.root) : globalThis.document
+  const render = application?.render || defaultRender
   const obj = {}
   const isEdit = !!options.editHash && !sig
   if (sig) {
@@ -559,12 +563,12 @@ export const composer = async (sig, options = {}) => {
         const scroller = document.getElementById('scroller')
         const opened = await apds.open(signed)
         const ts = opened ? opened.substring(0, 13) : Date.now().toString()
-        if (window.__feedEnqueue) {
-          const src = window.location.hash.substring(1)
+        if (application?.feeds?.enqueue) {
+          const src = application?.navigation.get() ?? window.location.hash.substring(1)
           // UX: if you just posted, show it immediately.
           // adder.js normally hides new posts behind a "Show N new posts" banner when you're scrolled.
           // That's good for other people's posts, but bad for *your own* just-published post.
-          const queued = await window.__feedEnqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed, opened, local: true })
+          const queued = await application.feeds.enqueue(src, { hash, ts: Number.parseInt(ts, 10), blob: signed, opened, local: true })
           if (!queued) {
             const placeholder = render.insertByTimestamp(scroller, hash, ts)
             if (placeholder) {
@@ -644,9 +648,14 @@ export const composer = async (sig, options = {}) => {
   surface.body.append(raw)
   const content = surface.preview
   const overlay = createComposerDialog(surface.root, {
+    root: application?.root, scroll: application?.scroll,
     onClose: closeComposer,
     onOpen: () => textarea.focus({ preventScroll: true }),
     onDispose: () => {
+      if (application) {
+        const index = application.cleanup.indexOf(disposeOverlay)
+        if (index >= 0) application.cleanup.splice(index, 1)
+      }
       saveDraft()
       closed = true
       mediaControls.destroy?.()
@@ -655,5 +664,7 @@ export const composer = async (sig, options = {}) => {
   })
   if (sig) overlay.id = 'reply-composer-' + obj.replyHash
   updatePublishState()
+  const disposeOverlay = () => { overlay.dispose?.(); overlay.remove() }
+  application?.cleanup.push(disposeOverlay)
   return overlay
 }

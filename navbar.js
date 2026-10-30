@@ -20,7 +20,7 @@ const h = (tag, attributes, children) => {
 
 const PUBLISH_STATUS_FLASH_MS = 8000
 
-const composeButton = async () => {
+const composeButton = async (application) => {
   return h('button', {
     type: 'button',
     title: 'Compose',
@@ -29,27 +29,27 @@ const composeButton = async () => {
     onclick: async (e) => {
       e.preventDefault()
       if (!await apds.pubkey()) {
-        promptKeypair()
+        promptKeypair(undefined, application)
         return
       }
-      const compose = await composer()
-      document.body.appendChild(compose)
+      const compose = await composer(undefined, { application })
+      application.root.appendChild(compose)
     }
   }, ['edit_square'])
 }
 
-export const navbar = async () => {
+export const navbar = async (application) => {
   const searchInput = h('input', {
     id: 'search', type: 'search', placeholder: 'Search',
     'aria-label': 'Search Wiredove', autocomplete: 'off',
-    oninput: () => { window.location.hash = searchInput.value ? '?' + searchInput.value : '' }
+    oninput: () => { application.navigation.navigate(searchInput.value ? '?' + searchInput.value : '') }
   })
   const syncSearch = () => {
-    const hash = window.location.hash.slice(1)
+    const hash = application.navigation.get()
     try { searchInput.value = hash.startsWith('?') ? decodeURI(hash.slice(1)) : '' }
     catch { searchInput.value = hash.startsWith('?') ? hash.slice(1) : '' }
   }
-  window.addEventListener('hashchange', syncSearch)
+  application.cleanup.push(application.navigation.subscribe(syncSearch))
   syncSearch()
   searchInput.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') searchInput.blur()
@@ -145,20 +145,20 @@ export const navbar = async () => {
     }
     setPublishIndicator('publish-state is-idle', 'No recent publish activity')
   }
-  subscribePublishStatus((state) => {
+  application.cleanup.push(subscribePublishStatus((state) => {
     publishStatusState = state
     renderPublishState()
-  })
-  subscribeQueueStatus((state) => {
+  }))
+  application.cleanup.push(subscribeQueueStatus((state) => {
     queueStatusState = state
     renderPublishState()
-  })
+  }))
 
   const left = h('span', {classList: 'navbar-left'}, [
     h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
       h('img', {src: './dovepurple_sm.png', classList: 'avatar_small', alt: ''})
     ]),
-    await composeButton(),
+    await composeButton(application),
   ])
 
   const right = h('span', {classList: 'navbar-right'}, [
@@ -173,13 +173,14 @@ export const navbar = async () => {
   const div = h('nav', {id: 'navbar', 'aria-label': 'Main navigation'}, [left, right])
 
   if (!await apds.keypair()) {
-    span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair() }, ['person_add']))
+    span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair(undefined, application) }, ['person_add']))
   } else {
     const avatar = await imageSpan()
     avatar.alt = ''
     span.appendChild(h('a', {href: '#' + await apds.pubkey(), classList: 'nav-icon', title: 'Your profile', 'aria-label': 'Your profile'}, [avatar]))
   }
 
+  application.cleanup.push(() => clearTimeout(clearTimer))
   renderPublishState()
   return div
 }

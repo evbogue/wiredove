@@ -1,7 +1,7 @@
 import { h } from 'h'
 import { apds } from 'apds'
 
-export const importBlob = async () => {
+export const importBlob = async (navigation) => {
   const textarea = h('textarea', {placeholder: 'Import a bog5 message or blob'})
 
   const button = h('button', {
@@ -10,7 +10,9 @@ export const importBlob = async () => {
         try {
           const blob = await apds.make(textarea.value)
           const msg = await apds.open(textarea.value)
-          window.location.hash = await apds.hash(textarea.value)
+          const hash = await apds.hash(textarea.value)
+          if (navigation) await navigation.navigate(hash)
+          else window.location.hash = hash
           if (msg) {
             await apds.add(textarea.value)
           }

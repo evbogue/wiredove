@@ -4,9 +4,10 @@ import { downloadIdentityBackup } from './identity_backup.js'
 import { clearQueue, getQueueSize, queueSend } from './network_queue.js'
 import { addBlockedAuthor, getModerationState, removeBlockedAuthor, saveModerationState, splitTextList } from './moderation.js'
 
+export const createSettings = (application) => {
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
-export const importKey = async () => {
+const importKey = async () => {
   const textarea = h('textarea', {placeholder: 'Keypair'})
 
   const button = h('button', {
@@ -14,7 +15,7 @@ export const importKey = async () => {
       const trashkey = await apds.generate()
       if (textarea.value && textarea.value.length === trashkey.length) {
         await apds.put('keypair', textarea.value)
-        window.location.hash = '#'
+        application.navigation.navigate('')
         location.reload()
       } else { alert('Invalid Keypair')}
     }
@@ -38,7 +39,7 @@ const editKey = async () => {
         const keypair = await apds.keypair()
         if (textarea.value.length === keypair.length) {
           await apds.put('keypair', textarea.value)
-          window.location.hash = '#'
+          application.navigation.navigate('')
           location.reload()
         } else { alert('Invalid Keypair')}
       }
@@ -46,7 +47,7 @@ const editKey = async () => {
     h('button', {
       onclick: async () => {
         await apds.deletekey()
-        window.location.hash = '#'
+        application.navigation.navigate('')
         location.reload()
       }
     }, ['Delete key']),
@@ -57,7 +58,7 @@ const editKey = async () => {
 const deleteEverything = h('button', {
   onclick: async () => {
     await apds.clear()
-    window.location.hash = '#'
+    application.navigation.navigate('')
     location.reload()
   }
 }, ['Delete everything'])
@@ -295,14 +296,14 @@ const moderationPanel = async () => {
       placeholder: 'Add author pubkey',
       items: state.blockedAuthors,
       onAdd: async (value) => {
-        window.__feedStatus?.('Blocking author…', { sticky: true })
+        application.feeds?.status?.('Blocking author…', { sticky: true })
         const result = await addBlockedAuthor(value)
         const removed = result?.purge?.removed ?? 0
         const blobs = result?.purge?.blobs ?? 0
         if (result?.purge) {
-          window.__feedStatus?.(`Blocked author. Removed ${removed} post${removed === 1 ? '' : 's'}, ${blobs} blob${blobs === 1 ? '' : 's'}.`)
+          application.feeds?.status?.(`Blocked author. Removed ${removed} post${removed === 1 ? '' : 's'}, ${blobs} blob${blobs === 1 ? '' : 's'}.`)
         } else {
-          window.__feedStatus?.('Blocked author.')
+          application.feeds?.status?.('Blocked author.')
         }
         setTimeout(() => {
           location.reload()
@@ -379,7 +380,7 @@ const moderationPanel = async () => {
 //  ])
 //}
 
-export const settings = async () => {
+const settings = async () => {
   if (!queueTicker) {
     updateQueueUi()
     queueTicker = setInterval(updateQueueUi, 500)
@@ -410,4 +411,7 @@ export const settings = async () => {
   ])
 
   return div
+}
+
+return { settings, importKey, destroy() { clearInterval(queueTicker) } }
 }

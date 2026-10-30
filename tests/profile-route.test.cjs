@@ -29,6 +29,7 @@ async function fixture(query, src = 'ev') {
   const started = new Promise(resolve => { headerStarted = resolve; });
   const pendingHeader = new Promise(resolve => { resolveHeader = resolve; });
   const deps = {
+    scopeDocument: root => ({ body: root, getElementById: id => elements.get(id) }),
     apds: { pubkey: async () => null }, h: node,
     render: { buildReplyIndex: async () => {} },
     adder(messages, src, panel) {
@@ -50,7 +51,7 @@ async function fixture(query, src = 'ev') {
   };
   const context = vm.createContext({
     window, document: { body: node('body'), getElementById: id => elements.get(id) },
-    AbortController, setTimeout, console
+    AbortController, setTimeout, clearTimeout, console
   });
   const source = await readFile(require.resolve('../route.js'), 'utf8');
   const router = new vm.SourceTextModule(source, { context });
@@ -63,12 +64,20 @@ async function fixture(query, src = 'ev') {
     }, { context });
   });
   await router.evaluate();
-  const run = router.namespace.route();
+  let listener;
+  const instance = router.namespace.createRouter({
+    root: context.document.body,
+    navigation: { get: () => window.location.hash.slice(1),
+      subscribe(fn) { listener = fn; return () => { listener = null; }; },
+      async navigate(value) { window.location.hash = '#' + value; await listener?.(); } },
+    render: deps.render, scroll: { get: () => 0, to() {} }, feeds: { adder: deps.adder },
+  });
+  const run = instance.route();
   await started;
   const panel = elements.get('scroller').children[0];
   return {
     window, panel, header,
-    navigate: async hash => { window.location.hash = hash; await window.onhashchange(); },
+    navigate: async hash => { window.location.hash = hash; await listener(); },
     finish: async () => { resolveHeader(header); await run; }
   };
 }

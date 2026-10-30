@@ -1,7 +1,8 @@
 # Mountable Wiredove application work order
 
 Updated 2026-10-30 following Ev's request for a full Wiredove JavaScript embed.
-Status: architecture and implementation plan; the mount API below is not implemented.
+Status: internal application UI ownership extracted; public embed mount API and
+full milestone-1 acceptance remain unimplemented.
 Source-review baseline: `6f8d213`. This is the sole shared UI/application-embed work
 order. It replaces the earlier component-first plan, `client/WORK_ORDER.md`, and
 `docs/SHARED_MESSAGE_HANDOFF.md`; historical evidence remains in Git history.
@@ -21,10 +22,12 @@ Individually importable widgets remain supported for hosts that want only a piec
 
 ## Diagnosis and starting points
 
-- `app.js` initializes APDS, mounts into document.body, starts networking/sync and
-  registers a service worker. It is a website bootstrap, not an application factory.
-- `route.js` owns route panels, feed orchestration and scroll state through module
-  globals, document selectors, window hash routing and global feed controllers.
+- `app.js` calls `website-application.js`, which starts the shared APDS session and
+  creates the internal application UI runtime. Service-worker registration stays
+  in the website bootstrap. Public embed services and mount API remain open.
+- `route.js:createRouter` now owns panels, feed orchestration and scroll state per
+  application through root/navigation/scroll/controller dependencies. The website
+  supplies a window-hash adapter; internal navigation has no host hash effects.
 - `composer.js`, settings, profile and rendering paths still contain application
   behavior and global DOM dependencies. Audit their imports before moving code.
 - `client/ui/widget.js` assembles a smaller application. Its default feed loader
@@ -102,20 +105,20 @@ Do not silently register a service worker on someone else's origin.
 
 ## Implementation sequence
 
-All milestones below are open. Complete vertical slices on both surfaces and record
+All milestones below remain open; completed substeps are marked. Complete vertical slices on both surfaces and record
 observed results here. Do not finish every component extraction before proving a
 mountable application. Do not claim a declaration, mock callback or screenshot proves
 runtime parity.
 
 ### 1. Extract the application instance and prove the first real flow
 
-- [ ] Inventory current website routes/actions and global dependencies, including
+- [x] Inventory current website routes/actions and global dependencies, including
   home, author, alias/community feeds, search, thread, edit, profile, settings,
   moderation, notification and sync behavior. Record ownership and parity below.
 - [ ] Extract explicit startup/disposal from app.js. Introduce root refs, instance
   route state and navigation/services dependencies. Adapt route panels, feed storage
   and orchestration; remove global selectors across this boundary.
-- [ ] Switch the website bootstrap to the extracted application while preserving
+- [x] Switch the website bootstrap to the extracted application while preserving
   existing routes, cached panels, scroll restoration and all unmigrated features.
 - [ ] Mount that same application in a separate-origin plain HTML host via Shadow DOM.
   Supply real local test services, not host-created posts or a simulated publisher.
@@ -243,3 +246,59 @@ Checkpoint validation: `npm run check`, `npm test`, `npm run test:media` and
 320px shared messages, queue/gallery, separate-origin iframe and warm-cache tests.
 These are regression checks, not the requested non-iframe full-app acceptance;
 no new screenshots or full-app flow were observed in this checkpoint.
+
+
+### 2026-10-30 application UI ownership extraction
+
+This completes item 1 from the follow-up breakdown (instance-owned UI state), not
+all of milestone 1. `client/runtime/application.js:createApplication` now creates
+one router, feed controller, renderer and settings UI per root. The website starts
+that application through `website-application.js`; its URL and window scrolling
+are explicit adapters. Internal navigation is available through `createNavigation`.
+
+- `route.js:createRouter` owns route runs, abort controllers, orchestrators, panel
+  caches, scroll restoration and delayed route work. Importing it no longer
+  installs a hash handler. Navigation subscriptions are removed on UI disposal.
+- `adder.js:createFeedController` owns feeds, pagination/render queues, observers,
+  status banners and timers. FeedStore receives an enqueue function. There are no
+  production `window.__feed*` hooks; composition, moderation and incoming records
+  use the application controller explicitly.
+- `render.js:createRenderer` owns render/edit/reply-preview caches, timestamp state
+  and observers. Its selectors and composer placement resolve within its root.
+  The existing `render` export remains a compatibility object for direct imports;
+  application instances never use it. Network delivery uses an explicit renderer
+  subscription in the website bootstrap, removed on application UI disposal.
+- Navbar, composer, profile-header avatar updates, identity dialogs and settings
+  receive application/root/navigation references. Composer dialog focus, inert
+  siblings, keyboard listeners and scroll restoration are root-owned. UI disposal
+  removes subscriptions, timers, panels and application dialogs.
+
+Acceptance evidence: `tests/application-state.browser.cjs` runs the real application
+factory, router, feed controller, renderer and composer with an offline APDS stub.
+It blocks external network requests and mocks website connection/sync startup.
+Two roots in the same module graph prove independent navigation, cached panels,
+scroll restoration, duplicate message IDs, feed enqueue/status, composer sibling
+isolation, destroy/navigation-after-destroy and remount. The actual `app.js`
+bootstrap also passes offline startup → hash search → home. Existing delayed
+profile-header route tests now exercise `createRouter` and still pass.
+
+The ownership screenshot at `test-results/application-state.png` was inspected.
+It is a structural offline fixture, with external icon fonts blocked and existing
+website-global CSS; it does not establish embed layout fidelity or Shadow DOM
+style isolation. Full browser regression checks cover the existing mobile/desktop,
+light/dark, gallery, shared-message and warm-cache paths. The shell cache version
+is now `v16-application-state` and its upgrade assertion was updated.
+
+Remaining service ownership (follow-up item 2): APDS identity/storage, reply index,
+feed-row cache, profile helpers, publishing/queue status, sync, sockets and media
+storage are still shared services. UI destroy does not stop the website's shared
+transport session. Draft storage retains its existing identity/target keys. Service
+session isolation/reference counting, signing serialization, backend URL policy
+and capability handling must be completed before promising independent identities
+or a safe public embed. Shadow DOM styling, self-contained dependency graph and
+real two-author publish/retrieve flow remain open. No public writes or deployment.
+
+Validation for this extraction: `npm run check`, `npm test` (30 tests),
+`npm run test:media` (10 tests) and `npm run test:browser` passed. Focused router
+and application-ownership checks also passed after the final lifecycle changes.
+Source revision is the commit containing this entry; no deployed revision changed.

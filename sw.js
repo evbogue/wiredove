@@ -18,13 +18,17 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v15-shared-message-view'
+const CACHE_VERSION = 'v16-application-state'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/client/runtime/application.js',
+  '/client/runtime/application-context.js',
+  '/client/runtime/render-delivery.js',
+  '/client/runtime/website-application.js',
   '/composer.js',
   '/render.js',
   '/ntfy.js',

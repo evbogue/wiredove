@@ -332,3 +332,20 @@ routes in the host so reloading restores the target as well as its stored draft.
 `presentation.appearance = 'publication'` enables a quiet, light publication
 surface without changing default Wiredove styling. Storage is opened only when a
 host explicitly creates/initializes the session; importing widgets stays inert.
+
+
+### Internal application UI runtime
+
+`runtime/application.js` exports `createApplication({ root, navigation, scroll })`.
+It returns `start()`, `navigate(routeString)` and idempotent `destroy()` alongside
+its root-owned router, renderer and feed controller. Route strings retain website
+hash syntax. `runtime/application-context.js` supplies internal navigation and
+website hash/scroll adapters. `runtime/website-application.js` selects the website
+adapters and explicitly subscribes its renderer to the shared transport delivery.
+
+This is an internal extraction boundary, not the public `mountWiredove` embed API.
+Callers still share the existing APDS/storage/transport session and require the
+website dependency setup. UI disposal does not dispose that session. See
+`SHARED_UI_WORK_ORDER.md` for the remaining service and embed acceptance work.
+`npm run test:browser` includes an offline two-root ownership and website-bootstrap
+suite; it does not publish to public relays.

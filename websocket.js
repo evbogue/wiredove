@@ -1,5 +1,5 @@
 import { apds } from 'apds'
-import { render } from './render.js'
+import { deliverToRenderers } from './client/runtime/render-delivery.js'
 import { noteReceived, registerNetworkSenders } from './network_queue.js'
 import { getModerationState, isBlockedAuthor } from './moderation.js'
 import { adaptiveConcurrency } from './adaptive_concurrency.js'
@@ -103,10 +103,10 @@ const handleIncoming = async (msg) => {
   }
   const author = msg.substring(0, 44)
   if (await isBlockedAuthor(author)) { return }
-  await render.shouldWe(msg)
+  await deliverToRenderers('shouldWe', msg)
   await apds.make(msg)
   await apds.add(msg)
-  await render.blob(msg)
+  await deliverToRenderers('blob', msg)
 }
 
 const toHttpBase = (wsUrl) => wsUrl.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:')

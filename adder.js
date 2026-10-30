@@ -1,4 +1,4 @@
-import { render } from './render.js'
+import { scopeDocument } from './client/runtime/application-context.js'
 import { apds } from 'apds'
 import { adaptiveConcurrency } from './adaptive_concurrency.js'
 import { perfMeasure, perfStart, perfEnd } from './perf.js'
@@ -13,6 +13,16 @@ const DERENDER_DELAY_MS = 2000
 const ENABLE_DERENDER = false
 const PREFETCH_AHEAD_PX = 2000
 const PREFETCH_BEHIND_PX = 700
+export const createFeedController = ({ root, navigation, scroll, render }) => {
+const document = scopeDocument(root)
+let disposed = false
+let statusFeedState = null
+const controller = {
+  feeds: new Map(),
+  getFeed(src) { return this.feeds.get(src) || null },
+  deactivateFeed(src) { this.getFeed(src)?.deactivate?.() },
+  activateFeed(src) { this.getFeed(src)?.activate?.() },
+}
 let renderQueue = []
 let renderActive = 0
 let frameStartsRemaining = FRAME_RENDER_START_BUDGET
@@ -49,6 +59,7 @@ const scheduleFrameBudgetReset = () => {
 }
 
 const scheduleRender = (entry, sig) => new Promise(resolve => {
+  if (disposed) { resolve(); return }
   renderQueue.push({ entry, sig, resolve })
   void drainRenderQueue()
 })
@@ -71,7 +82,7 @@ const drainRenderQueue = async () => {
     const start = perfNow()
     Promise.resolve()
       .then(async () => {
-        if (!sig) { return }
+        if (!sig || disposed) { return }
         await render.blob(sig, { hash: entry?.hash, opened: entry?.opened })
         const wrapper = entry?.hash ? document.getElementById(entry.hash) : null
         if (wrapper) {
@@ -143,7 +154,7 @@ const ensureObserver = () => {
       }, DERENDER_DELAY_MS)
       derenderTimers.set(wrapper, timer)
     })
-  }, { root: null, rootMargin: VIEW_PREFETCH_MARGIN, threshold: 0 })
+  }, { root: scroll.observerRoot, rootMargin: VIEW_PREFETCH_MARGIN, threshold: 0 })
   return viewObserver
 }
 
@@ -156,31 +167,13 @@ const observeWrapper = (wrapper) => {
 const isNearViewport = (element) => {
   if (!element) { return false }
   const rect = element.getBoundingClientRect()
-  const height = window.innerHeight || document.documentElement.clientHeight || 0
+  const height = scroll.height() || 0
   const ahead = scrollDir >= 0 ? PREFETCH_AHEAD_PX : PREFETCH_BEHIND_PX
   const behind = scrollDir >= 0 ? PREFETCH_BEHIND_PX : PREFETCH_AHEAD_PX
   return rect.top < height + ahead && rect.bottom > -behind
 }
 
-const getController = () => {
-  if (!window.__feedController) {
-    window.__feedController = {
-      feeds: new Map(),
-      getFeed(src) {
-        return this.feeds.get(src) || null
-      },
-      deactivateFeed(src) {
-        const state = this.getFeed(src)
-        state?.deactivate?.()
-      },
-      activateFeed(src) {
-        const state = this.getFeed(src)
-        state?.activate?.()
-      }
-    }
-  }
-  return window.__feedController
-}
+const getController = () => controller
 
 const makeRouteMatcher = (src) => {
   if (src === '') {
@@ -211,8 +204,7 @@ const normalizeTimestamp = (ts) => {
 }
 
 const updateScrollDirection = () => {
-  const scrollEl = document.scrollingElement || document.documentElement || document.body
-  const top = scrollEl.scrollTop || window.scrollY || 0
+  const top = scroll.get()
   scrollDir = top >= lastScrollTop ? 1 : -1
   lastScrollTop = top
 }
@@ -297,8 +289,7 @@ const insertEntry = (state, entry) => {
 }
 
 const isAtTop = () => {
-  const scrollEl = document.scrollingElement || document.documentElement || document.body
-  const scrollTop = scrollEl.scrollTop || window.scrollY || 0
+  const scrollTop = scroll.get()
   return scrollTop <= 10
 }
 
@@ -312,12 +303,7 @@ const ensureBanner = (state) => {
   button.className = 'new-posts-button'
   button.addEventListener('click', async () => {
     if (state.statusMode) { return }
-    const scrollEl = document.scrollingElement || document.documentElement || document.body
-    if (scrollEl) {
-      scrollEl.scrollTo({ top: 0, behavior: 'smooth' })
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+    scroll.to({ top: 0, behavior: 'smooth' })
     await flushPending(state)
   })
   banner.appendChild(button)
@@ -346,6 +332,7 @@ const updateBanner = (state) => {
 }
 
 const renderEntry = async (state, entry) => {
+  if (disposed) return
   updateScrollDirection()
   const div = render.insertByTimestamp(state.container, entry.hash, entry.ts)
   if (!div) { return }
@@ -425,7 +412,7 @@ const flushPending = async (state) => {
   }
 }
 
-window.__feedEnqueue = async (src, entry) => {
+const enqueue = async (src, entry) => {
   const controller = getController()
   const state = controller.getFeed(src)
   if (!state) { return false }
@@ -433,7 +420,7 @@ window.__feedEnqueue = async (src, entry) => {
   return true
 }
 
-window.__feedEnqueueMatching = async (entry) => {
+const enqueueMatching = async (entry) => {
   if (!entry || !entry.hash || !entry.ts) { return false }
   const controller = getController()
   let matched = false
@@ -448,10 +435,10 @@ window.__feedEnqueueMatching = async (entry) => {
 
 const getStatusState = () => {
   const controller = getController()
-  const src = window.location.hash.substring(1)
+  const src = navigation.get()
   let state = controller.getFeed(src)
   if (state) { return state }
-  if (!window.__statusFeedState) {
+  if (!statusFeedState) {
     const container = document.getElementById('scroller')
     if (!container) { return null }
     const fallback = {
@@ -472,12 +459,13 @@ const getStatusState = () => {
       statusTimer: null
     }
     ensureBanner(fallback)
-    window.__statusFeedState = fallback
+    statusFeedState = fallback
   }
-  return window.__statusFeedState
+  return statusFeedState
 }
 
-window.__feedStatus = (message, options = {}) => {
+const status = (message, options = {}) => {
+  if (disposed) return false
   const state = getStatusState()
   if (!state) { return false }
   const { timeout = 2500, sticky = false } = options
@@ -499,8 +487,9 @@ window.__feedStatus = (message, options = {}) => {
   return true
 }
 
-export const adder = (log, src, div) => {
-  if (!div) { return }
+const adder = (log, src, div) => {
+  if (!div || disposed) { return }
+  controller.getFeed(src)?.deactivate?.()
   updateScrollDirection()
   const pageSize = 25
   const entries = buildEntries(log || [])
@@ -568,7 +557,7 @@ export const adder = (log, src, div) => {
   const loadNext = async () => {
     if (loading) { return }
     if (!state.active) { return false }
-    if (window.location.hash.substring(1) !== src) { return }
+    if (navigation.get() !== src) { return }
     loading = true
     try {
       const next = takeSlice()
@@ -594,7 +583,7 @@ export const adder = (log, src, div) => {
 
   const detachArmScroll = () => {
     if (!armListenerAttached) { return }
-    window.removeEventListener('scroll', armScroll)
+    scroll.target.removeEventListener('scroll', armScroll)
     armListenerAttached = false
   }
 
@@ -604,7 +593,7 @@ export const adder = (log, src, div) => {
   }
   const attachArmScroll = () => {
     if (armed || armListenerAttached) { return }
-    window.addEventListener('scroll', armScroll, { passive: true, once: true })
+    scroll.target.addEventListener('scroll', armScroll, { passive: true, once: true })
     armListenerAttached = true
   }
 
@@ -615,7 +604,7 @@ export const adder = (log, src, div) => {
     if (!entry || !entry.isIntersecting) { return }
     if (!armed) { return }
     await loadNext()
-  }, { root: null, rootMargin: '1200px 0px', threshold: 0 })
+  }, { root: scroll.observerRoot, rootMargin: '1200px 0px', threshold: 0 })
 
   observer.observe(sentinel)
   state.observer = observer
@@ -632,4 +621,21 @@ export const adder = (log, src, div) => {
     attachArmScroll()
     updateBanner(state)
   }
+}
+
+return Object.assign(controller, { adder, enqueue, enqueueMatching, status,
+  destroy() {
+    disposed = true
+    for (const state of controller.feeds.values()) {
+      state.deactivate?.()
+      clearTimeout(state.statusTimer)
+    }
+    clearTimeout(statusFeedState?.statusTimer)
+    viewObserver?.disconnect()
+    for (const timer of derenderTimers.values()) clearTimeout(timer)
+    for (const pending of renderQueue) pending.resolve?.()
+    renderQueue = []
+    controller.feeds.clear()
+  },
+})
 }

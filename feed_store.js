@@ -12,6 +12,7 @@ const normalizeTs = (entry) => {
 export class FeedStore {
   constructor(src, options = {}) {
     this.src = src
+    this.enqueue = options.enqueue || (async () => false)
     this.entries = new Map()
     this.isActive = typeof options.isActive === 'function' ? options.isActive : () => true
     this.since = 0
@@ -43,7 +44,7 @@ export class FeedStore {
     this.entries.set(normalized.hash, normalized)
     this.since = Math.max(this.since, normalized.ts)
     if (!this.isActive()) { return false }
-    await window.__feedEnqueue?.(this.src, normalized)
+    await this.enqueue(this.src, normalized)
     return true
   }
 

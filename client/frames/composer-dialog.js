@@ -1,5 +1,5 @@
 // Frame-owned placement, focus and viewport behavior; no identity/storage imports.
-export function createComposerDialog(surface, { onClose, onOpen, onDispose } = {}) {
+export function createComposerDialog(surface, { onClose, onOpen, onDispose, root = document.body, scroll: scrollAdapter } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay composer-overlay';
   const dialog = document.createElement('div');
@@ -10,10 +10,18 @@ export function createComposerDialog(surface, { onClose, onOpen, onDispose } = {
   dialog.tabIndex = -1;
   dialog.append(surface);
   overlay.append(dialog);
-  const previousFocus = document.activeElement;
-  const scroll = { x: window.scrollX, y: window.scrollY };
+  const previousFocus = root.activeElement || document.activeElement;
+  const scroll = { x: window.scrollX, y: scrollAdapter?.get() ?? window.scrollY };
   let opened = false;
   let cleanup;
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    cleanup?.();
+    observer.disconnect();
+    onDispose?.();
+  };
   const close = () => onClose?.();
   const keydown = event => {
     if (event.key === 'Escape') { event.preventDefault(); close(); }
@@ -22,19 +30,21 @@ export function createComposerDialog(surface, { onClose, onOpen, onDispose } = {
       .filter(node => !node.closest('[hidden]') && node.getClientRects().length);
     const first = controls[0], last = controls.at(-1);
     if (!first) { event.preventDefault(); dialog.focus(); return; }
-    if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    if (event.shiftKey && ((root.activeElement || document.activeElement) === first || (root.activeElement || document.activeElement) === dialog)) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && (root.activeElement || document.activeElement) === last) { event.preventDefault(); first.focus(); }
   };
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
   const observer = new MutationObserver(() => {
     if (overlay.isConnected && !opened) {
       opened = true;
-      const bodyStyle = document.body.style.cssText;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scroll.y}px`;
-      document.body.style.left = `-${scroll.x}px`;
-      document.body.style.width = '100%';
-      const siblings = [...document.body.children].filter(node => node !== overlay);
+      const bodyStyle = root.style?.cssText;
+      if (root === document.body) {
+        root.style.position = 'fixed';
+        root.style.top = `-${scroll.y}px`;
+        root.style.left = `-${scroll.x}px`;
+        root.style.width = '100%';
+      }
+      const siblings = [...root.children].filter(node => node !== overlay);
       const inert = siblings.map(node => [node, node.inert]);
       siblings.forEach(node => { node.inert = true; });
       const viewport = window.visualViewport;
@@ -46,20 +56,22 @@ export function createComposerDialog(surface, { onClose, onOpen, onDispose } = {
       viewport?.addEventListener('resize', resize);
       viewport?.addEventListener('scroll', resize);
       window.addEventListener('resize', resize);
-      document.addEventListener('keydown', keydown);
+      root.addEventListener('keydown', keydown);
       cleanup = () => {
         viewport?.removeEventListener('resize', resize);
         viewport?.removeEventListener('scroll', resize);
         window.removeEventListener('resize', resize);
-        document.removeEventListener('keydown', keydown);
+        root.removeEventListener('keydown', keydown);
         inert.forEach(([node, value]) => { node.inert = value; });
-        document.body.style.cssText = bodyStyle;
-        window.scrollTo(scroll.x, scroll.y);
+        if (root.style) root.style.cssText = bodyStyle;
+        if (scrollAdapter) scrollAdapter.to({ top: scroll.y });
+        else window.scrollTo(scroll.x, scroll.y);
         if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
       };
       onOpen?.();
-    } else if (opened && !overlay.isConnected) { cleanup?.(); onDispose?.(); observer.disconnect(); }
+    } else if (opened && !overlay.isConnected) { dispose(); }
   });
-  observer.observe(document.body, { childList: true });
+  observer.observe(root, { childList: true });
+  overlay.dispose = dispose;
   return overlay;
 }

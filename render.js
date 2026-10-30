@@ -9,6 +9,7 @@ import { h } from 'h'
 import { send } from './send.js'
 import { queueSend, completeHashRequest } from './network_queue.js'
 import { composer } from './composer.js'
+import { scopeDocument } from './client/runtime/application-context.js'
 import { appendMarkdown } from './markdown.js'
 import { renderAndFSMedia } from './client/ui/media-render.js'
 import { noteSeen } from './sync.js'
@@ -20,7 +21,11 @@ import { makeFeedRow, upsertFeedRow, parseOpenedTimestamp } from './feed_row_cac
 import { perfStart, perfEnd } from './perf.js'
 import { renderMedia } from './media.js'
 
-export const render = {}
+export const createRenderer = ({ root, application = null }) => {
+const document = scopeDocument(root)
+let disposed = false
+const render = {}
+const compose = (sig, options = {}) => composer(sig, { ...options, application })
 const cache = new Map()
 const editsCache = new Map()
 const EDIT_CACHE_TTL_MS = 5000
@@ -63,6 +68,7 @@ const refreshTimestamp = async (element, timestamp) => {
 }
 
 const observeTimestamp = (element, timestamp) => {
+  if (disposed) return
   if (!element) { return }
   element.dataset.timestamp = timestamp
   if (!timestampObserver) {
@@ -795,14 +801,14 @@ const buildModerationControls = ({ author, hash, blob, opened }) => {
     onclick: async (e) => {
       e.preventDefault()
       if (!confirm('Block this author and purge their local data?')) { return }
-      window.__feedStatus?.('Blocking author…', { sticky: true })
+      application?.feeds?.status?.('Blocking author…', { sticky: true })
       const result = await addBlockedAuthor(author)
       const removed = result?.purge?.removed ?? 0
       const blobs = result?.purge?.blobs ?? 0
       if (result?.purge) {
-        window.__feedStatus?.(`Blocked author. Removed ${removed} post${removed === 1 ? '' : 's'}, ${blobs} blob${blobs === 1 ? '' : 's'}.`)
+        application?.feeds?.status?.(`Blocked author. Removed ${removed} post${removed === 1 ? '' : 's'}, ${blobs} blob${blobs === 1 ? '' : 's'}.`)
       } else {
-        window.__feedStatus?.('Blocked author.')
+        application?.feeds?.status?.('Blocked author.')
       }
       const wrappers = Array.from(document.querySelectorAll('.message-wrapper'))
         .filter(node => node.dataset?.author === author)
@@ -957,7 +963,7 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
       e.preventDefault()
       const state = getEditState(hash)
       const body = state.currentBody || state.baseYaml?.body || ''
-      const overlay = await composer(null, { editHash: hash, editBody: body })
+      const overlay = await compose(null, { editHash: hash, editBody: body })
       document.body.appendChild(overlay)
     }
   }, ['Edit']) : null
@@ -1045,10 +1051,10 @@ render.comments = async (hash, blob, div, actionsRow) => {
     onclick: async () => {
       if (document.getElementById('reply-composer-' + hash)) { return }
       if (await apds.pubkey()) {
-        document.body.appendChild(await composer(blob))
+        document.body.appendChild(await compose(blob))
         return
       }
-      promptKeypair()
+      promptKeypair(undefined, application)
     }
   }, ['Chat_Bubble'])
 
@@ -1182,6 +1188,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
 }
 
 render.blob = async (blob, meta = {}) => {
+  if (disposed) return
   const token = perfStart('render.blob', meta.hash || 'unknown')
   const forceShow = Boolean(meta.forceShow)
   let hash = meta.hash || null
@@ -1291,8 +1298,8 @@ render.shouldWe = async (blob) => {
       }
       return
     }
-    if (scroller && window.__feedEnqueueMatching) {
-      const queued = await window.__feedEnqueueMatching({
+    if (scroller && application?.feeds?.enqueueMatching) {
+      const queued = await application?.feeds?.enqueueMatching({
         hash,
         ts,
         blob,
@@ -1322,3 +1329,21 @@ render.hash = (hash, row = null) => {
 }
 
 render.insertByTimestamp = (container, hash, ts) => insertByTimestamp(container, hash, ts)
+
+render.destroy = () => {
+  disposed = true
+  replyObserver?.disconnect()
+  timestampObserver?.disconnect()
+  for (const value of visibleTimestamps.values()) clearInterval(value.intervalId)
+  visibleTimestamps.clear()
+  cache.clear()
+  editsCache.clear()
+  replyCountTargets.clear()
+  replyPreviewCache.clear()
+}
+return render
+}
+
+// Compatibility for individually imported website rendering helpers. Application
+// instances create their own renderer and never select this object implicitly.
+export const render = createRenderer({ root: document.body })

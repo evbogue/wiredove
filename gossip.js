@@ -1,6 +1,6 @@
 import { apds } from 'apds'
 import { joinRoom } from './trystero-torrent.min.js'
-import { render }  from './render.js'
+import { deliverToRenderers } from './client/runtime/render-delivery.js'
 import { noteReceived, registerNetworkSenders } from './network_queue.js'
 import { isBlockedAuthor } from './moderation.js'
 
@@ -58,9 +58,9 @@ export const makeRoom = async (pubkey) => {
       if (await isBlockedAuthor(author)) { return }
       //await process(blob) <-- trystero and ws should use the same process function
       await apds.make(blob)
-      await render.shouldWe(blob)
+      await deliverToRenderers('shouldWe', blob)
       await apds.add(blob)
-      await render.blob(blob)
+      await deliverToRenderers('blob', blob)
     })
 
     room.onPeerJoin(async (id) => {

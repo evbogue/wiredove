@@ -1,10 +1,7 @@
 import { apds } from 'apds'
-import { render } from './render.js'
 import { h } from 'h'
-import { composer } from './composer.js'
 import { buildShareMessage, parseSharePayload } from './share.js'
-import { settings, importKey } from './settings.js'
-import { adder } from './adder.js'
+import { scopeDocument } from './client/runtime/application-context.js'
 import { importBlob } from './import.js'
 import { send } from './send.js'
 import { noteInterest } from './sync.js'
@@ -14,6 +11,15 @@ import { perfStart, perfEnd } from './perf.js'
 import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
 
+export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
+  compose, profileHeader = buildProfileHeader, settings, importKey }) => {
+const document = scopeDocument(root)
+const render = renderer
+const composer = compose
+const buildProfileHeader = profileHeader
+let disposed = false
+let scrollTimer = null
+const deferred = new Set()
 let activeRouteRun = 0
 let activeRouteController = null
 let activeOrchestrator = null
@@ -49,24 +55,26 @@ const activatePanel = (key, panel) => {
   if (activePanelKey && activePanelKey !== key) {
     const previous = routePanels.get(activePanelKey)
     if (previous) {
-      routeScrollTop.set(activePanelKey, window.scrollY || 0)
+      routeScrollTop.set(activePanelKey, scroll.get())
       previous.remove()
     }
-    window.__feedController?.deactivateFeed?.(panelKeyToSrc(activePanelKey))
+    feeds?.deactivateFeed?.(panelKeyToSrc(activePanelKey))
   }
   activePanelKey = key
-  window.__feedController?.activateFeed?.(panelKeyToSrc(key))
+  feeds?.activateFeed?.(panelKeyToSrc(key))
   const savedTop = routeScrollTop.get(key)
   if (typeof savedTop === 'number') {
-    setTimeout(() => {
-      window.scrollTo(0, savedTop)
+    clearTimeout(scrollTimer)
+    scrollTimer = setTimeout(() => {
+      if (disposed || activePanelKey !== key) return
+      scroll.to({ top: savedTop })
     }, 0)
   }
 }
 
 const scheduleReplyIndexBuild = () => {
   void render.buildReplyIndex().then(() => {
-    render.refreshVisibleReplies?.()
+    if (!disposed) render.refreshVisibleReplies?.()
   }).catch((err) => {
     console.warn('reply index build failed', err)
   })
@@ -88,18 +96,21 @@ const beginRouteRun = () => {
   }
 }
 
-const makeRouteContext = (src, scroller) => {
-  const { runId, signal } = beginRouteRun()
-  const isActive = () => runId === activeRouteRun && window.location.hash.substring(1) === src
-  const store = new FeedStore(src, { isActive })
+const makeRouteContext = (src, scroller, run) => {
+  const { runId, signal } = run
+  const isActive = () => !disposed && runId === activeRouteRun && navigation.get() === src
+  const store = new FeedStore(src, { isActive, enqueue: feeds.enqueue })
   const orchestrator = new FeedOrchestrator({ src, signal, isActive, store })
   activeOrchestrator = orchestrator
   return { runId, signal, isActive, store, orchestrator, scroller, src }
 }
 
-export const route = async () => {
-  const token = perfStart('route', window.location.hash.substring(1) || 'home')
-  const src = window.location.hash.substring(1)
+const route = async () => {
+  if (disposed) return
+  const token = perfStart('route', navigation.get() || 'home')
+  const src = navigation.get()
+  const run = beginRouteRun()
+  const isActive = () => !disposed && run.runId === activeRouteRun && navigation.get() === src
   const scroller = getScroller()
   const panelKey = getPanelKey(src)
   const panel = getRoutePanel(scroller, panelKey)
@@ -110,18 +121,18 @@ export const route = async () => {
       const payload = parseSharePayload(src)
       if (payload) {
         const message = buildShareMessage(payload)
-        setTimeout(async () => {
+        const timer = setTimeout(async () => {
+          deferred.delete(timer)
+          if (disposed) return
           try {
             const compose = await composer(null, { initialBody: message, autoGenKeypair: true })
-            document.body.appendChild(compose)
+            if (!disposed) document.body.appendChild(compose)
           } catch (err) {
             console.log(err)
           }
         }, 0)
-        history.replaceState(null, '', '#')
-        if (typeof window.onhashchange === 'function') {
-          window.onhashchange()
-        }
+        deferred.add(timer)
+        await navigation.navigate('', { replace: true })
         return
       }
     }
@@ -131,10 +142,10 @@ export const route = async () => {
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
-      const ctx = makeRouteContext(src, panel)
+      const ctx = makeRouteContext(src, panel, run)
       const { log } = await ctx.orchestrator.startHome()
       if (!ctx.isActive()) { return }
-      adder(log || [], src, panel)
+      feeds.adder(log || [], src, panel)
       panel.dataset.ready = 'true'
       return
     }
@@ -142,11 +153,9 @@ export const route = async () => {
     if (src === 'settings') {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
-      if (await apds.pubkey()) {
-        panel.appendChild(await settings())
-      } else {
-        panel.appendChild(await importKey())
-      }
+      const content = await apds.pubkey() ? await settings() : await importKey()
+      if (!isActive()) return
+      panel.appendChild(content)
       panel.dataset.ready = 'true'
       return
     }
@@ -154,7 +163,9 @@ export const route = async () => {
     if (src === 'import') {
       if (panel.dataset.ready === 'true') { return }
       panel.replaceChildren()
-      panel.appendChild(await importBlob())
+      const content = await importBlob(navigation)
+      if (!isActive()) return
+      panel.appendChild(content)
       panel.dataset.ready = 'true'
       return
     }
@@ -164,10 +175,10 @@ export const route = async () => {
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
-      const ctx = makeRouteContext(src, panel)
+      const ctx = makeRouteContext(src, panel, run)
       const { query, primaryKey } = await ctx.orchestrator.startAlias(src)
       if (!ctx.isActive()) { return }
-      adder(query || [], src, panel)
+      feeds.adder(query || [], src, panel)
       const header = await buildProfileHeader({ label: src, messages: query || [], canEdit: false, pubkey: primaryKey })
       // Keep the profile ahead of feed rows and loading placeholders, just as
       // on public-key routes. Header construction can outlive a route change.
@@ -185,10 +196,10 @@ export const route = async () => {
       await noteInterest(src)
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
-      const ctx = makeRouteContext(src, panel)
+      const ctx = makeRouteContext(src, panel, run)
       const { log } = await ctx.orchestrator.startAuthor(src)
       if (!ctx.isActive()) { return }
-      adder(log || [], src, panel)
+      feeds.adder(log || [], src, panel)
       const canEdit = !!(selfKey && selfKey === src)
       const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
       if (ctx.isActive() && header) panel.prepend(header)
@@ -204,10 +215,10 @@ export const route = async () => {
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
-      const ctx = makeRouteContext(src, panel)
+      const ctx = makeRouteContext(src, panel, run)
       const { log } = await ctx.orchestrator.startSearch(src)
       if (!ctx.isActive()) { return }
-      adder(log || [], src, panel)
+      feeds.adder(log || [], src, panel)
       panel.dataset.ready = 'true'
       return
     }
@@ -223,7 +234,8 @@ export const route = async () => {
       if (opened) {
         await apds.add(src)
       }
-      const check = await document.getElementById(hash)
+      if (!isActive()) return
+      const check = document.getElementById(hash)
       if (!check) {
         let ts = 0
         if (opened) {
@@ -243,7 +255,7 @@ export const route = async () => {
   }
 }
 
-window.onhashchange = async () => {
+const onNavigate = async () => {
   if (activeOrchestrator) {
     activeOrchestrator.stop()
     activeOrchestrator = null
@@ -252,11 +264,26 @@ window.onhashchange = async () => {
     activeRouteController.abort()
     activeRouteController = null
   }
-  if (window.location.hash === '#?') {
+  if (navigation.get() === '?') {
     const search = document.getElementById('search')
-    search.value = ''
-    search.classList = 'material-symbols-outlined'
-    window.location.hash = ''
+    if (search) { search.value = ''; search.classList = 'material-symbols-outlined' }
+    await navigation.navigate('')
+    return
   }
   await route()
+}
+
+const unsubscribe = navigation.subscribe(onNavigate)
+return { route, navigate: (...args) => navigation.navigate(...args), destroy() {
+  disposed = true
+  clearTimeout(scrollTimer)
+  for (const timer of deferred) clearTimeout(timer)
+  activeRouteRun += 1
+  unsubscribe()
+  activeOrchestrator?.stop()
+  activeRouteController?.abort()
+  for (const panel of routePanels.values()) panel.remove()
+  routePanels.clear()
+  routeScrollTop.clear()
+} }
 }

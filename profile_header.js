@@ -106,7 +106,7 @@ const publishProfileUpdate = async ({ bio, name, image, links, photoState }) => 
   return { signed, blob }
 }
 
-export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null }) => {
+export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null, root = document }) => {
   const profile = await buildProfileData(messages, label)
   const backgroundImage = await resolveImageSrc(profile.background)
   const fallbackVisual = pubkey ? await apds.visual(pubkey) : null
@@ -241,7 +241,7 @@ export const buildProfileHeader = async ({ label, messages, canEdit = false, pub
       setEditing(false)
       status.textContent = 'Profile saved. Updates are queued for sharing.'
       if (onboarding) finishSetup()
-      const navImage = document.querySelector('#navbar .navbar-right .avatar_small')
+      const navImage = root.querySelector('#navbar .navbar-right .avatar_small')
       if (navImage && imageChanged) navImage.src = draftImageSrc
     } catch {
       status.textContent = 'Failed to save profile.'

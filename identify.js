@@ -1,7 +1,9 @@
 import { h } from 'h'
 import { apds } from 'apds'
+import { scopeDocument } from './client/runtime/application-context.js'
 
-const openIdentitySetup = () => {
+const openIdentitySetup = (application) => {
+  const document = application ? scopeDocument(application.root) : globalThis.document
   const existing = document.getElementById('identity-setup')
   if (existing) { existing.showModal(); return }
   const dialog = h('dialog', { id: 'identity-setup', classList: 'identity-dialog', 'aria-labelledby': 'identity-title' })
@@ -55,7 +57,8 @@ const openIdentitySetup = () => {
       await apds.put('keypair', keypair)
       const pubkey = await apds.pubkey()
       if (!importing) sessionStorage.setItem('wiredove.setup', pubkey)
-      window.location.hash = pubkey
+      if (application) await application.navigation.navigate(pubkey)
+      else window.location.hash = pubkey
       window.location.reload()
     } catch (error) {
       status.textContent = importing ? 'Could not import this backup. Check that you pasted the complete, original keypair.' : 'Could not create your identity. Please try again.'
@@ -68,16 +71,17 @@ const openIdentitySetup = () => {
   dialog.addEventListener('cancel', (event) => { if (busy) event.preventDefault() })
   dialog.addEventListener('close', () => dialog.remove(), { once: true })
   document.body.append(dialog)
+  application?.cleanup.push(() => dialog.remove())
   dialog.showModal()
   name.focus()
 }
 
 export const identify = async () => {
   const span = h('span')
-  if (!await apds.pubkey()) span.append(h('button', { id: 'generate-keypair-button', onclick: openIdentitySetup }, ['Create identity']))
+  if (!await apds.pubkey()) span.append(h('button', { id: 'generate-keypair-button', onclick: () => openIdentitySetup() }, ['Create identity']))
   return span
 }
 
-export const promptKeypair = (message = 'Create an identity to post or reply.') => {
-  openIdentitySetup()
+export const promptKeypair = (message = 'Create an identity to post or reply.', application) => {
+  openIdentitySetup(application)
 }
