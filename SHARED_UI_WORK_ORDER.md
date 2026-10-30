@@ -105,6 +105,24 @@ The original S/C ticket references are retained for orientation only.
 
 ### 1. Complete the canonical message component (S03/C01)
 
+Completed sub-slice 2026-10-30: raw-data + QR + permalink right-meta cluster migrated
+into shared components (`client/ui/raw-controls.js`, `client/ui/qr.js`,
+`client/ui/message-meta.js`). The website's `buildRawControls`, `buildRightMeta`
+and `render.qr` are deleted; both `render.meta` paths (ordinary and edit-event)
+now build the cluster through one website glue helper (`buildMetaCluster`) from
+the shared modules, and the canonical view's default metadata/raw slot uses the
+same components (replacing the divergent `<details>` raw fallback). The
+`getElementById('qr-target'+hash)` fallback is gone; the QR target is passed by
+ref. Behavior preserved: toggle lazy-build, dark-mode QR colors, failure clears
+the target, permalink `#<signature>` navigation, `.message-meta`/`.message-raw`/
+`.qr-target` classes kept for `extractMetaNodes`. Checks: `npm run check`,
+`npm test` (30/30), `npm run test:media` (10/10), `npm run test:browser` (all
+pass, incl. shared-message runtime at 1200/390/320px light/dark and the
+site-surface raw toggle), plus focused toggle/failure/order checks on the new
+modules. Remaining in this section: edit summaries/navigation, moderation
+controls/stub, async profile updates, reply counts, timestamp observer (see
+SLICE1_AUDIT.md mapping). Checkboxes stay open until the full section is done.
+
 - [ ] Audit website extensions and edit-event summaries against the canonical view;
   move reusable edit/history, moderation, raw-data, QR/share and author controls into
   shared components without losing existing website behavior.

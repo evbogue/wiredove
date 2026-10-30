@@ -1,5 +1,8 @@
 import { createMessageMain } from './client/ui/message-layout.js'
 import { createMessageView, createReplyContext } from './client/ui/message-view.js'
+import { createRawControls } from './client/ui/raw-controls.js'
+import { createQRControl, createQRTarget } from './client/ui/qr.js'
+import { createMessageMeta } from './client/ui/message-meta.js'
 import { resolveImageSrc } from './profile_image.js'
 import { apds } from 'apds'
 import { h } from 'h'
@@ -170,25 +173,22 @@ const renderBody = async (body, replyHash) => {
   return fragment
 }
 
-const buildRawControls = (blob, opened, contentBlob) => {
-  const rawDiv = h('div', {classList: 'message-raw'})
-  let rawshow = true
-  let rawContent
-
-  const raw = h('a', {classList: 'material-symbols-outlined', onclick: async () => {
-    if (rawshow) {
-      if (!rawContent) {
-        rawContent = h('pre', {classList: 'hljs'}, [blob + '\n\n' + opened + '\n\n' + (contentBlob || '')])
-      }
-      rawDiv.appendChild(rawContent)
-      rawshow = false
-    } else {
-      rawContent.parentNode.removeChild(rawContent)
-      rawshow = true
-    }
-  }}, ['Code'])
-
-  return { raw, rawDiv }
+const buildMetaCluster = ({ author, hash, blob, opened, contentBlob, ts }) => {
+  const qrTarget = createQRTarget({ document })
+  const { toggle: rawToggle, rawDiv } = createRawControls({
+    id: hash, signature: blob, opened, content: contentBlob, document,
+  })
+  const right = createMessageMeta({
+    post: { id: hash, author, signature: blob },
+    controls: {
+      qr: createQRControl({ blob, target: qrTarget, loadQRious: ensureQRious, document }),
+      rawToggle,
+      permalinkHref: '#' + blob,
+      timestamp: ts,
+    },
+    document,
+  })
+  return { right, rawDiv, qrTarget }
 }
 
 const queueEditRefresh = (editHash) => {
@@ -198,21 +198,6 @@ const queueEditRefresh = (editHash) => {
     render.invalidateEdits(editHash)
     await render.refreshEdits(editHash, { forceLatest: true })
   })()
-}
-
-const buildRightMeta = ({ author, hash, blob, qrTarget, raw, ts }) => {
-  const permalink = h('a', {href: '#' + blob, classList: 'material-symbols-outlined'}, ['Share'])
-  return h('span', {classList: 'message-meta'}, [
-    h('span', {classList: 'pubkey'}, [author.substring(0, 6)]),
-    ' ',
-    render.qr(hash, blob, qrTarget),
-    ' ',
-    permalink,
-    ' ',
-    raw,
-    ' ',
-    ts,
-  ])
 }
 
 const applyProfile = async (contentHash, yaml) => {
@@ -709,50 +694,6 @@ render.refreshEdits = async (hash, options = {}) => {
   await applyProfile(state.contentHash, profileYaml)
 }
 
-render.qr = (hash, blob, target) => {
-  const link = h('a', {
-    onclick: async () => {
-      const qrTarget = target || document.getElementById('qr-target' + hash)
-      if (!qrTarget) { return }
-      if (!qrTarget.firstChild) {
-        const canvas = document.createElement('canvas')
-        qrTarget.appendChild(canvas)
-        const darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-        const background = darkMode ? '#222' : '#f8f8f8'
-        const foreground = darkMode ? '#ccc' : '#444'
-        const maxSize = Math.min(
-          400,
-          Math.floor(window.innerWidth * 0.9),
-          Math.floor(window.innerHeight * 0.6)
-        )
-        const size = Math.max(160, maxSize)
-        try {
-          const QRious = await ensureQRious()
-          new QRious({
-            element: canvas,
-            value: location.href + blob,
-            size,
-            background,
-            foreground,
-          })
-        } catch (err) {
-          console.warn('QRious load failed', err)
-          while (qrTarget.firstChild) {
-            qrTarget.firstChild.remove()
-          }
-        }
-      } else {
-        while (qrTarget.firstChild) {
-          qrTarget.firstChild.remove()
-        }
-      }
-    },
-    classList: 'material-symbols-outlined'
-  }, ['Qr_Code'])
-
-  return link
-}
-
 const buildEditNav = (hash) => {
   const left = h('a', {
     classList: 'material-symbols-outlined edit-nav-btn',
@@ -971,9 +912,7 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     const ts = h('a', {href: '#' + hash}, [humanTime])
     observeTimestamp(ts, timestamp)
 
-    const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
-    const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
-    const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
+    const { right, rawDiv, qrTarget } = buildMetaCluster({ author, hash, blob, opened, contentBlob, ts })
 
     img.className = 'avatar'
     img.id = 'image' + contentHash
@@ -1023,12 +962,9 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     }
   }, ['Edit']) : null
 
-  const { raw, rawDiv } = buildRawControls(blob, opened, contentBlob)
-
-  const qrTarget = h('div', {id: 'qr-target' + hash, classList: 'qr-target', style: 'margin: 8px auto 0 auto; text-align: center; width: min(90vw, 400px); max-width: 400px;'})
+  const { right, rawDiv, qrTarget } = buildMetaCluster({ author, hash, blob, opened, contentBlob, ts })
   const editedHint = h('span', {classList: 'edit-hint', style: 'display: none;'}, [''])
   const editNav = buildEditNav(hash)
-  const right = buildRightMeta({ author, hash, blob, qrTarget, raw, ts })
 
   img.className = 'avatar'
   img.id = 'image' + contentHash

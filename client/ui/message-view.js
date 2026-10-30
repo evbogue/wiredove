@@ -3,6 +3,9 @@ import { resolveImageSource, safeLinkURL, safeImageURL } from './image-source.js
 import { displayName, human, visual } from './format.js';
 import { appendFormattedText } from './body.js';
 import { renderAndFSMedia, disposeMedia } from './media-render.js';
+import { createRawControls } from './raw-controls.js';
+import { createQRControl, createQRTarget } from './qr.js';
+import { createMessageMeta } from './message-meta.js';
 
 // The canonical message component for both the APDS website and public widgets.
 // Explicit node extensions preserve website IDs, observers and control state in
@@ -111,12 +114,9 @@ export function createMessageView({
     author.addEventListener('click', event => navigate(event, { type: 'profile', author: post.author }));
   }
   let meta = extensions.metadata;
+  let defaultRaw = null;
+  let defaultTrailing = null;
   if (!meta) {
-    meta = doc.createElement('span');
-    meta.className = 'message-meta';
-    const pubkey = doc.createElement('span');
-    pubkey.className = 'pubkey';
-    pubkey.textContent = String(post.author || '').substring(0, 6);
     const timeLink = doc.createElement('a');
     timeLink.href = presentationURL(presentation.postURL?.(post)) ||
       `https://wiredove.net/#${encodeURIComponent(post.id || '')}`;
@@ -129,7 +129,39 @@ export function createMessageView({
     } else time.textContent = 'Unknown time';
     timeLink.append(time);
     timeLink.addEventListener('click', event => navigate(event, { type: 'post', id: post.id }));
-    meta.append(pubkey, ' ', timeLink);
+    let rawToggle = null;
+    if (post.signature && post.content) {
+      const rawControls = createRawControls({
+        id: post.id,
+        signature: post.signature,
+        content: post.content,
+        opened: presentation.opened?.(post),
+        document: doc,
+      });
+      rawToggle = rawControls.toggle;
+      defaultRaw = rawControls.rawDiv;
+    }
+    let qr = null;
+    if (typeof presentation.ensureQRious === 'function' && post.signature) {
+      defaultTrailing = createQRTarget({ document: doc });
+      qr = createQRControl({
+        blob: post.signature,
+        target: defaultTrailing,
+        loadQRious: presentation.ensureQRious,
+        document: doc,
+      });
+    }
+    meta = createMessageMeta({
+      post,
+      controls: {
+        qr,
+        rawToggle,
+        permalinkHref: presentationURL(presentation.postURL?.(post)) ||
+          `https://wiredove.net/#${encodeURIComponent(post.id || '')}`,
+        timestamp: timeLink,
+      },
+      document: doc,
+    });
   }
   const content = extensions.content || doc.createElement('div');
   if (!extensions.content) {
@@ -177,15 +209,9 @@ export function createMessageView({
     authorNode: author,
     content,
     replyContext: extensions.replyContext || replyContext,
-    raw: extensions.raw || (() => {
-      if (!post.signature || !post.content) return null;
-      const details = doc.createElement('details');
-      const summary = doc.createElement('summary'); summary.textContent = 'Details';
-      const bytes = doc.createElement('pre'); bytes.textContent = post.id + '\n' + post.signature + '\n' + post.content;
-      details.append(summary, bytes); return details;
-    })(),
+    raw: extensions.raw || defaultRaw,
     actions: extensions.actions || actions,
-    trailing: extensions.trailing,
+    trailing: extensions.trailing || defaultTrailing,
     document: doc,
   });
   let conversation;
