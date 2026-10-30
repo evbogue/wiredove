@@ -123,6 +123,44 @@ modules. Remaining in this section: edit summaries/navigation, moderation
 controls/stub, async profile updates, reply counts, timestamp observer (see
 SLICE1_AUDIT.md mapping). Checkboxes stay open until the full section is done.
 
+#### Review follow-up for Muse (2026-10-30, revision `0d1d67d`)
+
+The extraction is implemented, but the following acceptance gaps remain. Address
+them in the shared modules and their frame adapters before marking this sub-slice
+accepted. Recheck current source first so concurrent fixes are preserved.
+
+- [ ] Make raw and QR toggles keyboard accessible. In `raw-controls.js` and `qr.js`,
+  replace clickable anchors without `href` with native `button type="button"`
+  controls. Supply descriptive accessible names, visible focus, and accurate
+  `aria-expanded` state; associate the controlled panel where practical using
+  instance-unique IDs (the same post may appear more than once). Keep icon styling
+  and layout consistent in both frames. Verify Tab focus and Enter/Space activation,
+  open/close behavior, and state after QR loading failure. The public raw fallback
+  previously used native details/summary, so restoring keyboard access matters.
+- [ ] Generate QR codes from an explicit canonical post URL, never
+  `window.location.href + signature`. Have the frame supply the destination to the
+  shared QR control; use the same resolved destination as its permalink. Website
+  links must replace any current route with the intended post route; embeds must
+  honor their configured post URL and never encode the embedding page's location.
+  Preserve legacy signature-link resolution and signed bytes. Verify destinations
+  from the home page, an existing post/profile/search route, and a separate-origin
+  embed with a custom post URL. Capture the QR encoder's input and assert the exact
+  URL rather than testing only that a canvas appears.
+- [ ] Commit repeatable regression coverage for these shared controls in the normal
+  test commands. Cover raw contents and toggle state, metadata order/permalink,
+  keyboard activation, exact QR URL, loader failure and retry, and independent
+  controls for repeated instances of a post. Exercise the website adapter and
+  public widget paths; keep tests isolated from public publication. The focused
+  checks cited above are not committed regression coverage for the new modules.
+
+Acceptance: run `npm run check`, `npm test`, `npm run test:media`, and
+`npm run test:browser`; review desktop/mobile light/dark screenshots for button and
+focus styling, and observe a separate-origin embed. Record the actual results,
+remaining limitations, and fix commit here. Reviewer independently reproduced the
+check, 30 unit-test and 10 media-test passes for `0d1d67d`; this does not establish
+the missing control-specific acceptance above. Keep broader migration checkboxes
+open until their own requirements are met.
+
 - [ ] Audit website extensions and edit-event summaries against the canonical view;
   move reusable edit/history, moderation, raw-data, QR/share and author controls into
   shared components without losing existing website behavior.
