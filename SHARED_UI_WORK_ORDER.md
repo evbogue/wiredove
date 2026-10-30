@@ -494,3 +494,16 @@ This checkpoint reconciles the original 2026-10-03 plan with changes since the s
 ### Immediate next implementation slice
 
 Start with **C01**. Build a website/embed feature-parity fixture matrix, settle verification and DOM ownership, then mount the complete shared `wiredove-message` shell into one website feed while preserving edit/moderation/replies, galleries, and legacy media. Do not expand the scope into another independent UI, new editor or runtime rewrite in the same commit.
+
+## Interactive embed runtime — 2026-10-30
+
+Implemented an opt-in browser publishing session and shared identity panel, with
+IndexedDB identity/file drafts and exact signed outbox retry. evbogue.com supplies
+protocol, verified storage, upload and navigation adapters; shared UI remains here.
+Owner-only composing is enforced by both session and site backend. Imports remain
+inert. This completes the local interactive slice, not full website feature parity.
+
+Local site acceptance observes identity create/import, reply and owner publication,
+image draft reload, failed-save retry and conversation reload across two origins
+with public traffic blocked at 1280/390/320px. Full interactive two-client relay
+acceptance, real owner legacy-media review and production release remain separate.

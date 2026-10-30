@@ -6,6 +6,9 @@ import { createMediaControls } from './composer-media.js';
 // The host owns signing/storage and may persist drafts through its own adapter.
 // Detached widgets retain text and selected files in memory, per reply target.
 export class WiredoveComposer extends HTMLElement {
+  clearDraft() {
+    this._clearDraft?.();
+  }
   set onSubmit(value) { this._onSubmit = value; this._update?.(); }
   set replyTo(value) {
     if (this._replyTo === value) return;
@@ -14,14 +17,24 @@ export class WiredoveComposer extends HTMLElement {
     if (this.isConnected) this.render();
   }
   get replyTo() { return this._replyTo; }
-  connectedCallback() { this.render(); }
+  async connectedCallback() {
+    const key = this._replyTo?.id || 'new';
+    const drafts = this._drafts ||= new Map();
+    if (this.draftStore && !drafts.has(key)) {
+      try {
+        const saved = await this.draftStore.get('draft:' + key);
+        if (saved) drafts.set(key, saved);
+      } catch { this._draftError = 'Draft storage is unavailable. Keep this page open until you finish.'; }
+    }
+    if (this.isConnected) this.render();
+  }
   disconnectedCallback() { this._remember?.(); this._media?.destroy(); }
   render() {
     const generation = this._generation = (this._generation || 0) + 1;
     this._media?.destroy();
     const current = () => this.isConnected && this._generation === generation;
     const drafts = this._drafts ||= new Map();
-    const key = typeof this._replyTo === 'object' ? JSON.stringify(this._replyTo) : this._replyTo || 'new';
+    const key = this._replyTo?.id || 'new';
     const draft = drafts.get(key) || {};
     const root = this.shadowRoot || this.attachShadow({ mode: 'open' });
     root.replaceChildren(); applyWiredoveStyles(root);
@@ -30,7 +43,20 @@ export class WiredoveComposer extends HTMLElement {
     textarea.value = draft.body || '';
     let file = draft.file || null, busy = false, publishing = false;
     let imageButton;
-    const remember = this._remember = () => drafts.set(key, { body: textarea.value, file });
+    const persist = value => {
+      if (!this.draftStore) return Promise.resolve();
+      const previous = this._persisting || Promise.resolve();
+      const operation = previous.catch(() => {}).then(() => value
+        ? this.draftStore.set('draft:' + key, value) : this.draftStore.delete('draft:' + key));
+      this._persisting = operation;
+      operation.catch(() => { if (current()) surface.status.textContent = 'Could not save draft in this browser. Keep this page open.'; });
+      return operation;
+    };
+    const remember = this._remember = () => {
+      const value = { body: textarea.value, file };
+      drafts.set(key, value);
+      void persist(value);
+    };
     const update = () => {
       surface.publish.disabled = publishing || busy || typeof this._onSubmit !== 'function' || (!textarea.value.trim() && !file);
       surface.tools.inert = publishing;
@@ -52,6 +78,7 @@ export class WiredoveComposer extends HTMLElement {
           const result = await this._onSubmit(payload);
           if (result?.saved === false || result?.ok === false) throw new Error('Publication was not saved. Your draft is still here.');
           drafts.delete(key);
+          await persist(null);
           if (!current()) return;
           textarea.value = ''; media.reset(); file = null;
           surface.status.textContent = result?.relayed === false ? 'Saved locally; relay confirmation pending.' : 'Published.';
@@ -61,6 +88,10 @@ export class WiredoveComposer extends HTMLElement {
         } finally { if (current()) { publishing = false; update(); } }
       }
     });
+    this._clearDraft = () => {
+      textarea.value = ''; media.reset(); file = null;
+      drafts.delete(key); void persist(null); update();
+    };
     this._surface = surface;
     this._update = update;
     const media = createMediaControls({
@@ -82,6 +113,7 @@ export class WiredoveComposer extends HTMLElement {
     surface.tools.append(imageButton, image, media.actions);
     surface.attachments.append(media);
     root.append(surface.root); update();
+    if (this._draftError) surface.status.textContent = this._draftError;
     if (draft.file) void media.attach(draft.file);
   }
 }

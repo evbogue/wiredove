@@ -1,3 +1,4 @@
+import { createIdentityPanel } from './identity-panel.js';
 import { applyWiredoveStyles } from "./styles.js";
 import { registerElement } from "./element.js";
 import { displayName } from "./format.js";
@@ -59,6 +60,12 @@ export class WiredoveWidget extends HTMLElement {
     this._posts = Array.isArray(value) ? value : [];
     this.render();
   }
+  set session(value) {
+    this._session = value;
+    this._identityPanel = null;
+    if (this.isConnected) this.render();
+  }
+  set draftStore(value) { this._draftStore = value; }
   set onPublish(value) {
     this._onPublish = value;
     if (this.isConnected) this.render();
@@ -78,6 +85,7 @@ export class WiredoveWidget extends HTMLElement {
   }
   set presentation(value) {
     this._presentation = value || {};
+    if (value?.appearance) this.setAttribute('appearance', value.appearance);
     this.render();
   }
   connectedCallback() {
@@ -118,7 +126,8 @@ export class WiredoveWidget extends HTMLElement {
     nav.hidden = this._presentation?.navigation === false;
     const title = document.createElement("span");
     title.className = "widget-title";
-    title.textContent = "Wiredove";
+    title.textContent = this._presentation?.title ?? 'Wiredove';
+    title.hidden = !title.textContent;
     const button = (label, target) => {
       const control = document.createElement("button");
       control.textContent = label;
@@ -133,6 +142,7 @@ export class WiredoveWidget extends HTMLElement {
     if (this.capabilities.compose) {
       nav.append(button("Write", { type: "compose" }));
     }
+    if (this._session) nav.append(button('Identity & pending posts', { type: 'identity' }));
     if (this.feed) {
       const refresh = button("Refresh", { type: "feed" });
       refresh.onclick = () => this.refresh();
@@ -154,7 +164,23 @@ export class WiredoveWidget extends HTMLElement {
         view.append(feed);
       }
     };
-    if (route.type === "profile") {
+    const identityPanel = () => {
+      this._identityPanel ||= createIdentityPanel(this._session, {
+        onChange: () => this.dispatchEvent(new CustomEvent('wiredove-identitychange', { bubbles: true })),
+        onRetry: results => {
+          for (const result of results) if (result.saved && result.post) {
+            const key = result.post.parsed.reply || 'new';
+            this._composers?.get(key)?.clearDraft();
+          }
+          this.dispatchEvent(new CustomEvent('wiredove-retry', { detail: results, bubbles: true }));
+        },
+      });
+      return this._identityPanel;
+    };
+    if (route.type === 'identity' && this._session) {
+      view.replaceChildren(identityPanel());
+      void this._identityPanel.refresh();
+    } else if (route.type === "profile") {
       const profilePosts = posts.filter((post) => post.author === route.author);
       const heading = view.querySelector('h3') || document.createElement('h3');
       heading.textContent = displayName(profilePosts[0]?.parsed, route.author);
@@ -213,24 +239,49 @@ export class WiredoveWidget extends HTMLElement {
       if (!composer) {
         composer = document.createElement('wiredove-composer');
         composer.replyTo = route.replyTo || null;
+        composer.draftStore = this._draftStore;
+        if (this._presentation?.appearance) composer.setAttribute('appearance', this._presentation.appearance);
         this._composers.set(key, composer);
       }
       composer.onSubmit = async draft => {
         const permitted = draft.replyTo ? this.capabilities.reply : this.capabilities.compose;
         if (!permitted || typeof this._onPublish !== 'function') throw new Error('Publishing is unavailable. Your draft is still here.');
-        const result = await this._onPublish(draft);
+        let result;
+        try { result = await this._onPublish(draft); }
+        finally { if (this._identityPanel) void this._identityPanel.refresh(); }
         if (result?.saved === false || result?.ok === false) throw new Error('Publication was not saved. Your draft is still here.');
         this.dispatchEvent(new CustomEvent('wiredove-compose', {
           detail: { ...draft, result }, bubbles: true,
         }));
         return result;
       };
-      if (composer.parentNode !== view) { view.replaceChildren(); view.append(composer); }
+      if (composer.parentNode !== view) {
+        view.replaceChildren();
+        if (this._session) { view.append(identityPanel()); void this._identityPanel.refresh(); }
+        if (route.replyTo) {
+          const context = document.createElement('p'); context.textContent = 'Replying to ' + displayName(route.replyTo.parsed, route.replyTo.author);
+          view.append(context);
+        }
+        view.append(composer);
+      }
     } else {
       const roots = posts.filter((post) =>
         !post.parsed?.reply && !post.parsed?.replyHash
       );
-      if (roots.length) attachFeed(roots);
+      if (roots.length) {
+        const size = this.pageSize > 0 ? this.pageSize : roots.length;
+        this._feedLimit = Math.max(this._feedLimit || 0, size);
+        attachFeed(roots.slice(0, this._feedLimit));
+        let more = view.querySelector('[data-load-older]');
+        if (roots.length > this._feedLimit) {
+          if (!more) {
+            more = document.createElement('button'); more.type = 'button'; more.dataset.loadOlder = '';
+            more.textContent = 'Show older cached posts';
+            more.onclick = () => { this._feedLimit += size; this.render(); };
+            view.append(more);
+          }
+        } else more?.remove();
+      }
       else view.textContent = "No posts yet.";
     }
   }

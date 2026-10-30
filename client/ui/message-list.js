@@ -35,6 +35,7 @@ export function updateMessageList(host, rows) {
       host.dispatchEvent(new CustomEvent('wiredove-reply', { detail: value, bubbles: true }));
     } : null;
     message.onNavigate = typeof host._onNavigate === 'function' ? route => host._onNavigate(route) : null;
+    if (host._presentation?.appearance) message.setAttribute('appearance', host._presentation.appearance);
     message.presentation = host._presentation;
     message.post = post;
     const next = previous ? previous.nextSibling : host._list.firstChild;

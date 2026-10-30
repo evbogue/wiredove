@@ -313,3 +313,23 @@ validation boundaries and release notes. `npm run test:browser` includes signed
 fixture, separate-origin, keyboard, draft failure/retry and playback-retention
 checks at desktop, 390px and 320px in light/dark modes. Publication callbacks in
 that suite are injected; actual site storage/relay acceptance is a separate gate.
+
+### Interactive host sessions
+
+`client/runtime/browser-store.js` exports opt-in IndexedDB storage (including File
+attachments). `client/runtime/publishing-session.js` exports a transport-neutral
+session with injected protocol/host/upload adapters. Assign `widget.session`,
+`widget.draftStore = session.store`, `widget.onPublish = session.publish`, and
+explicit capabilities. The shared identity panel appears on Reply and under
+Identity & pending posts. Keys are persisted only in the browser; backups require
+an explicit download/import. Import verifies the private/public key pair.
+
+Sessions persist exact signed outbox records before sending, serialize publishes,
+block signing another message until retry completes, and distinguish local save
+from relay confirmation. Hosts refresh verified posts on `wiredove-compose` and
+`wiredove-retry`; neither event is a request to publish again. Handle
+`wiredove-identitychange` to enable owner-only top-level composing. Persist compose
+routes in the host so reloading restores the target as well as its stored draft.
+`presentation.appearance = 'publication'` enables a quiet, light publication
+surface without changing default Wiredove styling. Storage is opened only when a
+host explicitly creates/initializes the session; importing widgets stays inert.
