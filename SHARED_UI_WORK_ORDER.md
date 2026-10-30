@@ -523,3 +523,20 @@ font/media fixes, as well as the desktop website. The real flow additionally
 checks immediate profile reload durability and reply-target draft restoration.
 Focused archive tests passed again after final retrieval-size bounds. GitHub
 synchronization is recorded by the containing commit; no deployment was performed.
+
+### 2026-10-30 composer symbol-font correction
+
+The bundled icon font was registered as `Wiredove Symbols`, but the more specific
+`.composer-icon .material-symbols-outlined` rule still selected only the Google
+family. Composer controls now select the bundled family first, retaining the Google
+fallback for standalone legacy surfaces. The generated embed stylesheet is rebuilt;
+the coordinated shell cache is `v20-symbol-font`. The separate-origin application
+suite now asserts every composer icon selects the loaded bundled font at desktop,
+390px and 320px in both themes. This closes the visual gap missed in milestone-1
+review; it does not change milestone scope or deploy production.
+
+Validation: `npm run build:embed`, all six separate-origin application-shadow
+variants, and the gallery/website/browser warm-cache upgrade suite passed. A fresh
+headed two-origin demo passed the real signed flow with both composers opened;
+the populated embed screenshot was inspected and its upload/raw/close icons render
+correctly. No identity storage was cleared.

@@ -1101,7 +1101,7 @@ button:disabled { cursor: default; opacity: .6; }
 }
 .composer-attachments img.media-player { object-fit: contain; background: transparent; }
 .composer-icon .material-symbols-outlined {
-  font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal;
+  font-family: 'Wiredove Symbols', 'Material Symbols Outlined'; font-weight: normal; font-style: normal;
   line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block;
   white-space: nowrap; word-wrap: normal; direction: ltr; font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased; color: inherit; width: 1em; height: 1em; overflow: hidden;

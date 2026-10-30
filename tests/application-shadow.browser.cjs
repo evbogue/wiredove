@@ -88,6 +88,10 @@ window.run=async()=>{window.apps=await Promise.all(['one','two'].map(mount));win
     apps[0].root.append(await composer(null,{application:apps[0]}));
    },source);
    await app.getByRole('dialog').waitFor();
+   const composerIcons = await app.locator('.composer-icon .material-symbols-outlined').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).fontFamily));
+   assert.ok(composerIcons.length > 0);
+   assert.ok(composerIcons.every(family => family.split(',')[0].trim() === '"Wiredove Symbols"'));
+   assert.equal(await page.evaluate(() => [...document.fonts].some(face => face.family.replaceAll('"', '') === 'Wiredove Symbols' && face.status === 'loaded')), true);
    await page.waitForTimeout(50);
    assert.equal(await page.locator('#host-button').evaluate(n=>n.inert),false);
    await page.locator('#host-button').click();
