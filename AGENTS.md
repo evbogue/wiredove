@@ -249,3 +249,21 @@ Ev explicitly requested on 30 October 2026 that local work and GitHub stay synch
 - Fetch again before pushing. If GitHub advanced, integrate the new commits, rerun affected checks, and retry a normal push. After pushing, verify the local HEAD equals the intended GitHub branch tip and inspect the remaining worktree status. Report the commit, branch, checks, and any remaining changes or divergence automatically.
 - If authentication, network access, conflicts, failing checks, or unfinished work prevent synchronization, preserve the work and report the exact blocker. Do not claim synchronization from an attempted push or a stale remote-tracking ref. Clearly label any intentionally preserved unfinished checkpoint.
 - A GitHub push is source synchronization, not permission to deploy services, publish public test messages, send email, or change production data. Existing release and publication rules still apply. Do not install background auto-pull jobs; sync at session boundaries and coordinated handoffs.
+
+## Production release verified — 2026-10-30
+
+Wiredove application `ce8c006` is deployed in detached worktree
+`/root/wiredove-release-ce8c006`; wiredove.service retains port 8081, the existing
+VAPID configuration and `/root/wiredove/data` symlink. Previous active release
+`651ae37` and `/root/wiredove-service-before-ce8c006.service` are retained for
+rollback. Original checkout production edits remain untouched. Server frozen-lock
+check passed after pinning IDB 8.0.3 to npm and recording the pinned APDS build.
+Local check, 38 unit tests, 12 media/artifact tests and the complete browser suite
+passed. Public app.js, sw.js, style.css and application runtime hashes match the
+release. Mobile 390px smoke showed no overflow or JavaScript exceptions. No public
+fixture writes were sent. Reverse proxy unchanged and active.
+
+Evbogue.com was already synchronized at `8690a4c` (documentation following deployed
+application `2ce443b`); public timeline client/session/preview hashes match source.
+No site reload was necessary. The planned replacement of its existing widget with
+the full application mount remains separate unfinished work, not part of this release.
