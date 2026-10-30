@@ -363,3 +363,62 @@ lease; callers own a lease if application creation fails before returning an app
 Post/profile and identity writes share `runtime/signing-queue.js`. Suspending the
 network queue retains exact bytes in memory for resumption; this is not a durable
 website outbox across page reloads. No existing identity storage is migrated.
+
+### Experimental Shadow DOM application mount
+
+The website and the JavaScript host now call `runtime/mount.js:mountApplication`.
+The browser entry `/app-embed.js` exports it as `mountWiredove` through the generated
+`/dist/app-v1/app-embed.js` graph. Importing this entry requires no host import map
+and does not start APDS, open media databases or register a service worker.
+
+```js
+import { mountWiredove } from 'https://YOUR-WIREDOVE-SERVER/app-embed.js';
+const app = await mountWiredove(document.querySelector('#wiredove'), {
+  session: compatibleSessionLease,
+});
+await app.navigate('?search');
+await app.destroy();
+```
+
+This API is experimental: a compatible initialized APDS session lease is required;
+a ready default backend/identity adapter for arbitrary hosts is still open. A lease
+provides serialized `runExclusive(operation)` and `release()` operations and must
+own the same APDS singleton used by this graph. Passing an arbitrary publisher or
+lease does not replace that data/identity implementation. Do not treat this as the
+completed real publication embed or enable it for public writes yet. Routes remain
+website route strings. Internal navigation is default; the website explicitly
+supplies its hash adapter. Named initialRoute/theme/capability options in the work
+order remain design targets. Theme currently follows the browser color scheme.
+
+An application creates its own open shadow root, stylesheet, scroll surface and
+root-owned dialogs. Existing shadow roots are rejected; a root created by Wiredove
+can be reused after `destroy()`. Root CSS/font styles and hash navigation remain
+separate from the host. The namespaced icon font uses the document font registry
+on explicit mount; it does not change host styles. Host scripts still share the
+origin's execution/storage context: Shadow DOM is UI containment, not isolation
+of secrets. Identity/settings reload actions, backend/media URL policy and browser
+capability controls remain part of the next adapter slice.
+
+Run `npm run build:embed` after source edits. `scripts/build-app-embed.js` copies the
+reachable application graph and assets, resolves APDS/h to pinned explicit CDN
+URLs and emits SHA-256 hashes in `dist/app-v1/manifest.json`. Edit source files,
+never distribution copies. `npm run check` regenerates the graph. v1 is the
+experimental API namespace; pin the repository/release revision and its complete
+manifest for reproducibility. This source change does not publish or deploy it.
+The generated graph contains no website bootstrap/service-worker entry. Optional
+Node store imports in pinned AndFS remain guarded branches, never browser imports.
+
+The server supplies CORS for the public entry and versioned graph. A static host
+must serve every graph file with correct MIME types and permissive read CORS;
+keep script/style/image dependencies on the application source origin. CSP must
+allow that origin, pinned esm.sh dependencies and the optional Google font/style
+origins. Highlight/QR scripts retain their explicit cdnjs URLs. Backend CORS and
+browser recording/notification policy are still pending adapter work.
+
+`tests/application-shadow.browser.cjs` observes two non-iframe application mounts
+on a separate localhost origin without an import map. Offline APDS/session
+fixtures prove structural/style/lifecycle behavior, not cryptographic publication.
+It covers hostile host CSS, host hash/body preservation, internal navigation,
+identity/composer/gallery/crop dialog placement, keyboard close, remount, import
+inertness, and 1200/390/320px in light/dark themes. Screenshots are written under
+`test-results/application-shadow-*.png`.

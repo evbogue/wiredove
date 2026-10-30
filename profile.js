@@ -5,7 +5,11 @@ import { createProfileEditor } from './client/ui/profile-editor.js'
 import { uploadProfilePhoto } from './upload.js'
 
 const cache = new Map()
-setInterval(() => { cache.clear() }, 60000)
+let cacheTime = Date.now()
+const getCachedImage = key => {
+  if (Date.now() - cacheTime > 60000) { cache.clear(); cacheTime = Date.now() }
+  return cache.get(key)
+}
 
 export const nameDiv = async () => {
   const name = await apds.get('name')
@@ -40,8 +44,8 @@ export const imageSpan = async () => {
   const existingImage = await apds.get('image')
 
   if (existingImage) { 
-    if (cache.get(existingImage)) {
-      avatarImg.src = cache.get(existingImage)
+    if (getCachedImage(existingImage)) {
+      avatarImg.src = getCachedImage(existingImage)
     } else {
       const src = await resolveImageSrc(existingImage)
       if (src) { avatarImg.src = src; cache.set(existingImage, src) }
@@ -59,8 +63,8 @@ export const avatarSpan = async () => {
   const existingImage = await apds.get('image')
   
   if (existingImage) { 
-    if (cache.get(existingImage)) {
-      avatarImg.src = cache.get(existingImage)
+    if (getCachedImage(existingImage)) {
+      avatarImg.src = getCachedImage(existingImage)
     } else {
       const src = await resolveImageSrc(existingImage)
       if (src) { avatarImg.src = src; cache.set(existingImage, src) }

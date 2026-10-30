@@ -6,7 +6,7 @@ export const scopeDocument = (root) => {
     body: root,
     documentElement: owner.documentElement,
     scrollingElement: owner.scrollingElement,
-    get activeElement() { return root.activeElement || owner.activeElement },
+    get activeElement() { return root.activeElement || root.getRootNode?.().activeElement || owner.activeElement },
     getElementById: id => owner.defaultView?.CSS?.escape
       ? root.querySelector('#' + owner.defaultView.CSS.escape(id))
       : Array.from(root.querySelectorAll('[id]')).find(node => node.id === id) || null,

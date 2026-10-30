@@ -1,3 +1,4 @@
+import { showScopedDialog } from './dialog-scope.js';
 import { createProfileLinksEditor } from './profile-links.js';
 import { createPhotoCropper } from './photo-cropper.js';
 import { readImageFile } from './image-source.js';
@@ -84,7 +85,7 @@ export function createProfileEditor({ name = '', bio = '', links = [], imageSrc 
       dialog.addEventListener('cancel', event => { if (applying) event.preventDefault(); });
       dialog.addEventListener('close', () => { closed = true; controller?.destroy(); URL.revokeObjectURL(url); dialog.remove(); }, { once: true });
       cancel.onclick = () => dialog.close();
-      document.body.append(dialog); dialog.showModal();
+      showScopedDialog(dialog, photo);
       controller = await createPhotoCropper(stage, preview, source, settings, value => {
         zoom.value = value.zoom; angle.value = value.angle; angleValue.textContent = `${value.angle.toFixed(1)}°`;
         angle.setAttribute('aria-valuetext', `${value.angle.toFixed(1)} degrees`);

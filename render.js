@@ -102,7 +102,7 @@ const highlightCodeIn = async (container) => {
   if (!nodes.length) { return }
   let hljs
   try {
-    hljs = await ensureHighlight()
+    hljs = await ensureHighlight(root.getRootNode?.() || root)
   } catch (err) {
     console.warn('highlight load failed', err)
     return

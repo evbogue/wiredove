@@ -29,8 +29,8 @@ const loadScript = (src) => new Promise((resolve, reject) => {
   document.head.appendChild(script)
 })
 
-const loadStylesheet = (href) => new Promise((resolve, reject) => {
-  const existing = document.querySelector(`link[rel="stylesheet"][href="${href}"]`)
+const loadStylesheet = (href, root = document) => new Promise((resolve, reject) => {
+  const existing = root.querySelector(`link[rel="stylesheet"][href="${href}"]`)
   if (existing) {
     resolve()
     return
@@ -40,11 +40,13 @@ const loadStylesheet = (href) => new Promise((resolve, reject) => {
   link.href = href
   link.addEventListener('load', () => resolve(), { once: true })
   link.addEventListener('error', () => reject(new Error('Failed to load stylesheet: ' + href)), { once: true })
-  document.head.appendChild(link)
+  ;(root === document ? document.head : root).appendChild(link)
 })
 
-export const ensureHighlight = async () => {
-  if (!hljsStylePromise) {
+export const ensureHighlight = async (root = document) => {
+  if (root !== document) {
+    await loadStylesheet(HLJS_STYLE_URL, root)
+  } else if (!hljsStylePromise) {
     hljsStylePromise = loadStylesheet(HLJS_STYLE_URL).catch((err) => {
       hljsStylePromise = null
       throw err

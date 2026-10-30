@@ -1,4 +1,5 @@
 import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
+import { showScopedDialog } from './client/ui/dialog-scope.js'
 import { h } from 'h'
 import { apds } from 'apds'
 import { scopeDocument } from './client/runtime/application-context.js'
@@ -74,9 +75,8 @@ const openIdentitySetup = (application) => {
   dialog.append(step, title, explanation, form)
   dialog.addEventListener('cancel', (event) => { if (busy) event.preventDefault() })
   dialog.addEventListener('close', () => dialog.remove(), { once: true })
-  document.body.append(dialog)
   application?.cleanup.push(() => dialog.remove())
-  dialog.showModal()
+  showScopedDialog(dialog, application?.root)
   name.focus()
 }
 

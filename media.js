@@ -7,9 +7,11 @@ import { browserStore } from './vendor/andfs/stores.js'
 import { an } from './vendor/anproto/an.js'
 import { apds } from 'apds'
 
-const legacyLocalStore = new IndexedDBBlobStore('wiredove-media-v1')
+let legacyStore
+const getLegacyStore = () => legacyStore ||= new IndexedDBBlobStore('wiredove-media-v1')
 const legacyRemoteStore = new HttpBlobStore('/blobs')
-const andfsStorePromise = browserStore('wiredove-andfs-v1')
+let andfsStorePromise
+const getAndFSStore = () => andfsStorePromise ||= browserStore('wiredove-andfs-v1')
 const mediaLoaders = new WeakMap()
 const mediaLoadObserver = typeof IntersectionObserver === 'undefined'
   ? null
@@ -23,17 +25,17 @@ const mediaLoadObserver = typeof IntersectionObserver === 'undefined'
 
 async function loadLegacyMediaBytes(id) {
   try {
-    return await getBlob(id, legacyLocalStore)
+    return await getBlob(id, getLegacyStore())
   } catch {
     const bytes = await getBlob(id, legacyRemoteStore)
-    const cached = await putBlob(bytes, legacyLocalStore)
+    const cached = await putBlob(bytes, getLegacyStore())
     if (cached !== id) throw new Error('Downloaded legacy media changed identity')
     return bytes
   }
 }
 
 export async function storeMedia(input, options = {}) {
-  const localStore = await andfsStorePromise
+  const localStore = await getAndFSStore()
   const client = createAndFSMediaClient({
     files: createAndFS({ store: localStore }),
     async signPayload(authorization) {
@@ -54,7 +56,7 @@ export async function renderMedia(yaml, container) {
     }
     defineWiredoveMedia()
     const media = document.createElement('wiredove-media')
-    media.mediaOptions = { store: await andfsStorePromise }
+    media.mediaOptions = { store: await getAndFSStore() }
     media.attachment = yaml
     container.append(media)
     return true
@@ -110,7 +112,7 @@ export function createMediaComposer(options = {}) {
   return createMediaControls({
     ...options, persistMedia: blob => storeMedia(blob, options),
     resolveAttachment: async attachment => new Blob([attachment.andfs
-      ? await readAndFSMedia(attachment, { store: await andfsStorePromise })
+      ? await readAndFSMedia(attachment, { store: await getAndFSStore() })
       : await loadLegacyMediaBytes(attachment.blob)], { type: attachment.mime || '' })
   })
 }

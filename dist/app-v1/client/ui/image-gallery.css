@@ -1,0 +1,66 @@
+/* The same sheet applies inside message shadow roots and the document-level dialog. */
+wiredove-image-gallery.image-gallery {
+  display: flex; flex-wrap: wrap; align-items: flex-start;
+  gap: 6px; width: 100%; min-width: 0; margin-block: 10px;
+}
+.image-gallery .image-gallery-cell {
+  position: relative; flex: 0 0 min(140px, 100%); aspect-ratio: 1;
+  min-width: 0; overflow: hidden; border-radius: 12px;
+}
+.image-gallery[data-count="1"] .image-gallery-cell { flex-basis: min(220px, 100%); }
+.image-gallery .image-gallery-tile {
+  display: block; position: relative; width: 100%; height: 100%; min-height: inherit;
+  margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--wiredove-surface, #eee);
+  color: var(--wiredove-text, #444); overflow: hidden; cursor: zoom-in; font: inherit;
+}
+.image-gallery .image-gallery-tile img {
+  display: block; width: 100%; height: 100%; min-height: inherit; margin: 0;
+  object-fit: cover; opacity: 0; border-radius: 0;
+}
+.image-gallery .image-loaded img { opacity: 1; }
+.image-gallery .image-gallery-status {
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding: 8px; box-sizing: border-box; overflow-wrap: anywhere; text-align: center;
+  font-size: .85rem; pointer-events: none;
+}
+.image-gallery .image-gallery-status:empty { display: none; }
+.image-gallery .image-gallery-retry {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  z-index: 1; margin: 0; font: inherit; font-size: .8rem;
+}
+.image-gallery button:focus-visible { outline: 3px solid #796afd; outline-offset: -3px; }
+.image-gallery [hidden], .image-popover [hidden] { display: none !important; }
+dialog.image-popover {
+  box-sizing: border-box; position: fixed; inset: 0; width: 100%; height: 100%;
+  max-width: none; max-height: none; margin: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  border: 0; border-radius: 0; background: #111f; color: white; font: 16px system-ui, sans-serif;
+  z-index: 1100; overflow: hidden;
+}
+dialog.image-popover:not([open]) { display: none; }
+dialog.image-popover[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; }
+dialog.image-popover::backdrop { background: #000a; }
+.image-popover .image-popover-controls { display: flex; gap: 10px; justify-content: center; align-items: center; }
+.image-popover .image-popover-controls button, .image-popover .image-popover-stage button {
+  flex: 0 0 auto; width: auto; min-width: 44px; height: 44px; padding: 8px 14px; margin: 0;
+  border: 1px solid #ffffff40; border-radius: 99px; background: #ffffff14; color: white; font: inherit; cursor: pointer;
+}
+.image-popover button:disabled { opacity: .3; cursor: default; }
+.image-popover button:focus-visible, .image-popover a:focus-visible { outline: 3px solid #a99fff; outline-offset: 2px; }
+.image-popover .image-popover-counter { min-width: 75px; text-align: center; font-variant-numeric: tabular-nums; }
+.image-popover .image-popover-stage { min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; touch-action: pan-y pinch-zoom; }
+.image-popover img.image-popover-image {
+  width: auto; height: auto; min-height: 0; min-width: 0; max-width: 100%; max-height: 100%;
+  object-fit: contain; cursor: zoom-out; margin: 0; border-radius: 4px; background: transparent; box-shadow: none;
+}
+.image-popover .image-popover-image:not([src]) { display: none; }
+.image-popover .image-popover-status { color: #ddd; display: flex; align-items: center; gap: 8px; }
+.image-popover .image-popover-footer { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: center; align-items: center; font-size: .875rem; min-height: 1.5em; }
+.image-popover .image-popover-footer a { color: #c6c0ff; }
+.image-popover .image-popover-caption { max-width: 65ch; overflow-wrap: anywhere; max-height: 4em; overflow: auto; }
+
+.image-sync-active::before {
+  content: ''; display: inline-block; width: 16px; height: 16px;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: image-sync-spin 1s linear infinite;
+}
+@keyframes image-sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .image-sync-active::before { animation: none; } }

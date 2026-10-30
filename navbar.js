@@ -156,7 +156,7 @@ export const navbar = async (application) => {
 
   const left = h('span', {classList: 'navbar-left'}, [
     h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
-      h('img', {src: './dovepurple_sm.png', classList: 'avatar_small', alt: ''})
+      h('img', {src: new URL('./dovepurple_sm.png', import.meta.url).href, classList: 'avatar_small', alt: ''})
     ]),
     await composeButton(application),
   ])

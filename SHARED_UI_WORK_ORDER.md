@@ -1,8 +1,9 @@
 # Mountable Wiredove application work order
 
 Updated 2026-10-30 following Ev's request for a full Wiredove JavaScript embed.
-Status: internal application UI ownership extracted; public embed mount API and
-full milestone-1 acceptance remain unimplemented.
+Status: experimental shared Shadow DOM mount and generated browser import graph
+implemented. Default host backend/capability adapters and full milestone-1
+acceptance remain open.
 Source-review baseline: `6f8d213`. This is the sole shared UI/application-embed work
 order. It replaces the earlier component-first plan, `client/WORK_ORDER.md`, and
 `docs/SHARED_MESSAGE_HANDOFF.md`; historical evidence remains in Git history.
@@ -24,7 +25,7 @@ Individually importable widgets remain supported for hosts that want only a piec
 
 - `app.js` calls `website-application.js`, which starts the shared APDS session and
   creates the internal application UI runtime. Service-worker registration stays
-  in the website bootstrap. Public embed services and mount API remain open.
+  in the website bootstrap. Default embed services remain open; the current mount API is experimental.
 - `route.js:createRouter` now owns panels, feed orchestration and scroll state per
   application through root/navigation/scroll/controller dependencies. The website
   supplies a window-hash adapter; internal navigation has no host hash effects.
@@ -354,3 +355,75 @@ publication occurred. Source revision is the commit containing this entry.
 Validation: `npm run check`, `npm test` (35 tests), `npm run test:media`
 (10 tests) and `npm run test:browser` passed. Focused application/transport
 ownership acceptance passed again after the final stale-callback guards.
+
+
+### 2026-10-30 shared Shadow DOM mount and browser distribution
+
+The website now calls `client/runtime/mount.js:mountApplication`, the same function
+exported by `/app-embed.js` as `mountWiredove`. Both use the extracted application;
+no new renderer or smaller widget application was introduced. Each mount owns an
+open Shadow DOM root, shared application stylesheet, navigation, scroll surface,
+focus handling and dialogs. Destroy releases its session and clears the shadow;
+remount reuses a Wiredove-owned root. Existing foreign shadow roots are rejected.
+Website URL integration is explicit and its identity database name is unchanged.
+
+`client/application.css` consumes the website stylesheet with root layout rules.
+Navbar placement, scroll bounds and composer viewport sizing are application-owned.
+Identity and photo-crop dialogs use a shared scoped-dialog helper; gallery viewers
+are keyed to the containing application shadow root, including nested message
+shadows. Keyboard close/focus return stay in the application. Highlight styles
+also load within their rendering root. Fonts use an explicitly named application
+font; source-relative image and stylesheet URLs resolve from module locations.
+
+`npm run build:embed` emits `dist/app-v1` from the reachable source graph, preserving
+relative module/asset paths and replacing APDS/h bare imports with their pinned
+explicit URLs. A SHA-256 manifest covers emitted files. The public root entry
+forwards to this graph; no host import map is needed. The build rejects unexpected
+bare dependencies and website bootstrap inclusion. Generated vendor copies retain
+their original code and licenses; pinned vendor sources were not edited.
+`serve.js` enables read CORS for the versioned graph and public entry. Nothing has
+been deployed. Rebuild after edits; never maintain distribution copies by hand.
+
+Import inertness: legacy/AndFS media databases now open on first use, and the
+profile image cache expires lazily rather than starting a timer on import. The
+application distribution does not initialize APDS, register service workers or
+open media stores merely by importing it. The website retains explicit service
+startup and service-worker registration, including when startup finishes after
+window load. Shell cache version: `v18-shadow-application`.
+
+Observed acceptance: `tests/application-shadow.browser.cjs` serves the public entry
+and versioned assets on one localhost origin and a plain HTML host on another.
+It observes two actual JavaScript application mounts, with zero iframes and zero
+host import maps. Offline APDS/session fixtures and blocked non-font external
+requests prevent public publication. Checks cover host CSS resistance, independent
+navigation, unchanged host hash/body style, identity/composer/gallery/crop dialog
+placement, Escape behavior, host-control usability, disposal/remount and zero
+IndexedDB opens on import. The real Cropper.js dialog was opened and canceled.
+The matrix passes at 1200, 390 and 320 px in both light/dark schemes.
+
+Screenshots in `test-results/application-shadow-*.png` were inspected, including
+320px light and 1200px dark. Review exposed a mobile icon font issue; explicit
+namespaced font loading fixed it. These screenshots show the empty offline app
+shells and host CSS separation, not populated-feed or real-publication parity.
+The existing actual website-bootstrap offline search/home check still runs through
+the shared mount. Existing gallery/message/media compatibility suites remain
+required; this change does not establish complete shared-feature acceptance.
+
+Current API limitations are explicit in `client/README.md`: a compatible initialized
+APDS session lease is required, the graph still uses its pinned APDS singleton,
+and the complete default backend/storage/identity adapter is not implemented.
+Identity/settings host reload actions, capability restrictions (including recording
+and notifications), canonical URL/backend/media policy, durable website outbox and
+real two-author profile → post → thread → reply/reload acceptance remain open.
+The proposed initialRoute/theme object API remains a design target; current routes
+are website strings and theme follows browser preferences. Milestone 1 stays open.
+
+Validation for this slice: `npm run check` (including generated graph build),
+`npm test` (35 tests), `npm run test:media` (10 tests), and `npm run test:browser`
+passed. Focused separate-origin shadow, website ownership/bootstrap and composer
+notification acceptance passed after final mount/dialog changes. The 320px light
+composer screenshot was also inspected: host controls retain their own style and
+the composer fits its application scroll surface. Repeated destruction of an old
+instance is checked after remount and cannot clear the newer instance. The
+committed distribution contains 81 copied source/asset/license files plus its
+entry wrapper and manifest; pinned APDS/h remain explicit CDN dependencies.

@@ -4,13 +4,13 @@ const viewers = new WeakMap();
 const styleURL = new URL('./image-gallery.css', import.meta.url).href;
 
 // One lazily mounted native dialog per document, including iframe documents.
-export function createImagePopover({ document: doc = globalThis.document, getImage, requestImage, delegateRoot } = {}) {
-  if (viewers.has(doc)) return viewers.get(doc);
-  if (!doc.querySelector('link[data-wiredove-gallery]')) {
+export function createImagePopover({ document: doc = globalThis.document, getImage, requestImage, delegateRoot, root = doc } = {}) {
+  if (viewers.has(root)) return viewers.get(root);
+  if (!root.querySelector('link[data-wiredove-gallery]')) {
     const style = doc.createElement('link');
     style.rel = 'stylesheet'; style.href = styleURL;
     style.dataset.wiredoveGallery = '';
-    doc.head.append(style);
+    (root === doc ? doc.head : root).append(style);
   }
   const dialog = doc.createElement('dialog');
   dialog.className = 'image-popover';
@@ -106,8 +106,8 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
     if (event.key === 'Tab') {
       const focusable = [...dialog.querySelectorAll('button, a[href]')].filter(el => !el.disabled && !el.hidden);
       const first = focusable[0], last = focusable.at(-1);
-      if (event.shiftKey && doc.activeElement === first) { event.preventDefault(); last.focus(); }
-      if (!event.shiftKey && doc.activeElement === last) { event.preventDefault(); first.focus(); }
+      if (event.shiftKey && (root.activeElement || doc.activeElement) === first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && (root.activeElement || doc.activeElement) === last) { event.preventDefault(); first.focus(); }
     }
   });
   dialog.addEventListener('click', event => {
@@ -131,11 +131,12 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
     closeViewer();
     active = { ...request };
     // Ignore queued close events while a new viewer session is open.
-    if (!dialog.isConnected) doc.body.append(dialog);
-    dialog.showModal(); close.focus(); void show();
+    if (!dialog.isConnected) (root === doc ? doc.body : root).append(dialog);
+    if (root === doc) dialog.showModal(); else dialog.show(); close.focus(); void show();
     return () => { if (active?.owner === request.owner) closeViewer(); };
   };
   // Kept for legacy profile photos; galleries use explicit actions from shadow roots.
+  let removeDelegate = () => {};
   if (delegateRoot) {
     const openLegacy = event => {
       const target = event.target.closest?.('img.post-image');
@@ -148,12 +149,20 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
     };
     delegateRoot.addEventListener('click', openLegacy);
     delegateRoot.addEventListener('keydown', openLegacy);
+    removeDelegate = () => { delegateRoot.removeEventListener('click', openLegacy); delegateRoot.removeEventListener('keydown', openLegacy); };
   }
-  viewers.set(doc, dialog);
+  dialog.dispose = () => { closeViewer(); removeDelegate(); dialog.remove(); viewers.delete(root); };
+  viewers.set(root, dialog);
   return dialog;
 }
 
 export function openImageGallery(request) {
   const doc = request.owner?.ownerDocument || globalThis.document;
-  return createImagePopover({ document: doc }).openGallery(request);
+  let tree = request.owner?.getRootNode();
+  let root = doc;
+  while (tree?.host) {
+    if (tree.querySelector('.wiredove-application')) { root = tree; break; }
+    tree = tree.host.getRootNode();
+  }
+  return createImagePopover({ document: doc, root }).openGallery(request);
 }

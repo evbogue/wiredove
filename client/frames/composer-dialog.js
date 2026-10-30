@@ -10,7 +10,7 @@ export function createComposerDialog(surface, { onClose, onOpen, onDispose, root
   dialog.tabIndex = -1;
   dialog.append(surface);
   overlay.append(dialog);
-  const previousFocus = root.activeElement || document.activeElement;
+  const previousFocus = root.activeElement || root.getRootNode()?.activeElement || document.activeElement;
   const scroll = { x: window.scrollX, y: scrollAdapter?.get() ?? window.scrollY };
   let opened = false;
   let cleanup;
@@ -30,8 +30,8 @@ export function createComposerDialog(surface, { onClose, onOpen, onDispose, root
       .filter(node => !node.closest('[hidden]') && node.getClientRects().length);
     const first = controls[0], last = controls.at(-1);
     if (!first) { event.preventDefault(); dialog.focus(); return; }
-    if (event.shiftKey && ((root.activeElement || document.activeElement) === first || (root.activeElement || document.activeElement) === dialog)) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && (root.activeElement || document.activeElement) === last) { event.preventDefault(); first.focus(); }
+    if (event.shiftKey && ((root.activeElement || root.getRootNode()?.activeElement || document.activeElement) === first || (root.activeElement || root.getRootNode()?.activeElement || document.activeElement) === dialog)) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && (root.activeElement || root.getRootNode()?.activeElement || document.activeElement) === last) { event.preventDefault(); first.focus(); }
   };
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
   const observer = new MutationObserver(() => {
@@ -49,8 +49,9 @@ export function createComposerDialog(surface, { onClose, onOpen, onDispose, root
       siblings.forEach(node => { node.inert = true; });
       const viewport = window.visualViewport;
       const resize = () => {
-        overlay.style.height = `${viewport?.height || window.innerHeight}px`;
-        overlay.style.top = `${viewport?.offsetTop || 0}px`;
+        const embedded = root !== document.body;
+        overlay.style.height = `${embedded ? root.clientHeight : viewport?.height || window.innerHeight}px`;
+        overlay.style.top = `${embedded ? root.scrollTop : viewport?.offsetTop || 0}px`;
       };
       resize();
       viewport?.addEventListener('resize', resize);
