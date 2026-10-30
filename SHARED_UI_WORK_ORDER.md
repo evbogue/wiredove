@@ -1,5 +1,32 @@
 # Wiredove shared widgets and application frames
 
+## Current priority — sustainable internet fame, 2026-10-29
+
+Status: planned; this documentation update does not complete implementation or authorize deployment.
+
+**Research purpose:** learn whether publishing on Ev’s own domain, with portable authorship and accessible conversations, leads to repeat recognition, relationships, collaborations, and opportunities at a sustainable cost in time.
+
+**Shared first milestone:** a visitor reads Ev’s Wiredove posts on evbogue.com, opens a conversation, replies without leaving the site, and can reload the same conversation. The reply is also retrievable in Wiredove. Reading requires no identity setup. Validate writes with disposable identities and isolated local services before any separately authorized public release.
+
+### Start here: an interactive embed for evbogue.com
+
+The October 26 layout helper and shared body/gallery/media modules are useful progress. They do not establish a complete shared message runtime. The October 29 browser and notification checks also do not establish complete website/embed parity. Recheck the current source before choosing the smallest missing slice.
+
+- [ ] Inventory the actual `wiredove-widget` read, thread, identity, reply, and publication paths against evbogue.com’s current read-only host adapter. Record existing behavior and missing services in `docs/SHARED_UI_INVENTORY.md`.
+- [ ] Complete the C01 message slice needed by this flow: one canonical post component used by a website feed and the embed, preserving existing website features. Include author, timestamp, body/media, reply context, edits/moderation where applicable, and honest missing-content states. Keep remaining feature gaps explicit.
+- [ ] Supply reusable thread and reply-composer behavior through the widget runtime. Frames select services, identity storage, capabilities, appearance, and navigation; they must not grow independent post or conversation renderers.
+- [ ] Define the public adapter contract for verified posts, bounded history/replies, identity setup, exact-byte signing, media upload, local persistence, relay confirmation, retries, and durable navigation. Reuse working mechanisms; contract declarations alone are not implementation.
+- [ ] Preserve drafts through identity setup and network failure. Keep local save, relay confirmation, and optional notification delivery distinct. Refresh must preserve playback, drafts, conversation state, and scroll position.
+- [ ] Support a site-appropriate appearance without a second application shell or reaching into private widget DOM. Reading and media playback must work before sign-in. Explain separate identity storage across origins only when needed.
+
+**Acceptance:** run the same signed fixtures in the website and a separate-origin evbogue.com-style host; observe post → reply → retrieve in both clients → reload. Include image media, failed publication/retry, duplicate delivery, invalid signatures, legacy attachments, desktop and 390px/320px layouts, keyboard focus, and active playback during updates. Use actual configured local relay/storage paths for the round trip, beyond callback-only mocks. Record audio/video, edit/profile and historical-sync limits separately.
+
+**Deliver:** supported runtime/adapter API, pinned component revision for the site, screenshots, checks run, remaining gaps, and release/rollback notes. Coordinate site acceptance with `../evbogue.com/AGENTS.md` and research observations with `../anproto-fame/WORK_ORDER.md`. Sibling paths are local workspace references, not runtime dependencies.
+
+**Stop point:** the first interactive reading/reply loop passes locally with the canonical message component and preserved website behavior. Continue broader C02–C05 work in deliberate slices. Do not bundle runtime migration, new editors, complete search/profile parity, or new analytics into this milestone. Keep the broader shared-widget architecture requirement intact.
+
+---
+
 Requested by Ev, 2026-10-03. Status (reviewed 2026-10-26): partially implemented in shared body/gallery, AndFS media, and composer/profile subcomponents; full website/embed convergence remains unfinished. This file is a tracking work order, not an implementation.
 Baseline: master at `bd62381` (public author-feed embed).
 
