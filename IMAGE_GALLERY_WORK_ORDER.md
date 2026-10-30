@@ -15,7 +15,7 @@ Deliver one shared gallery implementation consumed by the website and embedded m
 - `client/ui/message.js` calls the client body formatter and AndFS attachment renderer. `client/ui/media-render.js` is a separate path for typed AndFS attachments.
 - `client/ui/image-popover.js` supplies the website viewer, with storage and transport callbacks. Its delegated body handlers target `img.post-image`; these do not automatically support image events inside widget shadow roots.
 - Legacy image loading in `markdown.js` and `render.js` uses source-derived element IDs and single-element lookups. Repeated references in a gallery, another message, or a second frame must each load correctly.
-- Read `AGENTS.md`, `SHARED_UI_WORK_ORDER.md`, and `docs/SHARED_UI_INVENTORY.md` before implementation. Coordinate with S03, the shared message/media milestone. Do not create another independent body renderer or require completion of the whole restructuring first.
+- Read `AGENTS.md` and the consolidated work order/inventory in `SHARED_UI_WORK_ORDER.md` before implementation. Coordinate with S03, the shared message/media milestone. Do not create another independent body renderer or require completion of the whole restructuring first.
 
 These are starting observations, not claims that all image paths already have equivalent behavior. Recheck the current code before editing.
 

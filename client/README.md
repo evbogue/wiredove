@@ -100,7 +100,7 @@ observer-bound metadata, content and rich controls in light DOM; the public
 custom element mounts the same component in shadow DOM. Website edit-event
 summaries and APDS data services remain compatibility paths; this does not claim
 complete edit/moderation/profile or service parity. See
-[the feature inventory](../docs/SHARED_UI_INVENTORY.md) and
+[the feature inventory](../SHARED_UI_WORK_ORDER.md#current-implementation-inventory) and
 [work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
 in `core/contracts.js`; adapters implementing them are a later stage.
 
