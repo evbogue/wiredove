@@ -106,12 +106,17 @@ const expandHomeLog = async (log, isActive) => {
 }
 
 export class FeedOrchestrator {
-  constructor({ src, signal = null, isActive = () => true, store }) {
+  constructor({ src, signal = null, isActive = () => true, store, queries = null }) {
+    this.queries = queries
     this.src = src
     this.signal = signal
     this.isActive = isActive
     this.store = store
     this.pollTimer = null
+  }
+
+  query(route = '') {
+    return this.queries ? this.queries.query(route, { signal: this.signal }) : apds.query(route || undefined)
   }
 
   stop() {
@@ -167,7 +172,7 @@ export class FeedOrchestrator {
   }
 
   async startHome() {
-    let log = await perfMeasure('route.query', async () => apds.query(), 'home')
+    let log = await perfMeasure('route.query', async () => this.query(), 'home')
     if (!this.isActive()) { return { log: [] } }
     log = attachCachedRows(log || [])
     if (!this.isActive()) { return { log } }
@@ -223,7 +228,7 @@ export class FeedOrchestrator {
   }
 
   async startAuthor(pubkey) {
-    const log = await perfMeasure('route.query', async () => apds.query(pubkey), 'pubkey')
+    const log = await perfMeasure('route.query', async () => this.query(pubkey), 'pubkey')
     if (!this.isActive()) { return { log: [] } }
     const withCachedRows = attachCachedRows(log || [])
 
@@ -286,7 +291,7 @@ export class FeedOrchestrator {
   }
 
   async startSearch(queryHash) {
-    const log = await perfMeasure('route.query', async () => apds.query(queryHash), 'search')
+    const log = await perfMeasure('route.query', async () => this.query(queryHash), 'search')
     if (!this.isActive()) { return { log: [] } }
     const withCachedRows = attachCachedRows(log || [])
     return { log: withCachedRows || [] }

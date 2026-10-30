@@ -404,7 +404,14 @@ not saved. Pending signed artifacts persist in IndexedDB before delivery; use
 another is pending. Identity changes must settle pending publications first.
 
 The default backend's feed/search/thread scope is its verified archive and local
-cache, not global relay discovery. `GET /api/application?after=N` returns up to 100
+cache, not global relay discovery. Home, author and search screens use the shared
+`runtime/feed-queries.js` service and expose **Refresh feed** with scope and
+retryable offline status. Newly ingested archive records invalidate active queries;
+returning to a cached route merges fresh results without replacing mounted messages.
+Canceled/stale snapshots cannot update the successor route. Rendering uses 25-row
+pages over a local snapshot; archive transport still reads incremental 100-record
+pages. This is not server-side search pagination. Community directory and legacy
+backfill boundaries remain follow-up work. `GET /api/application?after=N` returns up to 100
 exact artifacts, sequence cursor, `more`, and `scope: "backend-archive"`.
 `POST /api/application` accepts `{id,signature,content}`; the server recomputes the
 ID, verifies the signature/content hash and atomically stores before acknowledging.
@@ -431,7 +438,8 @@ startup or register a service worker.
 `npm run test:browser` includes two-root structural isolation and real
 `application-flow.browser.cjs` acceptance: two local origins, real pinned APDS and
 cryptography, identity/profile → signed post/audio → thread → second-author reply,
-reload, durable draft and failed-delivery exact retry. It uses disposable storage
+reload, durable draft, failed-delivery exact retry, live/cached search, 28-row
+pagination, delayed-route cancellation and offline refresh/retry. It uses disposable storage
 and blocks public writes. `npm run test:media` includes archive restart/tampering/
 persistence tests. Milestone 1 acceptance and remaining milestones are recorded in
 [SHARED_UI_WORK_ORDER.md](../SHARED_UI_WORK_ORDER.md); full feature parity,

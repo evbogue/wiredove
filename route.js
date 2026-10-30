@@ -12,7 +12,7 @@ import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
-  compose, profileHeader = buildProfileHeader, settings, importKey }) => {
+  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null }) => {
 const document = scopeDocument(root)
 const render = renderer
 const composer = compose
@@ -100,9 +100,66 @@ const makeRouteContext = (src, scroller, run) => {
   const { runId, signal } = run
   const isActive = () => !disposed && runId === activeRouteRun && navigation.get() === src
   const store = new FeedStore(src, { isActive, enqueue: feeds.enqueue })
-  const orchestrator = new FeedOrchestrator({ src, signal, isActive, store })
+  const orchestrator = new FeedOrchestrator({ src, signal, isActive, store, queries })
   activeOrchestrator = orchestrator
   return { runId, signal, isActive, store, orchestrator, scroller, src }
+}
+
+// A refresh merges rows into the existing paginated feed. Never replace mounted
+// messages: playback, focus, scroll position and the new-post banner survive.
+let refreshQueued = false
+let refreshingRows = false
+let refreshAgain = false
+const refreshRows = async () => {
+  if (refreshingRows) { refreshAgain = true; return }
+  refreshingRows = true
+  try {
+    do {
+      refreshAgain = false
+      const src = navigation.get()
+      const panel = routePanels.get(getPanelKey(src))
+      if (!queries || !panel?.dataset.queryFeed || panel.dataset.ready !== 'true') continue
+      const runId = activeRouteRun
+      const signal = activeRouteController?.signal
+      const isActive = () => !disposed && runId === activeRouteRun && navigation.get() === src
+      try {
+        const rows = await queries.query(src, { signal })
+        if (!isActive()) continue
+        const store = new FeedStore(src, { isActive, enqueue: feeds.enqueue })
+        await store.upsertMany(rows)
+      } catch (error) {
+        if (isActive() && !signal?.aborted) feeds.status?.('Could not refresh feed: ' + error.message)
+      }
+    } while (refreshAgain && !disposed)
+  } finally { refreshingRows = false }
+}
+const scheduleRefresh = () => {
+  if (!queries || disposed || refreshQueued) return
+  refreshQueued = true
+  queueMicrotask(() => { refreshQueued = false; if (!disposed) void refreshRows() })
+}
+const unsubscribeQueries = queries?.subscribe(scheduleRefresh)
+const watchFeed = (src, panel) => {
+  if (!queries || !(src === '' || src.startsWith('?') || src.length === 44)) return
+  panel.dataset.queryFeed = 'true'
+  const toolbar = h('div', { classList: 'feed-query-tools' })
+  const status = h('span', { role: 'status' }, ['Local cache and selected archive'])
+  const button = h('button', { type: 'button' }, ['Refresh feed'])
+  button.addEventListener('click', async () => {
+    button.disabled = true
+    status.textContent = 'Refreshing…'
+    try {
+      await queries.refresh()
+      await refreshRows()
+      if (!disposed) status.textContent = 'Local cache and selected archive'
+    } catch {
+      if (!disposed) status.textContent = 'Backend unavailable. Local content remains available; retry refresh.'
+    } finally { button.disabled = false }
+  })
+  toolbar.append(button, status)
+  panel.prepend(toolbar)
+  // Covers arrivals between the initial snapshot and feed registration.
+  scheduleRefresh()
 }
 
 const route = async () => {
@@ -138,7 +195,7 @@ const route = async () => {
     }
 
     if (src === '' || src.startsWith('share=')) {
-      if (panel.dataset.ready === 'true') { return }
+      if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
@@ -146,32 +203,36 @@ const route = async () => {
       const { log } = await ctx.orchestrator.startHome()
       if (!ctx.isActive()) { return }
       feeds.adder(log || [], src, panel)
+      watchFeed(src, panel)
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
       return
     }
 
     if (src === 'settings') {
-      if (panel.dataset.ready === 'true') { return }
+      if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
       const content = await apds.pubkey() ? await settings() : await importKey()
       if (!isActive()) return
       panel.appendChild(content)
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
       return
     }
 
     if (src === 'import') {
-      if (panel.dataset.ready === 'true') { return }
+      if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
       const content = await importBlob(navigation)
       if (!isActive()) return
       panel.appendChild(content)
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
       return
     }
 
     if (src.length < 44 && !src.startsWith('?')) {
-      if (panel.dataset.ready === 'true') { return }
+      if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
@@ -185,6 +246,7 @@ const route = async () => {
       if (!ctx.isActive()) { return }
       if (header) panel.prepend(header)
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
       return
     }
 
@@ -197,11 +259,12 @@ const route = async () => {
       render.insertByTimestamp(panel, src, Number(opened.substring(0,13)))
       await render.blob(signed, { hash: src, opened })
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
       return
     }
 
     if (src.length === 44) {
-      if (panel.dataset.ready === 'true') { return }
+      if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
       if (await isBlockedAuthor(src)) { return }
       const selfKey = await apds.pubkey()
@@ -212,6 +275,7 @@ const route = async () => {
       const { log } = await ctx.orchestrator.startAuthor(src)
       if (!ctx.isActive()) { return }
       feeds.adder(log || [], src, panel)
+      watchFeed(src, panel)
       const canEdit = !!(selfKey && selfKey === src)
       const header = await buildProfileHeader({ label: src.substring(0, 10), messages: log || [], canEdit, pubkey: src })
       if (ctx.isActive() && header) panel.prepend(header)
@@ -219,11 +283,12 @@ const route = async () => {
         await send(src)
       }
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
       return
     }
 
     if (src.startsWith('?')) {
-      if (panel.dataset.ready === 'true') { return }
+      if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
       panel.dataset.paginated = 'true'
       scheduleReplyIndexBuild()
@@ -231,12 +296,14 @@ const route = async () => {
       const { log } = await ctx.orchestrator.startSearch(src)
       if (!ctx.isActive()) { return }
       feeds.adder(log || [], src, panel)
+      watchFeed(src, panel)
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
       return
     }
 
     if (src.length > 44) {
-      if (panel.dataset.ready === 'true') { return }
+      if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
       const hash = await apds.hash(src)
       const opened = await apds.open(src)
@@ -261,7 +328,10 @@ const route = async () => {
         await render.blob(src, { hash, opened })
       }
       panel.dataset.ready = 'true'
+      if (panel.dataset.queryFeed) scheduleRefresh()
     }
+  } catch (error) {
+    if (isActive() && !run.signal.aborted) throw error
   } finally {
     perfEnd(token)
   }
@@ -292,6 +362,7 @@ return { route, invalidate() { for (const panel of routePanels.values()) delete 
   for (const timer of deferred) clearTimeout(timer)
   activeRouteRun += 1
   unsubscribe()
+  unsubscribeQueries?.()
   activeOrchestrator?.stop()
   activeRouteController?.abort()
   for (const panel of routePanels.values()) panel.remove()

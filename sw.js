@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v20-symbol-font'
+const CACHE_VERSION = 'v21-feed-queries'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -28,6 +28,7 @@ const APP_SHELL_ASSETS = [
   '/client/runtime/mount.js',
   '/client/runtime/default-session.js',
   '/client/runtime/artifact-session.js',
+  '/client/runtime/feed-queries.js',
   '/client/runtime/browser-store.js',
   '/client/application.css',
   '/vendor/material-symbols/outlined-v382.ttf',

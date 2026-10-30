@@ -129,6 +129,76 @@ const root = path.resolve(__dirname, '..');
   records=(await (await fetch(source+'/api/application')).json()).records;
   assert.equal(records.filter(r=>r.id===pending[0].id).length,1,JSON.stringify({ids:records.map(r=>r.id),pending:pending[0].id}));
   assert.equal(records.find(r=>r.id===pending[0].id).signature,pending[0].signature);
+  // Both mounts use the same live query boundary. A cached empty search must
+  // gain matching archive arrivals, while unrelated posts remain excluded.
+  for (const page of [website,embed]) await page.evaluate(()=>app.navigate('?Shared query acceptance'));
+  await website.evaluate(async()=>{
+    for(let i=0;i<28;i++) await app.session.publish('Shared query acceptance '+String(i).padStart(2,'0'));
+    await app.session.publish('Unrelated feed acceptance');
+  });
+  for (const page of [website,embed]) {
+    await page.evaluate(()=>app.session.refresh());
+    await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.entries.length===28);
+    assert.equal(await page.evaluate(()=>app.feeds.getFeed(app.navigation.get()).entries.some(row=>!row.hash)),false);
+    await page.getByRole('button',{name:'Refresh feed',exact:true}).click();
+    await page.getByText('Local cache and selected archive',{exact:true}).waitFor();
+    await page.evaluate(()=>app.navigate(''));
+    await page.evaluate(()=>app.navigate('?Shared query acceptance'));
+    await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.entries.length===28);
+    // A fresh search snapshot uses the same 25-row pagination in both mounts.
+    await page.evaluate(()=>app.navigate('?Shared query acceptance '));
+    await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.entries.length===28);
+    await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.rendered.size===25);
+    for(let i=0;i<8;i++) {
+      await page.locator('.wiredove-application').evaluate(n=>{n.scrollTop=n.scrollHeight;n.dispatchEvent(new Event('scroll'))});
+      if(await page.evaluate(()=>app.feeds.getFeed(app.navigation.get()).rendered.size===28)) break;
+      await page.waitForTimeout(150);
+    }
+    await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get()).rendered.size===28);
+    assert.equal(await page.locator('.route-panel').getByText('Unrelated feed acceptance',{exact:true}).count(),0);
+  }
+  // A late snapshot from an abandoned route cannot contaminate its successor.
+  for (const page of [website,embed]) {
+    await page.evaluate(()=>{
+      const original=app.queries.query.bind(app.queries);
+      window.releaseQuery=null; window.queryDelayed=false;
+      app.queries.query=async(route,options)=>{
+        const rows=await original(route,options);
+        if(route.includes('Shared')&&!window.queryDelayed){
+          window.queryDelayed=true;
+          await new Promise(resolve=>{window.releaseQuery=resolve});
+        }
+        return rows;
+      };
+      window.restoreQuery=()=>{app.queries.query=original};
+      app.queries.changed();
+    });
+    await page.waitForFunction(()=>typeof window.releaseQuery==='function');
+    await page.evaluate(()=>app.navigate('?Unrelated feed acceptance'));
+    await page.evaluate(()=>{window.releaseQuery();window.restoreQuery()});
+    await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.entries.length===1);
+    await page.getByText('Unrelated feed acceptance',{exact:true}).waitFor();
+    assert.equal(await page.locator('.route-panel').getByText('Shared query acceptance 00',{exact:true}).count(),0);
+    await page.evaluate(()=>app.navigate('?Shared query acceptance '));
+    await page.waitForFunction(()=>app.feeds.getFeed(app.navigation.get())?.entries.length===28);
+  }
+  // A failed refresh is visible and retryable, without removing verified rows.
+  await embed.route(source+'/api/application*',route=>route.fulfill({status:503,body:'offline'}));
+  await embed.getByRole('button',{name:'Refresh feed',exact:true}).click();
+  await embed.getByText('Backend unavailable. Local content remains available; retry refresh.',{exact:true}).waitFor();
+  assert.equal(await embed.evaluate(()=>app.feeds.getFeed(app.navigation.get()).entries.length),28);
+  await embed.unroute(source+'/api/application*');
+  await embed.getByRole('button',{name:'Refresh feed',exact:true}).click();
+  await embed.getByText('Local cache and selected archive',{exact:true}).waitFor();
+  for (const page of [website,embed]) {
+    await page.setViewportSize({width:320,height:920});await page.emulateMedia({colorScheme:'light'});
+    await page.evaluate(()=>{app.root.scrollTop=0;const style=document.createElement('style');style.textContent='*,*::before,*::after{animation:none!important;transition:none!important}';app.root.getRootNode().append(style)});
+    assert.equal(await page.locator('.wiredove-application').evaluate(n=>n.scrollWidth<=n.clientWidth+1),true);
+    assert.equal(await page.locator('.material-symbols-outlined').evaluateAll(nodes=>nodes.every(n=>getComputedStyle(n).fontFamily.includes('Wiredove Symbols'))),true);
+    await page.screenshot({path:path.join(root,`test-results/application-query-${page===website?'website':'embed'}-320-light.png`),fullPage:true});
+    await page.setViewportSize({width:1200,height:950});
+  }
+  console.log('Both mounts: live/cached search, 28-row pagination, unrelated exclusion and offline refresh/retry passed');
   for(const page of [website,embed]) {
     await page.evaluate(id=>app.navigate(id),post.id);
     await page.evaluate(()=>{const style=document.createElement('style');style.textContent='*,*::before,*::after{animation:none!important;transition:none!important}';app.root.getRootNode().append(style)});

@@ -16,4 +16,8 @@
 .modal-overlay { position: absolute; height: 100%; }
 .wiredove-application dialog { max-width: calc(100% - 24px); }
 dialog[open] { position: absolute; inset: 12px; z-index: 1001; }
-.material-symbols-outlined { font-family: "Wiredove Symbols", "Material Symbols Outlined"; font-size: 24px; line-height: 1; font-weight: normal; font-style: normal; letter-spacing: normal; white-space: nowrap; }
+.wiredove-application .material-symbols-outlined { font-family: "Wiredove Symbols", "Material Symbols Outlined"; font-size: 24px; line-height: 1; font-weight: normal; font-style: normal; letter-spacing: normal; white-space: nowrap; }
+
+.feed-query-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .5em; padding: .5em; font-size: .85em; }
+.feed-query-tools button { flex: 0 0 auto; }
+.feed-query-tools [role="status"] { flex: 1 1 12em; overflow-wrap: anywhere; }

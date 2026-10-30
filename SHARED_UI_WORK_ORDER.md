@@ -3,7 +3,8 @@
 Updated 2026-10-30 following Ev's request for a full Wiredove JavaScript embed.
 Status: milestone 1 implemented and accepted locally: shared application mount,
 default verified archive/identity session, durable drafts/outbox and real two-author
-website ↔ separate-origin embed flow. Milestones 2–4 remain open; not deployed.
+website ↔ separate-origin embed flow. Milestone 2 is in progress with shared
+cache/archive feed queries and refresh; milestones 3–4 remain open. Not deployed.
 Source-review baseline: `6f8d213`. This is the sole shared UI/application-embed work
 order. It replaces the earlier component-first plan, `client/WORK_ORDER.md`, and
 `docs/SHARED_MESSAGE_HANDOFF.md`; historical evidence remains in Git history.
@@ -135,8 +136,12 @@ website behavior remains available; unfinished routes are tracked, not removed.
 
 ### 2. Complete application features through the same boundary
 
-- [ ] Move remaining feed queries/discovery, pagination, subscriptions and search into
-  shared services/screens; handle cancellation, stale responses and offline retry.
+- [x] Share cache/archive home, author and search queries, live invalidation, cached
+  route refresh and existing 25-row pagination; handle cancellation, stale snapshots
+  and explicit offline refresh/retry in both mounts.
+- [ ] Finish community directory/discovery and legacy backfill service boundaries,
+  broader discovery/subscription semantics and advanced backend query adapters.
+  Cache/archive queries do not establish global relay search or completeness.
 - [ ] Consolidate composer reply/edit/text/image/audio/video/recording workflows,
   cursor image placement, upload failures, previews and cleanup. Preserve draft and
   outbox recovery across navigation, reload and identity setup.
@@ -540,3 +545,55 @@ variants, and the gallery/website/browser warm-cache upgrade suite passed. A fre
 headed two-origin demo passed the real signed flow with both composers opened;
 the populated embed screenshot was inspected and its upload/raw/close icons render
 correctly. No identity storage was cleared.
+
+
+### 2026-10-30 milestone 2 — shared cache/archive feed queries
+
+The first milestone-2 feed slice is complete. `client/runtime/feed-queries.js`
+owns home/author/search snapshots, deterministic ordering/deduplication,
+subscription disposal and coalesced explicit archive refresh. APDS's source index
+is not sorted in place. Each application creates its query service; the existing
+shared `FeedOrchestrator` uses it for these routes. Query snapshots remain scoped
+to the verified local cache and selected backend archive.
+
+`artifact-session.js` notifies subscribers after a newly verified artifact has
+been ingested/persisted and delivered. Duplicate retrieval and rejected tampering
+do not notify. The legacy renderer also invalidates queries on signed arrivals.
+The shared router merges query results into the existing feed controller rather
+than rebuilding message nodes. Active searches gain matching records, revisited
+cached feeds requery, and route generation/abort checks discard late snapshots.
+The same 25-row rendering pagination, pending-new-post banner and mounted playback
+remain in place. Snapshot queries read the full local index; this is not server-side
+search pagination or a new global discovery protocol.
+
+Home, author and search screens have a shared **Refresh feed** control with scope,
+loading and offline/retry status. A failed refresh retains verified rows. A refresh
+shares the session's archive pull; navigation cancels application of obsolete query
+results without aborting another mount's shared transport. Query listeners are
+removed on destruction. Shell cache is `v21-feed-queries`, including the new module;
+the versioned embed graph is rebuilt from source.
+
+Acceptance: the real two-origin browser flow now publishes 28 disposable signed
+local fixtures, observes live/cached search updates in both mounts, excludes an
+unrelated record, exercises a fresh 25-row page followed by the remaining rows,
+delays a snapshot across navigation, and tests backend failure/refresh retry without
+losing content. Public writes remain blocked. Unit tests cover cancellation,
+disposal, ordering, deduplication and coalesced refresh failure/retry; artifact tests
+cover post-verification notification, duplicate suppression and unsubscribe.
+
+Mobile screenshot review exposed a pre-existing application icon selector issue:
+Google's later stylesheet could replace the bundled font outside the composer.
+The application-root selector now wins for navigation/message icons too. The real
+flow asserts all application icon nodes select the bundled font, and generates
+`test-results/application-query-{website,embed}-320-light.png` with animations off.
+Both screenshots were inspected after the fix. Existing desktop/mobile light/dark,
+Shadow DOM, warm-cache, media and signed two-author regression flows still pass.
+
+Validation: `npm run check`, `npm test` (38 tests), `npm run test:media` (12 tests)
+and the full `npm run test:browser` passed. After final race/screenshot/font checks,
+the real application flow, six application-shadow variants and gallery/warm-cache
+suite were rerun. This does not complete milestone 2: community directory/legacy
+backfill, broader discovery, the remaining feature-parity items, evbogue.com
+replacement and device/release acceptance remain open. No production deployment,
+public publication, identity migration or related-repository change occurred.
+Source revision is the commit containing this entry.

@@ -1264,6 +1264,7 @@ render.shouldWe = async (blob) => {
     }
     return
   }
+  application?.queries?.changed()
   const contentHash = opened.substring(13)
   const msg = await apds.get(contentHash)
   if (msg) {

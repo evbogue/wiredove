@@ -3,6 +3,8 @@ import { an } from '../../vendor/anproto/an.js'
 // Transport and storage contracts contain exact signed artifacts. All untrusted
 // backend records are checked before reaching APDS or a renderer.
 export const createArtifactSession = ({ protocol, store, endpoint, fetchImpl = fetch, receive = async () => {} }) => {
+  const listeners = new Set()
+  const changed = () => { for (const listener of listeners) listener() }
   let cursor = 0
   let pulling
   let stopped = false
@@ -30,7 +32,10 @@ export const createArtifactSession = ({ protocol, store, endpoint, fetchImpl = f
     await protocol.make(record.content)
     await protocol.add(record.signature)
     await flush()
-    if (!existing) await receive(record.signature)
+    if (!existing) {
+      await receive(record.signature)
+      changed()
+    }
   }
   const pending = async () => await store.get('outbox') || []
   const deliver = async record => {
@@ -42,6 +47,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, fetchImpl = f
   }
   return {
     pending, flush,
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) },
     get error() { return lastError },
     async publish(body, metadata = {}) {
       if ((await pending()).length) throw Error('Retry the pending publication before signing another post.')

@@ -1,3 +1,5 @@
+import { apds } from 'apds'
+import { createFeedQueries } from './feed-queries.js'
 import { createRouter } from '../../route.js'
 import { createFeedController } from '../../adder.js'
 import { createRenderer } from '../../render.js'
@@ -9,12 +11,15 @@ import { buildProfileHeader } from '../../profile_header.js'
 // UI ownership only. The caller still owns the APDS/transport session.
 export const createApplication = async ({ root, navigation, scroll, session = null }) => {
   const application = { root, navigation, scroll, session, cleanup: [] }
+  application.queries = createFeedQueries({ protocol: apds, refresh: () => session?.refresh?.(),
+    subscribe: listener => session?.artifacts?.subscribe(listener) || (() => {}) })
+  application.cleanup.push(() => application.queries.destroy())
   application.render = createRenderer({ root, application })
   application.feeds = createFeedController({ root, navigation, scroll, render: application.render })
   const settings = createSettings(application)
   application.cleanup.push(settings.destroy)
   application.router = createRouter({ ...settings,
-    root, navigation, scroll, feeds: application.feeds, render: application.render,
+    root, navigation, scroll, feeds: application.feeds, render: application.render, queries: application.queries,
     compose: (sig, options) => composer(sig, { ...options, application }),
     profileHeader: options => buildProfileHeader({ ...options, root, runExclusive: session?.runExclusive, session }),
   })
