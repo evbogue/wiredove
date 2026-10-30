@@ -209,3 +209,37 @@ For each implementation slice, append its commit, shared application/service own
 website and embed checks, observed screenshots/flows, remaining feature gaps and any
 site coordination requirements here. Keep one current task list; do not create another
 parallel shared UI work order or rolling handoff document.
+
+### 2026-10-30 startup extraction checkpoint (milestone 1 remains open)
+
+The website bootstrap now calls `client/runtime/website-application.js` for its
+existing startup sequence. Service-worker registration stays in `app.js`. This is
+an intentionally limited document-owning startup seam, not `mountWiredove`, and has
+no disposal or instance isolation yet. No public embed API or full-flow acceptance
+is claimed by this checkpoint.
+
+Current ownership/dependency inventory:
+
+| Behavior | Current owner | Isolation work remaining |
+| --- | --- | --- |
+| Home, author, alias/community, search and thread panels | route.js, FeedStore, FeedOrchestrator | Module-level panel/cache/controller state, window hash/scroll, global feed enqueue/controller, origin-relative queries |
+| Reply/edit/new composition and drafts | composer.js, navbar.js | Global hash, document ID lookups, session storage and feed enqueue |
+| Profile setup/edit/history | profile_header.js, shared profile editor, APDS | Explicit instance identity/storage and navigation |
+| Settings, identity import, moderation | settings.js, moderation.js | Window navigation/status, queue timer disposal, singleton storage |
+| Notifications and publication | composer.js, send.js | Instance service/capability contract; preserve persistence-before-notification semantics |
+| Sync/transport | sync.js, connect.js, gossip.js, websocket.js | Timer/socket ownership and disposal; public transport must be disabled in acceptance |
+| Media/popovers | shared media widgets, createImagePopover | Root-scoped delegates and stable mounted nodes |
+
+Existing website routes remain available. The existing widget browser tests use
+host publication callbacks and therefore do not prove the real application flow.
+Remaining milestone-1 requirements include root-scoped rendering/navigation,
+instance route/cache state, explicit service/session lifecycle, a self-contained
+import graph, Shadow DOM styling, real isolated local publication/retrieval and the
+separate-origin profile → post → thread → reply acceptance with reload and media.
+No production changes were made.
+
+Checkpoint validation: `npm run check`, `npm test`, `npm run test:media` and
+`npm run test:browser` passed. Browser coverage reported desktop/mobile light/dark,
+320px shared messages, queue/gallery, separate-origin iframe and warm-cache tests.
+These are regression checks, not the requested non-iframe full-app acceptance;
+no new screenshots or full-app flow were observed in this checkpoint.
