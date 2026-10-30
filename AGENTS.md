@@ -206,3 +206,27 @@ port and an isolated browser context when testing a fresh identity.
   cache updates when deploying UI changes; bump the shell cache version for a
   coordinated refresh. Test warm-cache upgrades as well as fresh contexts, and
   never clear browser identity storage just to refresh the application.
+
+## Reproducible local acceptance (2026-10-29)
+
+- The application still runs on Deno. Root npm metadata supplies pinned Playwright
+  and test scripts only; it does not implement the planned Node server migration.
+- Run `npm ci`, `npx playwright install chromium`, `npm run check`, `npm test`,
+  `npm run test:media`, and `npm run test:browser`. CI uses Node 22 and Deno 2.7.13.
+  On Linux, install browser libraries with Playwright's `--with-deps` option.
+- `deno.json` uses `nodeModulesDir: none` so installing npm test tooling does not
+  redirect Deno's `npm:web-push` dependency resolution into that tooling directory.
+  Its import map pins explicit APDS compilation targets and the already-vendored
+  ANProto revision; target-dependent CDN wrappers failed a clean-cache lock check.
+  Commit both dependency lockfiles; keep node_modules out of Git and Docker context.
+- The browser suite includes real website `render.meta` shells, edit summaries,
+  reply previews and embed callbacks, plus separate-origin and warm-cache checks.
+  Screenshot review must disable animations so fade-in does not hide layout errors.
+  These checks do not establish complete shared-message feature parity.
+- Website composer notifications now follow persistence and exact-content
+  availability checks. One ntfy message-hash link and browser Web Push are attempted
+  independently. Notification failure must not turn successful publication into a
+  failed draft. Tests mock all notification/relay writes; do not publish public tests.
+- `scripts/monitor-posts.js` is a read-only one-shot monitor with an atomic cursor,
+  verified message-ID deduplication and an overlap lock. See NOTIFICATION_WORKFLOW.md
+  for baseline, retry, retention and stale-lock behavior. State belongs under data/.

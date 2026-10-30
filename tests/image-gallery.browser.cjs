@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 let origin;
 const deps = {
-  '/test-apds.js': `export const apds = {get: async hash => window.sourceResolver ? window.sourceResolver(hash) : hash.startsWith('a') ? ${JSON.stringify(png)} : null, pubkey: async()=>null, query: async()=>window.editFixtures||[], human:async()=> 'now', parseYaml:async text=>JSON.parse(text)};`,
+  '/test-apds.js': `export const apds = {get: async hash => window.fixtureBlobs?.[hash] ?? (window.sourceResolver ? window.sourceResolver(hash) : hash.startsWith('a') ? ${JSON.stringify(png)} : null), pubkey: async()=>'a'.repeat(44), visual:async()=>{const img=document.createElement('img');img.src=${JSON.stringify(png)};return img}, query: async hash=>window.fixtureQueries?.[hash]||window.editFixtures||[], human:async()=> 'now', parseYaml:async text=>JSON.parse(text)};`,
   '/test-h.js': `export function h(tag, attrs={}, children=[]) {const el=document.createElement(tag); for(const [key,value] of Object.entries(attrs)) { if(key==='classList')el.className=value;else el[key]=value;} for(const child of children)if(child)el.append(child); return el;}`,
   '/send.js': 'export const send = async()=>{};',
   '/composer.js': 'export const composer = async()=>{};',
@@ -30,6 +30,27 @@ import {createImagePopover} from '${origin}/client/ui/image-popover.js';
 defineWiredoveMessage();defineWiredoveThread();
 window.mount=async(text,meta={})=>{ const fixture=document.getElementById('fixture');fixture.replaceChildren();if(${embed}){const message=document.createElement('wiredove-message');message.presentation={resolveImage:async hash=>window.sourceResolver?window.sourceResolver(hash):hash.startsWith('a')?${JSON.stringify(png)}:null};message.post={author:'a'.repeat(44),timestamp:Date.now(),parsed:{body:text,...meta}};fixture.append(message);window.bodyNode=message.shadowRoot.querySelector('.message-body');}else{const content=document.createElement('div');fixture.append(content);await render.content('fixture','',content,null,{body:text,...meta});window.bodyNode=content;}};
 window.edit=async text=>{window.editFixtures=[{hash:'edit-id',author:'author',ts:2,text:JSON.stringify({edit:'fixture-message',body:text})}];render.registerMessage('fixture-message',{author:'author',baseYaml:{body:'Original body'},contentHash:'fixture',contentDiv:window.bodyNode});render.invalidateEdits('fixture-message');await render.refreshEdits('fixture-message',{forceLatest:true});};
+window.mountShell=async(kind='post')=>{
+  const fixture=document.getElementById('fixture');fixture.replaceChildren();
+  window.editFixtures=[];window.fixtureBlobs={};window.fixtureQueries={};
+  const author='a'.repeat(44), id='shell-message', contentHash='c'.repeat(43)+'=', parent='p'.repeat(43)+'=';
+  const parsed={name:'Shell Author',body:'Full shell **body**',...(kind==='reply'?{reply:parent}:{}),...(kind==='edit'?{edit:parent,body:'Changed body'}:{})};
+  window.shellReplyCount=0;
+  if(${embed}){
+    const message=document.createElement('wiredove-message');
+    message.onReply=()=>window.shellReplyCount++;
+    message.onNavigate=event=>window.shellNavigation=event;
+    message.post={id,author,timestamp:Date.now(),parsed};fixture.append(message);
+  }else{
+    const parentContent='d'.repeat(43)+'=';
+    window.fixtureBlobs[parent]=author+'parent-signature';
+    window.fixtureBlobs[parentContent]=JSON.stringify({name:'Parent Author',body:'Parent body'});
+    window.fixtureQueries[parent]=[{opened:'1793290000000'+parentContent}];
+    const wrapper=document.createElement('div');wrapper.id=id;wrapper.className='message-wrapper';
+    const shell=document.createElement('div');shell.className='message-shell';wrapper.append(shell);fixture.append(wrapper);
+    await render.meta(author+'fixture-signature','1793290000000'+contentHash,id,shell,{contentBlob:JSON.stringify(parsed),yaml:parsed});
+  }
+};
 window.ready=true;</script>`; }
 const requests=[];
 const serve = async(req,res) => {
@@ -92,6 +113,47 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
           if(mobile)await dialog.locator('img').tap();else await dialog.locator('img').click();
           await dialog.waitFor({state:'hidden'});
           assert.equal(await tile.evaluate(el=>el.getRootNode().activeElement===el),true);
+        }
+        // Full website render.meta shell and the actual embed element, not just body rendering.
+        for(const kind of ['post','reply','edit']) {
+          await page.evaluate(kind=>mountShell(kind),kind);
+          const main=page.locator('.message-main').first();
+          await main.waitFor();
+          assert.equal(await main.locator(':scope > a > img.avatar').count(),1);
+          assert.equal(await main.locator(':scope > .message-stack').count(),1);
+          assert.ok((await main.locator('.avatarlink').first().textContent()).includes('Shell Author'));
+          const order=await main.evaluate(el=>[...el.children].map(child=>child.className||child.tagName));
+          assert.deepEqual(order,['A','message-stack']);
+          assert.equal(await page.locator('.message-meta').count(),1);
+          const metaBounds=await page.locator('.message-meta').boundingBox();
+          const mainBounds=await main.boundingBox();
+          assert.ok(metaBounds.y+metaBounds.height<=mainBounds.y+1,'Metadata overlaps author/body');
+          if(surface==='site' && kind==='edit') {
+            assert.equal(await main.locator('.edit-summary-verb').textContent(),'edited');
+            assert.equal(await main.locator('.edit-summary-link').getAttribute('href'),'#'+'p'.repeat(43)+'=');
+          } else {
+            assert.equal(await main.locator('.message-body').count(),1);
+            assert.ok((await main.locator('.message-body').textContent()).includes(kind==='edit'?'Changed body':'Full shell body'));
+          }
+          if(surface==='site') {
+            const raw=page.locator('.message-meta a').filter({hasText:/^Code$/});
+            await raw.click();assert.ok((await page.locator('.message-raw').textContent()).includes('fixture-signature'));
+            await raw.click();assert.equal(await page.locator('.message-raw').textContent(),'');
+            if(kind!=='edit') {
+              assert.equal(await main.locator('.message-actions-edit a').filter({hasText:'Edit'}).count(),1);
+              assert.equal(await main.locator('.message-actions-reply a').count(),1);
+              if(kind==='reply')await main.locator('.reply-preview-author').filter({hasText:'Parent Author'}).waitFor();
+            }
+          } else {
+            await main.getByRole('button',{name:'Reply to this post'}).click();
+            assert.equal(await page.evaluate(()=>window.shellReplyCount),1);
+            await main.locator('.avatarlink').click();
+            assert.equal(await page.evaluate(()=>window.shellNavigation.type),'profile');
+          }
+          const bounds=await main.boundingBox();
+          assert.ok(bounds.width<= (mobile?390:1200));
+          assert.equal(await main.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
+          await page.screenshot({path:`/tmp/message-shell-${surface}-${mobile?'mobile':'desktop'}-${theme}-${kind}.png`,animations:'disabled'});
         }
         // Inline order, repeated sources, containers, captions and literal code.
         await page.evaluate(text=>mount(text),`Before **bold ${image(1)} after** ${image(2)} end\n\nCaption\n\n${image(3)}\n\n- ${image(4)}\n- ${image(4)}\n\n> ${image(5)}\n\n\`${image(6)}\`\n\n\`\`\`md\n${image(7)}\n\`\`\``);
@@ -209,7 +271,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await statusPage.locator('.image-gallery-retry').isVisible(),false);
     await statusPage.evaluate(()=>statusQueue.clearQueue());await statusPage.close();
     console.log('Real queue: queued/requested/timeout/retry/arrival, thumbnail and viewer passed');
-    const page=await browser.newPage();await page.goto(`http://127.0.0.1:${parent.address().port}/parent`);const frame=page.frames().find(f=>f.url().startsWith(origin+'/embed'));await frame.waitForFunction(()=>window.ready);await frame.evaluate(text=>mount(text),run(10));await frame.locator('.image-gallery-tile').nth(3).click();assert.equal(await frame.locator('.image-popover-counter').textContent(),'4 of 10');await frame.getByRole('button',{name:'Next image',exact:true}).click();assert.equal(await frame.locator('.image-popover-counter').textContent(),'5 of 10');await frame.getByRole('button',{name:'Close image',exact:true}).click();
+    const page=await browser.newPage();await page.goto(`http://127.0.0.1:${parent.address().port}/parent`);const frame=page.frames().find(f=>f.url().startsWith(origin+'/embed'));await frame.waitForFunction(()=>window.ready);await frame.evaluate(()=>mountShell('reply'));await frame.getByRole('button',{name:'Reply to this post'}).click();assert.equal(await frame.evaluate(()=>window.shellReplyCount),1);assert.equal(await frame.locator('.message-main > .message-stack > .message-body').count(),1);await frame.evaluate(text=>mount(text),run(10));await frame.locator('.image-gallery-tile').nth(3).click();assert.equal(await frame.locator('.image-popover-counter').textContent(),'4 of 10');await frame.getByRole('button',{name:'Next image',exact:true}).click();assert.equal(await frame.locator('.image-popover-counter').textContent(),'5 of 10');await frame.getByRole('button',{name:'Close image',exact:true}).click();
     console.log('Observed separate-origin iframe: shared gallery + viewer passed');await page.close();
     const cacheContext=await browser.newContext();const cachePage=await cacheContext.newPage();
     await cachePage.goto(origin+'/site');await cachePage.waitForFunction(()=>window.ready);
@@ -226,7 +288,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await cachePage.locator('.image-gallery-tile').count(),10);
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v13-square-photo-previews'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v14-verified-post-notifications'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

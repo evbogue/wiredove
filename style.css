@@ -484,6 +484,7 @@ iframe {
 }
 
 .message-stack .avatarlink {
+  overflow-wrap: anywhere;
   line-height: 33px;
   display: inline-block;
 }
@@ -495,12 +496,12 @@ iframe {
 }
 
 .message-meta {
-  position: absolute;
-  top: .75em;
-  right: .75em;
-  display: inline-flex;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   align-items: center;
   gap: .35em;
+  margin-bottom: .25em;
 }
 
 .premessage {

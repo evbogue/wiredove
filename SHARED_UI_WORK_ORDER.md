@@ -30,11 +30,12 @@ current simplified embed UI and call the migration complete.
   timestamps, profile updates, raw-message controls, QR controls, and reply indexing.
 - `composer.js` builds the website composer and owns several publishing and media
   integration steps. `media.js` renders legacy anblob media and records attachments.
-- `client/ui.js` separately implements message, composer, thread-feed, thread, and
-  widget custom elements. It imports `client/render.js` and the root stylesheet.
-- `client/render.js` has its own name/time helpers, an avatar encoder copied from
-  APDS, and an AndFS gateway-media renderer. Its comment describes shared primitives,
-  but the website does not currently import these helpers.
+- `client/ui.js` is a compatibility entry point; individual widgets live under
+  `client/ui/`. `client/render.js` re-exports canonical format/media helpers.
+- Website and embed share body/gallery rendering, verified AndFS media,
+  composer/profile subcomponents and the `message-layout.js` DOM primitive.
+  The website still owns its richer message shell, actions and data services;
+  sharing the primitive does not complete canonical-message convergence.
 - `client/feed.js`, `client/protocol.js`, and `client/relay.js` form the embed's
   verification and author-history path. The website uses APDS and its existing
   sync/network infrastructure instead.
@@ -444,7 +445,7 @@ This checkpoint reconciles the original 2026-10-03 plan with changes since the s
 #### C05 — Runtime / release integration — P1, separately tracked
 
 - [ ] Treat `DENO_TO_NODE_WORK_ORDER.md` as the authoritative staged runtime migration; do not couple it to the shared UI refactor or silently replace the independent reverse proxy.
-- [ ] Add root test/package metadata and CI for browser + shared-widget + signature/provenance + AndFS regressions. The current workflow `.github/workflows/media-prototype.yml` performs limited syntax checks, not comprehensive main-branch acceptance.
+- [x] Add root test/package metadata and CI for browser + shared-widget + signature/provenance + AndFS regressions. The workflow `.github/workflows/media-prototype.yml` now runs server/monitor checks, authentication/media/routing/shared-UI tests and local website/embed browser acceptance on PRs and `master` pushes. Extend this baseline for each migrated feature.
 - [ ] Add a structural dependency guard: frames must not reintroduce duplicate body/message/media renderers.
 - [ ] Track `master` commit, staging commit, and actually deployed commit distinctly. Per `AGENTS.md`, pushes do not deploy production; verify served assets and browser smoke tests against the intended detached-worktree release.
 - [ ] Review stale OpenClaw/CLI PR #4 against current publishing contracts and Node direction; resolve its unmergeable state deliberately, without conflating an agent publishing client with browser UI sharing.

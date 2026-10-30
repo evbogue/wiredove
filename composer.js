@@ -5,6 +5,8 @@ import { render } from './render.js'
 import { h } from 'h'
 import { avatarSpan, nameSpan } from './profile.js'
 import { ntfy } from './ntfy.js'
+import { announceConfirmedPost } from './post_notifications.js'
+import { createWiredoveRelay } from './client/relay.js'
 import { send } from './send.js'
 import { appendMarkdown } from './markdown.js'
 import { imgUpload } from './upload.js'
@@ -19,20 +21,18 @@ const parseOpenedTimestamp = (opened) => {
 }
 
 async function pushLocalNotification({ hash, author, text }) {
-  try {
-    await fetch('/push-now', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        hash,
-        author,
-        text,
-        url: `${window.location.origin}/#${hash}`,
-      }),
-    })
-  } catch {
-    // Notifications server might be unavailable; ignore.
-  }
+  const response = await fetch('/push-now', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(10000),
+    body: JSON.stringify({
+      hash,
+      author,
+      text,
+      url: `${window.location.origin}/#${hash}`,
+    }),
+  })
+  if (!response.ok) throw new Error(`Browser notification failed (${response.status})`)
 }
 
 export const composer = async (sig, options = {}) => {
@@ -486,12 +486,9 @@ export const composer = async (sig, options = {}) => {
       const opened = await apds.open(signed)
 
       const blob = await apds.get(opened.substring(13))
-      await ntfy(signed)
-      await ntfy(blob)
       await send(signed)
       await send(blob)
       const hash = await apds.hash(signed)
-      pushLocalNotification({ hash, author: signed.substring(0, 44), text: blob })
 
       const confirmTargets = [signed]
       const images = blob.match(/!\[.*?\]\((.*?)\)/g)
@@ -515,6 +512,25 @@ export const composer = async (sig, options = {}) => {
           finishPublishVerification(verifyId, persisted)
           if (!persisted.ok) {
             console.warn('publish confirmation failed', persisted)
+          } else {
+            try {
+              await announceConfirmedPost({
+                hash, signature: signed, content: blob, opened, confirmation: persisted,
+                relay: createWiredoveRelay({ baseURL: 'https://pub.wiredove.net' }),
+                notify: async id => {
+                  const results = await Promise.allSettled([
+                    ntfy(id),
+                    pushLocalNotification({ hash: id, author: signed.substring(0, 44), text: blob })
+                  ])
+                  for (const result of results) {
+                    if (result.status === 'rejected') console.warn('post notification failed', result.reason)
+                  }
+                }
+              })
+            } catch (error) {
+              // Publication succeeded; notification failure must not mark it failed.
+              console.warn('post notification failed', error)
+            }
           }
         } catch (err) {
           console.warn('publish confirmation errored', err)

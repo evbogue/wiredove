@@ -92,9 +92,6 @@ DOM-free helper imports. Canonical helpers live in `ui/format.js`, `ui/body.js`,
 `ui/media-render.js`, and `ui/styles.js`. The aggregate `client/index.js` still
 imports the complete UI set; use individual modules for narrow dependencies.
 
-The website uses the shared AndFS media widget and profile/composer helpers, but
-its full message renderer has not yet migrated to these widgets. See
-
 The website now uses the shared body/gallery renderer and image viewer, but has
 not yet migrated its whole message shell, actions or data services. See
 [the feature inventory](../docs/SHARED_UI_INVENTORY.md) and
@@ -102,7 +99,12 @@ not yet migrated its whole message shell, actions or data services. See
 in `core/contracts.js`; adapters implementing them are a later stage.
 
 Run module registration/import checks with `node --test client/ui/modules_test.js`.
-These checks do not establish browser layout or website/embed rendering parity.
+Those import checks alone do not establish layout or rendering parity.
+Use the root README development commands for the full CI suite. Browser coverage
+now includes actual website `render.meta` message shells, edit summaries, raw controls
+and reply previews, plus embed reply/navigation callbacks at desktop/mobile sizes
+in both themes and in a separate-origin iframe. These fixtures preserve the current
+feature differences; they do not establish a complete canonical message widget.
 
 ### Profile editing
 

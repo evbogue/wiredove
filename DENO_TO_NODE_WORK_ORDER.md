@@ -28,7 +28,7 @@ Sources:
 - `serve.js` uses `Deno.serve`, `Deno.env`, `Deno.mkdir`, `Deno.writeFile`, `Deno.rename`, `Deno.stat`, `Deno.readFile`, `Deno.errors.NotFound` and remote `deno.land/std@0.224.0/http/file_server.ts`.
 - `notifications_server.js` uses Deno environment/filesystem APIs, `npm:web-push@3.6.7`, and `https://esm.sh/gh/evbogue/apds@d9326cb/apds.js`. Its persisted files include `data/subscriptions.json`, `data/state.json` and the production VAPID config.
 - `Dockerfile` runs `denoland/deno:alpine` and `deno cache serve.js`; `docker-compose.yml` mounts `./data`.
-- No root `package.json` or `deno.json` currently exists; introduce only the minimal package metadata needed.
+- Since 2026-10-29, root `package.json` and its npm lockfile provide Node/Playwright test tooling. `deno.json` keeps Deno npm resolution independent, with `deno.lock` pinning server dependencies. The application still runs on Deno; this is not the Node runtime migration.
 - `client/feed_test.js` already supports Node's test runner, while `client/client_test.js` contains `Deno.test`; browser suites and other tests also exist.
 - `AGENTS.md` documents live `wiredove.service` on port 8081, deployed from detached Git worktrees; a **separate custom Deno** `reverse-proxy.service` terminates public HTTPS and maps `wiredove.net` to 8081. The production checkout has local-only edits. No CI-driven production deploy is configured.
 - Audit all further runtime-specific usage before changing code (including ancillary scripts and server-side dependencies); this list is a starting inventory, not a guarantee of completeness.

@@ -6,13 +6,39 @@ A work-in-progress experimental distributed social networking application built 
 
 Try it at: https://wiredove.net/
 
-For new message notifications subscribe via https://ntfy.sh/wiredove since Wiredove doesn't have in-app notifications yet.
+For new message notifications subscribe via https://ntfy.sh/wiredove or enable browser Web Push in Wiredove. See [NOTIFICATION_WORKFLOW.md](NOTIFICATION_WORKFLOW.md) for delivery behavior and the read-only verified post monitor.
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
 ### Shared UI restructuring
 
 The website and embeds are planned to consume the same individually importable UI widgets, composed by separate application frames. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the current gaps, module boundaries, staged migration, compatibility requirements, and acceptance checks. The current website and widget rendering paths are still separate.
+
+### Development checks
+
+The application still runs on Deno; npm metadata supplies reproducible test tooling,
+not a Node server migration. CI uses Node 22, Deno 2.7.13 and pinned Playwright.
+`deno.json` keeps Deno's npm dependencies in its own cache, independent of npm's
+Playwright installation. Deno imports use explicit APDS compilation targets and the
+already-vendored ANProto revision to avoid CDN target-dependent wrappers. Both npm
+and Deno dependency lockfiles are committed; the check command enforces the lockfile.
+
+```sh
+npm ci
+npx playwright install chromium
+npm run check
+npm test
+npm run test:media
+npm run test:browser
+```
+
+On Linux, use `npx playwright install --with-deps chromium` to install browser system
+libraries too. Browser tests use local servers and isolated fixtures, including
+full website message shells, edit summaries, reply previews, separate-origin embeds,
+mobile/desktop light/dark layouts and a warm service-worker upgrade. Notification
+browser tests mock all outbound writes. CI runs these checks on pull requests and
+pushes to `master`, and retains screenshots. Passing checks do not deploy production
+or establish full website/embed feature parity.
 
 ### AndFS media
 

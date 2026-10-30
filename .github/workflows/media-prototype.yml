@@ -1,23 +1,43 @@
-name: media prototype syntax
+name: Wiredove acceptance
 
 on:
   push:
-    branches:
-      - feature/media-prototype
+    branches: [master, feature/media-prototype]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  syntax:
+  acceptance:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Check JavaScript syntax
-        run: |
-          node --check anproto_blob.js
-          node --check media.js
-          node --check composer.js
-          node --check render.js
-          node --check serve.js
+          cache: npm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.13
+      - run: npm ci
+      - name: Check server and monitor module graph
+        run: npm run check
+      - name: Authentication, notification, shared UI and routing regressions
+        run: npm test
+      - name: Signed media, verification and persistence regressions
+        run: npm run test:media
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Website and separate-origin embed browser acceptance
+        run: npm run test:browser
+      - name: Retain browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiredove-browser-screenshots
+          path: |
+            /tmp/gallery-*.png
+            /tmp/message-shell-*.png
+          if-no-files-found: ignore

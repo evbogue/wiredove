@@ -18,13 +18,20 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v13-square-photo-previews'
+const CACHE_VERSION = 'v14-verified-post-notifications'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/composer.js',
+  '/render.js',
+  '/ntfy.js',
+  '/post_notifications.js',
+  '/client/protocol.js',
+  '/client/relay.js',
+  '/client/ui/message-layout.js',
   '/client/ui/image-popover.js',
   '/client/ui/image-source.js',
   '/client/ui/image-gallery.js',

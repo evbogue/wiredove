@@ -95,10 +95,9 @@ export class WiredoveMessage extends HTMLElement {
       this._onNavigate({ type: "post", id: post.id });
     });
     meta.append(pubkey, " ", time);
-    const main = createMessageMain({ avatarLink, authorNode: author });
-    const stack = main.querySelector('.message-stack');
+    let body;
     if (parsed.body || parsed.andfs) {
-      const body = document.createElement("div");
+      body = document.createElement("div");
       body.className = "message-body";
       if (this._presentation?.renderBody) {
         this._presentation.renderBody(parsed.body, body, post);
@@ -116,8 +115,8 @@ export class WiredoveMessage extends HTMLElement {
       });
       actions.append(reply);
       body.append(actions);
-      stack.append(body);
     }
+    const main = createMessageMain({ avatarLink, authorNode: author, bodyNode: body });
     article.append(meta, main);
     root.append(article);
   }
