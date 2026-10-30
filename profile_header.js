@@ -2,6 +2,7 @@ import { apds } from 'apds'
 import { h } from 'h'
 import { markdown } from './markdown.js'
 import { send } from './send.js'
+import { visual } from './client/render.js'
 
 const isHash = (value) => typeof value === 'string' && value.length === 44
 
@@ -91,7 +92,7 @@ const publishProfileUpdate = async ({ bio, name, image }) => {
 export const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = null }) => {
   const profile = await buildProfileData(messages, label)
   const backgroundImage = await resolveImageSrc(profile.background)
-  const fallbackVisual = pubkey ? await apds.visual(pubkey) : null
+  const fallbackVisual = pubkey ? visual(pubkey) : null
   const fallbackVisualSrc = fallbackVisual && fallbackVisual.src ? fallbackVisual.src : null
   let currentName = profile.name || label
   let currentBio = profile.bio || ''

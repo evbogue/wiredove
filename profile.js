@@ -1,5 +1,6 @@
 import { h } from 'h'
 import { apds } from 'apds'
+import { visual } from './client/render.js'
 
 const cache = new Map()
 setInterval(() => { cache.clear() }, 60000)
@@ -32,7 +33,7 @@ export const nameSpan = async () => {
 }
 
 export const imageSpan = async () => {
-  const avatarImg = await apds.visual(await apds.pubkey())
+  const avatarImg = visual(await apds.pubkey())
 
   const existingImage = await apds.get('image')
 
@@ -52,7 +53,7 @@ export const imageSpan = async () => {
 }
 
 export const avatarSpan = async () => {
-  const avatarImg = await apds.visual(await apds.pubkey())
+  const avatarImg = visual(await apds.pubkey())
 
   const existingImage = await apds.get('image')
   
