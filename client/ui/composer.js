@@ -49,12 +49,13 @@ export class WiredoveComposer extends HTMLElement {
         const payload = { body: textarea.value, file, replyTo: this._replyTo || null };
         publishing = true; update(); surface.status.textContent = 'Publishing…';
         try {
-          await this._onSubmit(payload);
+          const result = await this._onSubmit(payload);
+          if (result?.saved === false || result?.ok === false) throw new Error('Publication was not saved. Your draft is still here.');
           drafts.delete(key);
           if (!current()) return;
           textarea.value = ''; media.reset(); file = null;
-          surface.status.textContent = 'Published.';
-          this.dispatchEvent(new CustomEvent('wiredove-published', { bubbles: true }));
+          surface.status.textContent = result?.relayed === false ? 'Saved locally; relay confirmation pending.' : 'Published.';
+          this.dispatchEvent(new CustomEvent('wiredove-published', { detail: result, bubbles: true, composed: true }));
         } catch (error) {
           if (current()) surface.status.textContent = error.message || 'Could not publish. Your draft is still here.';
         } finally { if (current()) { publishing = false; update(); } }

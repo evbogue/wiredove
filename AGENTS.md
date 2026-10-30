@@ -115,8 +115,11 @@ Ev requested a single shared UI implementation for the website and embeds on
   register its service worker, or require its import map.
 - Preserve website features and immutable signed bytes. Migrate one vertical slice
   at a time, beginning with shared message/media widgets used by both frames.
-- Current code is not yet compliant: website rendering and client widget rendering
-  are separate. Do not describe the planned restructuring as completed.
+- Ordinary website posts and public messages use `client/ui/message-view.js`.
+  Website node extensions retain rich APDS controls and observer-bound content;
+  edit-event summaries and services remain compatibility paths. The full shared
+  widget migration and cross-client acceptance are not complete. See
+  `docs/SHARED_MESSAGE_HANDOFF.md` for the current host API and limitations.
 - Require cross-frame behavior checks and an observed separate-origin browser embed
   before claiming full shared-widget acceptance. Unit tests alone do not prove it.
 

@@ -1,4 +1,4 @@
-import { applyWiredoveStyles } from "./styles.js";
+import { updateMessageList } from "./message-list.js";
 import { registerElement } from "./element.js";
 import { defineWiredoveMessage } from "./message.js";
 
@@ -27,33 +27,10 @@ export class WiredoveThread extends HTMLElement {
     this.render();
   }
   render() {
-    if (!this._post) return;
-    const root = this.shadowRoot || this.attachShadow({ mode: "open" });
-    root.replaceChildren();
-    applyWiredoveStyles(root);
-    for (
-      const [post, reply] of [
-        [this._post, false],
-        ...(this._replies || []).map((item) => [item, true]),
-      ]
-    ) {
-      const message = document.createElement("wiredove-message");
-      message.post = post;
-      message.presentation = this._presentation;
-      message.onReply = (value) => {
-        this._onReply?.(value);
-        this.dispatchEvent(
-          new CustomEvent("wiredove-reply", { detail: value, bubbles: true }),
-        );
-      };
-      message.onNavigate = (route) => this._onNavigate?.(route);
-      if (reply) {
-        const wrap = document.createElement("div");
-        wrap.className = "reply";
-        wrap.append(message);
-        root.append(wrap);
-      } else root.append(message);
-    }
+    updateMessageList(this, this._post ? [
+      { post: this._post },
+      ...(this._replies || []).map(post => ({ post, reply: true })),
+    ] : []);
   }
 }
 

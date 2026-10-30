@@ -9,13 +9,17 @@ import { renderProfileLinks } from "./profile-links.js";
 import { loadWiredoveFeed } from "../feed.js";
 
 export class WiredoveWidget extends HTMLElement {
-  static get observedAttributes() { return ["feed", "relay", "limit"]; }
+  static get observedAttributes() { return ["feed", "relay", "limit", "interactive"]; }
   get feed() { return this.getAttribute("feed"); }
   set feed(value) {
     if (value == null) this.removeAttribute("feed");
     else this.setAttribute("feed", value);
   }
-  attributeChangedCallback() { if (this.isConnected) this.refresh(); }
+  attributeChangedCallback(name) {
+    if (!this.isConnected) return;
+    if (name === 'interactive') this.render();
+    else { if (name === 'feed') this._posts = []; this.refresh(); }
+  }
   disconnectedCallback() { this._loadController?.abort(); }
   async refresh() {
     this._loadController?.abort();
@@ -23,7 +27,6 @@ export class WiredoveWidget extends HTMLElement {
     this._loadController = controller;
     this._loadError = null;
     this._loading = Boolean(this.feed);
-    this._posts = [];
     this.render();
     if (!this.feed) return;
     try {
@@ -58,6 +61,20 @@ export class WiredoveWidget extends HTMLElement {
   }
   set onPublish(value) {
     this._onPublish = value;
+    if (this.isConnected) this.render();
+  }
+  get onPublish() { return this._onPublish; }
+  set capabilities(value) {
+    this._capabilities = value || {};
+    if (this.isConnected) this.render();
+  }
+  get capabilities() {
+    const defaults = this.hasAttribute('interactive');
+    const publisher = typeof this._onPublish === 'function';
+    return {
+      compose: publisher && Boolean(this._capabilities?.compose ?? defaults),
+      reply: publisher && Boolean(this._capabilities?.reply ?? defaults),
+    };
   }
   set presentation(value) {
     this._presentation = value || {};
@@ -79,17 +96,26 @@ export class WiredoveWidget extends HTMLElement {
   }
   render() {
     const root = this.shadowRoot || this.attachShadow({ mode: "open" });
-    root.replaceChildren();
-    applyWiredoveStyles(root);
+    if (!this._view) {
+      applyWiredoveStyles(root);
+      this._nav = document.createElement('div');
+      this._status = document.createElement('div');
+      this._status.setAttribute('role', 'status');
+      this._view = document.createElement('div');
+      this._view.className = 'widget-view';
+      root.append(this._nav, this._status, this._view);
+    }
     const style = document.createElement("style");
     style.textContent =
-      `.widget-nav { display:flex; align-items:center; gap:5px; margin-bottom:10px; }.widget-nav button { margin-left:0; }.widget-title { margin-right:auto; font-weight:600; }.widget-view > h3 { margin:0 0 5px; }.widget-profile { margin:0 0 10px; }.widget-search { display:flex; gap:5px; margin-bottom:10px; }.widget-search input { flex:1; }`;
-    root.append(style);
+      `.widget-nav { display:flex; align-items:center; gap:5px; margin-bottom:10px; }.widget-nav[hidden] { display:none; }.widget-nav button { margin-left:0; }.widget-title { margin-right:auto; font-weight:600; }.widget-view > h3 { margin:0 0 5px; }.widget-profile { margin:0 0 10px; }.widget-search { display:flex; gap:5px; margin-bottom:10px; }.widget-search input { flex:1; }`;
+    if (!this._widgetStyle) { root.append(style); this._widgetStyle = style; }
     const posts = this._posts || [];
     const route = this._route || { type: "feed" };
     const navigate = (next) => this.navigate(next);
-    const nav = document.createElement("div");
-    nav.className = "widget-nav";
+    const nav = this._nav;
+    nav.replaceChildren();
+    nav.className = 'widget-nav';
+    nav.hidden = this._presentation?.navigation === false;
     const title = document.createElement("span");
     title.className = "widget-title";
     title.textContent = "Wiredove";
@@ -104,7 +130,7 @@ export class WiredoveWidget extends HTMLElement {
       button("Feed", { type: "feed" }),
       button("Search", { type: "search", query: "" }),
     );
-    if (this.hasAttribute("interactive")) {
+    if (this.capabilities.compose) {
       nav.append(button("Write", { type: "compose" }));
     }
     if (this.feed) {
@@ -112,67 +138,64 @@ export class WiredoveWidget extends HTMLElement {
       refresh.onclick = () => this.refresh();
       nav.append(refresh);
     }
-    root.append(nav);
-    if (this._loading || this._loadError) {
-      const status = document.createElement("div");
-      status.setAttribute("role", "status");
-      status.textContent = this._loading ? "Loading verified feed…" : this._loadError;
-      root.append(status);
-      return;
-    }
-    const view = document.createElement("div");
-    view.className = "widget-view";
+    this._status.textContent = this._loading ? 'Loading verified feed…' : this._loadError || '';
+    const view = this._view;
+    const routeKey = JSON.stringify(route);
+    if (this._viewKey !== routeKey) { view.replaceChildren(); this._viewKey = routeKey; }
+    const reply = this.capabilities.reply ? post => navigate({ type: 'compose', replyTo: post }) : null;
     const attachFeed = (items) => {
-      const feed = document.createElement("wiredove-thread-feed");
+      const feed = view.querySelector('wiredove-thread-feed') || document.createElement('wiredove-thread-feed');
       feed.posts = items;
       feed.presentation = this._presentation;
       feed.onNavigate = navigate;
-      feed.onReply = (post) =>
-        this.hasAttribute("interactive") &&
-        navigate({ type: "compose", replyTo: post });
-      view.append(feed);
+      feed.onReply = reply;
+      if (!feed.parentNode) {
+        if (route.type === 'feed') view.replaceChildren();
+        view.append(feed);
+      }
     };
     if (route.type === "profile") {
       const profilePosts = posts.filter((post) => post.author === route.author);
-      const heading = document.createElement("h3");
+      const heading = view.querySelector('h3') || document.createElement('h3');
       heading.textContent = displayName(profilePosts[0]?.parsed, route.author);
-      const key = document.createElement("div");
-      key.className = "pubkey widget-profile";
+      const key = view.querySelector('.widget-profile') || document.createElement('div');
+      key.className = 'pubkey widget-profile';
       key.textContent = route.author || "";
-      const links = document.createElement("nav");
+      const links = view.querySelector('nav') || document.createElement('nav');
       renderProfileLinks(links, profileLinksFromHistory(profilePosts) || []);
-      view.append(heading, key, links);
+      if (!heading.parentNode) view.append(heading, key, links);
       attachFeed(profilePosts);
     } else if (route.type === "post") {
       const post = posts.find((item) => item.id === route.id);
       if (post) {
-        const thread = document.createElement("wiredove-thread");
+        const thread = view.querySelector('wiredove-thread') || document.createElement('wiredove-thread');
         thread.post = post;
         thread.replies = posts.filter((item) =>
           item.parsed?.reply === post.id || item.parsed?.replyHash === post.id
         );
         thread.presentation = this._presentation;
         thread.onNavigate = navigate;
-        thread.onReply = (item) =>
-          this.hasAttribute("interactive") &&
-          navigate({ type: "compose", replyTo: item });
-        view.append(thread);
+        thread.onReply = reply;
+        if (!thread.parentNode) { view.replaceChildren(); view.append(thread); }
       } else view.textContent = "Message unavailable.";
     } else if (route.type === "search") {
-      const form = document.createElement("form");
-      form.className = "widget-search";
-      const input = document.createElement("input");
-      input.placeholder = "Search messages";
-      input.value = route.query || "";
-      const submit = document.createElement("button");
-      submit.textContent = "Search";
-      form.append(input, submit);
-      form.onsubmit = (event) => {
-        event.preventDefault();
-        navigate({ type: "search", query: input.value.trim() });
-      };
-      view.append(form);
-      const query = (route.query || "").toLowerCase();
+      let form = view.querySelector('form');
+      if (!form) {
+        form = document.createElement('form');
+        form.className = "widget-search";
+        const input = document.createElement("input");
+        input.placeholder = "Search messages";
+        input.value = route.query || "";
+        const submit = document.createElement("button");
+        submit.textContent = "Search";
+        form.append(input, submit);
+        form.onsubmit = (event) => {
+          event.preventDefault();
+          navigate({ type: "search", query: input.value.trim() });
+        };
+        view.append(form);
+      }
+      const query = (route.query || '').toLowerCase();
       if (query) {
         attachFeed(
           posts.filter((post) =>
@@ -181,19 +204,28 @@ export class WiredoveWidget extends HTMLElement {
           ),
         );
       }
-    } else if (route.type === "compose" && this.hasAttribute("interactive")) {
-      const composer = document.createElement("wiredove-composer");
-      composer.replyTo = route.replyTo || null;
-      composer.onSubmit = async (draft) => {
-        await this._onPublish?.(draft);
-        this.dispatchEvent(
-          new CustomEvent("wiredove-compose", {
-            detail: draft,
-            bubbles: true,
-          }),
-        );
+    } else if (route.type === 'compose') {
+      const allowed = route.replyTo ? this.capabilities.reply : this.capabilities.compose;
+      if (!allowed) { view.textContent = 'Publishing is unavailable in this view.'; return; }
+      const key = route.replyTo?.id || 'new';
+      this._composers ||= new Map();
+      let composer = this._composers.get(key);
+      if (!composer) {
+        composer = document.createElement('wiredove-composer');
+        composer.replyTo = route.replyTo || null;
+        this._composers.set(key, composer);
+      }
+      composer.onSubmit = async draft => {
+        const permitted = draft.replyTo ? this.capabilities.reply : this.capabilities.compose;
+        if (!permitted || typeof this._onPublish !== 'function') throw new Error('Publishing is unavailable. Your draft is still here.');
+        const result = await this._onPublish(draft);
+        if (result?.saved === false || result?.ok === false) throw new Error('Publication was not saved. Your draft is still here.');
+        this.dispatchEvent(new CustomEvent('wiredove-compose', {
+          detail: { ...draft, result }, bubbles: true,
+        }));
+        return result;
       };
-      view.append(composer);
+      if (composer.parentNode !== view) { view.replaceChildren(); view.append(composer); }
     } else {
       const roots = posts.filter((post) =>
         !post.parsed?.reply && !post.parsed?.replyHash
@@ -201,7 +233,6 @@ export class WiredoveWidget extends HTMLElement {
       if (roots.length) attachFeed(roots);
       else view.textContent = "No posts yet.";
     }
-    root.append(view);
   }
 }
 

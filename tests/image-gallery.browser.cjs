@@ -28,7 +28,7 @@ import {defineWiredoveMessage} from '${origin}/client/ui/message.js';
 import {defineWiredoveThread} from '${origin}/client/ui/thread.js';
 import {createImagePopover} from '${origin}/client/ui/image-popover.js';
 defineWiredoveMessage();defineWiredoveThread();
-window.mount=async(text,meta={})=>{ const fixture=document.getElementById('fixture');fixture.replaceChildren();if(${embed}){const message=document.createElement('wiredove-message');message.presentation={resolveImage:async hash=>window.sourceResolver?window.sourceResolver(hash):hash.startsWith('a')?${JSON.stringify(png)}:null};message.post={author:'a'.repeat(44),timestamp:Date.now(),parsed:{body:text,...meta}};fixture.append(message);window.bodyNode=message.shadowRoot.querySelector('.message-body');}else{const content=document.createElement('div');fixture.append(content);await render.content('fixture','',content,null,{body:text,...meta});window.bodyNode=content;}};
+window.mount=async(text,meta={})=>{ const fixture=document.getElementById('fixture');fixture.replaceChildren();if(${embed}){const message=document.createElement('wiredove-message');message.presentation={resolveImage:async hash=>window.sourceResolver?window.sourceResolver(hash):hash.startsWith('a')?${JSON.stringify(png)}:null};message.post={author:'a'.repeat(44),timestamp:Date.now(),parsed:{body:text,...meta}};fixture.append(message);window.bodyNode=message.shadowRoot.querySelector('.content');}else{const content=document.createElement('div');fixture.append(content);await render.content('fixture','',content,null,{body:text,...meta});window.bodyNode=content;}};
 window.edit=async text=>{window.editFixtures=[{hash:'edit-id',author:'author',ts:2,text:JSON.stringify({edit:'fixture-message',body:text})}];render.registerMessage('fixture-message',{author:'author',baseYaml:{body:'Original body'},contentHash:'fixture',contentDiv:window.bodyNode});render.invalidateEdits('fixture-message');await render.refreshEdits('fixture-message',{forceLatest:true});};
 window.mountShell=async(kind='post')=>{
   const fixture=document.getElementById('fixture');fixture.replaceChildren();
@@ -124,6 +124,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
           assert.ok((await main.locator('.avatarlink').first().textContent()).includes('Shell Author'));
           const order=await main.evaluate(el=>[...el.children].map(child=>child.className||child.tagName));
           assert.deepEqual(order,['A','message-stack']);
+          if(kind!=='edit') assert.equal(await page.locator('[data-wiredove-message]').count(),1,'Website and embed must mount the canonical message component');
           assert.equal(await page.locator('.message-meta').count(),1);
           const metaBounds=await page.locator('.message-meta').boundingBox();
           const mainBounds=await main.boundingBox();
@@ -288,7 +289,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await cachePage.locator('.image-gallery-tile').count(),10);
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v14-verified-post-notifications'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v15-shared-message-view'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

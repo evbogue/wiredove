@@ -29,8 +29,10 @@ callbacks. A configured widget can load its own public feed.
 Message bodies use the same ordered Markdown/gallery renderer as the website.
 Consecutive images form galleries; prose, lists, quotes and code retain their
 authored positions. Legacy APDS images require a host `presentation.resolveImage`
-adapter; unavailable references keep a stable tile with Retry. The Reply control is a labeled button that calls the host's
-`onReply` callback.
+adapter; unavailable references keep a stable tile with Retry. Reply is a labeled
+button shown only with a functional `onReply` callback. Parent links support both
+`reply` and historical `replyHash`. Missing legacy audio/video adapters display an
+explicit unavailable state instead of silently dropping the attachment.
 
 Open `client/embed-demo.html` from a Wiredove server for a working example of
 composing every layer one brick at a time.
@@ -92,8 +94,12 @@ DOM-free helper imports. Canonical helpers live in `ui/format.js`, `ui/body.js`,
 `ui/media-render.js`, and `ui/styles.js`. The aggregate `client/index.js` still
 imports the complete UI set; use individual modules for narrow dependencies.
 
-The website now uses the shared body/gallery renderer and image viewer, but has
-not yet migrated its whole message shell, actions or data services. See
+The website and custom element now both call the record-driven
+`ui/message-view.js` component. The website supplies explicit extensions for its
+observer-bound metadata, content and rich controls in light DOM; the public
+custom element mounts the same component in shadow DOM. Website edit-event
+summaries and APDS data services remain compatibility paths; this does not claim
+complete edit/moderation/profile or service parity. See
 [the feature inventory](../docs/SHARED_UI_INVENTORY.md) and
 [work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
 in `core/contracts.js`; adapters implementing them are a later stage.
@@ -254,3 +260,56 @@ queue. Requests expire 15 seconds after the last transport dispatch; a user retr
 bypasses the normal 30-second hash cooldown. Incoming peer requests do not count
 as receiving image bytes. No percentage or receiving-bytes claim is made because
 these transports deliver complete blobs rather than reporting byte progress.
+
+
+## Shared message and reply-only hosts
+
+```js
+widget.capabilities = { reply: true, compose: false };
+widget.onPublish = async draft => {
+  // Host owns identity, exact-byte signing, storage, relay confirmation and retry.
+  // draft.replyTo is the existing post-shaped record, with id and author.
+  return await host.publish(draft);
+};
+widget.presentation = {
+  postURL: post => '/timeline/?post=' + encodeURIComponent(post.id),
+  replyURL: id => '/timeline/?post=' + encodeURIComponent(id),
+  // Optional: omit the widget's navigation bar when the host supplies navigation.
+  navigation: false,
+};
+widget.posts = verifiedPosts;
+```
+
+`interactive` remains a compatibility opt-in for compose and reply. Explicit
+`capabilities` overrides those defaults; both require a functional `onPublish`.
+Removing that publisher immediately removes Reply and Write. Standalone
+`wiredove-message`, `wiredove-thread` and `wiredove-thread-feed` show Reply only
+when `onReply` is a function. Navigation callbacks retain `{type,id?,author?}`;
+modified clicks retain ordinary link behavior. `postURL`, `replyURL` and
+`authorURL` accept HTTP(S), fragment and same-origin root-relative links.
+
+A failed publisher must throw or return `saved:false` / `ok:false`; the draft
+remains. Return `{saved:true,relayed:false}` when saved locally but awaiting relay
+confirmation. The composer displays that distinction. Legacy callbacks returning
+no value remain supported. `wiredove-compose` is a post-callback notification
+with `{...draft,result}`; `wiredove-published.detail` is the result. Do not publish
+a second time from either event. Hosts update `posts` after verified retrieval;
+callback results are not silently inserted as verified records.
+
+Equivalent records retain message DOM during feed/thread refresh; current
+callbacks are used without rebuilding media. Explicit presentation changes or
+changed rendered record fields rebuild that message and dispose its media.
+Per-target composer drafts survive widget navigation in memory. Hosts own
+reload persistence and identity-setup recovery; this is not a durable draft store.
+
+`presentation.renderLegacyMedia(parsed,target,post)` may synchronously append
+historical media UI and return a cleanup function. Without it the public view
+shows an unavailable message. Existing `renderBody`, `resolveImage`, `avatarURL`,
+`timestamp`, `authorURL` and `onOpenGallery` presentation hooks remain supported.
+The website retains its original legacy media reader and immutable references.
+
+See [the integration handoff](../docs/SHARED_MESSAGE_HANDOFF.md) for coordination,
+validation boundaries and release notes. `npm run test:browser` includes signed
+fixture, separate-origin, keyboard, draft failure/retry and playback-retention
+checks at desktop, 390px and 320px in light/dark modes. Publication callbacks in
+that suite are injected; actual site storage/relay acceptance is a separate gate.

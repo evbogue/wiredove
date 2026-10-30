@@ -1,4 +1,5 @@
 import { createMessageMain } from './client/ui/message-layout.js'
+import { createMessageView, createReplyContext } from './client/ui/message-view.js'
 import { resolveImageSrc } from './profile_image.js'
 import { apds } from 'apds'
 import { h } from 'h'
@@ -164,20 +165,7 @@ render.refreshVisibleReplies = () => {
 
 const renderBody = async (body, replyHash) => {
   const fragment = document.createDocumentFragment()
-  if (replyHash) {
-    const preview = document.createElement('span')
-    preview.className = 'reply-preview'
-    preview.dataset.replyPreview = replyHash
-    const icon = document.createElement('span')
-    icon.className = 'material-symbols-outlined reply-preview-icon'
-    icon.textContent = 'Subdirectory_Arrow_left'
-    const link = document.createElement('a')
-    link.href = '#' + replyHash
-    link.className = 'reply-preview-link'
-    link.textContent = replyHash.substring(0, 10) + '...'
-    preview.append(icon, link)
-    fragment.append(preview)
-  }
+  if (replyHash) fragment.append(createReplyContext(replyHash))
   appendMarkdown(fragment, body)
   return fragment
 }
@@ -1076,20 +1064,19 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     editControls
   ])
 
-  const meta = h('div', {classList: 'message'}, [
-    right,
-    createMessageMain({
+  const { article: meta } = createMessageView({
+    post: { id: hash, signature: blob, content: contentBlob, author, timestamp, contentHash, parsed: yaml || {} },
+    extensions: {
+      metadata: right,
       avatarLink: h('a', {href: '#' + author}, [img]),
       authorNode: h('a', {href: '#' + author}, [name]),
-      bodyNode: h('div', {classList: 'message-body'}, [
-        h('div', {id: 'reply' + contentHash}),
-        content,
-        rawDiv,
-        actionsRow
-      ])
-    }),
-    qrTarget
-  ])
+      replyContext: h('div', {id: 'reply' + contentHash}),
+      content,
+      raw: rawDiv,
+      actions: actionsRow,
+      trailing: qrTarget
+    }
+  })
 
   div.replaceWith(meta)
   render.registerMessage(hash, {

@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v14-verified-post-notifications'
+const CACHE_VERSION = 'v15-shared-message-view'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -32,6 +32,8 @@ const APP_SHELL_ASSETS = [
   '/client/protocol.js',
   '/client/relay.js',
   '/client/ui/message-layout.js',
+  '/client/ui/message-view.js',
+  '/client/ui/message-list.js',
   '/client/ui/image-popover.js',
   '/client/ui/image-source.js',
   '/client/ui/image-gallery.js',

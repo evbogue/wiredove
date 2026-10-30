@@ -1,127 +1,53 @@
-import { createMessageMain } from './message-layout.js';
-import { verifiedImageSource } from './image-source.js';
-import { applyWiredoveStyles } from "./styles.js";
-import { registerElement } from "./element.js";
-import { displayName, human, visual } from "./format.js";
-import { appendFormattedText } from "./body.js";
-import { renderAndFSMedia, disposeMedia } from "./media-render.js";
+import { createMessageView } from './message-view.js';
+import { applyWiredoveStyles } from './styles.js';
+import { registerElement } from './element.js';
 
 export class WiredoveMessage extends HTMLElement {
-  set post(value) {
-    this._post = value;
-    this.render();
-  }
-  get post() {
-    return this._post;
-  }
+  set post(value) { this._post = value; this.render(); }
+  get post() { return this._post; }
   set onReply(value) {
-    this._onReply = value;
-    this.render();
+    this._handlers ||= {};
+    this._handlers.onReply = value;
+    this._view?.updateActions();
   }
+  get onReply() { return this._handlers?.onReply; }
   set onNavigate(value) {
-    this._onNavigate = value;
-    this.render();
+    this._handlers ||= {};
+    this._handlers.onNavigate = value;
   }
   set presentation(value) {
-    this._presentation = value || {};
-    this.render();
+    const next = value || {}, previous = this._presentation || {};
+    this._presentation = next;
+    const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+    if ([...keys].some(key => previous[key] !== next[key])) {
+      this._renderKey = null;
+      this.render();
+    }
   }
-  connectedCallback() {
-    this.render();
+  connectedCallback() { this.render(); }
+  disconnectedCallback() {
+    queueMicrotask(() => { if (!this.isConnected) this._dispose(); });
   }
-  disconnectedCallback() { if (this.shadowRoot) disposeMedia(this.shadowRoot); }
+  _dispose() { this._view?.dispose(); this._renderKey = null; }
   render() {
     const post = this._post;
-    if (!post) return;
-    const parsed = post.parsed || post;
-    const root = this.shadowRoot || this.attachShadow({ mode: "open" });
-    disposeMedia(root);
+    const root = this.shadowRoot || this.attachShadow({ mode: 'open' });
+    this._handlers ||= {};
+    this._handlers.post = post;
+    // Equivalent verified records retain playback, focus and image requests.
+    const key = post ? JSON.stringify([post.id, post.author, post.timestamp, post.parsed || post]) : null;
+    if (key && key === this._renderKey) return;
+    this._dispose();
+    this._view = null;
     root.replaceChildren();
+    if (!post) return;
+    this._renderKey = key;
     applyWiredoveStyles(root);
-    const article = document.createElement("article");
-    article.className = "message";
-
-    let avatar;
-    try {
-      avatar = visual(post.author);
-    } catch {
-      avatar = document.createElement("img");
-    }
-    avatar.className = "avatar";
-    avatar.alt = "";
-    const customAvatar = this._presentation?.avatarURL?.(post);
-    if (customAvatar) avatar.src = customAvatar;
-    else if (parsed.image) {
-      void verifiedImageSource(parsed.image).then(source => {
-        if (source && this._post === post && avatar.isConnected) avatar.src = source;
-      }).catch(() => {});
-    }
-    const avatarLink = document.createElement("a");
-    avatarLink.href = this._presentation?.authorURL?.(post) ||
-      `https://wiredove.net/#${encodeURIComponent(post.author || "")}`;
-    avatarLink.addEventListener("click", (event) => {
-      if (!this._onNavigate) return;
-      event.preventDefault();
-      this._onNavigate({ type: "profile", author: post.author });
-    });
-    avatarLink.append(avatar);
-
-    const author = document.createElement("a");
-    author.className = "avatarlink";
-    author.textContent = displayName(parsed, post.author);
-    author.href = this._presentation?.authorURL?.(post) ||
-      `https://wiredove.net/#${encodeURIComponent(post.author || "")}`;
-    author.addEventListener("click", (event) => {
-      if (!this._onNavigate) return;
-      event.preventDefault();
-      this._onNavigate({ type: "profile", author: post.author });
-    });
-    const meta = document.createElement("span");
-    meta.className = "message-meta";
-    const pubkey = document.createElement("span");
-    pubkey.className = "pubkey";
-    pubkey.textContent = String(post.author || "").substring(0, 6);
-    const time = document.createElement("a");
-    time.href = "#";
-    if (post.timestamp) {
-      time.dateTime = new Date(post.timestamp).toISOString();
-      time.title = new Date(post.timestamp).toLocaleString();
-      time.textContent = this._presentation?.timestamp?.(post) ||
-        human(post.timestamp);
-    }
-    time.addEventListener("click", (event) => {
-      if (!this._onNavigate) return;
-      event.preventDefault();
-      this._onNavigate({ type: "post", id: post.id });
-    });
-    meta.append(pubkey, " ", time);
-    let body;
-    if (parsed.body || parsed.andfs) {
-      body = document.createElement("div");
-      body.className = "message-body";
-      if (this._presentation?.renderBody) {
-        this._presentation.renderBody(parsed.body, body, post);
-      } else appendFormattedText(body, parsed.body, { resolveImage: this._presentation?.resolveImage, onOpen: this._presentation?.onOpenGallery });
-      renderAndFSMedia(parsed, body, { resolveImage: this._presentation?.resolveImage, onOpen: this._presentation?.onOpenGallery });
-      const actions = document.createElement("div");
-      actions.className = "message-actions";
-      const reply = document.createElement("button");
-      reply.className = "reply-action";
-      reply.type = "button";
-      reply.setAttribute("aria-label", "Reply to this post");
-      reply.textContent = "Reply";
-      reply.addEventListener("click", (event) => {
-        this._onReply?.(post);
-      });
-      actions.append(reply);
-      body.append(actions);
-    }
-    const main = createMessageMain({ avatarLink, authorNode: author, bodyNode: body });
-    article.append(meta, main);
-    root.append(article);
+    this._view = createMessageView({ post, presentation: this._presentation, handlers: this._handlers });
+    root.append(this._view.article);
   }
 }
 
 export function defineWiredoveMessage() {
-  return registerElement("wiredove-message", WiredoveMessage);
+  return registerElement('wiredove-message', WiredoveMessage);
 }

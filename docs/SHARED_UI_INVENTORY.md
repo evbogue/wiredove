@@ -74,3 +74,30 @@ The website still owns its message shell, metadata, moderation/edit controls,
 legacy audio/video resolution and services. S03 is partial; this is not a complete
 migration of the website to `wiredove-message`. The separate-origin gallery/viewer
 slice has observed browser coverage in `tests/image-gallery.browser.cjs`.
+
+
+## Shared message slice (2026-10-30)
+
+`ui/message-view.js` is now the record-driven message component used by
+`render.meta` for ordinary website posts and by `wiredove-message`. The custom
+element is a lifecycle wrapper, not another message renderer. The shared component
+owns metadata/main/body/action layout, default author/timestamp rendering,
+parent-post context, body/media, action availability and disposal. Website node
+extensions preserve existing IDs, timestamp observers, reply hydration/counts,
+raw/QR controls, author editing, edit navigation and moderation controls. Its
+edit-event summary renderer remains a compatibility path.
+
+`ui/message-list.js` reconciles thread/feed messages by ID and occurrence rather
+than replacing all children. Equivalent records and callback changes keep media
+and focus mounted. Explicit presentation/content changes still rebuild a message.
+`widget.capabilities` supports reply-only hosts and gates on an actual publisher;
+no absent publisher can report success. Composer drafts survive widget navigation
+in memory; host storage remains responsible for reload and identity setup.
+
+Public legacy audio/video requires an explicit `renderLegacyMedia` adapter and
+otherwise displays an honest unavailable state. Website legacy readers remain.
+No signed bytes, schemas, IDs, stores or relay protocols change. Rendering is not
+verification, and the APDS/cache verification audit is still open. Remaining
+work includes full shared edit-event/moderation/profile UI, APDS service extraction,
+complete website composer migration and actual cross-client relay acceptance.
+The site agent owns evbogue.com host integration and real local round trips.
