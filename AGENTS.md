@@ -267,3 +267,19 @@ Evbogue.com was already synchronized at `8690a4c` (documentation following deplo
 application `2ce443b`); public timeline client/session/preview hashes match source.
 No site reload was necessary. The planned replacement of its existing widget with
 the full application mount remains separate unfinished work, not part of this release.
+
+## Production release verified — 2026-10-31
+
+Wiredove application `130420e` (refresh icon change `878d3f3`, plus the updated
+warm-cache test assertion) is deployed at `/root/wiredove-release-130420e`.
+Service port, VAPID configuration and shared data link are preserved. Previous
+release `ce8c006` and `/root/wiredove-service-before-130420e.service` remain for
+rollback. Original checkout production edits are untouched. Local build/check,
+38 unit tests, 12 media tests and the full browser suite passed, including warm
+cache and separate-origin application flows. Host frozen-lock check passed.
+Public app.js, sw.js, style.css, navbar.js, route.js and client/application.css
+SHA-256 hashes match the release. Live 390px screenshot review showed the refresh
+icon and no overflow or JavaScript exceptions. Browser non-GET requests were
+blocked; no public test messages were published. Both services active; proxy
+unchanged. Evbogue.com post-only master `af31961` was also pulled and verified on
+the public post, homepage and RSS feed without a process reload.
