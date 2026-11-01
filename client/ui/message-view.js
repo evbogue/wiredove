@@ -120,9 +120,10 @@ export function createMessageView({
   let defaultRaw = null;
   let defaultTrailing = null;
   if (!meta) {
+    const permalinkHref = new URL(presentationURL(presentation.postURL?.(post)) ||
+      `https://wiredove.net/#${encodeURIComponent(post.id || '')}`, doc.baseURI).href;
     const timeLink = doc.createElement('a');
-    timeLink.href = presentationURL(presentation.postURL?.(post)) ||
-      `https://wiredove.net/#${encodeURIComponent(post.id || '')}`;
+    timeLink.href = permalinkHref;
     const time = doc.createElement('time');
     const date = new Date(post.timestamp);
     if (post.timestamp != null && Number.isFinite(date.getTime())) {
@@ -149,6 +150,7 @@ export function createMessageView({
       defaultTrailing = createQRTarget({ document: doc });
       qr = createQRControl({
         blob: post.signature,
+        destination: permalinkHref,
         target: defaultTrailing,
         loadQRious: presentation.ensureQRious,
         document: doc,
@@ -159,8 +161,7 @@ export function createMessageView({
       controls: {
         qr,
         rawToggle,
-        permalinkHref: presentationURL(presentation.postURL?.(post)) ||
-          `https://wiredove.net/#${encodeURIComponent(post.id || '')}`,
+        permalinkHref,
         timestamp: timeLink,
       },
       document: doc,

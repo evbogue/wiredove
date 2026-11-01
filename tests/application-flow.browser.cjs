@@ -15,7 +15,7 @@ const root = path.resolve(__dirname, '..');
  try {
   const port = await new Promise((resolve,reject)=>{server.stdout.once('data',data=>resolve(Number(String(data).trim())));server.once('exit',code=>reject(Error('Local backend exited '+code)))});
   const source = 'http://127.0.0.1:'+port; console.log('Local flow backend ready');
-  host = http.createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><h1>Plain host</h1><button id="host-control">Host control</button><div id="wiredove"></div><script type="module">import {mountWiredove} from '${source}/app-embed.js';window.app=await mountWiredove(document.querySelector('#wiredove'));window.ready=true;</script>`)});
+  host = http.createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><h1>Plain host</h1><button id="host-control">Host control</button><div id="wiredove"></div><script type="module">import {mountWiredove} from '${source}/app-embed.js';window.app=await mountWiredove(document.querySelector('#wiredove'),{canonicalURL:'${source}/canonical-app'});window.ready=true;</script>`)});
   await new Promise(resolve=>host.listen(0,'127.0.0.1',resolve));
   const hostURL = 'http://127.0.0.1:'+host.address().port;
   const cache = new Map();
@@ -39,6 +39,7 @@ const root = path.resolve(__dirname, '..');
       if(!cache.has(url)) cache.set(url,await (await fetch(url)).text());
       return route.fulfill({contentType:'text/javascript',body:cache.get(url)});
     }
+    if(url==='https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js')return route.fulfill({contentType:'text/javascript',body:'window.qrInputs=[];window.QRious=class{constructor(options){window.qrInputs.push(options.value)}}'});
     const raw=await dependency(url);
     if(raw!==null)return route.fulfill({contentType:'text/javascript',body:raw});
     if(url==='https://esm.sh/gh/evbogue/anproto@ddc040c/an.js')return route.fulfill({contentType:'text/javascript',body:`export {an} from '${source}/vendor/anproto/an.js'`});
@@ -47,7 +48,7 @@ const root = path.resolve(__dirname, '..');
   });
   const [website,embed]=await Promise.all(contexts.map(c=>c.newPage()));
   for(const page of [website,embed]) {page.on('pageerror',e=>{errors.push(e.message);console.error('Browser:',e.message)});page.on('requestfailed',r=>console.log('Request failed:',r.url(),r.failure()));}
-  await Promise.all([website.goto(source+'/website'),embed.goto(hostURL+'/#host-route')]);
+  await Promise.all([website.goto(source+'/website'),embed.goto(hostURL+'/?campaign=host#host-route')]);
   await Promise.all([website,embed].map(p=>p.waitForFunction(()=>window.ready).catch(async error=>{console.log('Unready page',p.url(),await p.evaluate(()=>({html:document.body.innerHTML.slice(0,1500),shadow:document.querySelector('main,#wiredove')?.shadowRoot?.innerHTML.slice(0,1000)})));throw error}))); console.log('Both real application mounts ready');
   const createIdentity=async(page,name)=>{
     await page.getByRole('button',{name:'Create or import identity',exact:true}).click();
@@ -237,6 +238,13 @@ const root = path.resolve(__dirname, '..');
   for(const page of [website,embed]) {
     await page.evaluate(id=>app.navigate(id),post.id);
     await page.evaluate(()=>{const style=document.createElement('style');style.textContent='*,*::before,*::after{animation:none!important;transition:none!important}';app.root.getRootNode().append(style)});
+    const article=page.locator('[id="'+post.id+'"]');
+    const expected=(page===website?source:source+'/canonical-app')+'/#'+post.signature;
+    assert.equal(await article.getByRole('link',{name:'Share',exact:true}).first().getAttribute('href'),expected);
+    await article.getByText('Qr_Code',{exact:true}).first().click();
+    await page.waitForFunction(value=>window.qrInputs?.includes(value),expected);
+    assert.equal(await page.evaluate(()=>qrInputs.at(-1)),expected,'QR encoder must receive the exact permalink');
+    await article.getByText('Qr_Code',{exact:true}).first().click();
     await fs.mkdir(path.join(root,'test-results'),{recursive:true});
     await page.screenshot({path:path.join(root,'test-results/application-flow-'+(page===website?'website':'embed')+'.png'),fullPage:true});
   }

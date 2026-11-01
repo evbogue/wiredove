@@ -34,7 +34,9 @@ export function createQRControl({
       ));
       try {
         const QRious = await loadQRious();
-        const href = destination || (view && view.location ? view.location.href : '') + (blob || '');
+        const href = destination
+          ? new URL(destination, doc.baseURI).href
+          : `https://wiredove.net/#${encodeURIComponent(blob || '')}`;
         new QRious({ element: canvas, value: href, size, background, foreground });
       } catch (err) {
         console.warn('QRious load failed', err);

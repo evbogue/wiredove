@@ -461,3 +461,11 @@ Bytes are verified before assigning a player source; failed reads expose Retry.
 No anblob IDs or signed historical statements are rewritten. Shared route strings
 `compose` and `reply=<message-id>` support older host query-link adapters; owner and
 capability policy still applies. Unavailable reply targets report that state.
+
+
+Message QR codes use the exact resolved permalink destination. Full application
+messages use the configured canonical application base; standalone messages use
+`presentation.postURL(post)` when valid, otherwise their existing Wiredove post-ID
+URL. Relative host post URLs resolve against the owning document's base URL. The
+same resolved URL is supplied to the QR encoder and timestamp link; current host
+query/hash state is never concatenated with a signature to construct a QR value.

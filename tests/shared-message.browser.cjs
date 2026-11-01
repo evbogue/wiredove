@@ -72,6 +72,35 @@ widget.posts=records;window.ready=true;
       assert.equal(await frame.locator('[data-wiredove-message]').count(), 2);
       await frame.getByText('Media unavailable. Please retry.', { exact: true }).waitFor();
       assert.equal(await frame.locator('audio').getAttribute('src'), null, 'unverified historical bytes must not reach playback');
+      // The host's existing query/hash must never be concatenated into QR data.
+      await frame.evaluate(async () => {
+        const {createMessageView}=await import('/client/ui/message-view.js');
+        window.qrOriginalURL=location.href;
+        history.replaceState(null,'','/?campaign=host#existing-route');
+        window.qrInputs=[];window.qrLoads=0;
+        const area=document.createElement('section');area.id='qr-url-checks';document.body.append(area);
+        const QRious=class{constructor(options){qrInputs.push(options.value)}};
+        window.qrViews=[
+          createMessageView({post:records[0],presentation:{postURL:post=>'/post/'+encodeURIComponent(post.id)+'?view=full#details',ensureQRious:async()=>{if(++qrLoads===1)throw Error('Local QR loader failure');return QRious}}}),
+          createMessageView({post:records[0],presentation:{ensureQRious:async()=>QRious}}),
+        ];
+        for(const [index,view] of qrViews.entries()){const slot=document.createElement('div');slot.id='qr-view-'+index;slot.append(view.article);area.append(slot)}
+      });
+      const customQR=frame.locator('#qr-view-0').getByText('Qr_Code',{exact:true});
+      await customQR.click();
+      await frame.waitForFunction(()=>qrLoads===1&&!document.querySelector('#qr-view-0 .qr-target').firstChild);
+      await customQR.click();
+      await frame.waitForFunction(()=>qrInputs.length===1);
+      const customURL=await frame.locator('#qr-view-0').getByRole('link',{name:'Share',exact:true}).evaluate(link=>link.href);
+      assert.equal(await frame.evaluate(()=>qrInputs[0]),customURL);
+      assert.equal(customURL,origin+'/post/'+encodeURIComponent(id)+'?view=full#details');
+      await frame.locator('#qr-view-1').getByText('Qr_Code',{exact:true}).click();
+      await frame.waitForFunction(()=>qrInputs.length===2);
+      const defaultURL=await frame.locator('#qr-view-1').getByRole('link',{name:'Share',exact:true}).evaluate(link=>link.href);
+      assert.equal(defaultURL,'https://wiredove.net/#'+encodeURIComponent(id));
+      assert.equal(await frame.evaluate(()=>qrInputs[1]),defaultURL);
+      assert.equal(await frame.locator('#qr-view-0 .qr-target canvas').count(),1,'another instance must retain its QR target');
+      await frame.evaluate(()=>{for(const view of qrViews)view.dispose();document.getElementById('qr-url-checks').remove();history.replaceState(null,'',qrOriginalURL)});
       await frame.evaluate(() => {
         widget.setAttribute('interactive', '');
         widget.navigate({ type: 'compose' });

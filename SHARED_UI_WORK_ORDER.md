@@ -177,10 +177,13 @@ website behavior remains available; unfinished routes are tracked, not removed.
 - [ ] Retire website/widget bridges only after replacement behavior passes in both
   mounts. Keep existing public widget imports, elements and callbacks compatible.
 
-Carry forward the outstanding raw/QR review: use native keyboard-accessible buttons,
-accurate expanded state and instance-unique control IDs; resolve QR URLs explicitly
-from the same canonical destination as permalinks. Commit coverage of exact encoder
-input, loading failure/retry and repeated instances, across website and embed.
+QR/permalink destination parity is implemented in the November 1 checkpoint below:
+application metadata computes one canonical destination, and standalone messages
+resolve one configured/default permalink for both controls and the timestamp.
+Exact encoder input, custom paths, host query/hash isolation, loader retry and two
+standalone instances have regression coverage. Remaining raw/QR accessibility review:
+native keyboard-accessible buttons, accurate expanded state and instance-unique
+control IDs, with keyboard/repeated-instance behavior in both application mounts.
 
 ### 3. Replace the evbogue.com integration
 
@@ -949,3 +952,30 @@ buttons, explicit accessibility state and unique controls; prove exact QR encode
 input, keyboard operation, load failure/retry and two instances in both application
 mounts. Then continue the unchecked profile/history, message/moderation and settings/
 identity/capability slices. Historical image availability work need not block these.
+
+
+### 2026-11-01 QR and permalink destination parity
+
+Application metadata now calculates its canonical permalink once and supplies that
+same absolute URL to the QR control. Removed the duplicate permalinkHref property
+that previously replaced the configured URL with a host-relative fragment.
+Standalone message views resolve the safe configured/default post URL once, then
+share it between permalink, timestamp and QR encoder. The independent QR helper's
+fallback uses a stable Wiredove signature URL instead of concatenating the host's
+entire current URL. Existing signature/message-ID reference conventions are retained.
+
+The regression checks capture the exact string supplied to QRious, rather than
+assuming a rendered canvas proves the destination. Full application website and
+separate-origin embed coverage compares that string with the permalink, including
+an embed canonical path distinct from its host URL and a host with query/hash state.
+Standalone message tests cover a custom relative post URL with query/hash, the default
+post URL, two concurrent views and loader failure/retry at 1200/390/320px light/dark.
+Only the QR encoder is substituted; the application flow retains real local signing,
+storage and archive services, with public writes blocked. Distribution is rebuilt
+and shell cache v30 coordinates website refresh. No deployment or site repin is
+included. Raw/QR keyboard semantics, expanded state and unique IDs remain open.
+
+Checkpoint validation: build/frozen server check, all 41 unit tests and the complete
+browser suite passed, including the new URL assertions, real separate-origin
+application flow and warm-cache upgrade. No media storage/protocol changes were made;
+no public fixtures or signed test messages were published.

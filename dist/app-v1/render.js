@@ -183,6 +183,9 @@ const renderBody = async (body, replyHash) => {
 }
 
 const buildMetaCluster = ({ author, hash, blob, opened, contentBlob, ts }) => {
+  const permalinkHref = application?.session?.policy
+    ? application.session.policy.canonicalURL + '/#' + blob
+    : new URL('#' + blob, root.ownerDocument?.baseURI || globalThis.location.href).href
   const qrTarget = createQRTarget({ document })
   const { toggle: rawToggle, rawDiv } = createRawControls({
     id: hash, signature: blob, opened, content: contentBlob, document,
@@ -190,10 +193,9 @@ const buildMetaCluster = ({ author, hash, blob, opened, contentBlob, ts }) => {
   const right = createMessageMeta({
     post: { id: hash, author, signature: blob },
     controls: {
-      permalinkHref: application?.session?.policy ? application.session.policy.canonicalURL + '/#' + blob : undefined,
-      qr: createQRControl({ blob, destination: application?.session?.policy ? application.session.policy.canonicalURL + '/#' + blob : undefined, target: qrTarget, loadQRious: ensureQRious, document }),
+      permalinkHref,
+      qr: createQRControl({ blob, destination: permalinkHref, target: qrTarget, loadQRious: ensureQRious, document }),
       rawToggle,
-      permalinkHref: '#' + blob,
       timestamp: ts,
     },
     document,
