@@ -347,3 +347,23 @@ existing stored WebP loaded and decoded through its `#hash` route in both themes
 Historical feed images also loaded with outgoing WebSocket traffic restricted to
 hash read requests. HTTP non-GET requests were blocked; no public test posts or
 uploads were sent. Warm-cache and separate-origin acceptance passed locally.
+
+## Production release verified — 2026-11-01 (mobile composer keyboard)
+
+Application `add5bea` is deployed at `/root/wiredove-release-add5bea`.
+Previous release `fcab6e8` and unit backup
+`/root/wiredove-service-before-add5bea.service` remain for rollback. Only the
+unit's WorkingDirectory changed; port 8081, VAPID configuration, shared data
+symlink, original checkout edits and reverse proxy are preserved. Host frozen-lock
+check passed and both services are active with a clean startup.
+
+Public app.js, sw.js, style.css, application CSS and source/distributed composer
+dialog hashes match the release. Isolated 390px live light/dark browser checks
+confirmed the shared composer dialog fits simulated visual-viewport keyboard
+bounds (40–400px), with toolbar visible, no page overflow or JavaScript exceptions.
+Reviewed the live light screenshot. HTTP non-GET and all WebSocket traffic were
+blocked; no public test posts/uploads were sent. These checks simulate keyboard
+geometry; real iOS/Android keyboard acceptance remains outstanding. The application
+commit passed isolated build/check, 41 unit tests, 12 media tests and the complete
+browser suite before deployment. Pre-existing local session/navbar edits remain
+unfinished and excluded from this release.
