@@ -367,3 +367,24 @@ geometry; real iOS/Android keyboard acceptance remains outstanding. The applicat
 commit passed isolated build/check, 41 unit tests, 12 media tests and the complete
 browser suite before deployment. Pre-existing local session/navbar edits remain
 unfinished and excluded from this release.
+
+## Production release verified — 2026-11-01 (composer image flow)
+
+Application `cd7c09e` is deployed at `/root/wiredove-release-cd7c09e`, including
+removal of the raw-text composer toggle and separate image attachment cards.
+Previous release `add5bea` and `/root/wiredove-service-before-cd7c09e.service`
+remain for rollback. Only the service WorkingDirectory changed; port 8081,
+VAPID configuration, shared data symlink, original checkout edits and reverse
+proxy are preserved. Host frozen-lock check passed; both services are active
+and the startup log is clean.
+
+Public app.js, sw.js, style.css, composer.js, application CSS, image uploader,
+composer dialog and distributed composer/uploader/CSS/manifest SHA-256 hashes
+match the release. Isolated 390px light/dark browser checks loaded the live shared
+modules, mocked upload persistence and supplied local verified AndFS fixture
+blocks. Upload inserted only the Markdown hash reference; Preview decoded the
+verified image with no attachment cards, page overflow or JavaScript exceptions.
+Reviewed the live dark screenshot. Non-GET HTTP and all WebSocket traffic were
+blocked; no production upload/post was written. Before release, build/check,
+41 unit tests, 13 media tests and the full browser suite passed, including the
+new image-flow regression, separate-origin application and warm-cache upgrade.
