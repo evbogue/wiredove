@@ -1097,8 +1097,8 @@ button:disabled { cursor: default; opacity: .6; }
 .composer-image-card .composer-icon { position: absolute; top: 0; right: 0; }
 @media (max-width: 640px) {
   .composer-dialog .composer-scroll { display: flex; flex-direction: column; }
-  .composer-dialog textarea.composer-text { flex: 1 0 150px; max-height: none; }
-  .composer-dialog .composer-preview { flex: 1 0 150px; }
+  .composer-dialog textarea.composer-text { flex: 1 1 150px; min-height: 80px; max-height: none; }
+  .composer-dialog .composer-preview { flex: 1 1 150px; min-height: 80px; }
 }
 .composer-attachments img.media-player { object-fit: contain; background: transparent; }
 .composer-icon .material-symbols-outlined {

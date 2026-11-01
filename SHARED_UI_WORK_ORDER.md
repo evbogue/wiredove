@@ -679,3 +679,18 @@ the actual site locally with public writes blocked. Inspect desktop/mobile
 screenshots and profile/post/thread/reply/reload plus refresh/retry. Commit/push
 coordinated changes, then back up production timeline data and deploy/verify the
 reviewed replacement with a retained rollback. Milestones 2–4 otherwise remain open.
+
+### 2026-11-01 mobile composer keyboard sizing
+
+The shared composer dialog now intersects its application container with the
+visual viewport, translating the visible bounds into container coordinates. Both
+page and embedded mounts respond to keyboard resize/pan and host scroll events;
+listeners are removed on disposal. Mobile editor/preview flex sizing can shrink
+while the header and footer remain available. Shell cache v25 refreshes the fix.
+Separate-origin browser regression coverage holds container height fixed while
+simulating visual viewport shrink, pan and dismissal in both mount modes and
+light/dark themes. These simulations do not establish real iOS/Android keyboard
+acceptance; physical-device verification remains outstanding.
+Validation: isolated committed checkout passed build/frozen check, 41 unit tests,
+12 media tests and the complete browser suite, including warm-cache upgrade.
+Reviewed 390px light/dark keyboard-viewport screenshots with animations disabled.

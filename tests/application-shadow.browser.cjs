@@ -58,8 +58,9 @@ window.run=async()=>{window.apps=await Promise.all(['one','two'].map(mount));win
    assert.equal(await page.evaluate(()=>storageOpens),0);
    assert.equal(await page.locator('iframe').count(),0);
    assert.equal(await page.locator('script[type="importmap"]').count(),0);
-   await page.evaluate(()=>run());
+   await page.evaluate(source=>{window.apiSource=source;return run()},source);
    await page.waitForFunction(()=>window.ready);
+   await page.evaluate(()=>{for(const a of apps){const s=document.createElement('style');s.textContent='*,*::before,*::after{animation:none!important;transition:none!important}';a.root.getRootNode().append(s)}});
    const app=page.locator('#one'),other=page.locator('#two');
    await app.getByRole('searchbox').fill('local-search');
    assert.equal(await page.evaluate(()=>apps[1].navigation.get()),'');
@@ -100,6 +101,54 @@ window.run=async()=>{window.apps=await Promise.all(['one','two'].map(mount));win
    assert.equal(await page.evaluate(()=>document.body.style.cssText===hostStyle),true);
    await fs.mkdir(path.join(root,'test-results'),{recursive:true});
    await page.screenshot({path:path.join(root,`test-results/application-shadow-composer-${width}-${colorScheme}.png`),fullPage:true});
+   if(width===390){
+    // Keep the layout viewport/container fixed while a keyboard shrinks and
+    // pans only the visual viewport. Exercise page and embedded mounts.
+    for(const pageMount of [false,true]){
+     await page.evaluate(async pageMount=>{
+      document.querySelector('#one').scrollIntoView({block:'start'});
+      window.viewportDescriptor=Object.getOwnPropertyDescriptor(window,'visualViewport');
+      const viewport=new EventTarget();viewport.height=300;viewport.offsetTop=60;
+      Object.defineProperty(window,'visualViewport',{configurable:true,value:viewport});
+      window.keyboardViewport=viewport;
+      if(pageMount)apps[0].root.classList.add('wiredove-page');
+      window.containerHeight=apps[0].root.clientHeight;
+      // Reopen so the dialog subscribes to the synthetic viewport.
+      apps[0].root.querySelector('.composer-overlay').remove();
+      await new Promise(resolve=>setTimeout(resolve,0));
+      const {composer}=await import(window.apiSource+'/dist/app-v1/composer.js');
+      apps[0].root.append(await composer(null,{application:apps[0]}));
+     },pageMount);
+     await app.getByRole('dialog').waitFor();
+     for(const [height,offsetTop] of [[300,60],[240,90],[920,0]]){
+      await page.evaluate(({height,offsetTop})=>{
+       Object.assign(keyboardViewport,{height,offsetTop});
+       keyboardViewport.dispatchEvent(new Event('resize'));
+       keyboardViewport.dispatchEvent(new Event('scroll'));
+      },{height,offsetTop});
+      await page.waitForTimeout(50);
+      const geometry=await app.locator('.composer-overlay').evaluate(overlay=>{
+       const root=apps[0].root,r=root.getBoundingClientRect(),o=overlay.getBoundingClientRect();
+       const footer=overlay.querySelector('.composer-footer').getBoundingClientRect();
+       return {height:root.clientHeight,top:o.top,bottom:o.bottom,footerTop:footer.top,footerBottom:footer.bottom,
+        expectedTop:Math.max(r.top+root.clientTop,keyboardViewport.offsetTop),
+        expectedBottom:Math.min(r.top+root.clientTop+root.clientHeight,keyboardViewport.offsetTop+keyboardViewport.height)};
+      });
+      assert.equal(geometry.height,await page.evaluate(()=>containerHeight));
+      assert.ok(Math.abs(geometry.top-geometry.expectedTop)<2,JSON.stringify(geometry));
+      assert.ok(Math.abs(geometry.bottom-geometry.expectedBottom)<2,JSON.stringify(geometry));
+      assert.ok(geometry.footerTop>=geometry.top && geometry.footerBottom<=geometry.bottom+1,JSON.stringify(geometry));
+      if(height===240)await page.screenshot({path:path.join(root,`test-results/composer-keyboard-${pageMount?'page':'embed'}-${colorScheme}.png`)});
+     }
+     await page.evaluate(()=>{
+      const viewport=keyboardViewport;
+      if(viewportDescriptor)Object.defineProperty(window,'visualViewport',viewportDescriptor);
+      else delete window.visualViewport;
+      apps[0].root.classList.remove('wiredove-page');
+      viewport.dispatchEvent(new Event('resize'));
+     });
+    }
+   }
    await app.locator('textarea').first().focus();
    await page.keyboard.press('Escape');
    await page.evaluate(async source=>{

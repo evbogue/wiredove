@@ -49,19 +49,34 @@ export function createComposerDialog(surface, { onClose, onOpen, onDispose, root
       siblings.forEach(node => { node.inert = true; });
       const viewport = window.visualViewport;
       const resize = () => {
-        const embedded = root !== document.body;
-        overlay.style.height = `${embedded ? root.clientHeight : viewport?.height || window.innerHeight}px`;
-        overlay.style.top = `${embedded ? root.scrollTop : viewport?.offsetTop || 0}px`;
+        const visibleTop = viewport?.offsetTop || 0;
+        const visibleBottom = visibleTop + (viewport?.height || window.innerHeight);
+        let top = visibleTop, bottom = visibleBottom;
+        if (root !== document.body) {
+          // Both website and embeds mount in a scrolling application container.
+          // Keyboard changes can shrink/pan only the visual viewport, leaving
+          // clientHeight (and dvh) unchanged. Clip to their intersection, then
+          // convert back to the absolute overlay's container coordinates.
+          const origin = root.getBoundingClientRect().top + root.clientTop;
+          top = Math.max(origin, visibleTop);
+          bottom = Math.min(origin + root.clientHeight, visibleBottom);
+          overlay.style.top = `${top - origin + root.scrollTop}px`;
+        } else {
+          overlay.style.top = `${top}px`;
+        }
+        overlay.style.height = `${Math.max(0, bottom - top)}px`;
       };
       resize();
       viewport?.addEventListener('resize', resize);
       viewport?.addEventListener('scroll', resize);
       window.addEventListener('resize', resize);
+      window.addEventListener('scroll', resize, true);
       root.addEventListener('keydown', keydown);
       cleanup = () => {
         viewport?.removeEventListener('resize', resize);
         viewport?.removeEventListener('scroll', resize);
         window.removeEventListener('resize', resize);
+        window.removeEventListener('scroll', resize, true);
         root.removeEventListener('keydown', keydown);
         inert.forEach(([node, value]) => { node.inert = value; });
         if (root.style) root.style.cssText = bodyStyle;
