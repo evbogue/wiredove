@@ -694,3 +694,14 @@ acceptance; physical-device verification remains outstanding.
 Validation: isolated committed checkout passed build/frozen check, 41 unit tests,
 12 media tests and the complete browser suite, including warm-cache upgrade.
 Reviewed 390px light/dark keyboard-viewport screenshots with animations disabled.
+
+### 2026-11-01 composer raw-text toggle removed
+
+Removed the redundant raw-text button/panel from the shared website/embed
+composer and its unused CSS. Markdown Preview remains the single preview action.
+Regenerated the distributed application and bumped the shell cache to v26 for
+existing installs. Build/frozen check, 41 unit tests, 13 media tests, separate-origin
+composer checks and notification browser checks passed; reviewed the 390px light
+composer screenshot. Two earlier test fixtures needed missing protocol/upload
+exports supplied to match the preceding owner-controlled application commit.
+Gallery browser checks also passed, including the warm service-worker cache upgrade.

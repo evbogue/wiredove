@@ -1,4 +1,4 @@
-import { createComposerSurface, iconButton } from './client/ui/composer-surface.js'
+import { createComposerSurface } from './client/ui/composer-surface.js'
 import { createComposerDialog } from './client/frames/composer-dialog.js'
 import { serializeWebsiteWrite } from './client/runtime/signing-queue.js'
 import { apds } from 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js'
@@ -681,15 +681,6 @@ export const composer = async (sig, options = {}) => {
   if (capabilities?.recording === false) for (const button of mediaControls.actions.querySelectorAll('[aria-label^="Record"]')) button.hidden = true
   surface.attachments.append(uploadControls.preview, mediaControls)
   if (mediaAttachment) mediaControls.restore(mediaAttachment)
-  // Keep raw inspection available without competing with attachment actions.
-  const raw = h('pre', {classList: 'hljs composer-raw', hidden: true})
-  const rawToggle = iconButton('Show raw message', 'code', () => {
-    raw.hidden = !raw.hidden
-    raw.textContent = textarea.value
-    rawToggle.setAttribute('aria-pressed', String(!raw.hidden))
-  })
-  surface.header.insertBefore(rawToggle, surface.header.lastChild)
-  surface.body.append(raw)
   const content = surface.preview
   const overlay = createComposerDialog(surface.root, {
     root: application?.root, scroll: application?.scroll,
