@@ -17,6 +17,10 @@ export function createBrowserStore(name = 'wiredove-embed') {
     });
   }
   return {
+    entries: async () => {
+      const keys = await run('readonly', store => store.getAllKeys());
+      return await Promise.all(keys.map(async key => [key, await run('readonly', store => store.get(key))]));
+    },
     get: key => run('readonly', store => store.get(key)),
     set: (key, value) => run('readwrite', store => store.put(value, key)),
     delete: key => run('readwrite', store => store.delete(key)),

@@ -162,7 +162,7 @@ export const navbar = async (application) => {
     h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
       h('img', {src: new URL('./dovepurple_sm.png', import.meta.url).href, classList: 'avatar_small', alt: ''})
     ]),
-    ...(application.session?.policy?.capabilities?.compose === false ? [] : [await composeButton(application)]),
+    ...((application.session?.policy?.capabilities?.compose === false || (application.session?.policy?.owner && await apds.pubkey() !== application.session.policy.owner)) ? [] : [await composeButton(application)]),
   ])
 
   // Feed refresh lives behind a navbar icon instead of a feed toolbar row. The

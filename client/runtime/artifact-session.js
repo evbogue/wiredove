@@ -2,7 +2,7 @@ import { an } from '../../vendor/anproto/an.js'
 
 // Transport and storage contracts contain exact signed artifacts. All untrusted
 // backend records are checked before reaching APDS or a renderer.
-export const createArtifactSession = ({ protocol, store, endpoint, fetchImpl = fetch, receive = async () => {} }) => {
+export const createArtifactSession = ({ protocol, store, endpoint, legacyImageURL = null, fetchImpl = fetch, receive = async () => {} }) => {
   const listeners = new Set()
   const changed = () => { for (const listener of listeners) listener() }
   let cursor = 0
@@ -30,6 +30,19 @@ export const createArtifactSession = ({ protocol, store, endpoint, fetchImpl = f
     if (stopped) throw Error('Application session stopped')
     const existing = await protocol.get(record.id)
     await protocol.make(record.content)
+    if (legacyImageURL) {
+      const parsed = await protocol.parseYaml(record.content)
+      const hashes = new Set([parsed?.image, ...[...(parsed?.body || '').matchAll(/!\[[^\]]*\]\(([A-Za-z0-9+/]{43}=)\)/g)].map(match => match[1])].filter(value => /^[A-Za-z0-9+/]{43}=$/.test(value || '')))
+      await Promise.all([...hashes].map(async hash => {
+        if (await protocol.get(hash)) return
+        try {
+          const url = new URL(legacyImageURL); url.searchParams.set('hash', hash)
+          const { source } = await request(url)
+          if (typeof source !== 'string' || !source.startsWith('data:image/') || await an.hash(source) !== hash) throw Error('Historical image verification failed')
+          await protocol.make(source)
+        } catch { /* Keep the record readable and allow a future pull to retry. */ }
+      }))
+    }
     await protocol.add(record.signature)
     await flush()
     if (!existing) {
@@ -42,6 +55,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, fetchImpl = f
     await ingest(record)
     const saved = await request(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(record) })
     if (!saved.saved || saved.id !== record.id) throw Error('Backend did not confirm the exact artifact')
+    if (saved.relayed === false) throw Error(saved.relayError || 'Saved on this backend; relay confirmation pending. Retry pending publication.')
     await store.set('outbox', (await pending()).filter(item => item.id !== record.id))
     return { ...record, saved: true, relayed: true }
   }

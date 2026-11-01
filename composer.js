@@ -11,7 +11,8 @@ import { announceConfirmedPost } from './post_notifications.js'
 import { createWiredoveRelay } from './client/relay.js'
 import { send } from './send.js'
 import { appendMarkdown } from './markdown.js'
-import { imgUpload } from './upload.js'
+import { createBrowserStore } from './client/runtime/browser-store.js'
+import { imgUpload, uploadImage } from './upload.js'
 import { beginPublishVerification, finishPublishVerification } from './publish_status.js'
 import { createMediaComposer } from './media.js'
 
@@ -105,6 +106,7 @@ export const composer = async (sig, options = {}) => {
   let publishing = false
   let closed = false
   if (application?.session?.policy?.capabilities?.[sig ? 'reply' : 'compose'] === false) throw Error('Publishing is disabled for this application')
+  if (!sig && application?.session?.policy?.owner && pubkey !== application.session.policy.owner) throw Error('Only the site owner can start posts')
   const resumeKey = `wiredove-composer-open:${pubkey || 'anon'}:${application?.draftScope || 'page'}`
   const draftKey = `wiredove-composer-draft:${pubkey || 'anon'}:${isEdit ? 'edit:' + options.editHash : sig ? 'reply:' + obj.replyHash : 'new'}`
   const storage = (() => { try { return window.localStorage } catch { return null } })()
@@ -656,6 +658,24 @@ export const composer = async (sig, options = {}) => {
   })
   publishButton = surface.publish
   surface.tools.append(uploadControls, mediaControls.actions)
+  if (application?.session?.policy?.legacyDatabase) {
+    const legacy = createBrowserStore(application.session.policy.legacyDatabase)
+    const draft = await legacy.get('draft:' + (obj.replyHash || 'new'))
+    if (draft?.file) {
+      const restore = h('button', { type: 'button', onclick: async () => {
+        restore.disabled = true
+        try {
+          if (draft.file.type.startsWith('image/')) {
+            const uploaded = await uploadImage(draft.file, { reply: replyObj.reply, replyto: replyObj.replyto, service: application.session.policy })
+            textarea.value += '\n\n![](' + uploaded.media_url + ')'
+            textarea.dispatchEvent(new Event('input'))
+          } else await mediaControls.attach(draft.file)
+          restore.remove()
+        } catch (error) { surface.status.textContent = error.message; restore.disabled = false }
+      } }, ['Restore previous attachment: ' + draft.file.name])
+      surface.attachments.append(restore)
+    }
+  }
   const capabilities = application?.session?.policy?.capabilities
   if (capabilities?.upload === false) { uploadControls.hidden = true; mediaControls.actions.hidden = true }
   if (capabilities?.recording === false) for (const button of mediaControls.actions.querySelectorAll('[aria-label^="Record"]')) button.hidden = true
