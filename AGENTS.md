@@ -308,3 +308,23 @@ and the complete browser suite passed. Reviewed 390px website/light and 320px
 embed/dark screenshots. Audio cards still expose a raw media URL and the
 "Verified AndFS media" label; narrow reply previews split author/excerpt into
 cramped columns. Those are separate follow-up observations, not fixed here.
+
+## Hash-only media navigation — 2026-10-31
+
+Ev requested ordinary hash routes for files instead of new `/media/<hash>` links.
+New uploads now publish `/#<AndFS manifest hash>` URLs. The shared application
+router handles these before alias lookup, verifies manifest/chunk bytes and
+sniffs image/audio/video formats. Unknown formats offer a verified download;
+ambiguous audio/video containers use a video player, which also supports audio.
+Both application mounts use their configured media source. Preserve historical
+`/media` readers, APDS image hashes, anblob readers and all signed historical bytes.
+The `/api/media` upload API and `/blobs` transport remain service endpoints.
+Inline/profile image resolution accepts both new hash URLs and historical URLs.
+Composer draft previews resolve verified bytes rather than assigning page URLs
+as native player sources.
+
+Audio/video cards suppress only the exact generated trailing compatibility URL
+from presentation and omit the technical success label. Signed content remains
+unchanged. Shared reply previews wrap as text and use a font-independent arrow.
+The pre-existing nested-reply indentation remains. These changes do not establish
+full widget parity or update evbogue.com's separate application consumer.

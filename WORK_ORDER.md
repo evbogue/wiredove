@@ -20,7 +20,7 @@ andfs: <43-character URL-safe unpadded AndFS manifest hash>
 mime: video/webm
 media_name: clip.webm
 media_size: 123456
-media_url: https://evbogue.com/timeline/media/<manifest-hash>
+media_url: https://evbogue.com/timeline/#<manifest-hash>
 media_source: https://evbogue.com/timeline
 ```
 
@@ -187,3 +187,8 @@ media directions, exact signatures/blocks, and service restart recovery.
 Mobile gallery and desktop dark photo crop screenshots were reviewed. Physical
 mobile/Safari and production deployment remain pending; no public test posts
 were published. Vendored upstream source bytes remain unchanged.
+
+New writes use hash-only application media links (`/#<manifest-hash>`). Shared
+application routing verifies bytes and detects their format before display. Keep
+historical `/media/<hash>` readers and signed URLs intact. Transport still uses
+`/blobs/<hash>`; `/api/media` remains the signed upload API.

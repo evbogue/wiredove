@@ -81,10 +81,44 @@ const root = path.resolve(__dirname, '..');
   let records=(await (await fetch(source+'/api/application')).json()).records;
   const post=records.find(r=>r.content.includes('Real local two-author acceptance post'));
   assert.ok(post);
+  const mediaHash = /andfs: ([A-Za-z0-9_-]{43})/.exec(post.content)[1];
+  assert.ok(post.content.includes('/#' + mediaHash));
+  assert.ok(!post.content.includes('/media/' + mediaHash));
+  for (const page of [website, embed]) {
+    await page.evaluate(hash => app.navigate(hash), mediaHash);
+    await page.locator('.hash-media-view audio').waitFor();
+    assert.equal(await page.locator('.hash-media-view audio').evaluate(n => n.src.startsWith('blob:')), true);
+    assert.equal(await page.locator('.hash-media-view a').getAttribute('download'), mediaHash);
+    await page.reload(); await page.waitForFunction(() => window.ready);
+    // The website uses its URL hash; the embedded app's route belongs to its host.
+    if (page === embed) await page.evaluate(hash => app.navigate(hash), mediaHash);
+    await page.locator('.hash-media-view audio').waitFor();
+  }
+  const photo = await website.evaluate(async () => {
+    const {storeMedia} = await import('/media.js');
+    const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0vQAAAAASUVORK5CYII='), c => c.charCodeAt(0));
+    return await storeMedia(new File([bytes], 'photo.png', {type:'image/png'}), {service:app.session.policy});
+  });
+  for (const page of [website, embed]) {
+    await page.evaluate(hash => app.navigate(hash), photo.andfs);
+    await page.locator('.hash-media-view img').waitFor();
+    assert.equal(await page.locator('.hash-media-view img').evaluate(n => n.src.startsWith('blob:')), true);
+    await page.evaluate(async photo => {
+      const {verifiedImageSource} = await import(new URL('/client/ui/image-source.js', photo.media_source));
+      const modern = await verifiedImageSource(photo.media_url);
+      const historical = await verifiedImageSource(photo.media_source + '/media/' + photo.andfs);
+      if (modern !== historical || !modern.startsWith('data:image/png;')) throw Error('Image URL compatibility failed');
+    }, photo);
+    await page.evaluate(hash => app.navigate(hash), 'A'.repeat(43));
+    await page.getByText('File unavailable: could not retrieve and verify its bytes.', {exact:true}).waitFor();
+  }
+  console.log('Both mounts: hash-only attachment links, byte detection, verified playback and reload passed');
+
   await embed.evaluate(async id=>{await app.session.refresh();await app.navigate(id)},post.id);
   await embed.getByText('Real local two-author acceptance post',{exact:true}).waitFor();
   await embed.locator('audio').first().waitFor();
   assert.equal(await embed.locator('audio').count(),1);
+  assert.equal(await embed.locator('.content').first().innerText().then(text => text.includes('/#' + mediaHash)), false, 'Compatibility media link must not duplicate the player');
   await embed.locator('audio').first().evaluate(async audio=>{window.acceptancePlayer=audio;await audio.play()});
   await embed.getByRole('button',{name:'Reply',exact:true}).click();
   await embed.getByPlaceholder('Write a message').fill('Real local second-author reply');

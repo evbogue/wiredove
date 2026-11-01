@@ -43,20 +43,20 @@ Deno.test('image/audio/video uploads replicate to a fresh verified store, surviv
       const copied = createAndFS({ store: replica });
       assert.deepEqual(await copied.manifest(meta.andfs), original);
       for (const id of [meta.andfs, ...original.chunks]) assert.deepEqual(await replica.get(id), await f.files.getBlock(id, { maxBytes: 1024 * 1024 }));
-      const full = await f.fetchImpl(meta.media_url);
+      const full = await f.fetchImpl('http://wiredove.test/media/' + meta.andfs);
       assert.equal(full.status, 200);
       assert.deepEqual(new Uint8Array(await full.arrayBuffer()), data);
       for (const [range, start, end] of [['bytes=262130-262170', 262130, 262171], ['bytes=-99', data.length - 99, data.length], ['bytes=524280-', 524280, data.length]]) {
-        const response = await f.fetchImpl(meta.media_url, { headers: { range } });
+        const response = await f.fetchImpl('http://wiredove.test/media/' + meta.andfs, { headers: { range } });
         assert.equal(response.status, 206);
         assert.equal(response.headers.get('content-range'), `bytes ${start}-${end - 1}/${data.length}`);
         assert.deepEqual(new Uint8Array(await response.arrayBuffer()), data.slice(start, end));
       }
-      const head = await f.fetchImpl(meta.media_url, { method: 'HEAD' });
+      const head = await f.fetchImpl('http://wiredove.test/media/' + meta.andfs, { method: 'HEAD' });
       assert.equal(head.headers.get('content-length'), String(data.length));
       assert.equal((await head.arrayBuffer()).byteLength, 0);
-      for (const range of ['bytes=999999-', 'bytes=-0', 'bytes=3-2', 'bytes=1-2,4-5']) assert.equal((await f.fetchImpl(meta.media_url, { headers: { range } })).status, 416);
-      const preflight = await f.fetchImpl(meta.media_url, { method: 'OPTIONS' });
+      for (const range of ['bytes=999999-', 'bytes=-0', 'bytes=3-2', 'bytes=1-2,4-5']) assert.equal((await f.fetchImpl('http://wiredove.test/media/' + meta.andfs, { headers: { range } })).status, 416);
+      const preflight = await f.fetchImpl('http://wiredove.test/media/' + meta.andfs, { method: 'OPTIONS' });
       assert.equal(preflight.headers.get('access-control-allow-origin'), '*');
     }
   } finally { await f.close(); }
@@ -101,7 +101,7 @@ Deno.test('duplicate retries repair missing/corrupt blocks without duplicate quo
       const missing = await f.fetchImpl(`/blobs/${manifest.chunks[0]}`);
       assert.equal(missing.status, 404);
       assert.equal(missing.headers.get('cache-control'), 'no-store');
-      const gateway = await f.fetchImpl(meta.media_url);
+      const gateway = await f.fetchImpl('http://wiredove.test/media/' + meta.andfs);
       await assert.rejects(() => gateway.arrayBuffer());
       await assert.rejects(() => readAndFSMedia(meta, { fetchImpl: f.fetchImpl }));
       assert.equal((await authorized(f, data)).status, 200);

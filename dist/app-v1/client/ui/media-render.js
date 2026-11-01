@@ -52,23 +52,25 @@ export const renderAndFSMedia = (yaml, container, options = {}) => {
   });
   try {
     // A gateway URL is a download fallback, never the verified player source.
-    const url = new URL(yaml.media_url || `${andfsSource(yaml)}/media/${yaml.andfs}`, location.href);
+    const url = new URL(yaml.media_url || `${andfsSource(yaml)}/#${yaml.andfs}`, location.href);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Unsafe media URL');
     link.href = url.href;
   } catch { link.remove(); }
   const load = async () => {
     if (loading || disposed || objectURL) return;
     loading = true; retry.hidden = true; observer?.disconnect();
-    status.classList.remove('error'); status.textContent = 'Loading and verifying AndFS media…';
+    status.classList.remove('error'); status.textContent = 'Loading media…';
     try {
       const bytes = await readAndFSMedia(yaml, { ...options, signal: controller.signal });
       if (disposed) return;
       objectURL = URL.createObjectURL(new Blob([bytes], { type: yaml.mime || '' }));
       player.src = objectURL;
-      status.textContent = 'Verified AndFS media';
+      link.href = objectURL; link.download = yaml.media_name || yaml.andfs;
+      status.textContent = '';
+      wrap.dataset.verified = 'true';
     } catch (error) {
       if (disposed) return;
-      status.textContent = 'Media unavailable: could not retrieve and verify AndFS blocks';
+      status.textContent = 'Media unavailable. Please retry.';
       status.classList.add('error'); retry.hidden = false;
     } finally { loading = false; }
   };

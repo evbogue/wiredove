@@ -648,14 +648,14 @@ wiredove-message, wiredove-composer {
 .reply { margin-left: 1em; }
 
 .reply-preview {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: 6px;
+  display: block;
+  margin: 0 0 6px;
+  font-size: .9em;
 }
 
 .reply-preview-icon {
   font-size: 1em;
+  margin: 0 6px;
 }
 
 .reply-preview-author {
@@ -1128,3 +1128,5 @@ wiredove-inline-image { display: inline-block; max-width: 100%; }
 .message-header > :first-child { min-width: 0; overflow-wrap: anywhere; }
 .message-header .message-meta { max-width: 100%; }
 .message-main > a { flex: 0 0 35px; }
+
+.media-status:empty { display: none; }

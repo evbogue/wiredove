@@ -93,7 +93,7 @@ async (page) => {
         const { renderMedia } = await import('/media.js');
         document.body.replaceChildren(); await renderMedia(post.parsed, document.body);
       }, post);
-      await reader.locator('.media-status').filter({ hasText: 'Verified AndFS media' }).waitFor();
+      await reader.locator('.media-post[data-verified]').waitFor();
       const player = reader.locator(post.parsed.type);
       await player.evaluate(async el => { el.load(); await el.play(); });
       await reader.waitForFunction(type => document.querySelector('wiredove-media').shadowRoot.querySelector(type).currentTime > 0, post.parsed.type);
@@ -119,7 +119,7 @@ async (page) => {
       const message = document.createElement('wiredove-message'); message.post = post;
       document.body.append(message);
     }, { origin, post: posts[1] });
-    await reader.locator('wiredove-message .media-status').filter({ hasText: 'Verified AndFS media' }).waitFor();
+    await reader.locator('wiredove-message .media-post[data-verified]').waitFor();
     await reader.locator('wiredove-message video').evaluate(el => el.play());
     await reader.waitForFunction(() => document.querySelector('wiredove-message').shadowRoot.querySelector('video').currentTime > 0);
     results.push('observed separate-origin widget uses the same verified AndFS renderer and plays video');
@@ -137,7 +137,7 @@ async (page) => {
     check(await reader.locator('wiredove-message audio').getAttribute('src') === null, 'Corrupt media reached player');
     await reader.unroute(origin + '/blobs/**');
     await reader.getByRole('button', { name: 'Retry media' }).click();
-    await reader.locator('wiredove-message .media-status').filter({ hasText: 'Verified AndFS media' }).waitFor();
+    await reader.locator('wiredove-message .media-post[data-verified]').waitFor();
     results.push('corrupt blocks cannot reach playback; explicit retry recovers');
 
     const before = blockRequests.length;
@@ -150,7 +150,7 @@ async (page) => {
     await reader.waitForTimeout(150);
     check(blockRequests.length === before, 'Offscreen media fetched eagerly');
     await reader.locator('wiredove-message').scrollIntoViewIfNeeded();
-    await reader.locator('wiredove-message .media-status').filter({ hasText: 'Verified AndFS media' }).waitFor();
+    await reader.locator('wiredove-message .media-post[data-verified]').waitFor();
     results.push('offscreen media stays lazy until scrolled into view');
     await reader.goto(origin);
     const legacy = await reader.evaluate(async audio => {

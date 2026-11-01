@@ -40,7 +40,7 @@ Deno.test("AndFS client signs the exact Timeline upload contract", async () => {
     throw new Error("unsigned upload");
   }
   if (
-    attachment.media_url !== "https://wiredove.example/media/" + "A".repeat(43)
+    attachment.media_url !== "https://wiredove.example/#" + "A".repeat(43)
   ) throw new Error("wrong media URL");
 });
 

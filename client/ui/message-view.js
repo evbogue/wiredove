@@ -1,3 +1,4 @@
+import { attachmentDisplayBody } from '../andfs.js';
 import { createMessageMain, placeMessageMetadata } from './message-layout.js';
 import { resolveImageSource, safeLinkURL, safeImageURL } from './image-source.js';
 import { displayName, human, visual } from './format.js';
@@ -167,8 +168,8 @@ export function createMessageView({
   const content = extensions.content || doc.createElement('div');
   if (!extensions.content) {
     content.className = 'content';
-    if (presentation.renderBody) presentation.renderBody(parsed.body, content, post);
-    else appendFormattedText(content, parsed.body, { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery });
+    if (presentation.renderBody) presentation.renderBody(attachmentDisplayBody(parsed), content, post);
+    else appendFormattedText(content, attachmentDisplayBody(parsed), { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery });
     renderAndFSMedia(parsed, content, { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery });
     if (parsed.blob && ['audio', 'video'].includes(parsed.type) && !parsed.andfs) {
       if (typeof presentation.renderLegacyMedia === 'function') {

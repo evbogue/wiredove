@@ -1,3 +1,5 @@
+import { validHash } from './vendor/andfs/andfs.js'
+import { createHashMediaView } from './client/ui/hash-media.js'
 import { apds } from 'apds'
 import { h } from 'h'
 import { buildShareMessage, parseSharePayload } from './share.js'
@@ -12,7 +14,7 @@ import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
-  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null }) => {
+  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, mediaSource = globalThis.location?.origin }) => {
 const document = scopeDocument(root)
 const render = renderer
 const composer = compose
@@ -26,6 +28,7 @@ let activeOrchestrator = null
 let activePanelKey = null
 const routePanels = new Map()
 const routeScrollTop = new Map()
+const mediaViews = new Set()
 
 const getScroller = () => {
   let scroller = document.getElementById('scroller')
@@ -227,6 +230,21 @@ const route = async () => {
       return
     }
 
+    if (validHash(src)) {
+      if (panel.dataset.ready === 'true') return
+      panel.textContent = 'Loading file…'
+      try {
+        const media = await createHashMediaView(src, { source: mediaSource, signal: run.signal, document: root.ownerDocument })
+        if (!isActive()) { media.dispose(); return }
+        mediaViews.add(media)
+        panel.replaceChildren(media.view)
+        panel.dataset.ready = 'true'
+      } catch (error) {
+        if (isActive()) panel.textContent = 'File unavailable: could not retrieve and verify its bytes.'
+      }
+      return
+    }
+
     if (src.length < 44 && !src.startsWith('?')) {
       if (panel.dataset.ready === 'true') { scheduleRefresh(); return }
       panel.replaceChildren()
@@ -362,6 +380,8 @@ return { route, refreshFeed, invalidate() { for (const panel of routePanels.valu
   activeOrchestrator?.stop()
   activeRouteController?.abort()
   for (const panel of routePanels.values()) panel.remove()
+  for (const media of mediaViews) media.dispose()
+  mediaViews.clear()
   routePanels.clear()
   routeScrollTop.clear()
 } }

@@ -14,11 +14,11 @@ andfs: <43-character URL-safe unpadded AndFS manifest hash>
 mime: video/webm
 media_name: clip.webm
 media_size: 123456
-media_url: https://example.test/media/<manifest-hash>
+media_url: https://example.test/#<manifest-hash>
 media_source: https://example.test
 ```
 
-The body includes `media_url` as a plain link for older clients. Do not put an AndFS hash in the legacy `blob` field. The signature envelope and signed YAML bytes remain the existing ANProto/APDS format.
+New attachment links use ordinary `#<hash>` application routes. The router verifies the manifest and chunks, then detects the presentation type from the bytes. The body includes `media_url` as a plain link. Historical `/media/<hash>` URLs remain readable for previously signed posts. Do not put an AndFS hash in the legacy `blob` field. The signature envelope and signed YAML bytes remain the existing ANProto/APDS format.
 
 AndFS v1 uses 256 KiB chunks, SHA-256 URL-safe unpadded hashes, and a byte-exact ordered JSON manifest. MIME and filename are signed presentation metadata outside the byte identity. The pinned AndFS implementation is in `vendor/andfs/`; do not alter its upstream files.
 

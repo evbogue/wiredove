@@ -1,3 +1,4 @@
+import { readAndFSMedia } from '../andfs.js';
 import { iconButton } from './composer-surface.js';
 const recorderMime = (kind) => {
   const choices = kind === 'video'
@@ -132,7 +133,12 @@ export function createMediaControls({ onAttachment, onBusy, persistMedia, resolv
         if (disposed || token !== generation) return;
         currentUrl = URL.createObjectURL(blob);
         player.src = currentUrl;
-      } else player.src = attachment.media_url;
+      } else {
+        const bytes = await readAndFSMedia(attachment);
+        if (disposed || token !== generation) return;
+        currentUrl = URL.createObjectURL(new Blob([bytes], { type: attachment.mime || '' }));
+        player.src = currentUrl;
+      }
       setStatus('Attachment ready');
     } catch (error) {
       if (!disposed && token === generation) setStatus('Attachment preview unavailable. Remove it to choose another.', true);

@@ -1,3 +1,4 @@
+import { attachmentDisplayBody } from './client/andfs.js'
 import { createMessageMain, placeMessageMetadata } from './client/ui/message-layout.js'
 import { createMessageView, createReplyContext } from './client/ui/message-view.js'
 import { createRawControls } from './client/ui/raw-controls.js'
@@ -334,8 +335,8 @@ const hydrateReplyPreviews = (container) => {
         }, [preview.name]))
       }
       target.appendChild(h('span', {
-        classList: 'material-symbols-outlined reply-preview-icon'
-      }, ['Subdirectory_Arrow_left']))
+        classList: 'reply-preview-icon'
+      }, ['↳']))
       const linkText = preview.body || (replyHash.substring(0, 10) + '...')
       const link = h('a', {
         href: '#' + replyHash,
@@ -692,7 +693,7 @@ render.refreshEdits = async (hash, options = {}) => {
     ? currentEdit.yaml.body
     : state.baseYaml.body
   state.currentBody = bodySource
-  state.contentDiv.replaceChildren(await renderBody(bodySource, baseReply))
+  state.contentDiv.replaceChildren(await renderBody(attachmentDisplayBody({ ...state.baseYaml, body: bodySource }), baseReply))
   if (!renderAndFSMedia(state.baseYaml, state.contentDiv)) await renderMedia(state.baseYaml, state.contentDiv)
   await highlightCodeIn(state.contentDiv)
   hydrateReplyPreviews(state.contentDiv)
@@ -1151,7 +1152,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       addReplyToIndex(yaml.reply, messageHash, messageTs, messageOpened)
       updateReplyCount(yaml.reply)
     }
-    div.replaceChildren(await renderBody(yaml.body || '', yaml.reply))
+    div.replaceChildren(await renderBody(attachmentDisplayBody(yaml), yaml.reply))
     if (!renderAndFSMedia(yaml, div)) await renderMedia(yaml, div)
     await highlightCodeIn(div)
     hydrateReplyPreviews(div)
