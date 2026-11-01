@@ -106,7 +106,7 @@ export const composer = async (sig, options = {}) => {
   let publishing = false
   let closed = false
   if (application?.session?.policy?.capabilities?.[sig ? 'reply' : 'compose'] === false) throw Error('Publishing is disabled for this application')
-  if (!sig && application?.session?.policy?.owner && pubkey !== application.session.policy.owner) throw Error('Only the site owner can start posts')
+  if (!sig && !isEdit && application?.session?.policy?.owner && pubkey !== application.session.policy.owner) throw Error('Only the site owner can start posts')
   const resumeKey = `wiredove-composer-open:${pubkey || 'anon'}:${application?.draftScope || 'page'}`
   const draftKey = `wiredove-composer-draft:${pubkey || 'anon'}:${isEdit ? 'edit:' + options.editHash : sig ? 'reply:' + obj.replyHash : 'new'}`
   const storage = (() => { try { return window.localStorage } catch { return null } })()

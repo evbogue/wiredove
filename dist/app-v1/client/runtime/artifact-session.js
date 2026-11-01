@@ -5,6 +5,7 @@ import { an } from '../../vendor/anproto/an.js'
 export const createArtifactSession = ({ protocol, store, endpoint, legacyImageURL = null, fetchImpl = fetch, receive = async () => {} }) => {
   const listeners = new Set()
   const changed = () => { for (const listener of listeners) listener() }
+  const missingImages = new Set()
   let cursor = 0
   let pulling
   let stopped = false
@@ -33,15 +34,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, legacyImageUR
     if (legacyImageURL) {
       const parsed = await protocol.parseYaml(record.content)
       const hashes = new Set([parsed?.image, ...[...(parsed?.body || '').matchAll(/!\[[^\]]*\]\(([A-Za-z0-9+/]{43}=)\)/g)].map(match => match[1])].filter(value => /^[A-Za-z0-9+/]{43}=$/.test(value || '')))
-      await Promise.all([...hashes].map(async hash => {
-        if (await protocol.get(hash)) return
-        try {
-          const url = new URL(legacyImageURL); url.searchParams.set('hash', hash)
-          const { source } = await request(url)
-          if (typeof source !== 'string' || !source.startsWith('data:image/') || await an.hash(source) !== hash) throw Error('Historical image verification failed')
-          await protocol.make(source)
-        } catch { /* Keep the record readable and allow a future pull to retry. */ }
-      }))
+      for (const hash of hashes) if (!await protocol.get(hash)) missingImages.add(hash)
     }
     await protocol.add(record.signature)
     await flush()
@@ -49,6 +42,28 @@ export const createArtifactSession = ({ protocol, store, endpoint, legacyImageUR
       await receive(record.signature)
       changed()
     }
+  }
+  // Image availability is independent of the archive cursor. Failed requests
+  // stay queued for a later refresh, including otherwise empty archive pages.
+  const retryImages = async () => {
+    await Promise.all([...missingImages].slice(0, 8).map(async hash => {
+      if (stopped) return
+      try {
+        if (!await protocol.get(hash)) {
+          const url = new URL(legacyImageURL); url.searchParams.set('hash', hash)
+          const { source } = await request(url)
+          if (typeof source !== 'string' || !source.startsWith('data:image/') || await an.hash(source) !== hash) throw Error('Historical image verification failed')
+          if (stopped) return
+          await protocol.make(source)
+          await receive(source)
+          changed()
+        }
+        missingImages.delete(hash)
+      } catch {
+        // Rotate failures so an unavailable image cannot starve later images.
+        missingImages.delete(hash); missingImages.add(hash)
+      }
+    }))
   }
   const pending = async () => await store.get('outbox') || []
   const deliver = async record => {
@@ -117,6 +132,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, legacyImageUR
           cursor = page.cursor; more = page.more === true
           lastError = null
         }
+        if (!stopped && legacyImageURL) await retryImages()
       })().catch(error => { lastError = error.message; throw error }).finally(() => { pulling = null })
       return pulling
     },

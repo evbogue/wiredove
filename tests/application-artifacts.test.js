@@ -81,3 +81,30 @@ Deno.test('backend local save without relay confirmation retains exact outbox by
   assert(delivered[0].signature === delivered[1].signature && delivered[0].content === delivered[1].content)
   assert((await session.pending()).length === 0)
 })
+
+Deno.test('historical image failures retry after archive cursor advances and notify mounted readers only with verified bytes', async () => {
+  const source = 'data:image/png;base64,AAAA', hash = await an.hash(source)
+  const record = await signed(JSON.stringify({ image: hash, body: `![](${hash})` }))
+  const blobs = new Map(), received = [], cursors = []
+  const protocol = { get: key => blobs.get(key), put: (key,value) => blobs.set(key,value), make: async value => blobs.set(await an.hash(value),value), add: async signature => blobs.set(await an.hash(signature),signature), parseYaml: JSON.parse, getHashLog: () => [], getOpenedLog: () => [] }
+  let attempts = 0
+  const session = createArtifactSession({ protocol, store: {}, endpoint: 'http://local/api/application', legacyImageURL: 'http://local/api/image', receive: value => received.push(value), fetchImpl: async value => {
+    const url = new URL(value)
+    if (url.pathname === '/api/image') {
+      attempts++
+      if (attempts === 1) return new Response(null, { status: 503 })
+      return Response.json({ source: attempts === 2 ? source + 'tampered' : source })
+    }
+    const after = Number(url.searchParams.get('after')); cursors.push(after)
+    return Response.json({ scope: 'backend-archive', records: after === 0 ? [record] : [], cursor: 1, more: false })
+  } })
+  await session.pull()
+  assert(attempts === 1 && !blobs.has(hash))
+  await session.pull()
+  assert(attempts === 2 && !blobs.has(hash), 'Tampered image was accepted')
+  await session.pull()
+  assert(blobs.get(hash) === source && received.includes(source), 'Mounted reader was not notified')
+  await session.pull()
+  assert(attempts === 3, 'Cached image fetched again')
+  assert(JSON.stringify(cursors) === '[0,1,1,1]', 'Image retry rewound the archive')
+})
