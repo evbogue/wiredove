@@ -70,7 +70,8 @@ widget.posts=records;window.ready=true;
       assert.equal(await frame.evaluate(() => tamperRejected), true);
       assert.equal(await frame.getByRole('button', { name: 'Reply to this post' }).count(), 0);
       assert.equal(await frame.locator('[data-wiredove-message]').count(), 2);
-      assert.equal(await frame.getByText('Historical attachment unavailable in this view.').count(), 1);
+      await frame.getByText('Media unavailable. Please retry.', { exact: true }).waitFor();
+      assert.equal(await frame.locator('audio').getAttribute('src'), null, 'unverified historical bytes must not reach playback');
       await frame.evaluate(() => {
         widget.setAttribute('interactive', '');
         widget.navigate({ type: 'compose' });

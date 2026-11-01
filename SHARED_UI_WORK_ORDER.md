@@ -190,10 +190,14 @@ input, loading failure/retry and repeated instances, across website and embed.
 - [x] Implement owner-only root composition, visitor replies/own-reply edits and
   nondestructive identity/text/File draft/exact-outbox migration. Test real signed
   cross-origin reply/edit/reload and outage retry with public writes blocked.
-- [x] Pin the full application graph. Current site pin is Wiredove `220d155` in
+- [x] Pin the full application graph. Current site source pin is Wiredove `a078b53` in
   `timeline/wiredove-client.json`; the homepage keeps supported widget consumption.
-- [ ] Complete the historical-link/media compatibility matrix for the actual site;
-  local replacement acceptance does not prove every historical item works.
+- [x] Exercise historical query/hash links, APDS inline/avatar decoding, raw/chunked
+  anblob audio/video, corrupt-read retry and AndFS gateway/range/hash routes through
+  the real local site bootstrap and separate-origin application with signed fixtures.
+- [ ] Inspect representative production-stored historical items read-only, finish
+  the remaining format/profile-photo matrix and verify the new compatibility fixes
+  after coordinated deployment. Local fixtures do not prove every historical item works.
 - [ ] Record final coordinated source revisions and provide/verify a minimal
   static-host example without the site's custom server or application glue.
 - [x] Record the site's completed production replacement verification: `d7dd9f6`,
@@ -820,3 +824,40 @@ with pin `220d155`, public hash checks and read-only responsive smoke. No produc
 action was performed in this revalidation. The site checkout remained clean at
 `93e1abf`; remaining work is feature/history/device acceptance and final release
 coordination, not implementation of the replacement or its first deployment.
+
+
+### 2026-11-01 historical-link and media compatibility fixtures
+
+Wiredove `a078b53` adds a shared legacy anblob reader for website/public messages,
+with explicit `legacyMediaURL` service selection, signed `media_source` precedence,
+original verifier/cache, lazy playback and failed-read retry. Historical IDs and
+signed statements stay unchanged. Wiredove's existing legacy blob GET/HEAD endpoint
+now permits cross-origin reads. Shared compose/reply routes let site adapters retain
+older `?view=compose` and `?reply=` links; existing owner/capability checks still apply.
+The generated application graph and shell cache v29 accompany the source change.
+
+The site is repinned byte-for-byte to `a078b53`, including the original anblob
+module for individually imported widgets. Its adapter restores search, identity,
+reply/compose query links and percent-encoded hash navigation. Source-free historical
+Wiredove attachments use an explicit wiredove.net legacy service default; a configured
+legacy service or signed media source can supply another endpoint. Neither backend
+rewrites or reinterprets legacy IDs as AndFS manifests.
+
+Fresh validation: Wiredove build/frozen check, 41 unit tests and 14 media tests passed.
+All browser suites passed across the original run and the affected-suite rerun after
+updating the old unavailable-placeholder assertion to require rejection of unverified
+bytes. Site frozen check and all 16 backend/host tests passed; the expanded full
+application browser suite passed with public writes blocked. New
+`timeline/tests/historical.browser.js` runs through the real site bootstrap/pinned
+graph and a separate-origin full application. It verifies decodable APDS inline/avatar
+images and reload; old post/author/search/identity/reply/compose query links and raw/
+encoded hash links; chunked WAV and raw WebM anblob byte equality/playback, audio seek,
+corruption rejection/retry and source-free service selection; AndFS historical gateway
+full/range reads and current hash routes; and unchanged stored signed originals.
+A 390px dark legacy-audio screenshot was inspected. Test bytes, identities and storage
+are disposable; this is not an audit of the complete live historical corpus.
+
+No deployment occurred. The new source pin and Wiredove legacy-endpoint CORS change
+need coordinated release verification; the previously recorded site release remains
+on `220d155`. Physical Safari/mobile, the remaining format/profile-photo combinations
+and representative production historical-content inspection remain open.
