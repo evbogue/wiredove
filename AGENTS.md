@@ -411,3 +411,37 @@ Production data/blobs was empty, so successful live stored legacy playback was n
 claimed. Evbogue.com's compatibility source `59c2b67` (pin `a078b53`) still needs
 its own deployment; none was performed here. Historical availability, broader
 format/profile-photo and physical-device acceptance remain separate follow-up work.
+
+
+## Production release verified — 2026-11-01 (shared profile/settings/control widgets)
+
+Application `2992b9d` is deployed at `/root/wiredove-release-2992b9d`, with the full
+profile/settings and rich message-control widgets in client/ui and thin website
+service adapters. Previous release `f634698` and unit backup
+`/root/wiredove-service-before-2992b9d.service` remain for rollback. Only the unit's
+WorkingDirectory changed; port 8081, VAPID configuration, shared data symlink,
+original checkout edits and reverse proxy are intact. Host frozen-lock check passed;
+both services are active with clean startup. Public app/sw/style, profile/settings
+adapters, renderer, three widgets and distribution manifest hashes match.
+
+Evbogue.com `65c8175` pins the same application (181 byte-identical files) and is
+also deployed. Full timeline-data backup:
+`/root/deploy-backups/evbogue-timeline-before-widgets-65c8175.tar.gz`. Its original
+tmux command/environment and private production files are preserved. Source and
+live hash verification are recorded in the site's Agents/DEVOPS.md.
+
+Local build/check, 41 unit tests, 14 media tests, full browser suite and standalone
+profile-links suite passed. Real two-origin acceptance covers photo original/crop
+metadata/bytes, empty bio, history links, reload/re-crop, identity validation in memory,
+scoped settings refresh, edit versions and hide/unhide without changing originals.
+Reviewed local profile/message screenshots. Live public profiles at 390/1200px in
+light/dark mounted without overflow or JS exceptions; reviewed site/mobile dark and
+website/desktop light. HTTP writes and WebSockets were blocked, so expected sync/
+missing-image statuses do not prove full live media availability. No public fixture
+writes or secret downloads occurred.
+
+Accessibility changes are deferred at Ev's request. Discovery, post-image cursor/
+service fixes, a static example and the site's historical-image limit patch remain
+preserved in named local Git stashes, outside this release. Restore selectively;
+do not blindly reapply the old whole-batch stash over the new extraction. Full
+shared-application/device/history acceptance is not claimed.

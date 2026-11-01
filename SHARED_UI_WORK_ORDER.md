@@ -8,10 +8,10 @@ and coordinated release acceptance still open;
 milestone 4 has substantial local evidence but is not complete. Full shared UI
 feature parity is **not finished**.
 
-Wiredove's shared application, owner-policy/image-retry/reply-edit corrections and
-legacy compatibility changes are deployed at `f634698` (see AGENTS.md and the release
-checkpoint below). The site source pin is `a078b53`; its compatibility update still
-needs deployment. The site repository records the evbogue.com full-application release
+Wiredove's scoped shared profile/settings/control widget release is deployed at
+`2992b9d`; evbogue.com application `65c8175` uses that exact pin. Compatibility and
+QR/permalink fixes are included. See the release checkpoint below; accessibility,
+discovery, historical-image size limits and full parity remain separate work. The site repository records the evbogue.com full-application release
 `d7dd9f6` as live and verified on November 1, using Wiredove `220d155`; see its
 AGENTS.md and Agents/DEVOPS.md. Earlier pending-deployment notes below are historical.
 This reconciliation did not independently inspect either live service.
@@ -198,7 +198,7 @@ control IDs, with keyboard/repeated-instance behavior in both application mounts
 - [x] Implement owner-only root composition, visitor replies/own-reply edits and
   nondestructive identity/text/File draft/exact-outbox migration. Test real signed
   cross-origin reply/edit/reload and outage retry with public writes blocked.
-- [x] Pin the full application graph. Current site source pin is Wiredove `a078b53` in
+- [x] Pin the full application graph. Current site source pin is Wiredove `2992b9d` in
   `timeline/wiredove-client.json`; the homepage keeps supported widget consumption.
 - [x] Exercise historical query/hash links, APDS inline/avatar decoding, raw/chunked
   anblob audio/video, corrupt-read retry and AndFS gateway/range/hash routes through
@@ -1026,3 +1026,40 @@ edit versions and local hide/unhide. Public writes are blocked; all fixture keys
 storage are disposable. Reviewed 390px website/light and 320px embed/dark message
 screenshots. Profile screenshot review and coordinated source/deployment evidence
 are recorded with the release checkpoint after verification.
+
+
+### 2026-11-01 coordinated shared widget deployment verified
+
+Wiredove application `2992b9d4a9a7726f35e788ebe2df8d8bf2a14611` is live from
+`/root/wiredove-release-2992b9d`; only wiredove.service WorkingDirectory changed.
+Previous `f634698` and `/root/wiredove-service-before-2992b9d.service` remain for
+rollback. Port 8081, VAPID path, shared data symlink, original checkout production
+edits and reverse proxy are preserved. Host frozen-lock check passed; both services
+are active with clean startup. Public app/sw/style, profile/settings adapters,
+renderer, three widget modules and distribution manifest hashes match the release.
+
+Evbogue.com application `65c817587584f9849680fa269f72501e0f2fe44c` is deployed with
+pin `2992b9d` (181 byte-identical upstream files). Site frozen check, all 16 backend/
+host tests and the expanded two-origin application suite passed. Backed up the full
+site timeline-data directory to
+`/root/deploy-backups/evbogue-timeline-before-widgets-65c8175.tar.gz` before update.
+Prior source was `93e1abf`. Reloaded only the existing tmux 10:0.0 application on
+8082 with its original command/environment; private restart files were removed.
+Production-only video and subscriber backup remain untouched. Public config and
+application/runtime/widget/adapter/renderer/manifest hashes match the pin.
+
+Live isolated Chromium mounted real public profiles on both consumers at 390 and
+1200px in light/dark with no document/application overflow or JavaScript exceptions.
+Reviewed live site/mobile dark and website/desktop light screenshots. All HTTP writes
+and WebSockets were blocked; automatic site-sync failure and unavailable image tiles
+under those restrictions are expected, not successful media-availability evidence.
+No production fixture/profile/post/upload or secret backup was created. These are
+read-only release checks, not production write acceptance or physical-device checks.
+
+Expanded local acceptance passed again after final screenshot positioning; reviewed
+website/mobile light and embed/desktop dark profiles as well as message screenshots.
+The whole local suite passed (41 unit, 14 media, full browser), plus standalone
+profile-links. Both repositories were pushed normally to master. Deferred source
+changes remain in the named local stashes above; they are not deployed or claimed
+complete. Accessibility is deferred at Ev's request. This completes the scoped
+shared-widget release, not the remaining milestones of the full work order.
