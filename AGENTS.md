@@ -388,3 +388,26 @@ Reviewed the live dark screenshot. Non-GET HTTP and all WebSocket traffic were
 blocked; no production upload/post was written. Before release, build/check,
 41 unit tests, 13 media tests and the full browser suite passed, including the
 new image-flow regression, separate-origin application and warm-cache upgrade.
+
+
+## Production release verified — 2026-11-01 (legacy compatibility)
+
+Application `f634698` is deployed in `/root/wiredove-release-f634698`, including
+shared legacy anblob reader/service selection, cross-origin legacy blob GET/HEAD
+headers and shared old compose/reply routes. Previous release `e9c11c5` and unit
+backup `/root/wiredove-service-before-f634698.service` remain for rollback. Only
+WorkingDirectory changed; port 8081, VAPID configuration, shared data symlink,
+original checkout edits and reverse proxy remain intact. Host frozen-lock check
+passed; both services are active with clean startup.
+
+Fresh local build/check, 41 unit tests, 14 media tests and the complete browser
+suite passed. Isolated actual serve.js GET/HEAD checks verified exact legacy bytes,
+length and CORS headers. Public app.js/sw.js/style.css/serve.js, application CSS,
+legacy reader/default session/media/render/router and distributed reader/manifest
+hashes match the release. Live isolated 390px light/dark smoke showed the shared
+app and refresh control with no overflow or JS exceptions; dark screenshot reviewed.
+HTTP writes and all WebSockets were blocked; no public fixtures were written.
+Production data/blobs was empty, so successful live stored legacy playback was not
+claimed. Evbogue.com's compatibility source `59c2b67` (pin `a078b53`) still needs
+its own deployment; none was performed here. Historical availability, broader
+format/profile-photo and physical-device acceptance remain separate follow-up work.

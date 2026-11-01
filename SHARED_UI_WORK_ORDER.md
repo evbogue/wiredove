@@ -8,10 +8,10 @@ and coordinated release acceptance still open;
 milestone 4 has substantial local evidence but is not complete. Full shared UI
 feature parity is **not finished**.
 
-Wiredove's shared application and subsequent UI fixes have production release
-evidence through `cd7c09e` (see AGENTS.md). The newer owner-policy, historical-image
-retry and reply-edit corrections are source changes, not a verified production
-release here. The site repository records the evbogue.com full-application release
+Wiredove's shared application, owner-policy/image-retry/reply-edit corrections and
+legacy compatibility changes are deployed at `f634698` (see AGENTS.md and the release
+checkpoint below). The site source pin is `a078b53`; its compatibility update still
+needs deployment. The site repository records the evbogue.com full-application release
 `d7dd9f6` as live and verified on November 1, using Wiredove `220d155`; see its
 AGENTS.md and Agents/DEVOPS.md. Earlier pending-deployment notes below are historical.
 This reconciliation did not independently inspect either live service.
@@ -861,3 +861,30 @@ No deployment occurred. The new source pin and Wiredove legacy-endpoint CORS cha
 need coordinated release verification; the previously recorded site release remains
 on `220d155`. Physical Safari/mobile, the remaining format/profile-photo combinations
 and representative production historical-content inspection remain open.
+
+
+### 2026-11-01 Wiredove compatibility release verified
+
+Deployed reviewed application `f634698253096a66d5da75aa56977d84d9296c85` in detached
+`/root/wiredove-release-f634698`. The prior active release was `e9c11c5`, retained
+with `/root/wiredove-service-before-f634698.service` for rollback. Only service
+WorkingDirectory changed; port 8081, VAPID config, shared data symlink, original
+checkout production edits and reverse proxy are preserved. Both services are active
+and startup is clean. The host frozen-lock server check passed.
+
+Fresh local build/frozen check, 41 unit tests, 14 media tests and the complete browser
+suite passed. Actual serve.js running with isolated temporary storage passed legacy
+GET/HEAD exact-byte, content-length and CORS-header checks. Public SHA-256 comparisons
+matched app.js, sw.js, style.css, serve.js, application CSS, legacy reader, default
+session, media/render/router sources and distributed legacy reader/manifest. Live
+isolated 390px light/dark smoke mounted the application and refresh control without
+overflow or JavaScript exceptions; reviewed the dark screenshot. HTTP writes and
+all WebSockets were blocked; no production fixtures or signed writes were sent.
+
+Production's legacy data/blobs directory contains no files. Thus no successful
+stored legacy playback was claimed on the live service: endpoint behavior was
+verified with isolated bytes and deployed source hashes. Availability of historical
+bytes remains distinct from CORS/reader compatibility. Next release step is the
+site's `59c2b67` compatibility update, followed by live read-only historical-link/
+media verification where stored bytes are available. This session did not deploy
+evbogue.com or establish physical-device/full-history acceptance.
