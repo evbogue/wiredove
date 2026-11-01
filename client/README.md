@@ -444,3 +444,11 @@ and blocks public writes. `npm run test:media` includes archive restart/tamperin
 persistence tests. Milestone 1 acceptance and remaining milestones are recorded in
 [SHARED_UI_WORK_ORDER.md](../SHARED_UI_WORK_ORDER.md); full feature parity,
 evbogue.com replacement and production/device release acceptance remain open.
+
+Owner-scoped application hosts may pass `owner` to restrict root composing while
+allowing visitors to reply and edit their own replies through normal signed edit
+events. `legacyDatabase` explicitly upgrades an older publishing-session store
+without deleting it; `legacyImageURL` selects a hash-verified historical image
+endpoint. Failed historical images are retried independently of archive cursors
+on later pulls (up to eight per pull), and verified arrivals notify mounted readers.
+Offline signing remains permitted with available local author history.

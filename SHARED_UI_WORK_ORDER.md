@@ -722,3 +722,26 @@ instead of looking for removed attachment controls.
 Validation passed: build/frozen check, 41 unit tests, 13 media tests and the complete
 browser suite, including warm-cache upgrade and separate-origin application flow.
 Reviewed 390px light/dark preview screenshots with animations disabled.
+
+### 2026-11-01 evbogue.com application replacement and review corrections
+
+The site now mounts the same full application through a pinned `dist/app-v1`
+graph instead of assembling the old widget's routes, reply counts and publication
+callbacks. Its existing verified storage/media backend supplies the application
+archive contract, owner policy and relay delivery. The old site session bootstrap
+is removed; homepage message-widget consumption remains supported. Existing
+identity/text/File drafts and exact outbox entries have an explicit nondestructive
+upgrade. Production deployment remains pending.
+
+Ev explicitly accepts offline signing with available local author history and
+possible author-chain forks. No online latest-head prerequisite was introduced.
+Historical image failures now remain queued independently of the archive cursor;
+verified arrivals notify mounted readers. Owner-only root composition no longer
+blocks visitors editing their own replies. Edits retain Wiredove's existing
+`edit: <original-message-id>` signed statement contract and immutable originals.
+
+Site acceptance covers real cryptographic reply/edit publication, original byte
+retention, two-origin display/reload, reverse replies, migration and exact outage
+retry, with public writes blocked. Backend tests cover foreign-author and missing
+edit targets and relay ingestion of edits lacking a reply field. Full parity and
+physical-device/historical-media completeness remain open.
