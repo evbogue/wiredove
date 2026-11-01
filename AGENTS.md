@@ -328,3 +328,22 @@ from presentation and omit the technical success label. Signed content remains
 unchanged. Shared reply previews wrap as text and use a font-independent arrow.
 The pre-existing nested-reply indentation remains. These changes do not establish
 full widget parity or update evbogue.com's separate application consumer.
+
+## Production release verified — 2026-10-31 (hash routes and visual corrections)
+
+Application `fcab6e8` is deployed at `/root/wiredove-release-fcab6e8`, including
+icon/card corrections from `5a33892`. Previous release `130420e` and unit backup
+`/root/wiredove-service-before-fcab6e8.service` remain for rollback. Only the unit's
+WorkingDirectory changed; port 8081, VAPID configuration, shared data link,
+original checkout edits and reverse proxy are preserved. Host frozen-lock check
+passed; both services active and startup log clean.
+
+Local build/check, 41 unit tests, 12 media tests and the full browser suite passed.
+Mobile screenshot review covered website/light and embed/dark. Public app.js,
+sw.js, style.css, application CSS, distributed router/AndFS/hash-media/media-render
+and renderer hashes match the release. Live 390px light/dark checks showed 18px
+navbar icons, avatars at header top, no overflow or JavaScript exceptions. An
+existing stored WebP loaded and decoded through its `#hash` route in both themes.
+Historical feed images also loaded with outgoing WebSocket traffic restricted to
+hash read requests. HTTP non-GET requests were blocked; no public test posts or
+uploads were sent. Warm-cache and separate-origin acceptance passed locally.
