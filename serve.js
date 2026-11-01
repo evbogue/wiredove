@@ -45,6 +45,7 @@ const handleBlobRequest = async (request) => {
     try {
       const stat = await Deno.stat(path)
       const headers = new Headers({
+        'Access-Control-Allow-Origin': '*',
         'content-type': 'application/octet-stream',
         'content-length': String(stat.size),
         'cache-control': 'public, max-age=31536000, immutable'

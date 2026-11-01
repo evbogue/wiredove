@@ -1,3 +1,4 @@
+import { renderLegacyMedia } from './legacy-media.js';
 import { attachmentDisplayBody } from '../andfs.js';
 import { createMessageMain, placeMessageMetadata } from './message-layout.js';
 import { resolveImageSource, safeLinkURL, safeImageURL } from './image-source.js';
@@ -176,10 +177,7 @@ export function createMessageView({
         const cleanup = presentation.renderLegacyMedia(parsed, content, post);
         if (typeof cleanup === 'function') legacyCleanup = cleanup;
       } else {
-        const unavailable = doc.createElement('p');
-        unavailable.className = 'media-status';
-        unavailable.textContent = 'Historical attachment unavailable in this view.';
-        content.append(unavailable);
+        legacyCleanup = renderLegacyMedia(parsed, content, { source: presentation.legacyMediaURL });
       }
     }
     if (parsed.edit) {

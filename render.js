@@ -694,7 +694,7 @@ render.refreshEdits = async (hash, options = {}) => {
     : state.baseYaml.body
   state.currentBody = bodySource
   state.contentDiv.replaceChildren(await renderBody(attachmentDisplayBody({ ...state.baseYaml, body: bodySource }), baseReply))
-  if (!renderAndFSMedia(state.baseYaml, state.contentDiv)) await renderMedia(state.baseYaml, state.contentDiv)
+  if (!renderAndFSMedia(state.baseYaml, state.contentDiv)) await renderMedia(state.baseYaml, state.contentDiv, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
   await highlightCodeIn(state.contentDiv)
   hydrateReplyPreviews(state.contentDiv)
   const profileYaml = currentEdit && currentEdit.yaml
@@ -1153,7 +1153,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       updateReplyCount(yaml.reply)
     }
     div.replaceChildren(await renderBody(attachmentDisplayBody(yaml), yaml.reply))
-    if (!renderAndFSMedia(yaml, div)) await renderMedia(yaml, div)
+    if (!renderAndFSMedia(yaml, div)) await renderMedia(yaml, div, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
     await highlightCodeIn(div)
     hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)

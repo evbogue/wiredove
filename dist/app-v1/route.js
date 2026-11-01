@@ -173,6 +173,19 @@ const route = async () => {
   activatePanel(panelKey, panel)
 
   try {
+    if (src === 'compose' || /^reply=[A-Za-z0-9+/]{43}=$/.test(src)) {
+      const signature = src.startsWith('reply=') ? await apds.get(src.slice(6)) : null
+      if (!isActive()) return
+      if (src.startsWith('reply=') && !signature) {
+        panel.textContent = 'Reply target unavailable in the selected archive.'
+        return
+      }
+      const dialog = await composer(signature)
+      if (!isActive()) { dialog.remove(); return }
+      document.body.appendChild(dialog)
+      return
+    }
+
     if (src.startsWith('share=')) {
       const payload = parseSharePayload(src)
       if (payload) {

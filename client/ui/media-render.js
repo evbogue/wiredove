@@ -2,6 +2,7 @@ import { createImageGallery } from './image-gallery.js';
 import { andfsSource, readAndFSMedia } from '../andfs.js';
 
 const disposers = new WeakMap();
+export const registerMediaDisposer = (element, dispose) => disposers.set(element, dispose);
 export function disposeMedia(container) {
   for (const wrap of container.querySelectorAll('.media-post')) disposers.get(wrap)?.();
 }

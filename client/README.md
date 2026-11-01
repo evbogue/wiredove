@@ -452,3 +452,12 @@ without deleting it; `legacyImageURL` selects a hash-verified historical image
 endpoint. Failed historical images are retried independently of archive cursors
 on later pulls (up to eight per pull), and verified arrivals notify mounted readers.
 Offline signing remains permitted with available local author history.
+
+Legacy audio/video uses the shared `client/ui/legacy-media.js` reader and original
+anblob verifier/cache. `legacyMediaURL` optionally selects the historical blob
+service base independently of AndFS `mediaURL`; signed `media_source` takes
+precedence. Sources must be HTTP(S), and remote blob services must allow CORS GET.
+Bytes are verified before assigning a player source; failed reads expose Retry.
+No anblob IDs or signed historical statements are rewritten. Shared route strings
+`compose` and `reply=<message-id>` support older host query-link adapters; owner and
+capability policy still applies. Unavailable reply targets report that state.
