@@ -1,4 +1,5 @@
 import { resolveImageSource, safeLinkURL } from './image-source.js';
+import { imageRequestStatusText, imageRequestActive, imageRequestRetryVisible } from './image-gallery.js';
 
 const viewers = new WeakMap();
 const styleURL = new URL('./image-gallery.css', import.meta.url).href;
@@ -82,9 +83,9 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
       if (request.resolveImage?.subscribe) stopStatus = request.resolveImage.subscribe(item.src, ({ state }) => {
         if (current !== sequence || !active) return;
         if (state === 'received') { void show(); return; }
-        const busy = state === 'queued' || state === 'requested';
-        status.textContent = state === 'queued' ? 'Waiting to request image…' : state === 'requested' ? 'Asking peers for image…' : 'Image hasn’t arrived';
-        status.classList.toggle('image-sync-active', busy); retry.hidden = busy;
+        status.textContent = imageRequestStatusText(state);
+        status.classList.toggle('image-sync-active', imageRequestActive(state));
+        retry.hidden = !imageRequestRetryVisible(state);
       });
     }
   };

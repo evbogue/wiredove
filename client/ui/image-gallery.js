@@ -1,6 +1,19 @@
 import { resolveImageSource, safeImageURL } from './image-source.js';
 import { openImageGallery } from './image-popover.js';
 
+// Shared image-request status copy. 'paused' means the network queue is
+// suspended (no connection); the request is held, not lost.
+export const imageRequestStatusText = (state) =>
+  state === 'paused' ? 'Waiting for connection…'
+  : state === 'queued' ? 'Waiting to request image…'
+  : state === 'requested' ? 'Asking peers for image…'
+  : 'Image hasn’t arrived';
+export const imageRequestActive = (state) =>
+  state === 'queued' || state === 'requested' || state === 'paused';
+// Retry stays available while paused: the queue will not send, but the retry
+// re-checks the local cache, which may have filled through another path.
+export const imageRequestRetryVisible = (state) => state !== 'queued' && state !== 'requested';
+
 // Registration is explicit/lazy: importing body/gallery modules has no app effects.
 class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
   set options(value) { this._options = value; this.render(); }
@@ -75,10 +88,9 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         const stop = this._options.resolveImage.subscribe(item.src, ({ state }) => {
           if (!this.isConnected || tile.classList.contains('image-loaded')) return;
           if (state === 'received') { void tile._load(); return; }
-          const active = state === 'queued' || state === 'requested';
-          status.textContent = state === 'queued' ? 'Waiting to request image…' : state === 'requested' ? 'Asking peers for image…' : 'Image hasn’t arrived';
-          status.classList.toggle('image-sync-active', active);
-          retry.hidden = active;
+          status.textContent = imageRequestStatusText(state);
+          status.classList.toggle('image-sync-active', imageRequestActive(state));
+          retry.hidden = !imageRequestRetryVisible(state);
         });
         tile._stop = stop;
         this._subscriptions.push(stop);

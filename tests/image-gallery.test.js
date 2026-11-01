@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseMessageBody } from '../client/ui/body.js';
 import { safeImageURL, safeLinkURL, resolveImageSource } from '../client/ui/image-source.js';
+import { imageRequestStatusText, imageRequestActive, imageRequestRetryVisible } from '../client/ui/image-gallery.js';
 const image = name => `![${name}](https://example.com/${name}.png)`;
 const kinds = blocks => blocks.map(block => block.images ? block.images.map(i => i.alt).join('/') : block.tag);
 
@@ -40,4 +41,18 @@ test('unsafe URLs are refused, adapter results are checked, cancellation wins', 
   assert.equal(await resolveImageSource({ src: hash }, async () => 'javascript:bad'), null);
   const controller = new AbortController();
   assert.equal(await resolveImageSource({ src: hash }, async () => { controller.abort(); return 'data:image/png;base64,YQ=='; }, controller.signal), null);
+});
+
+test('image request states map to honest status copy and retry visibility', () => {
+  assert.equal(imageRequestStatusText('queued'), 'Waiting to request image…');
+  assert.equal(imageRequestStatusText('requested'), 'Asking peers for image…');
+  assert.equal(imageRequestStatusText('paused'), 'Waiting for connection…');
+  assert.equal(imageRequestStatusText('idle'), 'Image hasn’t arrived');
+  assert.equal(imageRequestStatusText('received'), 'Image hasn’t arrived');
+  assert.deepEqual(['queued', 'requested', 'paused'].map(imageRequestActive), [true, true, true]);
+  assert.equal(imageRequestActive('idle'), false);
+  assert.equal(imageRequestRetryVisible('paused'), true);
+  assert.equal(imageRequestRetryVisible('idle'), true);
+  assert.equal(imageRequestRetryVisible('queued'), false);
+  assert.equal(imageRequestRetryVisible('requested'), false);
 });

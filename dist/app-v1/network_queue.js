@@ -1,6 +1,9 @@
 const SEND_DELAY_MS = 100
 const HASH_RETRY_MS = 800
 const HASH_QUEUE_COOLDOWN_MS = 30000
+// A hash request that stays queued this long without a ready transport is
+// treated as failed so the UI can offer retry instead of spinning forever.
+const QUEUED_TIMEOUT_MS = 45000
 const MAX_QUEUE_ITEMS = 1800
 
 const PRIORITY_ORDER = ['high', 'normal', 'low']
@@ -66,6 +69,15 @@ const trackHashRequest = (hash, state) => {
     publishHashState(hash, 'idle')
     notifyQueueListeners()
   }, 15000)
+  if (state === 'queued') request.timer = setTimeout(() => {
+    const current = hashRequests.get(hash)
+    if (!current || current.state !== 'queued') return
+    hashRequests.delete(hash)
+    const item = pending.get(hash)
+    if (item) { pending.delete(hash); removeFromQueue(queues[item.priority], item) }
+    publishHashState(hash, 'idle')
+    notifyQueueListeners()
+  }, QUEUED_TIMEOUT_MS)
   publishHashState(hash, state)
 }
 
@@ -143,6 +155,7 @@ const queueSnapshot = () => ({
   normal: queues.normal.length,
   low: queues.low.length,
   draining,
+  paused,
   wsReady: Boolean(isTargetReady('ws')),
   gossipReady: Boolean(isTargetReady('gossip'))
 })
@@ -323,13 +336,18 @@ export const clearQueue = () => {
 }
 
 // Suspend delivery without discarding exact queued bytes or publication state.
+// Publish tracked hash requests as 'paused' while suspended so the UI shows
+// "waiting for connection" instead of "waiting to request".
 export const pauseQueue = () => {
   paused = true
   clearTimeout(drainTimer)
   drainTimer = null
   for (const [hash, request] of hashRequests) {
     clearTimeout(request.timer)
-    publishHashState(hash, 'queued')
+    request.timer = null
+    if (request.state !== 'paused') request.pausedFrom = request.state
+    request.state = 'paused'
+    publishHashState(hash, 'paused')
   }
 }
 export const resumeQueue = () => {
@@ -338,6 +356,10 @@ export const resumeQueue = () => {
     item.sent = { ws: false, gossip: false }
     item.sentAt = { ws: 0, gossip: 0 }
     item.firstTarget = null
+  }
+  for (const hash of hashRequests.keys()) {
+    const request = hashRequests.get(hash)
+    if (request?.state === 'paused') trackHashRequest(hash, request.pausedFrom || 'queued')
   }
   if (!drainTimer && totalQueueSize()) drainTimer = setTimeout(drainQueue, 0)
   notifyQueueListeners()
