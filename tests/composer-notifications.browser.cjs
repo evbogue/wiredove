@@ -22,7 +22,7 @@ const root = path.resolve(__dirname, '..');
     '/profile.js': 'export const avatarSpan=async()=>document.createElement("span"),nameSpan=avatarSpan;',
     '/send.js': 'export const send=async message=>{window.sent.push(message)};',
     '/media.js': 'export const createMediaComposer=()=>{const div=document.createElement("div");div.actions=document.createElement("div");return div};',
-    '/upload.js': 'export const imgUpload=async()=>{const div=document.createElement("div");div.preview=document.createElement("div");return div};',
+    '/upload.js': 'export const uploadImage=async()=>{throw Error("Unexpected upload")};export const imgUpload=async()=>{const div=document.createElement("div");div.preview=document.createElement("div");return div};',
     '/markdown.js': 'export const appendMarkdown=(node,body)=>node.textContent=body;',
     '/websocket.js': 'export const confirmMessagesPersisted=async targets=>{window.confirmTargets=targets;return await new Promise(resolve=>window.confirm=resolve)};'
   };
