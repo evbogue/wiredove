@@ -72,9 +72,9 @@ async (page) => {
     await context.unroute(origin + '/api/media');
     const imageBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=', 'base64');
     await dialog.locator('.composer-image-upload input[type=file]').setInputFiles({ name: 'pixel.png', mimeType: 'image/png', buffer: imageBuffer });
-    await dialog.getByRole('button', { name: 'Remove image', exact: true }).waitFor();
+    await test.waitForFunction(() => document.querySelector('.composer-text').value.includes('![]('));
     check((await editor.inputValue()).includes('![]('), 'Image reference missing');
-    await dialog.getByRole('button', { name: 'Remove image', exact: true }).click();
+    await editor.fill((await editor.inputValue()).replace(/!\[\]\([^)]+\)/g, '').trim());
     check(!(await editor.inputValue()).includes('![]('), 'Removed image remained in draft');
     await context.unroute(origin + '/api/media');
     await context.route(origin + '/api/media', route => { const { andfs, mime, media_size } = JSON.parse(route.request().headers()['x-anproto-content']); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ andfs, mime, media_size }) }); });

@@ -705,3 +705,20 @@ composer checks and notification browser checks passed; reviewed the 390px light
 composer screenshot. Two earlier test fixtures needed missing protocol/upload
 exports supplied to match the preceding owner-controlled application commit.
 Gallery browser checks also passed, including the warm service-worker cache upgrade.
+
+### 2026-11-01 image uploads use the text draft and Preview
+
+The shared application uploader appends only `![](media_url)` after durable AndFS
+upload, with the existing hash URL contract. Removed the separate image attachment
+cards/removal buttons and their CSS; edit/delete the reference in the text draft.
+Preview uses the existing verified image renderer. Original bytes, multiple inline
+images, draft persistence, historical APDS/anblob readers and profile cropping
+remain unchanged. Temporary decode URLs are revoked after upload rather than
+retained for attachment thumbnails. Regenerated the distribution and bumped the
+shell cache to v27. A local-only browser regression exercises upload completion,
+multiple references, verified photo preview, deletion and failed-upload retry in
+light/dark themes. Older manual image/composer acceptance flows now edit references
+instead of looking for removed attachment controls.
+Validation passed: build/frozen check, 41 unit tests, 13 media tests and the complete
+browser suite, including warm-cache upgrade and separate-origin application flow.
+Reviewed 390px light/dark preview screenshots with animations disabled.

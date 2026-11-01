@@ -679,7 +679,7 @@ export const composer = async (sig, options = {}) => {
   const capabilities = application?.session?.policy?.capabilities
   if (capabilities?.upload === false) { uploadControls.hidden = true; mediaControls.actions.hidden = true }
   if (capabilities?.recording === false) for (const button of mediaControls.actions.querySelectorAll('[aria-label^="Record"]')) button.hidden = true
-  surface.attachments.append(uploadControls.preview, mediaControls)
+  surface.attachments.append(mediaControls)
   if (mediaAttachment) mediaControls.restore(mediaAttachment)
   const content = surface.preview
   const overlay = createComposerDialog(surface.root, {

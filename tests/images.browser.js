@@ -56,7 +56,7 @@ async (page) => {
     const held = new Promise(resolve => { releaseUpload = resolve; });
     await uploader.context().route(origin + '/api/media', async route => { uploadStarted(); await held; await route.continue(); }, { times: 1 });
     for (const fixture of fixtures) {
-      const count = await dialog.locator('.composer-image-card').count();
+      const count = ((await editor.inputValue()).match(/!\[\]\(/g) || []).length;
       await dialog.locator('.composer-image-upload input[type=file]').setInputFiles({ name: 'fixture.' + fixture.mime.split('/')[1], mimeType: fixture.mime, buffer: Buffer.from(fixture.data, 'base64') });
       if (count === 0) {
         await started;
@@ -64,17 +64,17 @@ async (page) => {
         check(!(await editor.inputValue()).includes('![]('), 'Pending upload inserted a reference');
         releaseUpload();
       }
-      await uploader.waitForFunction(count => document.querySelectorAll('.composer-image-card').length === count + 1, count);
+      await uploader.waitForFunction(count => (document.querySelector('.composer-text').value.match(/!\[\]\(/g) || []).length === count + 1, count);
     }
     check(apiRequests.length === 4 && apiRequests.every(meta => meta.action === 'andfs-upload-v1'), 'Images did not use signed AndFS uploads');
     check(await uploader.evaluate(() => window.legacyImageWrites) === 0, 'New image was stored through legacy APDS');
-    check((await editor.inputValue()).match(/!\[\]\(http[^)]+\/media\//g)?.length === 4, 'Multiple inline AndFS image references missing');
+    check((await editor.inputValue()).match(/!\[\]\(http[^)]+\/#/g)?.length === 4, 'Multiple inline AndFS image references missing');
     // Removal edits only the selected reference; it must not discard other images.
     const first = (await editor.inputValue()).match(/!\[\]\([^)]+\)/)[0];
-    await dialog.getByRole('button', { name: 'Remove image', exact: true }).first().click();
+    await editor.fill((await editor.inputValue()).replace(first, '').trim());
     check(!(await editor.inputValue()).includes(first), 'Removed image remained in draft');
     await dialog.locator('.composer-image-upload input[type=file]').setInputFiles({ name: 'fixture.png', mimeType: fixtures[0].mime, buffer: Buffer.from(fixtures[0].data, 'base64') });
-    await uploader.waitForFunction(() => document.querySelectorAll('.composer-image-card').length === 4);
+    await uploader.waitForFunction(() => (document.querySelector('.composer-text').value.match(/!\[\]\(/g) || []).length === 4);
     // A rejected upload never inserts a reference or prevents retry.
     const beforeFailure = await editor.inputValue();
     await uploader.context().route(origin + '/api/media', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Image upload rejected"}' }));

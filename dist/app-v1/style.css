@@ -1090,10 +1090,6 @@ button:disabled { cursor: default; opacity: .6; }
   .composer-submit-actions { margin-left: auto; }
   .composer-dialog textarea.composer-text { height: 32dvh; min-height: 100px; }
 }
-.composer-image-previews { display: flex; flex-wrap: wrap; gap: 8px; }
-.composer-image-card { position: relative; padding-right: 42px; margin-top: 8px; }
-.composer-image-card img { display: block; max-width: 100%; max-height: 160px; border-radius: 5px; }
-.composer-image-card .composer-icon { position: absolute; top: 0; right: 0; }
 @media (max-width: 640px) {
   .composer-dialog .composer-scroll { display: flex; flex-direction: column; }
   .composer-dialog textarea.composer-text { flex: 1 1 150px; min-height: 80px; max-height: none; }
