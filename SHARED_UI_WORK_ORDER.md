@@ -1,14 +1,23 @@
 # Mountable Wiredove application work order
 
-Updated 2026-10-30 following Ev's request for a full Wiredove JavaScript embed.
-Status: milestone 1 implemented and accepted locally: shared application mount,
-default verified archive/identity session, durable drafts/outbox and real two-author
-website ↔ separate-origin embed flow. Milestone 2 is in progress with shared
-cache/archive feed queries and refresh; milestones 3–4 remain open. Not deployed.
-Source-review baseline: `6f8d213`. This is the sole shared UI/application-embed work
-order. It replaces the earlier component-first plan, `client/WORK_ORDER.md`, and
-`docs/SHARED_MESSAGE_HANDOFF.md`; historical evidence remains in Git history.
-Existing widget API documentation lives in `client/README.md`.
+Updated 2026-11-01; reconciled against Wiredove source `e9c11c5`, the recorded
+acceptance checkpoints and evbogue.com's current integration documentation/pin.
+Status: milestone 1 accepted locally; milestone 2 partially complete; milestone 3
+replacement implemented and tested locally, with release coordination still open;
+milestone 4 has substantial local evidence but is not complete. Full shared UI
+feature parity is **not finished**.
+
+Wiredove's shared application and subsequent UI fixes have production release
+evidence through `cd7c09e` (see AGENTS.md). The newer owner-policy, historical-image
+retry and reply-edit corrections are source changes, not a verified production
+release here. The evbogue.com full-application replacement is recorded as pending
+production deployment; this reconciliation did not inspect either live service.
+
+This is the sole shared UI/application-embed work order. It replaces the earlier
+component-first plan, `client/WORK_ORDER.md`, and `docs/SHARED_MESSAGE_HANDOFF.md`;
+historical evidence remains in Git history. Current API documentation lives in
+`client/README.md`. The checklist below is current; dated checkpoints retain their
+historical status and must not be read as current blockers.
 
 ## Outcome
 
@@ -22,12 +31,12 @@ Use the full website's behavior as the baseline. Preserve useful shared widgets,
 but do not reduce the website to today's smaller widget or build a third renderer.
 Individually importable widgets remain supported for hosts that want only a piece.
 
-## Diagnosis and starting points
+## Current implementation and remaining boundaries
 
 - `app.js` calls `website-application.js`, which starts the shared APDS session and
   mounts the shared application with its default verified archive/identity session.
   Service-worker registration and legacy transport stay explicit website choices.
-  The real first-flow acceptance is recorded in the final checkpoint below.
+  The real first-flow acceptance is recorded in the milestone-1 checkpoint below.
 - `route.js:createRouter` now owns panels, feed orchestration and scroll state per
   application through root/navigation/scroll/controller dependencies. The website
   supplies a window-hash adapter; internal navigation has no host hash effects.
@@ -39,9 +48,11 @@ Individually importable widgets remain supported for hosts that want only a piec
   publishing session are reusable foundations. Website extensions and edit summaries
   retain richer behavior. `client/core/contracts.js` describes boundaries but does
   not implement the required website/backend adapters.
-- evbogue.com's `timeline/client.js` and `session.js` supply routing, reply counts,
-  refresh, identity and publication wiring. They also select publication appearance.
-  Replacing that application glue with a mount call is a completion criterion.
+- evbogue.com's `timeline/client.js` now mounts the full pinned application graph;
+  the old session bootstrap and route/reply-count/publication glue are removed.
+  Its existing verified backend implements the archive/media contracts. The homepage
+  still consumes the supported message widget. Local replacement acceptance is
+  recorded below; coordinated production verification remains open.
 
 ## Target architecture and public boundary
 
@@ -51,16 +62,17 @@ publication status and lifecycle. Services own verified data, identity/signing,
 queries, storage, delivery, uploads and moderation. Adapters configure those services;
 frames supply the mount root, URL policy, appearance and browser capabilities.
 
-Proposed API (design target, not an existing export):
+Implemented public API (route strings; object-shaped routes and the proposed theme
+option are not established API):
 
 ```js
 import { mountWiredove } from 'https://wiredove.net/app-embed.js';
 const app = await mountWiredove(document.querySelector('#wiredove'), {
-  initialRoute: { type: 'profile', author: 'PUBLIC_KEY' },
-  navigation: 'internal',
-  theme: 'auto',
+  initialRoute: '',
+  // Internal navigation is the embed default; configure backend/media/canonical
+  // URLs and capabilities as documented in client/README.md.
 });
-app.navigate({ type: 'post', id: 'MESSAGE_ID' });
+await app.navigate('?search');
 await app.destroy();
 ```
 
@@ -108,9 +120,10 @@ Do not silently register a service worker on someone else's origin.
 
 ## Implementation sequence
 
-Milestone 1 is complete within the explicit backend-archive scope below. Milestones
-2–4 remain open. Complete vertical slices on both surfaces and record
-observed results here. Do not finish every component extraction before proving a
+Milestone 1 is complete within the explicit backend-archive scope below. Milestone 2
+is partial; milestone 3 is implemented locally with remaining coordination tasks;
+milestone 4 remains open beyond the completed local checks listed below. Complete
+vertical slices on both surfaces and record observed results here. Do not finish every component extraction before proving a
 mountable application. Do not claim a declaration, mock callback or screenshot proves
 runtime parity.
 
@@ -142,8 +155,15 @@ website behavior remains available; unfinished routes are tracked, not removed.
 - [ ] Finish community directory/discovery and legacy backfill service boundaries,
   broader discovery/subscription semantics and advanced backend query adapters.
   Cache/archive queries do not establish global relay search or completeness.
-- [ ] Consolidate composer reply/edit/text/image/audio/video/recording workflows,
-  cursor image placement, upload failures, previews and cleanup. Preserve draft and
+- [x] Share durable text/uploaded-media drafts, exact signed outbox retry and the
+  first real post/reply flow. Implement owner-controlled composing and visitor
+  reply edits without rewriting originals; retain offline signing policy.
+- [x] Apply shared mobile visual-viewport composer sizing, remove the raw-text toggle
+  and separate image cards, and preview verified images from Markdown hash references.
+  Upload failure/retry, multiple references and warm-cache regressions are recorded.
+- [ ] Finish acceptance and consolidation of reply/edit/text/image/audio/video/
+  recording workflows, cursor image placement, upload failures, previews and cleanup.
+  Preserve draft and
   outbox recovery across navigation, reload and identity setup.
 - [ ] Complete profiles and history resolution, editing, links, original/cropped photo
   metadata, explicit empty fields and immediate reload durability.
@@ -161,13 +181,20 @@ input, loading failure/retry and repeated instances, across website and embed.
 
 ### 3. Replace the evbogue.com integration
 
-- [ ] Independently inspect/sync the site repository and preserve its unfinished work.
-- [ ] Replace timeline application glue with the mount API and configuration. Move
-  reusable services upstream; keep only genuine site/backend policy in adapters.
-- [ ] Preserve existing timeline links, owner-only compose policy, visitor replies,
-  historical content and identity/draft storage with an explicit compatibility path.
-- [ ] Pin coordinated source revisions. Provide a minimal static-host example that
-  works without the site's custom server or application glue.
+- [x] Inspect/sync the site repository and preserve unrelated work during replacement.
+- [x] Replace timeline application glue with the mount API and configuration, backed
+  by the site's verified archive/media services; remove the old session bootstrap.
+- [x] Implement owner-only root composition, visitor replies/own-reply edits and
+  nondestructive identity/text/File draft/exact-outbox migration. Test real signed
+  cross-origin reply/edit/reload and outage retry with public writes blocked.
+- [x] Pin the full application graph. Current site pin is Wiredove `220d155` in
+  `timeline/wiredove-client.json`; the homepage keeps supported widget consumption.
+- [ ] Complete the historical-link/media compatibility matrix for the actual site;
+  local replacement acceptance does not prove every historical item works.
+- [ ] Record final coordinated source revisions and provide/verify a minimal
+  static-host example without the site's custom server or application glue.
+- [ ] Deploy and verify the reviewed replacement, including backup, rollback,
+  public asset hashes and live read-only desktop/mobile smoke checks.
 
 Acceptance: evbogue.com does not assemble screens, count replies, manage conversation
 state or orchestrate publication refresh. Both it and wiredove.net consume the same
@@ -177,23 +204,32 @@ application release. Deployment is a separate authorized operation.
 
 - [ ] Run common signed fixtures through both mounts: posts/replies/edits/profiles,
   ordering, duplicate delivery, missing content, moderation and verification failure.
-- [ ] Exercise real local website ↔ embed publish/retrieve/reply/reload loops through
+- [x] Exercise real local website ↔ embed publish/retrieve/reply/reload loops through
   isolated services, including outage, failed persistence and exact outbox retry.
 - [ ] Test legacy APDS images/profile images and anblob audio/video alongside verified
   AndFS images/audio/video/profile photos, corrupt blocks and upload failures.
 - [ ] Test desktop and 390/320px, light/dark, keyboard, focus, touch, denied permissions,
   unrelated host CSS/hash navigation, two instances, unmount/remount and route races.
-- [ ] Inspect screenshots with animations disabled. Observe an actual separate-origin
+- [x] Inspect screenshots with animations disabled. Observe an actual separate-origin
   non-iframe embed. Test warm-cache upgrades without clearing identity storage.
 - [ ] Track physical Safari/mobile recording/playback evidence separately; do not
   substitute Chromium automation for device acceptance.
-- [ ] Run npm run check, npm test, npm run test:media and npm run test:browser, plus
+- [x] Run npm run check, npm test, npm run test:media and npm run test:browser, plus
   focused lifecycle and cross-repository integration checks appropriate to changes.
-- [ ] Document mount API, versioning, backend/CORS/CSP requirements, identity origin
-  behavior, capability limits and rollback. Add dependency checks against duplicated
-  application/rendering paths and accidental website bootstrap imports.
-- [ ] Commit/push coordinated source changes; record source and deployed revisions
-  separately. When authorized, follow AGENTS.md release and asset-hash verification.
+- [x] Document the implemented mount API, versioned graph, backend/CORS/CSP,
+  origin-owned identity and capability limits in client/README.md; document site
+  migration, backend and backup/rollback requirements in timeline/README.md.
+- [ ] Complete dependency checks against duplicated application/rendering paths and
+  accidental website bootstrap imports; close remaining capability/feature gaps.
+- [ ] Complete coordinated release acceptance and record final source/deployed
+  revisions separately, following AGENTS.md release and asset-hash verification.
+
+Checked acceptance items describe recorded local runs, not fresh checks on every
+later commit or complete parity. The latest composer-image checkpoint records
+build/frozen check, 41 unit tests, 13 media tests and the full browser suite.
+The later site checkpoint adds real reply/edit/migration/outage coverage. Rerun
+appropriate suites on the final coordinated release; finish the unchecked fixture,
+media, interaction/permission and physical-device matrices before closing milestone 4.
 
 ## Preservation and scope
 
@@ -211,10 +247,15 @@ is authorized by this work order.
 
 ## Evidence and ongoing status
 
-Earlier shared-message, gallery, identity/outbox and browser suites demonstrate useful
-components, not a mountable full application. Historical details are available in Git
-history and current API behavior in client/README.md. No full-app embed acceptance has
-been established by this document change.
+The milestone-1 checkpoint establishes a real local non-iframe full-application
+flow, and the November 1 site checkpoint records actual evbogue.com replacement
+acceptance. Earlier component-only suites remain narrower evidence. Neither result
+establishes full feature parity or physical-device acceptance. This document-only
+reconciliation adds no new runtime, browser or production verification.
+
+Next work: close the remaining milestone-2 feature boundaries and milestone-3
+historical/site release checks, then finish the milestone-4 acceptance matrix.
+Keep implemented local work distinct from production verification throughout.
 
 For each implementation slice, append its commit, shared application/service owners,
 website and embed checks, observed screenshots/flows, remaining feature gaps and any
@@ -611,7 +652,7 @@ replacement and device/release acceptance remain open. No production deployment,
 public publication, identity migration or related-repository change occurred.
 Source revision is the commit containing this entry.
 
-### 2026-10-30 evbogue.com replacement inspection — paused at Ev's request
+### 2026-10-30 evbogue.com replacement inspection — historical pause, superseded November 1
 
 Completed shared application source remains `f97cbef` on Wiredove `master`, pushed
 and verified against GitHub. Milestone 1 and the cache/archive query slice above
