@@ -3,15 +3,18 @@
 Updated 2026-11-01; reconciled against Wiredove source `e9c11c5`, the recorded
 acceptance checkpoints and evbogue.com's current integration documentation/pin.
 Status: milestone 1 accepted locally; milestone 2 partially complete; milestone 3
-replacement implemented and tested locally, with release coordination still open;
+replacement implemented, tested locally and recorded as deployed, with final parity
+and coordinated release acceptance still open;
 milestone 4 has substantial local evidence but is not complete. Full shared UI
 feature parity is **not finished**.
 
 Wiredove's shared application and subsequent UI fixes have production release
 evidence through `cd7c09e` (see AGENTS.md). The newer owner-policy, historical-image
 retry and reply-edit corrections are source changes, not a verified production
-release here. The evbogue.com full-application replacement is recorded as pending
-production deployment; this reconciliation did not inspect either live service.
+release here. The site repository records the evbogue.com full-application release
+`d7dd9f6` as live and verified on November 1, using Wiredove `220d155`; see its
+AGENTS.md and Agents/DEVOPS.md. Earlier pending-deployment notes below are historical.
+This reconciliation did not independently inspect either live service.
 
 This is the sole shared UI/application-embed work order. It replaces the earlier
 component-first plan, `client/WORK_ORDER.md`, and `docs/SHARED_MESSAGE_HANDOFF.md`;
@@ -193,8 +196,11 @@ input, loading failure/retry and repeated instances, across website and embed.
   local replacement acceptance does not prove every historical item works.
 - [ ] Record final coordinated source revisions and provide/verify a minimal
   static-host example without the site's custom server or application glue.
-- [ ] Deploy and verify the reviewed replacement, including backup, rollback,
-  public asset hashes and live read-only desktop/mobile smoke checks.
+- [x] Record the site's completed production replacement verification: `d7dd9f6`,
+  public owner/pin/runtime hashes, read-only 1200/390/320px smoke and retained backup/
+  rollback instructions. See site Agents/DEVOPS.md. The November 1 backup was taken
+  after the app was already live; the October 30 pre-reload backup is also retained.
+  Production write/retry behavior was not tested by that read-only verification.
 
 Acceptance: evbogue.com does not assemble screens, count replies, manage conversation
 state or orchestrate publication refresh. Both it and wiredove.net consume the same
@@ -254,7 +260,7 @@ establishes full feature parity or physical-device acceptance. This document-onl
 reconciliation adds no new runtime, browser or production verification.
 
 Next work: close the remaining milestone-2 feature boundaries and milestone-3
-historical/site release checks, then finish the milestone-4 acceptance matrix.
+historical/site compatibility checks, then finish the milestone-4 acceptance matrix.
 Keep implemented local work distinct from production verification throughout.
 
 For each implementation slice, append its commit, shared application/service owners,
@@ -786,3 +792,31 @@ retention, two-origin display/reload, reverse replies, migration and exact outag
 retry, with public writes blocked. Backend tests cover foreign-author and missing
 edit targets and relay ingestion of edits lacking a reply field. Full parity and
 physical-device/historical-media completeness remain open.
+
+
+### 2026-11-01 site pin and local integration revalidation
+
+Verified the site pin `220d155f288821c228416bdb6e6964f0b58d0210`: all 172
+manifest files match both SHA-256 provenance and the exact upstream Git bytes.
+Compared the reachable application source/distribution/vendor/style paths against
+Wiredove `8a0eaf0`: only client/README.md differs. The subsequent website-only
+service-worker v28 cache bump does not change the embedded application. No repin
+or application fix was needed. Owner policy, historical-image retry and compatible
+reply editing are already included in the pinned graph.
+
+Fresh local site validation passed: `deno check --frozen serve.js`,
+`deno task timeline:test` (16 backend/host tests) and `deno task timeline:browser`.
+The real pinned application/site bootstrap and separate-origin embed exercised
+identity/text/File draft migration, owner-only Compose, signed visitor replies,
+compatible edits with immutable originals, reverse-origin reply/profile, reload,
+exact outage retry and deduplication. Public writes were blocked. Screenshots were
+generated at 1200/390/320px in light/dark; the 390px dark screenshot was inspected.
+This is isolated timeline integration coverage, not a new full-site-shell or live
+production check, complete historical-media matrix or physical-device acceptance.
+
+Also reconciled newer site release evidence missed by the prior documentation
+pass: site AGENTS.md and Agents/DEVOPS.md record `d7dd9f6` as live and verified,
+with pin `220d155`, public hash checks and read-only responsive smoke. No production
+action was performed in this revalidation. The site checkout remained clean at
+`93e1abf`; remaining work is feature/history/device acceptance and final release
+coordination, not implementation of the replacement or its first deployment.
