@@ -67,7 +67,7 @@ Deno.test('artifact retry preserves exact bytes across restart, blocks another s
 Deno.test('backend local save without relay confirmation retains exact outbox bytes', async () => {
   const keypair = await an.gen(), state = new Map(), blobs = new Map()
   const store = { get: key => state.get(key), set: (key, value) => state.set(key, value) }
-  const protocol = { keypair: () => keypair, get: key => blobs.get(key), put: (key,value) => blobs.set(key,value), make: async value => blobs.set(await an.hash(value),value), add: async signature => blobs.set(await an.hash(signature),signature), getHashLog: () => [], getOpenedLog: () => [], createYaml: (meta,body) => JSON.stringify({ ...meta, body }) }
+  const protocol = { keypair: () => keypair, pubkey: () => keypair.slice(0,44), get: key => blobs.get(key), put: (key,value) => blobs.set(key,value), make: async value => blobs.set(await an.hash(value),value), add: async signature => blobs.set(await an.hash(signature),signature), getHashLog: () => [], getOpenedLog: () => [], createYaml: (meta,body) => JSON.stringify({ ...meta, body }) }
   let relayed = false
   const delivered = []
   const session = createArtifactSession({ protocol, store, endpoint: 'http://local/api/application', fetchImpl: async (_url, options) => {
