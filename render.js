@@ -1,4 +1,4 @@
-import { createMessageMain } from './client/ui/message-layout.js'
+import { createMessageMain, placeMessageMetadata } from './client/ui/message-layout.js'
 import { createMessageView, createReplyContext } from './client/ui/message-view.js'
 import { createRawControls } from './client/ui/raw-controls.js'
 import { createQRControl, createQRTarget } from './client/ui/qr.js'
@@ -396,8 +396,8 @@ const buildEditSummaryRow = ({ avatarLink, summary }) =>
   createMessageMain({ avatarLink, authorNode: summary })
 
 const buildEditMessageShell = ({ id, right, summaryRow, rawDiv, qrTarget }) => {
+  placeMessageMetadata(summaryRow, right)
   return h('div', {id, classList: 'message edit-message'}, [
-    right,
     summaryRow,
     rawDiv,
     qrTarget
@@ -1111,7 +1111,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       const { right, rawDiv, qrTarget } = extractMetaNodes(msgDiv)
       msgDiv.classList.add('edit-message')
       while (msgDiv.firstChild) { msgDiv.removeChild(msgDiv.firstChild) }
-      if (right) { msgDiv.appendChild(right) }
+      placeMessageMetadata(summaryRow, right)
       msgDiv.appendChild(summaryRow)
       msgDiv.appendChild(rawDiv)
       if (qrTarget) { msgDiv.appendChild(qrTarget) }

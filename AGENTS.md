@@ -283,3 +283,28 @@ icon and no overflow or JavaScript exceptions. Browser non-GET requests were
 blocked; no public test messages were published. Both services active; proxy
 unchanged. Evbogue.com post-only master `af31961` was also pulled and verified on
 the public post, homepage and RSS feed without a process reload.
+
+## Icon and card header regression — 2026-10-31
+
+- `91c764b` changed `.message-meta` from absolute top-right positioning to a
+  full-width row before `.message-main`, pushing avatars/authors below metadata.
+  Its browser assertion explicitly required that new row, so passing tests
+  preserved an unintended visual change.
+- `471b996` introduced a 24px application icon override over the existing 18px
+  default; `f97cbef` raised specificity and also displaced composer sizing.
+- Restore 18px application icons and 21px composer icons. Shared message headers
+  place author and metadata beside one another, wrapping when needed while keeping
+  the avatar at the top. Keep layout assertions and screenshot review together;
+  wait for shadow stylesheets before measuring geometry.
+- Local Codex session logs associate the commits with model `gpt-6.1-sol`:
+  `91c764b`: session `01a18b02-9bd5-78e1-ae44-714ceccd3953`;
+  `471b996`: session `01a18dcf-13dd-7d82-93a1-6c64118b8ec4`;
+  `f97cbef`: session `01a18e5f-1898-7af3-9705-ec2adba84789`.
+  Git author fields alone do not identify an agent. These are session-level
+  attributions from local logs, not evidence about all runs of a model.
+
+Validation for this correction: build/frozen check, 38 unit tests, 12 media tests,
+and the complete browser suite passed. Reviewed 390px website/light and 320px
+embed/dark screenshots. Audio cards still expose a raw media URL and the
+"Verified AndFS media" label; narrow reply previews split author/excerpt into
+cramped columns. Those are separate follow-up observations, not fixed here.

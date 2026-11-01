@@ -126,9 +126,13 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
           assert.deepEqual(order,['A','message-stack']);
           if(kind!=='edit') assert.equal(await page.locator('[data-wiredove-message]').count(),1,'Website and embed must mount the canonical message component');
           assert.equal(await page.locator('.message-meta').count(),1);
+          await main.locator('.message-header').evaluate(el => new Promise(resolve => { const ready=()=>getComputedStyle(el).display==='flex' ? resolve() : requestAnimationFrame(ready); ready(); }));
           const metaBounds=await page.locator('.message-meta').boundingBox();
           const mainBounds=await main.boundingBox();
-          assert.ok(metaBounds.y+metaBounds.height<=mainBounds.y+1,'Metadata overlaps author/body');
+          const avatarBounds=await main.locator('.avatar').boundingBox();
+          assert.ok(Math.abs(avatarBounds.y-mainBounds.y)<=1,'Avatar must start at the top of the card header');
+          const bodyBounds=await main.locator('.message-body').count() ? await main.locator('.message-body').boundingBox() : null;
+          if(bodyBounds) assert.ok(metaBounds.y+metaBounds.height<=bodyBounds.y+1,'Metadata overlaps body');
           if(surface==='site' && kind==='edit') {
             assert.equal(await main.locator('.edit-summary-verb').textContent(),'edited');
             assert.equal(await main.locator('.edit-summary-link').getAttribute('href'),'#'+'p'.repeat(43)+'=');
@@ -289,7 +293,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await cachePage.locator('.image-gallery-tile').count(),10);
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v22-refresh-icon'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v23-compact-message'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

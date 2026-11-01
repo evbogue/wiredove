@@ -1,4 +1,4 @@
-import { createMessageMain } from './message-layout.js';
+import { createMessageMain, placeMessageMetadata } from './message-layout.js';
 import { resolveImageSource, safeLinkURL, safeImageURL } from './image-source.js';
 import { displayName, human, visual } from './format.js';
 import { appendFormattedText } from './body.js';
@@ -21,8 +21,9 @@ function createMessageShell({
   const body = doc.createElement('div');
   body.className = 'message-body';
   for (const node of [replyContext, content, raw, actions]) if (node) body.append(node);
-  if (metadata) article.append(metadata);
-  article.append(createMessageMain({ avatarLink, authorNode, bodyNode: body, document: doc }));
+  const main = createMessageMain({ avatarLink, authorNode, bodyNode: body, document: doc });
+  placeMessageMetadata(main, metadata);
+  article.append(main);
   if (trailing) article.append(trailing);
   return { article, body, content, actions };
 }

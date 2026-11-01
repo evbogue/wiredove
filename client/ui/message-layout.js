@@ -13,3 +13,14 @@ export function createMessageMain({ avatarLink, authorNode, bodyNode, document: 
   main.append(stack);
   return main;
 }
+
+// Keep metadata beside the author without covering long names on narrow cards.
+export function placeMessageMetadata(main, metadata) {
+  if (!metadata) return;
+  const stack = main.querySelector('.message-stack');
+  const header = main.ownerDocument.createElement('div');
+  header.className = 'message-header';
+  if (stack.firstChild) header.append(stack.firstChild);
+  header.append(metadata);
+  stack.prepend(header);
+}

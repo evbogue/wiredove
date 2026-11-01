@@ -90,6 +90,8 @@ window.run=async()=>{window.apps=await Promise.all(['one','two'].map(mount));win
    await app.getByRole('dialog').waitFor();
    const composerIcons = await app.locator('.composer-icon .material-symbols-outlined').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).fontFamily));
    assert.ok(composerIcons.length > 0);
+   assert.ok((await app.locator('.composer-icon .material-symbols-outlined').evaluateAll(nodes => nodes.map(n => getComputedStyle(n).fontSize))).every(size => size === '21px'));
+   assert.ok((await app.locator('#navbar .material-symbols-outlined').evaluateAll(nodes => nodes.map(n => getComputedStyle(n).fontSize))).every(size => size === '18px'));
    assert.ok(composerIcons.every(family => family.split(',')[0].trim() === '"Wiredove Symbols"'));
    assert.equal(await page.evaluate(() => [...document.fonts].some(face => face.family.replaceAll('"', '') === 'Wiredove Symbols' && face.status === 'loaded')), true);
    await page.waitForTimeout(50);
