@@ -195,9 +195,14 @@ input, loading failure/retry and repeated instances, across website and embed.
 - [x] Exercise historical query/hash links, APDS inline/avatar decoding, raw/chunked
   anblob audio/video, corrupt-read retry and AndFS gateway/range/hash routes through
   the real local site bootstrap and separate-origin application with signed fixtures.
-- [ ] Inspect representative production-stored historical items read-only, finish
-  the remaining format/profile-photo matrix and verify the new compatibility fixes
-  after coordinated deployment. Local fixtures do not prove every historical item works.
+- [x] Inspect representative live historical text/reply/image/avatar items and a
+  stored AndFS image read-only; distinguish unavailable sources from service limits.
+  Results and explicit unavailable audio/video sample coverage are recorded below.
+- [ ] Fix the site's 4 MiB historical-image response/source limits with bounded,
+  hash-verified reads; two verified relay images (6,642,923 and 6,229,059 bytes) are
+  currently rejected. Preserve original hashes and signed posts.
+- [ ] Finish the remaining format/profile-photo matrix and verify the compatibility
+  changes after site deployment. Local fixtures/live samples do not prove all history.
 - [ ] Record final coordinated source revisions and provide/verify a minimal
   static-host example without the site's custom server or application glue.
 - [x] Record the site's completed production replacement verification: `d7dd9f6`,
@@ -888,3 +893,59 @@ bytes remains distinct from CORS/reader compatibility. Next release step is the
 site's `59c2b67` compatibility update, followed by live read-only historical-link/
 media verification where stored bytes are available. This session did not deploy
 evbogue.com or establish physical-device/full-history acceptance.
+
+
+### 2026-11-01 representative live historical-content inspection
+
+Completed a read-only spot check, not an archive reconstruction. Fetched both public
+application archives and cryptographically verified every returned signature/content/
+ID: 76 site records spanning February 12, 2025–November 1, 2026, plus two Wiredove
+archive records. These are selected-backend inventories, not complete relay history.
+Live site still pins `220d155`; the source compatibility update remains undeployed.
+
+Observed in isolated live Chromium with all HTTP writes and WebSockets blocked:
+oldest site text permalink and a real parent/reply thread render and survive reload;
+an older APDS image and avatar decode through both `?post=` and raw-hash links;
+the stored Wiredove WebP opens/decodes at its current hash route (1600 × 1600).
+390px dark and 1200px light site checks had no document overflow or JavaScript
+exceptions; reviewed the mobile APDS and AndFS screenshots. The site's sync-failure
+notice is expected because its automatic sync POST was blocked. A post with an
+unavailable image remains navigable; its image UI showed a waiting/request state,
+which is not evidence that bytes are available or a final error-state acceptance.
+
+Representative public links checked:
+- Old text: https://evbogue.com/timeline/?post=24jaFw1W59DHXL%2F4R6CQEbYCnhVFBupmzHLGZfbUTFc%3D
+- Parent/reply: https://evbogue.com/timeline/?post=%2BrmSJKScnZn058vmlpdsqcOjPGc3qDGZXUSt3B%2FRRYw%3D
+- Legacy image/avatar: https://evbogue.com/timeline/?post=CdjYoVjaNpzYG3O4y42xUsySk6D2m5VMOgZPPoUifk0%3D
+- Stored AndFS image: https://wiredove.net/#pydZYpfLB3Z9PXT1BNFP4CVuEe_wEaczlt3UbUIoPuM
+
+Checked all 21 distinct APDS image hashes referenced by the site archive: 17 return
+sources whose original data-URL hashes verify; two have no verified matching source
+from the configured relay; two are available and verify at the relay but exceed the
+site's 4 MiB gossip-response and cached-source limits. The latter are a service bug,
+not missing bytes. Direct relay requests supplied only existing hash lookup values;
+no signed artifacts or image bytes were uploaded/published. Follow-up hashes:
+- No verified source: `0rpCbBr9p2OHt0BKAJ6bjNujuebSvHld1+t+L8tA5Lg=`,
+  `6wF+yhPJ42+yJzS8hkHMYxLkkq86z1lo28PAAgt8AhU=`.
+- Rejected by size: `eZszCbyrM5+Fb7qygZkd299utO6w0Y4GFvb0FpofKrs=`
+  (6,642,923 bytes), `IAHOFgdj8OgAShV/YvY2MMWAauPV6PAB01Qm68gjF1c=`
+  (6,229,059 bytes). Fix with a deliberate bounded image budget, not unbounded reads.
+
+The live stored WebP manifest/chunk hashes, size (514,194 bytes), historical /media
+response equality and 206 byte range were verified. Read-only host inventory found
+six Wiredove AndFS image metadata records, an empty legacy blob directory and no
+site media records. Neither fetched archive contains audio/video attachments.
+Thus live historical audio/video is **no sample available**, not accepted from
+fixtures. Local raw/chunked audio/video fixture acceptance remains the separate
+checkpoint above. No signed posts, identity storage or production configuration
+were changed. Public GET readers may populate their normal verified caches.
+
+Next shared UI parity slice: raw-data/QR controls in the existing shared modules.
+They currently create anchors without href/keyboard button semantics, lack expanded
+state/instance-unique target IDs, and QR fallback derives a destination from the host
+URL. `render.js:buildMetaCluster` also supplies permalinkHref twice, overriding the
+configured canonical value. Use one canonical destination for permalink/QR, native
+buttons, explicit accessibility state and unique controls; prove exact QR encoder
+input, keyboard operation, load failure/retry and two instances in both application
+mounts. Then continue the unchecked profile/history, message/moderation and settings/
+identity/capability slices. Historical image availability work need not block these.
