@@ -469,3 +469,32 @@ messages use the configured canonical application base; standalone messages use
 URL. Relative host post URLs resolve against the owning document's base URL. The
 same resolved URL is supplied to the QR encoder and timestamp link; current host
 query/hash state is never concatenated with a signature to construct a QR value.
+
+
+### Full profile, settings and message-control widgets
+
+Both application mounts use these individually importable, inert factories:
+
+- `ui/profile-header.js:createProfileHeaderRenderer(services)` returns
+  `buildProfileHeader(options)` and `resolveProfile(messages, fallbackName)`.
+  Services provide `protocol`, `createElement` (the DOM helper), `appendMarkdown`,
+  `resolveImageSrc`, `uploadProfilePhoto`, `downloadIdentityBackup`, `send` and a
+  signing serializer. Protocol/history results must already be verified. The widget
+  reads the author's local history independently of the displayed feed page and
+  preserves explicit empty bios, links and original/crop photo metadata.
+- `ui/settings.js:createSettingsWidget(application, services)` returns `settings()`,
+  `importKey()` and `destroy()`. Services supply verified identity/storage,
+  backup validation, moderation and the existing queue adapters. Archive-only mounts
+  show refresh/retry for their selected backend; website legacy-network sessions
+  retain their existing queue controls. Destroy removes the status timer.
+- `ui/message-controls.js:createMessageControls(services)` supplies rich edit
+  summaries/history and moderation controls/stubs. Services own mutations, edit
+  selection, status and root-scoped refresh. The widget does not initialize a
+  database, identity, transport or website bootstrap.
+
+`profile_header.js` and `settings.js` are website service adapters, not duplicate
+renderers. See them for the complete service wiring; public widget imports require
+no website import map. `npm run check` guards those import boundaries and adapter
+ownership. Existing custom elements/callbacks remain supported. Native-button/raw-QR
+accessibility changes are deferred separately; this extraction retains existing
+control behavior. This does not claim complete shared-application parity.

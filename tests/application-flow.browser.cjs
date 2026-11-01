@@ -248,6 +248,7 @@ const root = path.resolve(__dirname, '..');
     await fs.mkdir(path.join(root,'test-results'),{recursive:true});
     await page.screenshot({path:path.join(root,'test-results/application-flow-'+(page===website?'website':'embed')+'.png'),fullPage:true});
   }
+  await require('./application-parity.cjs')({website,embed,source,post});
   for(const width of [390,320]) for(const colorScheme of ['light','dark']) for(const page of [website,embed]) {
     await page.setViewportSize({width,height:920});await page.emulateMedia({colorScheme});
     assert.equal(await page.locator('.wiredove-application').evaluate(n=>n.scrollWidth<=n.clientWidth+1),true);

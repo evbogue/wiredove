@@ -1,5 +1,6 @@
+import { createMessageControls } from './client/ui/message-controls.js'
 import { attachmentDisplayBody } from './client/andfs.js'
-import { createMessageMain, placeMessageMetadata } from './client/ui/message-layout.js'
+import { placeMessageMetadata } from './client/ui/message-layout.js'
 import { createMessageView, createReplyContext } from './client/ui/message-view.js'
 import { createRawControls } from './client/ui/raw-controls.js'
 import { createQRControl, createQRTarget } from './client/ui/qr.js'
@@ -12,7 +13,7 @@ import { queueSend, completeHashRequest } from './network_queue.js'
 import { composer } from './composer.js'
 import { scopeDocument } from './client/runtime/application-context.js'
 import { appendMarkdown } from './markdown.js'
-import { renderAndFSMedia } from './client/ui/media-render.js'
+import { renderAndFSMedia, disposeMedia } from './client/ui/media-render.js'
 import { noteSeen } from './sync.js'
 import { promptKeypair } from './identify.js'
 import { addBlockedAuthor, addHiddenHash, addMutedAuthor, isBlockedAuthor, removeHiddenHash, removeMutedAuthor, shouldHideMessage } from './moderation.js'
@@ -382,31 +383,6 @@ const updateEditSnippet = (editHash, summaryEl) => {
   })()
 }
 
-const buildEditSummaryLine = ({ name, editHash, author, nameId, snippet }) => {
-  const safeName = name || (author ? author.substring(0, 10) : 'Someone')
-  const safeSnippet = snippet || 'message'
-  const nameEl = author
-    ? h('a', {href: '#' + author, id: nameId, classList: 'avatarlink'}, [safeName])
-    : h('span', {id: nameId, classList: 'avatarlink'}, [safeName])
-  return h('span', {classList: 'edit-summary'}, [
-    nameEl,
-    h('span', {classList: 'edit-summary-verb'}, ['edited']),
-    h('a', {href: '#' + editHash, classList: 'edit-summary-link'}, [safeSnippet])
-  ])
-}
-
-const buildEditSummaryRow = ({ avatarLink, summary }) =>
-  createMessageMain({ avatarLink, authorNode: summary })
-
-const buildEditMessageShell = ({ id, right, summaryRow, rawDiv, qrTarget }) => {
-  placeMessageMetadata(summaryRow, right)
-  return h('div', {id, classList: 'message edit-message'}, [
-    summaryRow,
-    rawDiv,
-    qrTarget
-  ])
-}
-
 const extractMetaNodes = (msgDiv) => {
   const right = msgDiv.querySelector('.message-meta')
   const rawDiv = msgDiv.querySelector('.message-raw') || h('div', {classList: 'message-raw'})
@@ -636,6 +612,7 @@ const fetchEditsForMessage = async (hash, author) => {
 
 render.registerMessage = (hash, data) => {
   const state = getEditState(hash)
+  if (data.contentDiv) delete state.renderedBody
   Object.assign(state, data)
 }
 
@@ -691,46 +668,22 @@ render.refreshEdits = async (hash, options = {}) => {
   }
 
   const baseReply = state.baseYaml.reply || state.baseYaml.replyHash
-  const bodySource = currentEdit && currentEdit.yaml && currentEdit.yaml.body
+  const bodySource = currentEdit?.yaml && Object.hasOwn(currentEdit.yaml, 'body')
     ? currentEdit.yaml.body
     : state.baseYaml.body
   state.currentBody = bodySource
-  state.contentDiv.replaceChildren(await renderBody(attachmentDisplayBody({ ...state.baseYaml, body: bodySource }), baseReply))
-  if (!renderAndFSMedia(state.baseYaml, state.contentDiv)) await renderMedia(state.baseYaml, state.contentDiv, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
-  await highlightCodeIn(state.contentDiv)
-  hydrateReplyPreviews(state.contentDiv)
+  if (state.renderedBody !== bodySource) {
+    disposeMedia(state.contentDiv)
+    state.contentDiv.replaceChildren(await renderBody(attachmentDisplayBody({ ...state.baseYaml, body: bodySource }), baseReply))
+    if (!renderAndFSMedia(state.baseYaml, state.contentDiv)) await renderMedia(state.baseYaml, state.contentDiv, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
+    await highlightCodeIn(state.contentDiv)
+    hydrateReplyPreviews(state.contentDiv)
+    state.renderedBody = bodySource
+  }
   const profileYaml = currentEdit && currentEdit.yaml
     ? { ...state.baseYaml, ...currentEdit.yaml }
     : state.baseYaml
   await applyProfile(state.contentHash, profileYaml)
-}
-
-const buildEditNav = (hash) => {
-  const left = h('a', {
-    classList: 'material-symbols-outlined edit-nav-btn',
-    onclick: async (e) => {
-      e.preventDefault()
-      await render.stepEdit(hash, -1)
-    }
-  }, ['Chevron_Left'])
-
-  const index = h('span', {classList: 'edit-nav-index'}, [''])
-
-  const right = h('a', {
-    classList: 'material-symbols-outlined edit-nav-btn',
-    onclick: async (e) => {
-      e.preventDefault()
-      await render.stepEdit(hash, 1)
-    }
-  }, ['Chevron_Right'])
-
-  const wrap = h('span', {classList: 'edit-nav', style: 'display: none;'}, [
-    left,
-    index,
-    right
-  ])
-
-  return { wrap, left, right, index }
 }
 
 const findMessageTarget = (hash) => {
@@ -740,120 +693,13 @@ const findMessageTarget = (hash) => {
   return wrapper.querySelector('.message') || wrapper.querySelector('.message-shell')
 }
 
-const applyModerationStub = async ({ target, hash, author, moderation, blob, opened }) => {
-  if (!target || !moderation || !moderation.hidden) { return }
-  const stub = h('div', {classList: 'message moderation-hidden'})
-  const title = h('span', {classList: 'moderation-hidden-title'}, ['Hidden by local moderation'])
-  const actions = h('span', {classList: 'moderation-hidden-actions'})
-  const showOnce = h('button', {
-    onclick: async () => {
-      await render.meta(blob, opened, hash, stub, { forceShow: true })
-    }
-  }, ['Show once'])
-  actions.appendChild(showOnce)
-
-  if (moderation.code === 'muted-author') {
-    const unmute = h('button', {
-      onclick: async () => {
-        await removeMutedAuthor(author)
-        await render.meta(blob, opened, hash, stub)
-      }
-    }, ['Unmute'])
-    actions.appendChild(unmute)
-  } else if (moderation.code === 'hidden-hash') {
-    const unhide = h('button', {
-      onclick: async () => {
-        await removeHiddenHash(hash)
-        await render.meta(blob, opened, hash, stub)
-      }
-    }, ['Unhide'])
-    actions.appendChild(unhide)
-  } else if (moderation.code === 'muted-word') {
-    actions.appendChild(h('a', {href: '#settings'}, ['Edit filters']))
-  }
-
-  stub.appendChild(title)
-  stub.appendChild(actions)
-  target.replaceWith(stub)
-}
-
-const buildModerationControls = ({ author, hash, blob, opened }) => {
-  const hide = h('a', {
-    classList: 'material-symbols-outlined',
-    title: 'Hide message',
-    onclick: async (e) => {
-      e.preventDefault()
-      await addHiddenHash(hash)
-      const target = findMessageTarget(hash)
-      if (target) {
-        await applyModerationStub({
-          target,
-          hash,
-          author,
-          moderation: { hidden: true, reason: 'Hidden message', code: 'hidden-hash' },
-          blob,
-          opened
-        })
-      } else {
-        location.reload()
-      }
-    }
-  }, ['Visibility_Off'])
-
-  const block = h('a', {
-    classList: 'material-symbols-outlined',
-    title: 'Block author',
-    onclick: async (e) => {
-      e.preventDefault()
-      if (!confirm('Block this author and purge their local data?')) { return }
-      application?.feeds?.status?.('Blocking author…', { sticky: true })
-      const result = await addBlockedAuthor(author)
-      const removed = result?.purge?.removed ?? 0
-      const blobs = result?.purge?.blobs ?? 0
-      if (result?.purge) {
-        application?.feeds?.status?.(`Blocked author. Removed ${removed} post${removed === 1 ? '' : 's'}, ${blobs} blob${blobs === 1 ? '' : 's'}.`)
-      } else {
-        application?.feeds?.status?.('Blocked author.')
-      }
-      const wrappers = Array.from(document.querySelectorAll('.message-wrapper'))
-        .filter(node => node.dataset?.author === author)
-      if (wrappers.length) {
-        wrappers.forEach(node => node.remove())
-      } else {
-        const wrapper = document.getElementById(hash)
-        if (wrapper) {
-          wrapper.remove()
-        } else {
-          location.reload()
-        }
-      }
-    }
-  }, ['Block'])
-
-  const mute = h('a', {
-    classList: 'material-symbols-outlined',
-    title: 'Mute author',
-    onclick: async (e) => {
-      e.preventDefault()
-      await addMutedAuthor(author)
-      const target = findMessageTarget(hash)
-      if (target) {
-        await applyModerationStub({
-          target,
-          hash,
-          author,
-          moderation: { hidden: true, reason: 'Muted author', code: 'muted-author' },
-          blob,
-          opened
-        })
-      } else {
-        location.reload()
-      }
-    }
-  }, ['Person_Off'])
-
-  return h('span', {classList: 'message-actions-mod'}, [hide, mute, block])
-}
+const { buildEditSummaryLine, buildEditSummaryRow, buildEditMessageShell,
+  buildEditNav, applyModerationStub, buildModerationControls } = createMessageControls({
+  h, document, render, findMessageTarget, addHiddenHash, addBlockedAuthor, addMutedAuthor,
+  removeMutedAuthor, removeHiddenHash,
+  status: (...args) => application?.feeds?.status?.(...args),
+  refresh: async () => { if (application) { application.router.invalidate(); await application.router.route() } },
+})
 
 render.meta = async (blob, opened, hash, div, options = {}) => {
   const timestamp = opened.substring(0, 13)
@@ -1340,6 +1186,7 @@ render.insertByTimestamp = (container, hash, ts) => insertByTimestamp(container,
 
 render.destroy = () => {
   disposed = true
+  disposeMedia(root)
   replyObserver?.disconnect()
   timestampObserver?.disconnect()
   for (const value of visibleTimestamps.values()) clearInterval(value.intervalId)

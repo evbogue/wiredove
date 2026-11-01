@@ -168,6 +168,11 @@ website behavior remains available; unfinished routes are tracked, not removed.
   recording workflows, cursor image placement, upload failures, previews and cleanup.
   Preserve draft and
   outbox recovery across navigation, reload and identity setup.
+- [x] Extract the full profile header/editor, settings screen and rich message
+  edit/history/moderation controls into inert shared widget factories. Both mounts
+  consume them through explicit service adapters. Verify author-history profile
+  lookup, signed original/crop photos, empty bio, reload/re-crop, scoped sync,
+  edit revisions and hide/unhide with original signed bytes retained.
 - [ ] Complete profiles and history resolution, editing, links, original/cropped photo
   metadata, explicit empty fields and immediate reload durability.
 - [ ] Complete edit summaries/history, moderation/stubs, async profiles/reply counts,
@@ -979,3 +984,45 @@ Checkpoint validation: build/frozen server check, all 41 unit tests and the comp
 browser suite passed, including the new URL assertions, real separate-origin
 application flow and warm-cache upgrade. No media storage/protocol changes were made;
 no public fixtures or signed test messages were published.
+
+
+### 2026-11-01 scoped shared profile/settings/control widget release
+
+Resumed the paused local batch with Ev's narrower instruction to finish shared
+widgets while deferring accessibility. Preserved the full unfinished Wiredove batch
+in the named Git stash `Unfinished shared UI batch before scoped widget release;
+accessibility discovery and upload work deferred`. The site's separate historical
+image-limit patch is preserved in `Deferred historical-image size-limit fix outside
+shared-widget release`. Do not blindly apply the full stashes over this extraction;
+restore remaining changes selectively. This release excludes the discovery adapter,
+post-image cursor/upload changes, static example and accessibility conversion.
+
+New individually importable factories in client/ui:
+- profile-header.js owns the full profile UI; profile_header.js is its service adapter.
+  Read the author's verified local history independently of the current feed page,
+  including earlier explicit image metadata when a newer record omits it.
+- settings.js owns the full settings UI; root settings.js supplies services. Archive-only
+  mounts get selected-backend refresh/retry rather than the website's inactive legacy
+  queue. Website legacy-network sessions retain existing sync behavior.
+- message-controls.js owns edit summaries, version controls and local moderation
+  stubs/actions. Storage, mutation, status and root-scoped refresh are injected.
+
+Edit rendering now honors explicit empty bodies, keeps already-rendered media stable
+when the selected body is unchanged, disposes replaced media and invalidates that
+render cache when content is remounted. The new hide/unhide check found and fixed
+stale edit display after restoration. Signed originals remain byte-identical.
+
+`npm run check` adds an import-boundary check for inert public widget graphs and thin
+website adapters. The generated graph includes all three factories; shell cache v31
+coordinates refresh. Existing public custom elements/callbacks remain supported.
+This is a bounded widget slice, not full feature/discovery/device parity.
+
+Validation: build/frozen check, 41 unit tests, 14 media tests and the full browser
+suite passed; the standalone profile-links suite also passed. Expanded real
+website/separate-origin application flow covers signed profile photos and original-byte
+retention, empty bio, history links, re-crop/cancel/reload, identity backup validation
+in memory (no secret logging/download/screenshots), selected-backend settings refresh,
+edit versions and local hide/unhide. Public writes are blocked; all fixture keys and
+storage are disposable. Reviewed 390px website/light and 320px embed/dark message
+screenshots. Profile screenshot review and coordinated source/deployment evidence
+are recorded with the release checkpoint after verification.
