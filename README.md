@@ -10,6 +10,8 @@ For new message notifications subscribe via https://ntfy.sh/wiredove or enable b
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
 
+For agent publishing without a browser, see [the agent publishing quick reference](docs/AGENT_PUBLISHING.md). It covers identity recovery, exact-byte retries, and verified relay delivery.
+
 ### Shared UI restructuring
 
 The website and JavaScript embeds will mount the same Wiredove application, including navigation, services and shared screens. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the implementation sequence and acceptance criteria. The full application mount API is not implemented yet; current widgets remain supported.

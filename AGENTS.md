@@ -12,6 +12,13 @@ This file records project context and session-specific lessons so future agents 
 - The current first milestone is intentionally small:
   `record/upload → AndFS → signed ANProto artifact → fetch → verify → play`
 
+## Agent publishing quick reference
+
+Read [docs/AGENT_PUBLISHING.md](docs/AGENT_PUBLISHING.md) for the tested Node workflow,
+private identity recovery, previous-message links, exact signed retries and delivery
+verification. This is guidance, not authorization for public posts. Never commit
+private signing keys or private backup links/identifiers.
+
 ## Product direction
 
 Wiredove is the user-facing product layer.
