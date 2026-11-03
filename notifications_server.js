@@ -1,5 +1,8 @@
-import webpush from 'npm:web-push@3.6.7'
-import { apds } from 'https://esm.sh/gh/evbogue/apds@d9326cb/apds.js'
+// @ts-types="npm:@types/web-push@3.6.4"
+import defaultWebpush from 'web-push'
+import * as fs from 'node:fs/promises'
+import { env } from 'node:process'
+import { serverProtocol as apds } from './server/protocol.js'
 
 const DEFAULTS = {
   dataDir: './data',
@@ -13,7 +16,7 @@ const DEFAULTS = {
 
 async function readJsonFile(path, fallback) {
   try {
-    const raw = await Deno.readTextFile(path)
+    const raw = await fs.readFile(path, 'utf8')
     return JSON.parse(raw)
   } catch {
     return fallback
@@ -22,27 +25,27 @@ async function readJsonFile(path, fallback) {
 
 async function writeJsonFile(path, value) {
   const raw = JSON.stringify(value, null, 2)
-  await Deno.writeTextFile(path, raw)
+  const temporary = `${path}.${crypto.randomUUID()}.tmp`
+  try { await fs.writeFile(temporary, raw, { mode: 0o600 }); await fs.rename(temporary, path) }
+  finally { await fs.unlink(temporary).catch(() => {}) }
 }
 
-async function ensureVapidConfig(configPath, subject) {
-  const fallback = {
-    vapidPublicKey: '',
-    vapidPrivateKey: '',
-    vapidSubject: subject,
-  }
-  const config = await readJsonFile(configPath, fallback)
-
-  if (!config.vapidPublicKey || !config.vapidPrivateKey) {
+async function ensureVapidConfig(configPath, subject, webpush) {
+  let config, missing = false
+  try { config = JSON.parse(await fs.readFile(configPath, 'utf8')) }
+  catch (error) { if (error.code !== 'ENOENT') throw error; missing = true }
+  if (missing) {
     const keys = webpush.generateVAPIDKeys()
     const nextConfig = {
       vapidPublicKey: keys.publicKey,
       vapidPrivateKey: keys.privateKey,
-      vapidSubject: config.vapidSubject || subject,
+      vapidSubject: subject,
     }
     await writeJsonFile(configPath, nextConfig)
     return nextConfig
   }
+
+  if (!config.vapidPublicKey || !config.vapidPrivateKey) throw Error('VAPID config is missing keys; restore the existing keypair instead of rotating it')
 
   if (!config.vapidSubject) {
     config.vapidSubject = subject
@@ -226,21 +229,21 @@ async function toPushPayload(latest, pushIconUrl) {
   })
 }
 
-export async function createNotificationsService(options = {}) {
+export async function createNotificationsService({ webpush = defaultWebpush, ...options } = {}) {
   const settings = {
     dataDir: DEFAULTS.dataDir,
     subsFile: DEFAULTS.subsFile,
     stateFile: DEFAULTS.stateFile,
-    configFile: Deno.env.get('VAPID_CONFIG_PATH') ?? DEFAULTS.configFile,
-    vapidSubject: Deno.env.get('VAPID_SUBJECT') ?? DEFAULTS.vapidSubject,
-    pushIconUrl: Deno.env.get('PUSH_ICON_URL') ?? DEFAULTS.pushIconUrl,
-    feedRowsUpstream: Deno.env.get('FEED_ROWS_UPSTREAM') ?? DEFAULTS.feedRowsUpstream,
-    ...options,
+    configFile: env.VAPID_CONFIG_PATH ?? DEFAULTS.configFile,
+    vapidSubject: env.VAPID_SUBJECT ?? DEFAULTS.vapidSubject,
+    pushIconUrl: env.PUSH_ICON_URL ?? DEFAULTS.pushIconUrl,
+    feedRowsUpstream: env.FEED_ROWS_UPSTREAM ?? DEFAULTS.feedRowsUpstream,
+    ...Object.fromEntries(Object.entries(options).filter(([, value]) => value !== undefined)),
   }
 
-  await Deno.mkdir(settings.dataDir, { recursive: true })
+  await fs.mkdir(settings.dataDir, { recursive: true })
 
-  const config = await ensureVapidConfig(settings.configFile, settings.vapidSubject)
+  const config = await ensureVapidConfig(settings.configFile, settings.vapidSubject, webpush)
   webpush.setVapidDetails(
     config.vapidSubject,
     config.vapidPublicKey,
@@ -439,8 +442,16 @@ export async function createNotificationsService(options = {}) {
     return null
   }
 
+  // Keep read/modify/write operations ordered within one server process. Run
+  // only one runtime against these files at a time; this is not a process lock.
+  let writes = Promise.resolve()
   return {
     config,
-    handleRequest,
+    handleRequest(request) {
+      if (request.method !== 'POST') return handleRequest(request)
+      const result = writes.then(() => handleRequest(request))
+      writes = result.catch(() => {})
+      return result
+    },
   }
 }

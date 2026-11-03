@@ -6,6 +6,7 @@
     "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/apds.js": "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/denonext/__apds.mjs",
     "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/lib/yaml.js": "https://esm.sh/gh/evbogue/apds@e091911502c46feaff8f18ec9865c23f42a7dc40/denonext/lib/yaml.mjs",
     "https://cdn.jsdelivr.net/npm/idb@8/+esm": "npm:idb@8.0.3",
-    "https://cdn.jsdelivr.net/npm/idb@8.0.3/+esm": "npm:idb@8.0.3"
+    "https://cdn.jsdelivr.net/npm/idb@8.0.3/+esm": "npm:idb@8.0.3",
+    "web-push": "npm:web-push@3.6.7"
   }
 }

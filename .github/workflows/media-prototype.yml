@@ -9,6 +9,21 @@ permissions:
   contents: read
 
 jobs:
+  node-server:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: npm run check:node
+      - run: npm run test:server
+
   acceptance:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -28,10 +43,14 @@ jobs:
         run: npm test
       - name: Signed media, verification and persistence regressions
         run: npm run test:media
+      - name: Node and Deno shared-storage parity
+        run: TEST_DENO_PARITY=1 npm run test:server
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Website and separate-origin embed browser acceptance
         run: npm run test:browser
+      - name: Real Node website and embed acceptance
+        run: WIREDOVE_TEST_RUNTIME=node node tests/application-flow.browser.cjs
       - name: Retain browser screenshots
         if: always()
         uses: actions/upload-artifact@v4

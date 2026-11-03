@@ -1,3 +1,11 @@
+import nacl from '../vendor/anproto/lib/nacl-fast-es.js'
+nacl.setPRNG(bytes => crypto.getRandomValues(bytes))
+import { test as nodeTest } from 'node:test'
+import * as fs from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+const test = globalThis.Deno?.test || nodeTest
+const temporaryDirectory = () => globalThis.Deno ? Deno.makeTempDir() : fs.mkdtemp(join(tmpdir(), 'wiredove-test-'))
 import { strict as assert } from 'node:assert';
 import { createAndFsMediaService } from '../andfs_media_server.js';
 import { an } from '../vendor/anproto/an.js';
@@ -6,15 +14,15 @@ import { memoryStore } from '../vendor/andfs/stores.js';
 import { createAndFSMediaClient, readAndFSMedia } from '../client/andfs.js';
 
 async function fixture(options = {}) {
-  const dataDir = await Deno.makeTempDir();
+  const dataDir = await temporaryDirectory();
   const key = await an.gen();
   let service = await createAndFsMediaService({ dataDir, ...options });
-  const fetchImpl = (url, init) => service.handleRequest(new Request(new URL(url, 'http://wiredove.test'), init));
+  const fetchImpl = (url, init) => service.handleRequest(new Request(new URL(url, 'http://wiredove.test'), { ...init, duplex: 'half' }));
   const files = createAndFS({ store: memoryStore() });
   const client = createAndFSMediaClient({ files, fetchImpl, origin: () => 'http://wiredove.test', signPayload: async content => an.sign(await an.hash(content), key) });
   return { dataDir, key, files, client, fetchImpl,
     restart: async () => { service = await createAndFsMediaService({ dataDir, ...options }); },
-    close: () => Deno.remove(dataDir, { recursive: true }) };
+    close: () => fs.rm(dataDir, { recursive: true }) };
 }
 function bytes(size = SIZE * 2 + 731) {
   return Uint8Array.from({ length: size }, (_, i) => i % 251);
@@ -26,7 +34,7 @@ async function authorized(f, data, changes = {}, body = data, signatureTransform
   return await f.fetchImpl('/api/media', { method: 'POST', headers: { 'X-ANProto-Content': content, 'X-ANProto-Signature': signature }, body });
 }
 
-Deno.test('image/audio/video uploads replicate to a fresh verified store, survive restart, and support ranges', async () => {
+test('image/audio/video uploads replicate to a fresh verified store, survive restart, and support ranges', async () => {
   const f = await fixture();
   try {
     for (const [index, mime] of ['audio/wav', 'video/webm', 'image/png', 'image/jpeg', 'image/gif', 'image/webp'].entries()) {
@@ -62,7 +70,7 @@ Deno.test('image/audio/video uploads replicate to a fresh verified store, surviv
   } finally { await f.close(); }
 });
 
-Deno.test('invalid, expired, changed, empty, oversized and interrupted uploads never become available', async () => {
+test('invalid, expired, changed, empty, oversized and interrupted uploads never become available', async () => {
   const f = await fixture({ maxMediaBytes: 100 });
   try {
     const data = bytes(80);
@@ -82,13 +90,13 @@ Deno.test('invalid, expired, changed, empty, oversized and interrupted uploads n
     assert.equal((await f.fetchImpl('/api/media', { method: 'POST', headers: { 'X-ANProto-Content': content, 'X-ANProto-Signature': oldSignature }, body: data })).status, 400);
     const interrupted = new ReadableStream({ start(c) { c.enqueue(data.slice(0, 5)); c.error(new Error('connection lost')); } });
     assert.equal((await authorized(f, data, {}, interrupted)).status, 400);
-    assert.equal((await Array.fromAsync(Deno.readDir(`${f.dataDir}/media`))).length, 0);
-    assert.equal((await Array.fromAsync(Deno.readDir(`${f.dataDir}/andfs/blocks`))).length, 0);
+    assert.equal((await fs.readdir(`${f.dataDir}/media`)).length, 0);
+    assert.equal((await fs.readdir(`${f.dataDir}/andfs/blocks`)).length, 0);
     assert.equal((await authorized(f, data)).status, 201, 'retry after interrupted upload failed');
   } finally { await f.close(); }
 });
 
-Deno.test('duplicate retries repair missing/corrupt blocks without duplicate quota or metadata', async () => {
+test('duplicate retries repair missing/corrupt blocks without duplicate quota or metadata', async () => {
   const f = await fixture({ quotaBytes: SIZE * 3, maxUploadsPerHour: 1 });
   try {
     const data = bytes();
@@ -96,8 +104,8 @@ Deno.test('duplicate retries repair missing/corrupt blocks without duplicate quo
     const manifest = await f.files.manifest(meta.andfs);
     const block = `${f.dataDir}/andfs/blocks/${manifest.chunks[0]}`;
     for (const corrupt of [false, true]) {
-      if (corrupt) await Deno.writeFile(block, new Uint8Array([0]));
-      else await Deno.remove(block);
+      if (corrupt) await fs.writeFile(block, new Uint8Array([0]));
+      else await fs.rm(block);
       const missing = await f.fetchImpl(`/blobs/${manifest.chunks[0]}`);
       assert.equal(missing.status, 404);
       assert.equal(missing.headers.get('cache-control'), 'no-store');
@@ -107,12 +115,12 @@ Deno.test('duplicate retries repair missing/corrupt blocks without duplicate quo
       assert.equal((await authorized(f, data)).status, 200);
       assert.deepEqual(await readAndFSMedia(meta, { fetchImpl: f.fetchImpl }), data);
     }
-    assert.equal((await Array.fromAsync(Deno.readDir(`${f.dataDir}/media`))).length, 1);
+    assert.equal((await fs.readdir(`${f.dataDir}/media`)).length, 1);
     assert.equal((await authorized(f, bytes(12))).status, 400, 'rate limit was bypassed');
   } finally { await f.close(); }
 });
 
-Deno.test('concurrent uploads respect quota and duplicate uploads are idempotent', async () => {
+test('concurrent uploads respect quota and duplicate uploads are idempotent', async () => {
   const f = await fixture({ quotaBytes: 100 });
   try {
     const data = bytes(80);
@@ -125,7 +133,7 @@ Deno.test('concurrent uploads respect quota and duplicate uploads are idempotent
   } finally { await f.close(); }
 });
 
-Deno.test('uploader rejects missing server confirmation and reader rejects tampering and signed size mismatch', async () => {
+test('uploader rejects missing server confirmation and reader rejects tampering and signed size mismatch', async () => {
   const f = await fixture();
   try {
     const meta = await f.client.upload(new File([bytes(10)], 'audio.wav', { type: 'audio/wav' }));

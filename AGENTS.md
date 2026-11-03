@@ -445,3 +445,25 @@ service fixes, a static example and the site's historical-image limit patch rema
 preserved in named local Git stashes, outside this release. Restore selectively;
 do not blindly reapply the old whole-batch stash over the new extraction. Full
 shared-application/device/history acceptance is not claimed.
+
+
+## Dual application runtimes — 2026-11-03
+
+- `npm ci && npm start` launches Node 22+ via `serve-node.js`. Deno remains
+  available through `npm run start:deno`; both consume `server/handler.js`.
+- Server filesystem APIs use Node built-ins supported by both runtimes. Node
+  server imports are local or npm; no Deno or runtime CDN imports are needed.
+- Run `npm run check:node`, `npm test`, `npm run test:server`. The server tests
+  include actual HTTP, persistence/restart, signature/media verification and
+  private-path checks. Enable `TEST_DENO_PARITY=1` for Node → Deno → Node fixtures;
+  `DENO_EXECUTABLE` may select the Deno binary.
+- `WIREDOVE_TEST_RUNTIME=node npm run test:browser` runs the real application
+  acceptance against the production Node handler; existing default uses Deno.
+- Keep the same working directory, port, data and VAPID paths when switching.
+  Stop the old application first: no concurrent Node/Deno writers to shared data.
+  Do not rotate existing VAPID keys; malformed/incomplete config stops startup.
+- Static routes no longer use deno.land. Both runtimes reject directory listings,
+  dotfiles, node_modules and private/outside symlink targets, and support HEAD,
+  conditional reads and single ranges. Dynamic route precedence remains shared.
+- Docker, deployed services and the independent Deno reverse proxy remain as
+  recorded above. A source push does not authorize or perform production cutover.

@@ -7,9 +7,20 @@
     "test:media": "deno test --allow-read --allow-write tests/andfs-media.test.js client/client_test.js tests/monitor-posts.test.js client/runtime/publishing-session_test.js tests/application-artifacts.test.js",
     "test:browser": "node tests/image-upload.browser.cjs && node tests/composer-notifications.browser.cjs && node tests/image-gallery.browser.cjs && node tests/shared-message.browser.cjs && node tests/application-state.browser.cjs && node tests/application-shadow.browser.cjs && node tests/application-flow.browser.cjs",
     "check": "npm run build:embed && node scripts/check-ui-boundaries.js && deno check --frozen serve.js scripts/monitor-posts.js",
-    "build:embed": "node scripts/build-app-embed.js"
+    "build:embed": "node scripts/build-app-embed.js",
+    "start": "node serve-node.js",
+    "start:deno": "deno run --allow-net --allow-read --allow-write --allow-env serve.js",
+    "test:server": "node --test tests/server.test.js tests/andfs-media.test.js tests/application-artifacts.test.js",
+    "check:node": "node --check serve-node.js && node --check server/handler.js && node --check server/node-http.js && node --check server/static.js && npm run build:embed && node scripts/check-ui-boundaries.js"
   },
   "devDependencies": {
+    "@types/web-push": "3.6.4",
     "playwright": "1.64.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
   }
 }

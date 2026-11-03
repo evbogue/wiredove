@@ -1,11 +1,19 @@
+import nacl from '../vendor/anproto/lib/nacl-fast-es.js'
+nacl.setPRNG(bytes => crypto.getRandomValues(bytes))
+import { test as nodeTest } from 'node:test'
+import * as fs from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+const test = globalThis.Deno?.test || nodeTest
+const temporaryDirectory = () => globalThis.Deno ? Deno.makeTempDir() : fs.mkdtemp(join(tmpdir(), 'wiredove-test-'))
 import { an } from '../vendor/anproto/an.js'
 import { createApplicationBackend } from '../application_backend.js'
 import { createArtifactSession } from '../client/runtime/artifact-session.js'
 const assert = (condition, message = 'Assertion failed') => { if (!condition) throw Error(message) }
 const rejects = async operation => { let rejected = false; try { await operation() } catch { rejected = true } assert(rejected, 'Expected rejection') }
 const signed = async content => { const signature = await an.sign(await an.hash(content), await an.gen()); return { id: await an.hash(signature), signature, content } }
-Deno.test('application archive verifies, deduplicates concurrent retries and survives restart', async () => {
-  const dataDir = await Deno.makeTempDir()
+test('application archive verifies, deduplicates concurrent retries and survives restart', async () => {
+  const dataDir = await temporaryDirectory()
   try {
     let backend = await createApplicationBackend({ dataDir })
     const record = await signed('signed archive fixture')
@@ -18,9 +26,9 @@ Deno.test('application archive verifies, deduplicates concurrent retries and sur
     const page = await (await backend.handleRequest(new Request('http://local/api/application'))).json()
     assert(page.records.length === 1 && page.records[0].signature === record.signature)
     assert(page.scope === 'backend-archive' && page.cursor === 1 && !page.more)
-  } finally { await Deno.remove(dataDir, { recursive: true }) }
+  } finally { await fs.rm(dataDir, { recursive: true }) }
 })
-Deno.test('artifact retry preserves exact bytes across restart, blocks another signature and rejects corrupt reads', async () => {
+test('artifact retry preserves exact bytes across restart, blocks another signature and rejects corrupt reads', async () => {
   const keypair = await an.gen(), state = new Map(), blobs = new Map(), received = []
   const store = { get: key => state.get(key), set: (key, value) => state.set(key, structuredClone(value)) }
   const protocol = { keypair: () => keypair, pubkey: () => keypair.slice(0,44), get: key => blobs.get(key), put: (key,value) => blobs.set(key,value), make: async value => blobs.set(await an.hash(value),value), add: async signature => blobs.set(await an.hash(signature),signature), getHashLog: () => [], getOpenedLog: () => [], createYaml: (metadata,body) => JSON.stringify({ ...metadata, body }) }
@@ -64,7 +72,7 @@ Deno.test('artifact retry preserves exact bytes across restart, blocks another s
   assert(changes === 1, 'Unsubscribed listener was retained')
 })
 
-Deno.test('backend local save without relay confirmation retains exact outbox bytes', async () => {
+test('backend local save without relay confirmation retains exact outbox bytes', async () => {
   const keypair = await an.gen(), state = new Map(), blobs = new Map()
   const store = { get: key => state.get(key), set: (key, value) => state.set(key, value) }
   const protocol = { keypair: () => keypair, pubkey: () => keypair.slice(0,44), get: key => blobs.get(key), put: (key,value) => blobs.set(key,value), make: async value => blobs.set(await an.hash(value),value), add: async signature => blobs.set(await an.hash(signature),signature), getHashLog: () => [], getOpenedLog: () => [], createYaml: (meta,body) => JSON.stringify({ ...meta, body }) }
@@ -82,7 +90,7 @@ Deno.test('backend local save without relay confirmation retains exact outbox by
   assert((await session.pending()).length === 0)
 })
 
-Deno.test('historical image failures retry after archive cursor advances and notify mounted readers only with verified bytes', async () => {
+test('historical image failures retry after archive cursor advances and notify mounted readers only with verified bytes', async () => {
   const source = 'data:image/png;base64,AAAA', hash = await an.hash(source)
   const record = await signed(JSON.stringify({ image: hash, body: `![](${hash})` }))
   const blobs = new Map(), received = [], cursors = []

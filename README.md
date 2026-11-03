@@ -16,12 +16,46 @@ The website and JavaScript embeds will mount the same Wiredove application, incl
 
 ### Development checks
 
-The application still runs on Deno; npm metadata supplies reproducible test tooling,
-not a Node server migration. CI uses Node 22, Deno 2.7.13 and pinned Playwright.
-`deno.json` keeps Deno's npm dependencies in its own cache, independent of npm's
-Playwright installation. Deno imports use explicit APDS compilation targets and the
-already-vendored ANProto revision to avoid CDN target-dependent wrappers. Both npm
-and Deno dependency lockfiles are committed; the check command enforces the lockfile.
+Node.js 22+ and Deno launch the same server routes and use the same storage.
+Node startup uses the npm lockfile and vendored protocol/YAML code; it does not
+require Deno or download server modules from a CDN. Browser dependencies retain
+their existing pins. Install dependencies before choosing a runtime:
+
+```sh
+npm ci
+npm start                 # Node, port 8000
+# Or, with Deno installed:
+npm run start:deno        # Deno, port 8000
+```
+
+Use `PORT=8081 npm start` to select a port, and `HOST=127.0.0.1` for a loopback
+listener. Both launchers honor the existing `VAPID_CONFIG_PATH`, `BLOB_DIR`,
+`APPLICATION_DATA_DIR`, `MEDIA_DATA_DIR`, `MEDIA_MAX_BYTES`, `MEDIA_QUOTA_BYTES`,
+`VAPID_SUBJECT`, `PUSH_ICON_URL` and `FEED_ROWS_UPSTREAM` settings. Optional
+`DATA_DIR` changes the common data root (default `./data`); explicit per-service
+paths take precedence. Static assets and default paths are relative to the current
+working directory, so launch from the repository root.
+
+To switch runtimes, stop the current application, keep the same working directory,
+data paths, VAPID config and port, then launch the other runtime. **Do not run both
+against the same writable data at once.** Existing subscriptions, state, signed
+archives, AndFS blocks/metadata and legacy blobs are read in place. A malformed or
+incomplete VAPID config stops startup rather than silently rotating keys.
+
+Static serving supports index files, GET/HEAD, conditional reads and single byte
+ranges. Directory listings, dotfiles, node_modules, data/config paths and symlinks
+into private/outside paths are not served. Both launchers apply the same policy.
+The existing Deno Docker image and production reverse proxy remain unchanged.
+
+Node-only server verification requires no Deno installation:
+
+```sh
+npm run check:node
+npm test
+npm run test:server
+```
+
+With Deno and browser tooling installed, the additional acceptance commands are:
 
 ```sh
 npm ci
@@ -30,6 +64,8 @@ npm run check
 npm test
 npm run test:media
 npm run test:browser
+TEST_DENO_PARITY=1 npm run test:server # Node → Deno → Node, isolated storage
+WIREDOVE_TEST_RUNTIME=node npm run test:browser # Real Node backend
 ```
 
 On Linux, use `npx playwright install --with-deps chromium` to install browser system

@@ -1,10 +1,23 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:web-push@3.6.7": "3.6.7",
-    "npm:idb@8.0.3": "8.0.3"
+    "npm:@types/web-push@3.6.4": "3.6.4",
+    "npm:idb@8.0.3": "8.0.3",
+    "npm:web-push@3.6.7": "3.6.7"
   },
   "npm": {
+    "@types/node@26.6.6": {
+      "integrity": "sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "@types/web-push@3.6.4": {
+      "integrity": "sha512-GnJmSr40H3RAnj0s34FNTcJi1hmWFV5KXugE0mYWnYhgTAHLJ/dJKAwDmvPJYMke0RplY2XE9LnM4hqSqKIjhQ==",
+      "dependencies": [
+        "@types/node"
+      ]
+    },
     "agent-base@7.1.4": {
       "integrity": "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="
     },
@@ -81,6 +94,9 @@
     "safer-buffer@2.1.2": {
       "integrity": "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg=="
     },
+    "undici-types@8.9.0": {
+      "integrity": "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="
+    },
     "web-push@3.6.7": {
       "integrity": "sha512-OpiIUe8cuGjrj3mMBFWY+e4MMIkW3SVT+7vEIjvD9kejGUypv8GPDf84JdPWskK8zMRIJ6xYGm+Kxr8YkPyA0A==",
       "dependencies": [
@@ -151,11 +167,14 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:idb@8.0.3"
+      "npm:idb@8.0.3",
+      "npm:web-push@3.6.7"
     ],
     "packageJson": {
       "dependencies": [
-        "npm:playwright@1.64.1"
+        "npm:@types/web-push@3.6.4",
+        "npm:playwright@1.64.1",
+        "npm:web-push@3.6.7"
       ]
     }
   }

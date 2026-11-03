@@ -10,7 +10,10 @@ const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 (async () => {
  const temporary = await fs.mkdtemp(path.join(os.tmpdir(),'wiredove-flow-'));
- const server = spawn('deno',['run','--cached-only','--allow-net=127.0.0.1','--allow-read','--allow-write','tests/application-flow-server.js',temporary],{cwd:root,stdio:['ignore','pipe','inherit']});
+ const useNode = process.env.WIREDOVE_TEST_RUNTIME === 'node';
+ const server = spawn(useNode ? process.execPath : 'deno',useNode
+  ? ['tests/application-flow-server-node.js',temporary]
+  : ['run','--cached-only','--allow-net=127.0.0.1','--allow-read','--allow-write','tests/application-flow-server.js',temporary],{cwd:root,stdio:['ignore','pipe','inherit']});
  let browser, host;
  try {
   const port = await new Promise((resolve,reject)=>{server.stdout.once('data',data=>resolve(Number(String(data).trim())));server.once('exit',code=>reject(Error('Local backend exited '+code)))});

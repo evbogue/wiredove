@@ -1,15 +1,16 @@
+import * as fs from 'node:fs/promises'
 import { an } from './vendor/anproto/an.js'
 
 // Append-only verified artifact archive. Scope is this backend's stored records,
 // not the public network. Sequence cursors do not depend on author timestamps.
 export const createApplicationBackend = async ({ dataDir = './data/application' } = {}) => {
-  await Deno.mkdir(dataDir, { recursive: true })
+  await fs.mkdir(dataDir, { recursive: true })
   let queue = Promise.resolve()
   const serial = fn => { const result = queue.then(fn); queue = result.catch(() => {}); return result }
   const file = `${dataDir}/records.json`
   let records
-  try { records = JSON.parse(await Deno.readTextFile(file)) }
-  catch (error) { if (!(error instanceof Deno.errors.NotFound)) throw error; records = [] }
+  try { records = JSON.parse(await fs.readFile(file, 'utf8')) }
+  catch (error) { if (error.code !== 'ENOENT') throw error; records = [] }
   const headers = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', 'content-type': 'application/json', 'cache-control': 'no-store' }
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers })
   return { async handleRequest(request) {
@@ -47,8 +48,8 @@ export const createApplicationBackend = async ({ dataDir = './data/application' 
         if (!records.some(record => record.id === id)) {
           const next = [...records, { id, signature, content }]
           const temporary = `${file}.${crypto.randomUUID()}.tmp`
-          await Deno.writeTextFile(temporary, JSON.stringify(next))
-          await Deno.rename(temporary, file)
+          await fs.writeFile(temporary, JSON.stringify(next))
+          await fs.rename(temporary, file)
           records = next
         }
         return json({ id, saved: true })

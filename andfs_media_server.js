@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises'
 import { an } from './vendor/anproto/an.js'
 import { createAndFS, MAX_MANIFEST, validHash } from './vendor/andfs/andfs.js'
 import { diskStore, memoryStore } from './vendor/andfs/stores.js'
@@ -64,16 +65,16 @@ export async function createAndFsMediaService({
 } = {}) {
   const andfsDir = `${dataDir}/andfs`
   const mediaDir = `${dataDir}/media`
-  await Deno.mkdir(mediaDir, { recursive: true })
+  await fs.mkdir(mediaDir, { recursive: true })
   const store = await diskStore(andfsDir)
   const files = createAndFS({ store })
   const media = new Map()
   const authorUploads = new Map()
 
-  for await (const entry of Deno.readDir(mediaDir)) {
-    if (!entry.isFile || !entry.name.endsWith('.json')) continue
+  for (const entry of await fs.readdir(mediaDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue
     try {
-      const row = JSON.parse(await Deno.readTextFile(`${mediaDir}/${entry.name}`))
+      const row = JSON.parse(await fs.readFile(`${mediaDir}/${entry.name}`, 'utf8'))
       if (
         validHash(row.andfs) && PUBLIC_MIME.has(row.mime) &&
         Number.isSafeInteger(row.media_size) && row.media_size > 0 &&
@@ -90,10 +91,10 @@ export async function createAndFsMediaService({
     const path = `${mediaDir}/${row.andfs}.json`
     const temp = `${path}.${crypto.randomUUID()}.tmp`
     try {
-      await Deno.writeTextFile(temp, JSON.stringify(row))
-      await Deno.rename(temp, path)
+      await fs.writeFile(temp, JSON.stringify(row))
+      await fs.rename(temp, path)
     } finally {
-      await Deno.remove(temp).catch(() => {})
+      await fs.unlink(temp).catch(() => {})
     }
   }
 

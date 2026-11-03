@@ -1,6 +1,7 @@
 # Work order: migrate Wiredove from Deno to Node.js
 
-Status: **planned; no runtime migration implemented**
+Status: **dual Node/Deno application launchers implemented; production runtime unchanged**
+Updated: 2026-11-03
 Created: 2026-10-23
 Target: **maintained Node.js LTS, self-hosted on the existing Debian VPS**
 Priority: **complete before October 2027**, with early milestones well ahead of that date.
@@ -15,7 +16,9 @@ Sources:
 
 ## Decisions / invariants
 
-1. Node.js LTS is the default server runtime. Keep the browser as the primary application client; **do not rewrite the app in a server framework**.
+1. Node.js LTS is available through `npm start`; Deno remains available through
+   `npm run start:deno`. Ev requested both runtimes on 2026-11-03, superseding
+   an immediate Deno replacement. Keep the browser as the primary application client; **do not rewrite the app in a server framework**.
 2. Keep ESM and standard Web APIs (fetch, Request, Response, URL, crypto) wherever possible. Prefer small explicit adapters and Node built-ins over a wholesale framework migration.
 3. Preserve existing URLs, payload shapes, signatures, message hashes, media blob IDs, notification subscriptions, VAPID keys and settings. No signed message rewrites or identity migrations.
 4. Preserve self-hosting, Docker and the existing Debian/systemd deployment model. Do not move hosting to Cloudflare as a side effect.
@@ -23,7 +26,7 @@ Sources:
 6. Separate application-runtime migration from the **independent production Deno reverse proxy**. Do not switch both in a single release.
 7. No application code, infrastructure or production services change merely by creating this work order.
 
-## Confirmed current usage (reviewed on master 2026-10-23)
+## Historical baseline (reviewed on master 2026-10-23; superseded by the checkpoint below)
 
 - `serve.js` uses `Deno.serve`, `Deno.env`, `Deno.mkdir`, `Deno.writeFile`, `Deno.rename`, `Deno.stat`, `Deno.readFile`, `Deno.errors.NotFound` and remote `deno.land/std@0.224.0/http/file_server.ts`.
 - `notifications_server.js` uses Deno environment/filesystem APIs, `npm:web-push@3.6.7`, and `https://esm.sh/gh/evbogue/apds@d9326cb/apds.js`. Its persisted files include `data/subscriptions.json`, `data/state.json` and the production VAPID config.
@@ -114,3 +117,62 @@ Sources:
 ## Suggested order and timing
 
 Start inventory and parity tests now. Complete local Node implementation and staging during late 2026 / early 2027. Cut over application first, then reverse proxy separately; aim to finish comfortably before upstream Deno maintenance ends in October 2027. Timing is a planning target, not a release commitment.
+
+
+## 2026-11-03 — Dual application runtime
+
+Ev requested an independent Node fallback while retaining Deno. `serve-node.js`
+and `serve.js` now share `server/handler.js`: archive → AndFS → legacy blobs →
+notifications/feed → static files. Server filesystem access uses Node built-ins
+that Deno also supports. The Node HTTP adapter bridges Web streams, backpressure,
+client aborts, HEAD and canceled/rejected upload bodies. Static serving uses the
+same local implementation in both runtimes, removing the deno.land dependency.
+
+Node resolves pinned web-push 3.6.7 through package-lock.json; Deno maps the same
+bare import to its existing npm pin. The read-only APDS adapter retains the
+vendored ANProto hash/open functions and byte-identical APDS d9326cb YAML bundle,
+without initializing APDS browser storage. Browser dependency URLs and vendor
+AndFS/ANProto files remain unchanged. No signed bytes or disk schemas migrate.
+
+Notification JSON writes are atomic and POST read/modify/write operations are
+serialized within the process. Existing VAPID keys are reused; invalid config
+fails startup. This is not a multi-process storage lock. Stop one runtime before
+starting the other against the same writable data.
+
+`npm run test:server` runs the signed-media/archive suites on Node plus actual
+HTTP process tests for static MIME/HEAD/CORS/cache/ranges, private/symlink paths,
+signed artifact verification, streamed oversize rejection/client abort, AndFS
+upload/verified reads, legacy blobs, subscriptions, mocked push and feed routes,
+restart persistence and unchanged VAPID config. `TEST_DENO_PARITY=1` adds an
+actual Node → Deno → Node restart over the same fixtures. The existing full
+browser acceptance can use the production Node handler with
+`WIREDOVE_TEST_RUNTIME=node`; public writes remain blocked.
+
+The earlier migration/cutover checklist remains a roadmap, not a claim that Docker,
+production application services, ancillary scripts or the independent reverse
+proxy have migrated. No production deployment is part of this source change.
+
+
+Observed validation for the dual-runtime slice:
+
+- Clean `npm ci --omit=dev` in an isolated copy, Node build/import checks and all
+  17 Node server/media/archive tests passed without Deno or Playwright installed.
+- All 44 existing Node unit tests passed. All 9 shared media/archive tests also
+  passed under Deno 2.7.13.
+- Actual Node → Deno → Node process restart passed (18 total server test cases),
+  retaining exact VAPID config bytes, signed archives, legacy blobs, media bytes
+  and notification state. Local Deno checks used the cached pinned APDS module
+  and installed npm dependencies (`DENO_NODE_MODULES=manual`, `DENO_CACHED_ONLY=1`)
+  because direct Deno dependency downloads were unavailable in this environment.
+  The Deno entry point passed `deno check --frozen --no-remote
+  --node-modules-dir=manual serve.js`. Type declarations for the existing CommonJS
+  web-push dependency are pinned in both lockfiles.
+- Existing upload, notification, gallery (including warm cache), message,
+  application-state and six separate-origin shadow browser variants passed.
+  The real website/separate-origin full application flow passed on the production
+  Node handler after adding CORS for public vendor modules: signed post/reply,
+  profile/photo/history/settings, media verification/playback, reload, durable
+  drafts, compatible edits and exact outbox retry. Screenshot review included
+  the 390px dark embed. Chromium 133 was used with the pinned Playwright runner
+  because the standard browser download was unavailable. Public writes blocked.
+- Git whitespace check passed. Production services and proxy were not changed.
