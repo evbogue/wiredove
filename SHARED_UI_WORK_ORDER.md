@@ -165,7 +165,8 @@ website behavior remains available; unfinished routes are tracked, not removed.
   and separate image cards, and preview verified images from Markdown hash references.
   Upload failure/retry, multiple references and warm-cache regressions are recorded.
 - [ ] Finish acceptance and consolidation of reply/edit/text/image/audio/video/
-  recording workflows, cursor image placement, upload failures, previews and cleanup.
+  recording workflows, upload failures, previews and cleanup. Cursor image placement
+  is implemented and verified in the 2026-11-03 checkpoint below.
   Preserve draft and
   outbox recovery across navigation, reload and identity setup.
 - [x] Extract the full profile header/editor, settings screen and rich message
@@ -1063,3 +1064,36 @@ profile-links. Both repositories were pushed normally to master. Deferred source
 changes remain in the named local stashes above; they are not deployed or claimed
 complete. Accessibility is deferred at Ev's request. This completes the scoped
 shared-widget release, not the remaining milestones of the full work order.
+
+
+### 2026-11-03 cursor placement for uploaded post images
+
+The shared `client/ui/image-upload.js` now captures the cursor when opening the
+image picker and inserts the durable AndFS Markdown reference there. Add only the
+line breaks needed to keep the reference separate from adjacent text. Selected
+prose is retained. Pending insertion follows text edits made during upload,
+including replacements/deletions and repeated characters; simply moving the caret
+does not move the chosen image position. Preserve the current editing selection
+and use the existing onChange draft-save/publication-state callback. Cancel, failed
+uploads and disposal leave authored text intact; disposal removes edit listeners.
+No media format, storage, historical reader or signed-content contract changes.
+
+Regenerated the application distribution and advanced the shell cache to
+`v32-cursor-image-upload`; the warm-cache assertion follows that version. Expanded
+`tests/image-upload.browser.cjs` covers source and distributed modules in light/dark
+at 390px: start/middle/end/empty drafts, line breaks, selected prose, live edits,
+caret movement, picker cancel, failure/retry, disposal, saved draft callbacks and
+verified Preview. Reviewed light/dark preview screenshots, including an image
+between text fragments. The broader composition acceptance item above remains open;
+this closes only cursor image placement. The old deferred stash is historical and
+should not be reapplied over this implementation.
+
+Validation: embed build/import-boundary checks, all 44 Node tests, all 14 Deno
+media/artifact tests, the complete browser suite (including separate-origin
+application flows and warm-cache upgrade), and the expanded upload suite passed.
+Browser checks used Chromium 133 through the pinned Playwright runner because the
+runner's standard Chromium download returned an invalid archive in this environment.
+The changed uploader also passes a standalone Deno check. The full frozen server
+check was attempted but blocked by a connection refusal fetching the unchanged
+`deno.land/std@0.224.0/http/file_server.ts` dependency. No public fixtures were
+published. This is a source release to master, not a production deployment.
