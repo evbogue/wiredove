@@ -639,3 +639,21 @@ DENO_TO_NODE_WORK_ORDER.md is retired. The independent multi-site TLS proxy/HTTP
 redirect migration and other host Deno applications are explicitly outside the
 completed application scope; see docs/HOST_PROXY_WORK_ORDER.md for observed
 inventory, owner/target and separate-release requirements. They have not migrated.
+
+## git-ssb synchronization — all projects
+
+Ev explicitly requested on 1 November 2026 that all projects also be pushed to git-ssb. This applies to every project in this workspace, alongside the GitHub synchronization requirement above. Pushing authorized source changes to git-ssb is part of completing the work; do not wait for a separate push request.
+
+- Inspect each project's `ssb` remote independently. If it is missing, locate the existing git-ssb repository or create one using the local sbot workflow documented in `ssbc/AGENTS.md`, then configure the remote. Do not silently skip git-ssb or create duplicate repositories when an existing one can be found.
+- Use our sbot's Git-over-HTTP endpoint (`http://127.0.0.1:8989/git/%25<repo-id>.sha256`), following the current local configuration. Replace legacy `ssb://` remotes with the corresponding HTTP endpoint; do not use the legacy `git-remote-ssb` helper.
+- Fetch and compare the intended branch on both `origin` and `ssb` before integrating or pushing. Preserve local work and reconcile incoming commits from either remote. Use each project's established default branch and upstream; never assume every project uses `main`, discard commits, or force-push to synchronize histories.
+- Push completed source changes to both GitHub and git-ssb before finishing a change session, unless Ev explicitly asks to keep the work local. Verify the intended branch tip on each remote against local HEAD after pushing; use a fresh remote query rather than relying on stale tracking refs.
+- If sbot is unavailable, follow the documented local startup workflow and retry. If repository creation, authentication, connectivity, conflicts, or checks still block synchronization, preserve the work and report the exact blocker and which remote remains unsynchronized. Do not claim completion from an attempted push.
+- Report the commit, branch, checks, and synchronization status for both remotes. Keep secrets, identity backups, generated state, and private research data out of source pushes. This instruction authorizes source synchronization; existing deployment and other publication rules still apply.
+
+### Local git-ssb workflow
+
+- From the workspace's `ssbc` checkout, run `npm run agent:preflight` to ensure sbot is listening on port 8989. Leave sbot running.
+- If the remote is missing, query sbot's `messagesByType` for `git-repo` messages and compare repository IDs, authors, names, and known remotes. Names alone are not unique. Only create a repository when no existing match is found: run `node bin.js git.create <project-name>` from `ssbc`, then configure `ssb` with the returned HTTP URL. Remove surrounding JSON quotes and preserve URL encoding.
+- Fetch both remotes again before pushing. If either advanced, reconcile incoming commits and rerun affected checks before a normal push. Push the intended branch to both remotes; never use force or mirror pushes.
+- Verify local HEAD against fresh `git ls-remote --heads origin` and `git ls-remote --heads ssb` results for the intended branch. Re-read HEAD and worktree status afterward to catch concurrent changes. Report any remaining changes or divergence.
