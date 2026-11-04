@@ -58,3 +58,14 @@ test("compatibility entry point registers the original set idempotently", async 
     assert.ok(definitions.has(`wiredove-${name}`));
   }
 });
+
+
+test("profile-update classification distinguishes empty statements from body, reply, edit and media posts", async () => {
+  const { isProfileUpdate } = await import('./profile-update.js');
+  for (const metadata of [{name:'Muse', image:'https://wiredove.net/media/'+'A'.repeat(43)}, {bio:''}, {links:[]}, {links:[{url:'https://example.test'}]}]) {
+    assert.equal(isProfileUpdate({...metadata,body:''}), true);
+    for (const other of [{body:'A post'}, {reply:'parent'}, {replyHash:'parent'}, {edit:'original'}, {andfs:'hash'}, {blob:'legacy'}, {type:'event'}])
+      assert.equal(isProfileUpdate({...metadata,...other}), false);
+  }
+  assert.equal(isProfileUpdate({body:''}), false);
+});

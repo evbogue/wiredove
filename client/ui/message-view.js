@@ -1,3 +1,4 @@
+import { renderProfileUpdate } from './profile-update.js';
 import { renderLegacyMedia } from './legacy-media.js';
 import { attachmentDisplayBody } from '../andfs.js';
 import { createMessageMain, placeMessageMetadata } from './message-layout.js';
@@ -170,8 +171,10 @@ export function createMessageView({
   const content = extensions.content || doc.createElement('div');
   if (!extensions.content) {
     content.className = 'content';
-    if (presentation.renderBody) presentation.renderBody(attachmentDisplayBody(parsed), content, post);
-    else appendFormattedText(content, attachmentDisplayBody(parsed), { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
+    if (!renderProfileUpdate(parsed, content, { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions })) {
+      if (presentation.renderBody) presentation.renderBody(attachmentDisplayBody(parsed), content, post);
+      else appendFormattedText(content, attachmentDisplayBody(parsed), { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
+    }
     renderAndFSMedia(parsed, content, { ...presentation.mediaOptions, resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
     if (parsed.blob && ['audio', 'video'].includes(parsed.type) && !parsed.andfs) {
       if (typeof presentation.renderLegacyMedia === 'function') {

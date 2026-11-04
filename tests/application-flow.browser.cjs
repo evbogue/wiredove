@@ -261,6 +261,7 @@ const root = path.resolve(__dirname, '..');
     assert.equal(await page.locator('.wiredove-application').evaluate(n=>n.scrollWidth<=n.clientWidth+1),true);
     await page.screenshot({path:path.join(root,`test-results/application-flow-${page===website?'website':'embed'}-${width}-${colorScheme}.png`),fullPage:true});
   }
+  await require('./profile-update.browser.cjs')({website,embed,source,photo});
   assert.deepEqual(errors,[]);
   console.log('Real website ↔ separate-origin embed: identity/profile, signed post, second-author thread/reply, reload, durable draft and exact outbox retry passed');
  } finally {

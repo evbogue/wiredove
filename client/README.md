@@ -506,3 +506,10 @@ application's `mediaURL` to locate bytes; standalone reader calls accept
 `baseURL`, and standalone message widgets accept `presentation.mediaOptions`.
 Historical absolute media URLs retain their original source. The hash verifies
 bytes, while service configuration selects storage; this does not replicate files.
+
+`client/ui/profile-update.js` owns presentation of empty-body profile statements
+in both the shared message view and website's compatibility renderer. It displays
+explicit name/photo/bio/link values, including bio/link clearing, without changing
+signed content. Photo presentation uses the verified gallery and its unavailable/
+retry state. Statements with bodies, reply/edit references or media/event types
+continue through their existing renderers.

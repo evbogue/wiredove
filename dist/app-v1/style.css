@@ -1125,3 +1125,8 @@ wiredove-inline-image { display: inline-block; max-width: 100%; }
 .message-main > a { flex: 0 0 35px; }
 
 .media-status:empty { display: none; }
+
+
+.profile-update { overflow-wrap: anywhere; }
+.profile-update > p { margin: .5rem 0; }
+.profile-update > .image-gallery { max-width: 240px; }

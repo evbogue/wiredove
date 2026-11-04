@@ -1,3 +1,4 @@
+import { renderProfileUpdate } from './client/ui/profile-update.js';
 import { createMessageControls } from './client/ui/message-controls.js'
 import { attachmentDisplayBody } from './client/andfs.js'
 import { placeMessageMetadata } from './client/ui/message-layout.js'
@@ -214,6 +215,10 @@ const queueEditRefresh = (editHash) => {
 }
 
 const applyProfile = async (contentHash, yaml) => {
+  if (yaml.name) {
+    const get = document.getElementById('name' + contentHash)
+    if (get) { get.textContent = yaml.name }
+  }
   if (yaml.image) {
     const get = document.getElementById('image' + contentHash)
     if (get) {
@@ -227,11 +232,6 @@ const applyProfile = async (contentHash, yaml) => {
         }
       }
     }
-  }
-
-  if (yaml.name) {
-    const get = document.getElementById('name' + contentHash)
-    if (get) { get.textContent = yaml.name }
   }
 }
 
@@ -980,11 +980,8 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
     return
   }
 
-  if (yaml && yaml.bio && (!yaml.body || !yaml.body.trim())) {
-    div.classList.remove('material-symbols-outlined')
-    div.innerHTML = '<p><strong>New bio:</strong></p>'
-    appendMarkdown(div, yaml.bio)
-    await highlightCodeIn(div)
+  if (renderProfileUpdate(yaml, div, { mediaOptions: { baseURL: application?.session?.policy?.mediaURL } })) {
+    div.className = 'content'
     await applyProfile(contentHash, yaml)
     await queueLinkedHashes(yaml)
     return

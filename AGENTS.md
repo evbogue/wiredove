@@ -527,3 +527,22 @@ were sent. Pre-release check/Node check, 45 unit tests, 14 media tests, 18 serve
 tests including runtime restart parity and the complete browser suite passed.
 Muse adapter source `6b8a178` is synchronized separately (80 tests passed);
 evbogue.com's separately pinned application was not updated in this deployment.
+
+## Empty-body profile statement rendering — 2026-11-04
+
+The reported Muse statement `IODOsK+3+VuPx4bzmSa11w7ZC1hXC9aZWT59a1qgZ9Q=`
+contains name/image metadata and no body. The website previously skipped both its
+nonempty-bio and body branches, leaving Notes and never applying profile metadata.
+`client/ui/profile-update.js` now supplies one shared card for website and public
+message views. Name/photo-only, explicit empty bio and links-only statements render
+as profile updates; body/reply/edit/media/event statements retain their own paths.
+Website names apply before photo retrieval, and empty-body statements apply avatars.
+Photos use the existing verified gallery and retry state; historical URLs and signed
+bytes remain intact. Service-worker shell version is v34-profile-updates.
+
+Build/frozen check, 46 unit tests, 14 media tests and browser acceptance passed
+(the final application-flow test was rerun after correcting its async YAML fixture).
+Separate-origin public widgets and both full application mounts cover missing-photo,
+empty-bio and link handling. Disposable exact-shape signed records use only the local
+archive and assert unchanged signatures/content. Reviewed 390px website/light and
+embed/dark screenshots. No public fixture posts/uploads or deployment were performed.

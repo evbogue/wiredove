@@ -20,6 +20,13 @@ const root = path.resolve(__dirname, '..');
   const id = await an.hash(original.signature);
   const reply = await sign({ name: 'Shared fixture', body: 'Reply fixture', replyHash: id });
   const historical = await sign({ name: 'Shared fixture', body: 'Historical media', type: 'audio', blob: 'anblob:v1:fixture' });
+  const profileFixtures = await Promise.all([
+    {name:'Muse', image:'/#'+'B'.repeat(43), body:''},
+    {bio:'', body:''},
+    {links:[{label:'Example',url:'https://example.test'},{label:'Unsafe',url:'javascript:alert(1)'}], body:''},
+    {links:[], body:''},
+    {name:'Ordinary',body:'Ordinary body'},
+  ].map(sign));
   let origin;
   const serve = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -41,6 +48,7 @@ const protocol=createProtocol({an,yaml:{parse:JSON.parse,create:JSON.stringify}}
 window.records=await Promise.all(${JSON.stringify([original, reply, historical])}.map(p=>protocol.verify(p.signature,p.content)));
 try {await protocol.verify(records[0].signature,records[0].content+' ');window.tamperRejected=false;}catch{window.tamperRejected=true;}
 widget.presentation={postURL:post=>'/post/'+encodeURIComponent(post.id),replyURL:id=>'/post/'+encodeURIComponent(id)};
+window.profileRecords=await Promise.all(${JSON.stringify(profileFixtures)}.map(p=>protocol.verify(p.signature,p.content)));
 widget.posts=records;window.ready=true;
 </script>`); return;
       }
@@ -72,6 +80,22 @@ widget.posts=records;window.ready=true;
       assert.equal(await frame.locator('[data-wiredove-message]').count(), 2);
       await frame.getByText('Media unavailable. Please retry.', { exact: true }).waitFor();
       assert.equal(await frame.locator('audio').getAttribute('src'), null, 'unverified historical bytes must not reach playback');
+      await frame.evaluate(async () => {
+        const {createMessageView}=await import('/client/ui/message-view.js');
+        const area=document.createElement('section');area.id='profile-update-checks';document.body.append(area);
+        window.profileViews=profileRecords.map(post=>createMessageView({post}));
+        for(const view of profileViews)area.append(view.article);
+      });
+      const profiles=frame.locator('#profile-update-checks');
+      assert.equal(await profiles.getByText('Updated profile',{exact:true}).count(),4);
+      await profiles.getByText('Display name: Muse',{exact:true}).waitFor();
+      await profiles.getByText('Image hasn’t arrived',{exact:true}).waitFor();
+      await profiles.getByText('Bio cleared',{exact:true}).waitFor();
+      await profiles.getByText('Profile links cleared',{exact:true}).waitFor();
+      assert.equal(await profiles.getByRole('link',{name:'Example',exact:true}).count(),1);
+      assert.equal(await profiles.getByRole('link',{name:'Unsafe',exact:true}).count(),0);
+      await profiles.getByText('Ordinary body',{exact:true}).waitFor();
+      await frame.evaluate(()=>{for(const view of profileViews)view.dispose();document.querySelector('#profile-update-checks').remove()});
       // The host's existing query/hash must never be concatenated into QR data.
       await frame.evaluate(async () => {
         const {createMessageView}=await import('/client/ui/message-view.js');
