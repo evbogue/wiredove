@@ -474,3 +474,21 @@ shared-application/device/history acceptance is not claimed.
   conditional reads and single ranges. Dynamic route precedence remains shared.
 - Docker, deployed services and the independent Deno reverse proxy remain as
   recorded above. A source push does not authorize or perform production cutover.
+
+## Production release verified — 2026-11-04
+
+Application `cf7aeba` is deployed in `/root/wiredove-release-cf7aeba`. The service
+continues using Deno; Node runtime cutover was not included. Only WorkingDirectory
+changed. Port 8081, VAPID configuration, shared data symlink, original checkout
+production edits and reverse proxy are preserved. Previous release `2992b9d` and
+`/root/wiredove-service-before-cf7aeba.service` remain for rollback. Host frozen-lock
+check passed; both services are active with clean startup.
+
+Local check, Node check, unit/media/server tests (including Node → Deno → Node
+persistence parity) and the full browser suite passed. Reviewed local mobile and
+live 390px dark screenshots. Public app.js, sw.js, style.css, serve.js, shared
+handler/static modules, image uploader, network queue and distribution manifest
+match the release byte-for-byte. Live isolated 390px light/dark checks found no
+horizontal overflow or JavaScript exceptions. HTTP writes and all WebSockets were
+blocked; no public test posts/uploads were sent. Evbogue.com's separate consumer
+was not changed by this deployment.
