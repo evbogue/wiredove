@@ -506,3 +506,24 @@ readers and signed bytes intact. Muse's separate adapter has the same write-form
 fix and preserves exact historical pending signatures/references on retry.
 See MEDIA_URL_BUG_WORK_ORDER.md. Source changes do not imply deployment or storage
 replication; a selected node must supply the verified blocks.
+
+## Production release verified — 2026-11-04 (portable media)
+
+Application `ac8fb9e` is deployed in `/root/wiredove-release-ac8fb9e`. Only the
+service WorkingDirectory changed; Deno runtime, port 8081, VAPID configuration,
+shared data link, original checkout production edits and reverse proxy are intact.
+Previous release `cf7aeba` and `/root/wiredove-service-before-ac8fb9e.service`
+remain for rollback. Host frozen-lock check passed; both services active and
+startup clean.
+
+Public app/sw/style, shared AndFS/image/gallery/media/profile modules,
+composer/render/media/Markdown/profile adapters and distributed manifest/reader/
+renderer files match the release byte-for-byte. Isolated live 390px light/dark
+checks found no overflow or JavaScript exceptions; dark screenshot reviewed.
+The live upload client with mocked persistence produced `/#hash` with no signed
+media_source, and portable metadata selected an alternate configured reader
+origin. HTTP writes and WebSockets were blocked; no public test posts/uploads
+were sent. Pre-release check/Node check, 45 unit tests, 14 media tests, 18 server
+tests including runtime restart parity and the complete browser suite passed.
+Muse adapter source `6b8a178` is synchronized separately (80 tests passed);
+evbogue.com's separately pinned application was not updated in this deployment.
