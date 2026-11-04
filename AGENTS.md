@@ -585,3 +585,22 @@ states, retry, byte arrival, separate-origin widgets and warm-cache preservation
 Validation: build/frozen check, 46 unit tests and the complete browser suite
 passed. Reviewed the mobile pending/requested symbol screenshots and missing-photo
 embed/dark profile card. No public fixture writes or production deployment.
+
+## Production release verified — 2026-11-04 (inline image symbols)
+
+Application `a25a0be` is deployed in `/root/wiredove-release-a25a0be`. Only the
+service WorkingDirectory changed; Deno, port 8081, VAPID configuration, shared
+data link, original checkout edits and reverse proxy are preserved. Previous
+release `837df34` and `/root/wiredove-service-before-a25a0be.service` remain for
+rollback. Host frozen-lock check passed; both services active with clean startup.
+Public app/sw/style, gallery JS/CSS, profile-update module, distributed gallery
+JS/CSS and manifest match the release byte-for-byte.
+
+Isolated live 390px light/dark checks used live modules and in-memory verified
+AndFS fixture blocks. Missing photos showed a compact symbol row under 44px tall;
+refresh click and placeholder keyboard Enter retried inline, progress_activity
+appeared while held, and verified arrival expanded the photo. No overflow or JS
+exceptions; dark screenshot reviewed. HTTP writes and all WebSockets were blocked,
+so no production fixture uploads/posts were made. Pre-release build/frozen check,
+46 unit tests and full browser acceptance passed. Evbogue.com's separate pinned
+application remains unchanged.
