@@ -513,3 +513,10 @@ explicit name/photo/bio/link values, including bio/link clearing, without changi
 signed content. Photo presentation uses the verified gallery and its unavailable/
 retry state. Statements with bodies, reply/edit references or media/event types
 continue through their existing renderers.
+
+Pending/unavailable gallery thumbnails use a compact Material Symbols row:
+`progress_activity` while loading/requesting, or `image` and `refresh` when a
+retry is available. Either unavailable-image control retries inline. Verified
+images expand into normal thumbnails and open the viewer. Status details remain
+in accessible labels/tooltips; the full viewer retains its detailed status text.
+Standalone galleries lazily register the bundled icon font when connected.

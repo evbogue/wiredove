@@ -43,7 +43,7 @@ module.exports = async ({website, embed, source, photo}) => {
             const avatar=article?.querySelector('img.avatar');
             return img?.complete&&img.naturalWidth>0&&img.src.startsWith('data:')&&avatar?.src.startsWith('data:');
           },record.id);
-        } else await article.getByText('Image hasn’t arrived',{exact:true}).waitFor();
+        } else await article.locator('.image-gallery-status[aria-label="Image unavailable"]').waitFor();
         for(const colorScheme of ['light','dark']) {
           await page.setViewportSize({width:390,height:920});await page.emulateMedia({colorScheme,reducedMotion:'reduce'});
           await page.evaluate(()=>{const style=document.createElement('style');style.textContent='*,*::before,*::after{animation:none!important;transition:none!important}';app.root.append(style)});

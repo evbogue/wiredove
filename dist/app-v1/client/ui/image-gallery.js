@@ -14,11 +14,21 @@ export const imageRequestActive = (state) =>
 // re-checks the local cache, which may have filled through another path.
 export const imageRequestRetryVisible = (state) => state !== 'queued' && state !== 'requested';
 
+const symbolFontURL = new URL('../../vendor/material-symbols/outlined-v382.ttf', import.meta.url).href;
+function ensureSymbolFont(doc) {
+  if (!doc.fonts || [...doc.fonts].some(face => face.family.replaceAll('"', '') === 'Wiredove Symbols')) return;
+  const Font = doc.defaultView.FontFace;
+  if (!Font) return;
+  const face = new Font('Wiredove Symbols', `url(${symbolFontURL})`);
+  doc.fonts.add(face);
+  void face.load().catch(() => { doc.fonts.delete(face); });
+}
+
 // Registration is explicit/lazy: importing body/gallery modules has no app effects.
 class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
   set options(value) { this._options = value; this.render(); }
   get items() { return this._options?.images || []; }
-  connectedCallback() { this.observe(); }
+  connectedCallback() { ensureSymbolFont(this.ownerDocument); this.observe(); }
   disconnectedCallback() {
     this._subscriptions?.forEach(stop => stop());
     this._subscriptions = [];
@@ -38,48 +48,75 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       const tile = this.ownerDocument.createElement('button');
       tile.type = 'button';
       tile.className = 'image-gallery-tile';
-      tile.setAttribute('aria-label', `Open image ${index + 1} of ${this.items.length}: ${item.alt || 'Post image'}`);
+      const openLabel = `Open image ${index + 1} of ${this.items.length}: ${item.alt || 'Post image'}`;
+      tile.setAttribute('aria-label', openLabel);
       const image = this.ownerDocument.createElement('img');
       image.alt = item.alt || 'Post image';
-      image.loading = 'lazy';
+      // The gallery observer defers assigning src; pending images are hidden.
+      image.loading = 'eager';
       image.decoding = 'async';
       const status = this.ownerDocument.createElement('span');
       status.className = 'image-gallery-status';
       status.setAttribute('role', 'status');
-      status.textContent = 'Loading image…';
+      const symbol = this.ownerDocument.createElement('span');
+      symbol.className = 'material-symbols-outlined image-gallery-symbol';
+      symbol.setAttribute('aria-hidden', 'true');
+      status.append(symbol);
       const retry = this.ownerDocument.createElement('button');
       retry.type = 'button';
       retry.className = 'image-gallery-retry';
-      retry.textContent = 'Retry image';
+      retry.setAttribute('aria-label', 'Retry image');
+      retry.title = 'Retry image';
+      const retrySymbol = this.ownerDocument.createElement('span');
+      retrySymbol.className = 'material-symbols-outlined image-gallery-symbol';
+      retrySymbol.setAttribute('aria-hidden', 'true'); retrySymbol.textContent = 'refresh';
+      retry.append(retrySymbol);
       retry.hidden = true;
       const cell = this.ownerDocument.createElement('div');
-      cell.className = 'image-gallery-cell';
+      cell.className = 'image-gallery-cell image-pending';
+      let loading = false;
+      const showStatus = (label, busy = false) => {
+        cell.classList.add('image-pending');
+        status.hidden = false;
+        status.setAttribute('aria-label', label);
+        symbol.textContent = busy ? 'progress_activity' : 'image';
+        symbol.classList.toggle('image-gallery-spinning', busy);
+        tile.title = busy ? label : label + ' — Retry image';
+        tile.setAttribute('aria-label', tile.title);
+        tile.setAttribute('aria-busy', String(busy));
+      };
+      showStatus('Loading image…', true);
       const failed = () => {
-        status.textContent = 'Image hasn’t arrived';
-        status.classList.remove('image-sync-active');
+        tile.classList.remove('image-loaded');
+        showStatus('Image unavailable');
         tile.classList.add('image-unavailable');
         retry.hidden = false;
       };
       image.addEventListener('load', () => {
         if (!this.isConnected) return;
-        status.textContent = '';
-        status.classList.remove('image-sync-active');
+        status.hidden = true;
+        cell.classList.remove('image-pending');
+        symbol.classList.remove('image-gallery-spinning');
+        tile.setAttribute('aria-label', openLabel); tile.title = openLabel;
+        tile.removeAttribute('aria-busy');
         tile.classList.remove('image-unavailable');
         tile.classList.add('image-loaded');
         retry.hidden = true;
       });
       image.addEventListener('error', failed);
       tile._load = async (retryRequest = false) => {
-        if (this._controller.signal.aborted || !this.isConnected) return;
+        if (loading || this._controller.signal.aborted || !this.isConnected) return;
+        loading = true;
         const controller = this._controller;
         retry.hidden = true;
-        status.textContent = 'Loading image…';
+        showStatus('Loading image…', true);
         try {
           const src = await resolveImageSource(item, this._options.resolveImage, controller.signal, retryRequest, this._options.mediaOptions);
           if (controller.signal.aborted || !this.isConnected) return;
           if (src) image.src = src;
           else { failed(); tile._watch?.(); }
         } catch { if (!controller.signal.aborted) failed(); }
+        finally { loading = false; }
       };
       retry.onclick = () => tile._load(true);
       tile._watch = () => {
@@ -88,8 +125,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         const stop = this._options.resolveImage.subscribe(item.src, ({ state }) => {
           if (!this.isConnected || tile.classList.contains('image-loaded')) return;
           if (state === 'received') { void tile._load(); return; }
-          status.textContent = imageRequestStatusText(state);
-          status.classList.toggle('image-sync-active', imageRequestActive(state));
+          showStatus(imageRequestStatusText(state), state === 'queued' || state === 'requested');
           retry.hidden = !imageRequestRetryVisible(state);
         });
         tile._stop = stop;
@@ -98,6 +134,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       tile.addEventListener('click', event => {
         event.preventDefault();
         event.stopPropagation();
+        if (!tile.classList.contains('image-loaded')) { void tile._load(true); return; }
         const request = { images: this.items, index, trigger: tile, owner: this,
           resolveImage: this._options.resolveImage, mediaOptions: this._options.mediaOptions };
         this._stopViewer = (this._options.onOpen || openImageGallery)(request);

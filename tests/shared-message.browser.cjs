@@ -89,7 +89,7 @@ widget.posts=records;window.ready=true;
       const profiles=frame.locator('#profile-update-checks');
       assert.equal(await profiles.getByText('Updated profile',{exact:true}).count(),4);
       await profiles.getByText('Display name: Muse',{exact:true}).waitFor();
-      await profiles.getByText('Image hasn’t arrived',{exact:true}).waitFor();
+      await profiles.locator('.image-gallery-status[aria-label="Image unavailable"]').waitFor();
       await profiles.getByText('Bio cleared',{exact:true}).waitFor();
       await profiles.getByText('Profile links cleared',{exact:true}).waitFor();
       assert.equal(await profiles.getByRole('link',{name:'Example',exact:true}).count(),1);

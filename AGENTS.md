@@ -565,3 +565,23 @@ HTTP writes and WebSockets were blocked. No production post/upload was written.
 Dark screenshot reviewed. Pre-release build/frozen check, 46 unit tests, 14 media
 tests and browser acceptance passed, including separate-origin profile cards and
 unchanged exact signed statements. Evbogue.com's separate pinned app is unchanged.
+
+## Compact inline image status — 2026-11-04
+
+The shared gallery collapses pending/unavailable thumbnails into Material Symbols:
+progress_activity while loading/requesting, image + refresh when unavailable.
+Status text remains in accessible labels/tooltips; either unavailable-image control
+retries inline rather than opening an empty viewer. Loaded thumbnails keep the
+normal gallery/viewer behavior. Paused requests do not spin and retain retry.
+The explicit full viewer still has detailed status text. Standalone galleries
+load the pinned bundled icon font without booting the application.
+
+The existing intersection observer defers assigning src; native image loading is
+eager once assigned because pending images are hidden until decoded. Native lazy
+loading of a hidden pending image prevented previews from decoding. Shell cache
+is v35-inline-image-status. Queue/browser checks cover compact geometry, symbol
+states, retry, byte arrival, separate-origin widgets and warm-cache preservation.
+
+Validation: build/frozen check, 46 unit tests and the complete browser suite
+passed. Reviewed the mobile pending/requested symbol screenshots and missing-photo
+embed/dark profile card. No public fixture writes or production deployment.
