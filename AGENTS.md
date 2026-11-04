@@ -604,3 +604,38 @@ exceptions; dark screenshot reviewed. HTTP writes and all WebSockets were blocke
 so no production fixture uploads/posts were made. Pre-release build/frozen check,
 46 unit tests and full browser acceptance passed. Evbogue.com's separate pinned
 application remains unchanged.
+
+## Node application migration completed — 2026-11-04
+
+Wiredove application `0086c74` is deployed at `/root/wiredove-release-0086c74`.
+`wiredove.service` now uses `/usr/bin/node serve-node.js` (Node 22.22.0).
+WorkingDirectory and ExecStart changed; port 8081, VAPID config, shared data,
+original checkout production edits and reverse proxy remain intact. Deno remains
+an optional application launcher and is still required by independent host services.
+
+Rollback release: `/root/wiredove-release-a25a0be`. Private unit and complete
+persistent-data/config backup: `/root/deploy-backups/wiredove-node-0086c74/`.
+Stop Wiredove, restore its saved wiredove.service to `/etc/systemd/system/`,
+daemon-reload, start and verify. Keep the Deno executable. No data schema changed.
+
+Local check, 46 unit tests, 14 media tests, 18 server tests including Node → Deno →
+Node restart parity, optional Deno check/media tests and the full browser suite
+with the real Node application backend passed. The monitor regression also uses
+the default local pinned protocol/YAML path, without remote module imports.
+Host clean production install, Node check and 17 server tests passed. Isolated
+loopback staging reused a private config copy and retained keys across restart.
+CI Node 22/24 and Docker image jobs passed; Docker checks non-root startup,
+health and VAPID persistence across container restart.
+
+After cutover, all 112 live persistent files matched the private backup byte for
+byte. Public app/sw/style, Node entry point, handler/static and distribution
+manifest SHA-256 hashes matched source. Isolated live 390px light/dark smoke found
+no overflow or JavaScript exceptions; dark screenshot reviewed, historical feed
+images displayed. HTTP writes and all WebSockets were blocked. No public fixture
+posts/uploads or notification writes were sent. Both services active, Node startup
+clean. Runtime operation and Docker commands: docs/RUNTIME_OPERATIONS.md.
+
+DENO_TO_NODE_WORK_ORDER.md is retired. The independent multi-site TLS proxy/HTTP
+redirect migration and other host Deno applications are explicitly outside the
+completed application scope; see docs/HOST_PROXY_WORK_ORDER.md for observed
+inventory, owner/target and separate-release requirements. They have not migrated.

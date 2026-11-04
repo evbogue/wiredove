@@ -74,3 +74,11 @@ The shared TLS proxy and HTTP redirect are separate releases. Other hosted apps
 are outside Wiredove's migration. See `HOST_PROXY_WORK_ORDER.md`; keeping Deno
 installed is deliberate, not an application dependency. Production status and
 observed validation are recorded in AGENTS.md.
+
+## Verified application release — 2026-11-04
+
+Production runs Node 22.22.0 from `/root/wiredove-release-0086c74`. Previous Deno
+release `a25a0be` and private unit/data/config backup at
+`/root/deploy-backups/wiredove-node-0086c74/` are retained. All 112 persisted files
+matched backup after cutover; public source hashes and read-only mobile browser
+smoke passed. See AGENTS.md for checks and scope. The independent proxy remains Deno.

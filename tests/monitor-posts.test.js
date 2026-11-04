@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { test as nodeTest } from "node:test";
 const test = globalThis.Deno?.test || nodeTest;
 import { runMonitor } from '../scripts/monitor-posts.js'
-import { createProtocol } from '../client/protocol.js'
 import { an } from '../vendor/anproto/an.js'
+import { yaml } from '../vendor/apds/yaml.js'
 const assert = (value, message) => { if (!value) throw new Error(message) }
 const rejects = async fn => { let failed = false; try { await fn() } catch { failed = true } assert(failed, 'Expected failure') }
 
@@ -15,8 +15,7 @@ test('monitor CLI baseline, atomic restart/deduplication, retry, invalid state a
   const directory = globalThis.Deno ? await Deno.makeTempDir() : await fs.mkdtemp(join(tmpdir(), "wiredove-monitor-"))
   const path = directory + '/state.json'
   try {
-    const protocol = createProtocol({ an, yaml: { parse: JSON.parse, create: JSON.stringify } })
-    const content = JSON.stringify({ body: 'Monitor fixture' })
+    const content = await yaml.create({ name: 'Local monitor fixture' }, 'Monitor fixture')
     const signature = await an.sign(await an.hash(content), await an.gen())
     const id = await an.hash(signature)
     const contentHash = await an.hash(content)
@@ -24,7 +23,7 @@ test('monitor CLI baseline, atomic restart/deduplication, retry, invalid state a
     let entries = [{ event: 'message', id: 'baseline', message: 'Old entry' }]
     const reports = []
     const urls = []
-    const options = { protocol, relay: { gossip: async key => messages.get(key) || [] },
+    const options = { relay: { gossip: async key => messages.get(key) || [] },
       fetchImpl: async url => { urls.push(String(url)); return new Response(entries.map(entry => JSON.stringify(entry)).join('\n')) },
       report: async post => { reports.push(post.id) }, info: () => {} }
     const readState = async () => JSON.parse(await fs.readFile(path, "utf8"))
