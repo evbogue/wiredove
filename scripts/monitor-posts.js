@@ -1,7 +1,11 @@
+import * as fs from "node:fs/promises";
+import { pathToFileURL } from "node:url";
+import { createProtocol } from "../client/protocol.js";
+import { an } from "../vendor/anproto/an.js";
+import { yaml } from "../vendor/apds/yaml.js";
 // Read-only, one-shot monitor. Schedule externally; stdout contains verified posts.
 import { createWiredoveRelay } from "../client/relay.js";
 import { isMessageHash } from "../client/protocol.js";
-import { loadFeedProtocol } from "../client/feed.js";
 import {
   consumeNotifications,
   resolveNotificationPost,
@@ -28,28 +32,25 @@ export async function runMonitor(
 ) {
   if (!statePath) {
     throw new Error(
-      "Usage: deno run --allow-net --allow-read --allow-write scripts/monitor-posts.js <state.json>",
+      "Usage: node scripts/monitor-posts.js <state.json>",
     );
   }
-  const lock = await Deno.open(statePath + ".lock", {
-    createNew: true,
-    write: true,
-  });
+  const lock = await fs.open(statePath + ".lock", "wx", 0o600);
   try {
     const save = async (state) => {
       const temporary = statePath + "." + crypto.randomUUID() + ".tmp";
       try {
-        await Deno.writeTextFile(temporary, JSON.stringify(state) + "\n", {
+        await fs.writeFile(temporary, JSON.stringify(state) + "\n", {
           mode: 0o600,
         });
-        await Deno.rename(temporary, statePath);
+        await fs.rename(temporary, statePath);
       } finally {
-        await Deno.remove(temporary).catch(() => {});
+        await fs.unlink(temporary).catch(() => {});
       }
     };
     let state;
     try {
-      state = JSON.parse(await Deno.readTextFile(statePath));
+      state = JSON.parse(await fs.readFile(statePath, "utf8"));
       if (
         !state || state.version !== 1 || typeof state.cursor !== "string" ||
         !/^[A-Za-z0-9]+$/.test(state.cursor) ||
@@ -62,7 +63,7 @@ export async function runMonitor(
         );
       }
     } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      if (error.code !== "ENOENT") throw error;
     }
     const url = new URL("https://ntfy.sh/wiredove/json");
     url.searchParams.set("poll", "1");
@@ -95,16 +96,16 @@ export async function runMonitor(
         state,
         save: (next) => save({ version: 1, ...next }),
         resolvePost: async (reference) => {
-          protocol ||= await loadFeedProtocol();
+          protocol ||= createProtocol({ an, yaml });
           return await resolveNotificationPost(reference, { protocol, relay });
         },
         report,
       });
     }
   } finally {
-    lock.close();
-    await Deno.remove(statePath + ".lock");
+    await lock.close();
+    await fs.unlink(statePath + ".lock");
   }
 }
 
-if (import.meta.main) await runMonitor(Deno.args[0]);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runMonitor(process.argv[2]);

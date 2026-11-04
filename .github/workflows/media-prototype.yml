@@ -23,6 +23,7 @@ jobs:
       - run: npm ci --omit=dev
       - run: npm run check:node
       - run: npm run test:server
+      - run: npm run test:media
 
   acceptance:
     runs-on: ubuntu-latest
@@ -38,7 +39,7 @@ jobs:
           deno-version: v2.7.13
       - run: npm ci
       - name: Check server and monitor module graph
-        run: npm run check
+        run: npm run check && npm run check:deno
       - name: Authentication, notification, shared UI and routing regressions
         run: npm test
       - name: Signed media, verification and persistence regressions
@@ -60,3 +61,33 @@ jobs:
             /tmp/gallery-*.png
             /tmp/message-shell-*.png
           if-no-files-found: ignore
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t wiredove:test .
+      - name: Non-root container persistence and health
+        run: |
+          docker volume create wiredove-test-data
+          docker run -d --name wiredove-test -p 8000:8000 -v wiredove-test-data:/app/data wiredove:test
+          for attempt in $(seq 1 30); do
+            if curl --fail http://localhost:8000/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail http://localhost:8000/vapid-public-key > /tmp/vapid-before
+          test "$(docker exec wiredove-test id -u)" != 0
+          docker exec wiredove-test test -s /app/data/config.json
+          docker restart wiredove-test
+          for attempt in $(seq 1 30); do
+            if curl --fail http://localhost:8000/vapid-public-key > /tmp/vapid-after; then break; fi
+            sleep 1
+          done
+          cmp /tmp/vapid-before /tmp/vapid-after
+          for attempt in $(seq 1 45); do
+            test "$(docker inspect --format '{{.State.Health.Status}}' wiredove-test)" = healthy && break
+            sleep 1
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' wiredove-test)" = healthy
+      - if: always()
+        run: docker logs wiredove-test; docker rm -f wiredove-test; docker volume rm wiredove-test-data

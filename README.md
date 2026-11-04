@@ -14,7 +14,7 @@ For agent publishing without a browser, see [the agent publishing quick referenc
 
 ### Shared UI restructuring
 
-The website and JavaScript embeds will mount the same Wiredove application, including navigation, services and shared screens. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the implementation sequence and acceptance criteria. The full application mount API is not implemented yet; current widgets remain supported.
+The website and JavaScript embeds will mount the same Wiredove application, including navigation, services and shared screens. See [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md) for the implementation sequence and acceptance criteria. The shared mount API is documented in `client/README.md`; full feature parity remains in progress.
 
 ### Development checks
 
@@ -47,7 +47,8 @@ incomplete VAPID config stops startup rather than silently rotating keys.
 Static serving supports index files, GET/HEAD, conditional reads and single byte
 ranges. Directory listings, dotfiles, node_modules, data/config paths and symlinks
 into private/outside paths are not served. Both launchers apply the same policy.
-The existing Deno Docker image and production reverse proxy remain unchanged.
+Docker uses Node and an unprivileged user. The independent production HTTPS proxy
+has its own migration scope. See [runtime operations](docs/RUNTIME_OPERATIONS.md).
 
 Node-only server verification requires no Deno installation:
 
@@ -57,7 +58,7 @@ npm test
 npm run test:server
 ```
 
-With Deno and browser tooling installed, the additional acceptance commands are:
+With browser tooling installed, the additional acceptance commands are:
 
 ```sh
 npm ci
@@ -66,7 +67,9 @@ npm run check
 npm test
 npm run test:media
 npm run test:browser
-TEST_DENO_PARITY=1 npm run test:server # Node → Deno → Node, isolated storage
+npm run check:deno        # Optional Deno compatibility
+npm run test:media:deno   # Optional Deno compatibility
+TEST_DENO_PARITY=1 npm run test:server # Optional Node → Deno → Node, isolated storage
 WIREDOVE_TEST_RUNTIME=node npm run test:browser # Real Node backend
 ```
 

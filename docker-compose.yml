@@ -4,4 +4,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data
+      - wiredove-data:/app/data
+
+volumes:
+  wiredove-data:

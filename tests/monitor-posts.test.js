@@ -1,11 +1,18 @@
+import nacl from "../vendor/anproto/lib/nacl-fast-es.js";
+nacl.setPRNG(bytes => crypto.getRandomValues(bytes));
+import * as fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test as nodeTest } from "node:test";
+const test = globalThis.Deno?.test || nodeTest;
 import { runMonitor } from '../scripts/monitor-posts.js'
 import { createProtocol } from '../client/protocol.js'
 import { an } from '../vendor/anproto/an.js'
 const assert = (value, message) => { if (!value) throw new Error(message) }
 const rejects = async fn => { let failed = false; try { await fn() } catch { failed = true } assert(failed, 'Expected failure') }
 
-Deno.test('monitor CLI baseline, atomic restart/deduplication, retry, invalid state and overlapping runs', async () => {
-  const directory = await Deno.makeTempDir()
+test('monitor CLI baseline, atomic restart/deduplication, retry, invalid state and overlapping runs', async () => {
+  const directory = globalThis.Deno ? await Deno.makeTempDir() : await fs.mkdtemp(join(tmpdir(), "wiredove-monitor-"))
   const path = directory + '/state.json'
   try {
     const protocol = createProtocol({ an, yaml: { parse: JSON.parse, create: JSON.stringify } })
@@ -20,7 +27,7 @@ Deno.test('monitor CLI baseline, atomic restart/deduplication, retry, invalid st
     const options = { protocol, relay: { gossip: async key => messages.get(key) || [] },
       fetchImpl: async url => { urls.push(String(url)); return new Response(entries.map(entry => JSON.stringify(entry)).join('\n')) },
       report: async post => { reports.push(post.id) }, info: () => {} }
-    const readState = async () => JSON.parse(await Deno.readTextFile(path))
+    const readState = async () => JSON.parse(await fs.readFile(path, "utf8"))
     await runMonitor(path, options)
     assert((await readState()).cursor === 'baseline', 'Baseline missing')
     assert(reports.length === 0, 'Reported old history')
@@ -39,15 +46,15 @@ Deno.test('monitor CLI baseline, atomic restart/deduplication, retry, invalid st
     messages.set(contentHash, [content])
     await runMonitor(path, options)
     assert((await readState()).cursor === 'retry', 'Recovery failed')
-    await Deno.writeTextFile(path + '.lock', '')
+    await fs.writeFile(path + '.lock', '')
     await rejects(() => runMonitor(path, options))
-    await Deno.remove(path + '.lock')
-    const saved = await Deno.readTextFile(path)
+    await fs.rm(path + '.lock')
+    const saved = await fs.readFile(path, "utf8")
     await rejects(() => runMonitor(path, { ...options, fetchImpl: async () => new Response('', { status: 503 }) }))
-    assert(await Deno.readTextFile(path) === saved, 'Network failure reset state')
-    await Deno.writeTextFile(path, '{broken')
+    assert(await fs.readFile(path, "utf8") === saved, 'Network failure reset state')
+    await fs.writeFile(path, '{broken')
     await rejects(() => runMonitor(path, options))
-    assert(await Deno.readTextFile(path) === '{broken', 'Malformed state reset silently')
-    assert((await Array.fromAsync(Deno.readDir(directory))).every(file => file.name === 'state.json'), 'Temporary files or locks leaked')
-  } finally { await Deno.remove(directory, { recursive: true }) }
+    assert(await fs.readFile(path, "utf8") === '{broken', 'Malformed state reset silently')
+    assert((await fs.readdir(directory)).every(file => file === 'state.json'), 'Temporary files or locks leaked')
+  } finally { await fs.rm(directory, { recursive: true }) }
 })

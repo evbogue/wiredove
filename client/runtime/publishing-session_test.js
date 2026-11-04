@@ -1,7 +1,9 @@
+import { test as nodeTest } from "node:test";
+const test = globalThis.Deno?.test || nodeTest;
 import { strict as assert } from 'node:assert';
 import { createPublishingSession } from './publishing-session.js';
 
-Deno.test('publishing session persists exact retry across reload, retains author chain and protects identity', async () => {
+test('publishing session persists exact retry across reload, retains author chain and protects identity', async () => {
   const state = new Map();
   const store = { get: async key => structuredClone(state.get(key)), set: async (key, value) => { state.set(key, structuredClone(value)); }, delete: async key => { state.delete(key); } };
   const received = [];

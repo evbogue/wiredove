@@ -1,8 +1,10 @@
+import { test as nodeTest } from "node:test";
+const test = globalThis.Deno?.test || nodeTest;
 import { createAndFSMediaClient } from "./andfs.js";
 import { displayName, human } from "./render.js";
 import { createWiredoveRelay } from "./relay.js";
 
-Deno.test("shared renderer uses Wiredove's name and human-time defaults", () => {
+test("shared renderer uses Wiredove's name and human-time defaults", () => {
   if (displayName({}, "abcdefghijkl") !== "abcdefghij") {
     throw new Error("wrong public-key name fallback");
   }
@@ -14,7 +16,7 @@ Deno.test("shared renderer uses Wiredove's name and human-time defaults", () => 
   }
 });
 
-Deno.test("AndFS client signs the exact Timeline upload contract", async () => {
+test("AndFS client signs the exact Timeline upload contract", async () => {
   let signed, request;
   const client = createAndFSMediaClient({
     files: { add: async () => ({ manifestHash: "A".repeat(43) }) },
@@ -45,7 +47,7 @@ Deno.test("AndFS client signs the exact Timeline upload contract", async () => {
   if ("media_source" in attachment || JSON.stringify(attachment).includes("wiredove.example")) throw Error("Origin leaked into signed metadata");
 });
 
-Deno.test("relay publishes content before signature and confirms message ID", async () => {
+test("relay publishes content before signature and confirms message ID", async () => {
   const writes = [];
   const relay = createWiredoveRelay({
     baseURL: "https://relay.example",

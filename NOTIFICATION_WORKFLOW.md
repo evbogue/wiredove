@@ -56,7 +56,7 @@ state directory first, then pass the same state file on every invocation:
 
 ```sh
 mkdir -p data/monitor
-deno run --allow-net --allow-read --allow-write scripts/monitor-posts.js data/monitor/posts.json
+node scripts/monitor-posts.js data/monitor/posts.json
 ```
 
 The first run saves the latest cached ntfy entry as a baseline and reports no old

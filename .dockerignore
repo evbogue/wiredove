@@ -5,3 +5,10 @@ Dockerfile
 node_modules
 test-results
 playwright-report
+data
+config.json
+*.key
+*.pem
+.env
+.env.*
+.upload-parts
