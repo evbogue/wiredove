@@ -43,10 +43,24 @@ test('image/audio/video uploads replicate to a fresh verified store, survive res
       const meta = await f.client.upload(new File([data], 'fixture', { type: mime }));
       assert.equal(meta.type, mime.split('/')[0]);
       assert.equal('blob' in meta, false);
+      assert.equal(meta.media_url, '/#' + meta.andfs);
+      assert.equal('media_source' in meta, false);
+      const signedMetadata = JSON.stringify(meta);
+      for (const viewingNode of ['https://node-one.test', 'https://node-two.test']) {
+        const requested = [];
+        const result = await readAndFSMedia(meta, { baseURL: viewingNode, fetchImpl: (url, init) => {
+          requested.push(url);
+          assert.equal(new URL(url).origin, viewingNode);
+          return f.fetchImpl(url, init);
+        } });
+        assert.deepEqual(result, data);
+        assert.ok(requested.length > 1);
+        assert.equal(JSON.stringify(meta), signedMetadata);
+      }
       await f.restart();
       // A second client has no uploader cache. Download every block over the public API.
       const replica = memoryStore();
-      assert.deepEqual(await readAndFSMedia(meta, { store: replica, fetchImpl: f.fetchImpl }), data);
+      assert.deepEqual(await readAndFSMedia(meta, { store: replica, baseURL: 'http://wiredove.test', fetchImpl: f.fetchImpl }), data);
       const original = await f.files.manifest(meta.andfs);
       const copied = createAndFS({ store: replica });
       assert.deepEqual(await copied.manifest(meta.andfs), original);
@@ -111,9 +125,9 @@ test('duplicate retries repair missing/corrupt blocks without duplicate quota or
       assert.equal(missing.headers.get('cache-control'), 'no-store');
       const gateway = await f.fetchImpl('http://wiredove.test/media/' + meta.andfs);
       await assert.rejects(() => gateway.arrayBuffer());
-      await assert.rejects(() => readAndFSMedia(meta, { fetchImpl: f.fetchImpl }));
+      await assert.rejects(() => readAndFSMedia(meta, { baseURL: 'http://wiredove.test', fetchImpl: f.fetchImpl }));
       assert.equal((await authorized(f, data)).status, 200);
-      assert.deepEqual(await readAndFSMedia(meta, { fetchImpl: f.fetchImpl }), data);
+      assert.deepEqual(await readAndFSMedia(meta, { baseURL: 'http://wiredove.test', fetchImpl: f.fetchImpl }), data);
     }
     assert.equal((await fs.readdir(`${f.dataDir}/media`)).length, 1);
     assert.equal((await authorized(f, bytes(12))).status, 400, 'rate limit was bypassed');
@@ -137,8 +151,8 @@ test('uploader rejects missing server confirmation and reader rejects tampering 
   const f = await fixture();
   try {
     const meta = await f.client.upload(new File([bytes(10)], 'audio.wav', { type: 'audio/wav' }));
-    await assert.rejects(() => readAndFSMedia({ ...meta, media_size: 11 }, { fetchImpl: f.fetchImpl }), /size/);
-    await assert.rejects(() => readAndFSMedia(meta, { fetchImpl: async () => new Response('tampered') }), /verified source/);
+    await assert.rejects(() => readAndFSMedia({ ...meta, media_size: 11 }, { baseURL: 'http://wiredove.test', fetchImpl: f.fetchImpl }), /size/);
+    await assert.rejects(() => readAndFSMedia(meta, { baseURL: 'http://wiredove.test', fetchImpl: async () => new Response('tampered') }), /verified source/);
     await assert.rejects(() => readAndFSMedia({ ...meta, media_source: 'javascript:alert(1)' }), /source URL/);
     const client = createAndFSMediaClient({ files: f.files, signPayload: async () => 'signature', fetchImpl: async () => Response.json({}) });
     await assert.rejects(() => client.upload(new File(['clip'], 'clip.webm', { type: 'video/webm' })), /did not confirm/);

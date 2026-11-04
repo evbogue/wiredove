@@ -98,7 +98,7 @@ export function createMessageView({
     const customAvatar = safeImageURL(presentation.avatarURL?.(post), { resolved: true });
     if (customAvatar) avatar.src = customAvatar;
     else if (parsed.image && !extensions.avatarLink) {
-      void resolveImageSource({ src: parsed.image }, presentation.resolveImage).then(source => {
+      void resolveImageSource({ src: parsed.image }, presentation.resolveImage, undefined, false, presentation.mediaOptions).then(source => {
         if (source && !disposed && avatar.isConnected) avatar.src = source;
       }).catch(() => {});
     }
@@ -171,8 +171,8 @@ export function createMessageView({
   if (!extensions.content) {
     content.className = 'content';
     if (presentation.renderBody) presentation.renderBody(attachmentDisplayBody(parsed), content, post);
-    else appendFormattedText(content, attachmentDisplayBody(parsed), { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery });
-    renderAndFSMedia(parsed, content, { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery });
+    else appendFormattedText(content, attachmentDisplayBody(parsed), { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
+    renderAndFSMedia(parsed, content, { ...presentation.mediaOptions, resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
     if (parsed.blob && ['audio', 'video'].includes(parsed.type) && !parsed.andfs) {
       if (typeof presentation.renderLegacyMedia === 'function') {
         const cleanup = presentation.renderLegacyMedia(parsed, content, post);

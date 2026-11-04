@@ -356,7 +356,7 @@ export const composer = async (sig, options = {}) => {
       h('div', {classList: 'event-preview-meta'}, [loc])
     ])
     const body = h('div')
-    appendMarkdown(body, textarea.value)
+    appendMarkdown(body, textarea.value, { mediaOptions: { baseURL: application?.session?.policy?.mediaURL } })
     content.appendChild(summary)
     content.appendChild(body)
   }
@@ -367,7 +367,7 @@ export const composer = async (sig, options = {}) => {
       return
     }
     content.replaceChildren()
-    appendMarkdown(content, textarea.value)
+    appendMarkdown(content, textarea.value, { mediaOptions: { baseURL: application?.session?.policy?.mediaURL } })
   }
 
   let messageToggle
@@ -653,7 +653,7 @@ export const composer = async (sig, options = {}) => {
     publishLabel: isEdit ? 'Save changes' : sig ? 'Reply' : 'Publish',
     onPreview: async target => {
       target.replaceChildren()
-      appendMarkdown(target, textarea.value)
+      appendMarkdown(target, textarea.value, { mediaOptions: { baseURL: application?.session?.policy?.mediaURL } })
     }
   })
   publishButton = surface.publish

@@ -179,7 +179,7 @@ render.refreshVisibleReplies = () => {
 const renderBody = async (body, replyHash) => {
   const fragment = document.createDocumentFragment()
   if (replyHash) fragment.append(createReplyContext(replyHash))
-  appendMarkdown(fragment, body)
+  appendMarkdown(fragment, body, { mediaOptions: { baseURL: application?.session?.policy?.mediaURL } })
   return fragment
 }
 
@@ -220,7 +220,7 @@ const applyProfile = async (contentHash, yaml) => {
       if (cache.get(yaml.image)) {
         get.src = cache.get(yaml.image)
       } else {
-        const image = await resolveImageSrc(yaml.image)
+        const image = await resolveImageSrc(yaml.image, { baseURL: application?.session?.policy?.mediaURL })
         cache.set(yaml.image, image)
         if (image) {
           get.src = image
@@ -675,7 +675,7 @@ render.refreshEdits = async (hash, options = {}) => {
   if (state.renderedBody !== bodySource) {
     disposeMedia(state.contentDiv)
     state.contentDiv.replaceChildren(await renderBody(attachmentDisplayBody({ ...state.baseYaml, body: bodySource }), baseReply))
-    if (!renderAndFSMedia(state.baseYaml, state.contentDiv)) await renderMedia(state.baseYaml, state.contentDiv, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
+    if (!renderAndFSMedia(state.baseYaml, state.contentDiv, { baseURL: application?.session?.policy?.mediaURL })) await renderMedia(state.baseYaml, state.contentDiv, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
     await highlightCodeIn(state.contentDiv)
     hydrateReplyPreviews(state.contentDiv)
     state.renderedBody = bodySource
@@ -1001,7 +1001,7 @@ render.content = async (hash, blob, div, messageHash, preParsedYaml = null) => {
       updateReplyCount(yaml.reply)
     }
     div.replaceChildren(await renderBody(attachmentDisplayBody(yaml), yaml.reply))
-    if (!renderAndFSMedia(yaml, div)) await renderMedia(yaml, div, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
+    if (!renderAndFSMedia(yaml, div, { baseURL: application?.session?.policy?.mediaURL })) await renderMedia(yaml, div, { source: application?.session?.policy?.legacyMediaURL || application?.session?.policy?.mediaURL })
     await highlightCodeIn(div)
     hydrateReplyPreviews(div)
     await applyProfile(contentHash, yaml)

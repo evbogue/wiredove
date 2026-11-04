@@ -13,8 +13,9 @@ module.exports=async({website,embed,source,post})=>{
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await page.getByRole('button',{name:'Edit profile',exact:true}).waitFor();
   const profile=await page.evaluate(async author=>{const {apds}=await import('https://esm.sh/gh/evbogue/apds@4934fac/apds.js');const rows=(await apds.query(author)).slice().sort((a,b)=>Number(b.ts)-Number(a.ts));for(const row of rows){const p=await apds.parseYaml(row.text||'');if(p.image_original&&p.image_crop&&p.bio==='')return p}throw Error('Missing exact signed photo metadata')},author);
-  assert(profile.image_original.includes('/#'));assert(profile.image.includes('/#'));
-  const actual=await page.evaluate(async url=>{const {readAndFSMedia}=await import(new URL('/client/andfs.js',url));const hash=url.split('#')[1];return [...await readAndFSMedia({andfs:hash,media_source:new URL(url).origin})]},profile.image_original);
+  assert.match(profile.image_original, /^\/#([A-Za-z0-9_-]{43})$/);
+  assert.match(profile.image, /^\/#([A-Za-z0-9_-]{43})$/);
+  const actual=await page.evaluate(async url=>{const {readAndFSMedia}=await import(new URL('/client/andfs.js',app.session.policy.mediaURL));const hash=url.split('#')[1];return [...await readAndFSMedia({andfs:hash,media_url:url}, {baseURL:app.session.policy.mediaURL})]},profile.image_original);
   assert.deepEqual(Buffer.from(actual),png,'original photo bytes must be retained');
   await page.reload();await page.waitForFunction(()=>window.ready);await page.evaluate(author=>app.navigate(author),author);
   await page.locator('.profile-header').getByRole('link',{name:'History link',exact:true}).waitFor();

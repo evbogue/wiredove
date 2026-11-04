@@ -107,7 +107,7 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
   // Profile history belongs to the author, not the current feed/page limit.
   const history = pubkey ? await apds.query(pubkey) : null
   const profile = await buildProfileData(Array.isArray(history) && history.length ? history : messages, label)
-  const backgroundImage = await resolveImageSrc(profile.background)
+  const backgroundImage = await resolveImageSrc(profile.background, { baseURL: session?.policy?.mediaURL })
   const fallbackVisual = pubkey ? await apds.visual(pubkey) : null
   const fallbackVisualSrc = fallbackVisual && fallbackVisual.src ? fallbackVisual.src : null
   let currentName = profile.name || label
@@ -133,7 +133,7 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
     if (localPhoto?.image === currentImageHash) currentPhotoState = localPhoto
   }
 
-  const profileImage = await resolveImageSrc(currentImageHash)
+  const profileImage = await resolveImageSrc(currentImageHash, { baseURL: session?.policy?.mediaURL })
   let currentImageSrc = profileImage || fallbackVisualSrc || ''
   let draftImageHash = currentImageHash
   let draftImageSrc = currentImageSrc
@@ -148,7 +148,7 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
 
   const editor = createProfileEditor({
     name: currentName, bio: currentBio, links: currentLinks, imageSrc: draftImageSrc,
-    photoState: draftPhotoState,
+    photoState: draftPhotoState, mediaOptions: { baseURL: session?.policy?.mediaURL },
     onBusy: value => { photoBusy = value; saveButton.disabled = cancelButton.disabled = value },
     onImageChange: async (src, cropped, options) => {
       const saved = await uploadProfilePhoto(cropped, { ...options, service: session?.policy })
@@ -169,7 +169,7 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
   const nameText = h('h2', { classList: 'profile-view-only' }, [currentName || label])
   const nameEditor = editor.nameInput
   const bioPreview = h('div', { classList: 'profile-bio profile-view-only' })
-  appendMarkdown(bioPreview, currentBio || '')
+  appendMarkdown(bioPreview, currentBio || '', { mediaOptions: { baseURL: session?.policy?.mediaURL } })
 
   const input = editor.bioInput
   const linksView = h('nav', { classList: 'profile-view-only' })
@@ -235,7 +235,7 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
         currentImageSrc = draftImageSrc
       }
       bioPreview.replaceChildren()
-      appendMarkdown(bioPreview, currentBio || '')
+      appendMarkdown(bioPreview, currentBio || '', { mediaOptions: { baseURL: session?.policy?.mediaURL } })
       nameText.textContent = currentName || label
       if (draftImageSrc && viewAvatarImgRef && viewAvatarImgRef.tagName === 'IMG') {
         viewAvatarImgRef.src = draftImageSrc

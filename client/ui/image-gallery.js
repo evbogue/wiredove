@@ -75,7 +75,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         retry.hidden = true;
         status.textContent = 'Loading image…';
         try {
-          const src = await resolveImageSource(item, this._options.resolveImage, controller.signal, retryRequest);
+          const src = await resolveImageSource(item, this._options.resolveImage, controller.signal, retryRequest, this._options.mediaOptions);
           if (controller.signal.aborted || !this.isConnected) return;
           if (src) image.src = src;
           else { failed(); tile._watch?.(); }
@@ -99,7 +99,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         event.preventDefault();
         event.stopPropagation();
         const request = { images: this.items, index, trigger: tile, owner: this,
-          resolveImage: this._options.resolveImage };
+          resolveImage: this._options.resolveImage, mediaOptions: this._options.mediaOptions };
         this._stopViewer = (this._options.onOpen || openImageGallery)(request);
       });
       tile.append(image, status);
@@ -132,10 +132,10 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
   }
 }
 
-export function createImageGallery({ images, resolveImage, onOpen, document: doc = globalThis.document }) {
+export function createImageGallery({ images, resolveImage, onOpen, mediaOptions, document: doc = globalThis.document }) {
   const registry = doc.defaultView.customElements;
   if (!registry.get('wiredove-image-gallery')) registry.define('wiredove-image-gallery', WiredoveImageGallery);
   const gallery = doc.createElement('wiredove-image-gallery');
-  gallery.options = { images, resolveImage, onOpen };
+  gallery.options = { images, resolveImage, onOpen, mediaOptions };
   return gallery;
 }

@@ -40,8 +40,9 @@ Deno.test("AndFS client signs the exact Timeline upload contract", async () => {
     throw new Error("unsigned upload");
   }
   if (
-    attachment.media_url !== "https://wiredove.example/#" + "A".repeat(43)
+    attachment.media_url !== "/#" + "A".repeat(43)
   ) throw new Error("wrong media URL");
+  if ("media_source" in attachment || JSON.stringify(attachment).includes("wiredove.example")) throw Error("Origin leaked into signed metadata");
 });
 
 Deno.test("relay publishes content before signature and confirms message ID", async () => {

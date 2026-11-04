@@ -498,3 +498,11 @@ no website import map. `npm run check` guards those import boundaries and adapte
 ownership. Existing custom elements/callbacks remain supported. Native-button/raw-QR
 accessibility changes are deferred separately; this extraction retains existing
 control behavior. This does not claim complete shared-application parity.
+
+
+New signed media references use `/#<AndFS manifest hash>` in `media_url`, inline
+Markdown, `image` and `image_original`, with no `media_source`. Configure the
+application's `mediaURL` to locate bytes; standalone reader calls accept
+`baseURL`, and standalone message widgets accept `presentation.mediaOptions`.
+Historical absolute media URLs retain their original source. The hash verifies
+bytes, while service configuration selects storage; this does not replicate files.

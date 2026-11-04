@@ -492,3 +492,17 @@ match the release byte-for-byte. Live isolated 390px light/dark checks found no
 horizontal overflow or JavaScript exceptions. HTTP writes and all WebSockets were
 blocked; no public test posts/uploads were sent. Evbogue.com's separate consumer
 was not changed by this deployment.
+
+
+## Portable signed media references — 2026-11-04
+
+New media writes use `/#<AndFS manifest hash>` without a hostname or signed
+`media_source`, including inline Markdown and profile original/crop references.
+The earlier absolute `https://wiredove.net/#hash` format still coupled records to
+an origin; it was not portable. Shared readers use the application's configured
+mediaURL, passed as baseURL to reader adapters. Standalone HTTP-loaded widgets
+fall back to their module origin. Keep historical absolute URLs/APDS/anblob
+readers and signed bytes intact. Muse's separate adapter has the same write-format
+fix and preserves exact historical pending signatures/references on retry.
+See MEDIA_URL_BUG_WORK_ORDER.md. Source changes do not imply deployment or storage
+replication; a selected node must supply the verified blocks.

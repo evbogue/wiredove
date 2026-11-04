@@ -10,14 +10,15 @@ export const safeImageURL = (value, { resolved = false } = {}) => {
 };
 export const safeLinkURL = value => {
   if (isLegacyImage(value)) return '#' + value;
+  if (/^\/#([A-Za-z0-9_-]{43})$/.test(value || '')) return value.slice(1);
   if (typeof value !== 'string') return null;
   if (/^#[^\s]*$/.test(value) || /^mailto:[^\s<>]+$/i.test(value)) return value;
   return safeImageURL(value);
 };
-export const resolveImageSource = async (item, resolveImage, signal, retry = false) => {
+export const resolveImageSource = async (item, resolveImage, signal, retry = false, mediaOptions = {}) => {
   if (signal?.aborted) return null;
   if (andfsImageMetadata(item.src)) {
-    const verified = await verifiedImageSource(item.src);
+    const verified = await verifiedImageSource(item.src, mediaOptions);
     return signal?.aborted ? null : verified;
   }
   const direct = safeImageURL(item.src);
@@ -36,20 +37,21 @@ export function imageMime(bytes) {
   if (new TextDecoder().decode(bytes.slice(8,12)) === 'WEBP') return 'image/webp';
   throw new Error('Unsupported image bytes');
 }
-export async function readImageFile(reference) {
+export async function readImageFile(reference, options = {}) {
   const meta = andfsImageMetadata(reference);
   if (!meta) throw new Error('No verified original photo is available');
-  const bytes = await readAndFSMedia(meta);
+  const bytes = await readAndFSMedia(meta, options);
   return new File([bytes], 'original-photo', { type: imageMime(bytes) });
 }
-export async function verifiedImageSource(reference) {
+export async function verifiedImageSource(reference, options = {}) {
   if (!andfsImageMetadata(reference)) return null;
-  if (!cache.has(reference)) {
-    const result = readImageFile(reference).then(file => new Promise((resolve,reject) => {
+  const key = JSON.stringify([reference, options.baseURL || null]);
+  if (!cache.has(key)) {
+    const result = readImageFile(reference, options).then(file => new Promise((resolve,reject) => {
       const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file);
-    })).catch(error => { cache.delete(reference); throw error; });
+    })).catch(error => { cache.delete(key); throw error; });
     if (cache.size >= 64) cache.delete(cache.keys().next().value);
-    cache.set(reference, result);
+    cache.set(key, result);
   }
-  return await cache.get(reference);
+  return await cache.get(key);
 }

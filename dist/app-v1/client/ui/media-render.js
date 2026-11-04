@@ -17,7 +17,7 @@ export const renderAndFSMedia = (yaml, container, options = {}) => {
       gallery.items.some(item => item.src === source))) return true;
     const wrap = document.createElement('div');
     wrap.className = 'media-post';
-    wrap.append(createImageGallery({ ...options, images: [{ src: source, alt: yaml.media_name || 'Attached image' }], document: container.ownerDocument }));
+    wrap.append(createImageGallery({ ...options, mediaOptions: options, images: [{ src: source, alt: yaml.media_name || 'Attached image' }], document: container.ownerDocument }));
     container.append(wrap);
     return true;
   }
@@ -53,7 +53,7 @@ export const renderAndFSMedia = (yaml, container, options = {}) => {
   });
   try {
     // A gateway URL is a download fallback, never the verified player source.
-    const url = new URL(yaml.media_url || `${andfsSource(yaml)}/#${yaml.andfs}`, location.href);
+    const url = new URL(yaml.media_url || `${andfsSource(yaml, options.baseURL)}/#${yaml.andfs}`, options.baseURL || location.href);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Unsafe media URL');
     link.href = url.href;
   } catch { link.remove(); }

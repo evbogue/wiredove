@@ -1,45 +1,33 @@
-# Media URL hardcoding bug — work order
+# Portable media references
 
-Filed 2026-11-04 by Ev via Muse. Status: bug recorded, fix not started.
+Updated 2026-11-04. Implemented in Wiredove and the local
+`muse-wiredove-adapter` repository; production deployment is separate.
 
-## The bug
+## Signed format
 
-Signed posts must carry blob hashes, never origin-hardcoded media URLs.
-Wiredove is a multi-node system — a post signed on one node must not hardcode
-another node's `https://wiredove.net/media/...` URLs.
+New uploads publish `media_url: "/#<AndFS manifest hash>"` without a
+`media_source`. Inline Markdown and profile `image` / `image_original` use the
+same reference. Upload endpoints remain explicit service configuration; their
+origins are not copied into signed media metadata. This corrects both the old
+`https://wiredove.net/media/<hash>` format and the later absolute `/#hash` URL.
 
-The website composer was already fixed for this on 2026-10-31 ("Hash-only media
-navigation", deployed in cd7c09e): `client/andfs.js:77` builds
-`media_url` as `<origin>/#<manifest-hash>`, and the render path
-(`client/andfs.js:143-147`) extracts the bare AndFS manifest hash from both
-`#hash` URLs and legacy `/media/` URLs at render time. Historical signed posts
-with hardcoded `https://wiredove.net/media/...` URLs (e.g. the 2026-10-30
-"Coffee on Argyle" post) keep rendering through the legacy reader — never
-rewrite signed historical posts (see AGENTS.md).
+Readers fetch portable references through the consuming application's configured
+`mediaURL` (the module's HTTP origin for standalone widgets). Image galleries,
+viewers, profile original/re-crop, draft previews and audio/video playback share
+this behavior. Image caches include the selected media service so one mounted
+application cannot hide another service's failure with its cached result.
 
-The remaining offender is `muse-wiredove-adapter` (separate repo). Its
-`src/andfs.js:43` still computes the legacy format:
+Historical absolute URLs, APDS image hashes and anblob readers remain supported.
+No historical signed record is rewritten. Muse pending retries retain the exact
+old signed attachment reference, signature and content when re-uploading bytes.
 
-```js
-media_url: `${origin}/media/${manifestHash}`
-```
+Portability does not replicate storage: the selected service must actually hold
+or supply the manifest/chunks, and readers still verify every block before use.
 
-and `src/publish.js:231` appends that URL to post bodies, while
-`src/pending.js:113` validates profile `image` against it. So the adapter's
-2026-11-03 profile photo post published
-`image: "https://wiredove.net/media/JnaCDSL4wIBzjPI0krHDgpFhq6Hw5O-j5AeeWJf-BsQ"`
-— the pre-fix format, reintroduced after the website moved on.
+## Validation
 
-## The fix (not started, adapter repo)
-
-1. `src/andfs.js`: compute `media_url` in the current hash-route format
-   (`${origin}/#${manifestHash}`), matching `client/andfs.js:77`.
-2. `src/publish.js:231` and `src/pending.js:113`: keep working against the new
-   format (no logic change needed beyond the `media_url` value, but verify).
-3. Long-term: prefer publishing the bare manifest hash with clients resolving
-   the fetch URL against the viewing node's origin at render time, so signed
-   content carries no origin at all.
-
-Open design decision: bare manifest hash vs `/#<hash>` reference as the signed
-format. The website currently signs `<origin>/#<hash>`; the resolver only needs
-the hash. Pick one format and use it in both repos.
+Tests assert origin-free upload/profile/post metadata, reads of unchanged metadata
+through two different configured nodes, historical URL compatibility, tamper
+rejection and exact historical pending retry. Shared browser acceptance covers
+website and separate-origin embeds, profile crop/re-crop, inline previews and
+playback; public fixture publication is not needed.

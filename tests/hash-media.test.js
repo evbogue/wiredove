@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mediaMime } from '../client/ui/hash-media.js';
-import { andfsImageMetadata, attachmentDisplayBody } from '../client/andfs.js';
+import { andfsSource, andfsImageMetadata, attachmentDisplayBody } from '../client/andfs.js';
 const bytes = text => Uint8Array.from(text, char => char.charCodeAt(0));
 test('file routes detect verified byte signatures, including audio containers', () => {
   for (const [signature, mime] of [
@@ -30,4 +30,20 @@ test('only the generated trailing media fallback link is hidden from display', (
   for (const body of ['Listen at '+meta.media_url, '`'+meta.media_url+'`', meta.media_url+' with commentary'])
     assert.equal(attachmentDisplayBody({...meta,body}), body);
   assert.equal(attachmentDisplayBody({...meta,type:'image',body:meta.media_url}), meta.media_url);
+});
+
+
+test('portable references select the consuming media service while historical URLs keep their source', () => {
+  const hash = 'B'.repeat(43);
+  for (const reference of ['/#' + hash, '#' + hash]) {
+    const meta = andfsImageMetadata(reference);
+    assert.equal(meta.andfs, hash);
+    assert.equal('media_source' in meta, false);
+    for (const base of ['https://first.test', 'https://second.test/storage'])
+      assert.equal(andfsSource(meta, base), base);
+  }
+  const historical = andfsImageMetadata('https://old.test/media/' + hash);
+  assert.equal(andfsSource(historical, 'https://new.test'), 'https://old.test');
+  assert.equal(andfsImageMetadata('!/#' + hash), null);
+  assert.equal(andfsImageMetadata('/#short'), null);
 });

@@ -20,11 +20,10 @@ andfs: <43-character URL-safe unpadded AndFS manifest hash>
 mime: video/webm
 media_name: clip.webm
 media_size: 123456
-media_url: https://evbogue.com/timeline/#<manifest-hash>
-media_source: https://evbogue.com/timeline
+media_url: /#<manifest-hash>
 ```
 
-The source base serves `/blobs/<hash>`; the media URL serves reconstructed bytes and byte ranges. The body also includes an ordinary media URL for older clients. Do not set `blob` to an AndFS hash: old clients interpret it as an anblob reference.
+New writes omit `media_source`; the consuming application selects the media service. Its base serves `/blobs/<hash>`; the hash route verifies and displays the file. Historical absolute references retain their source. The body also includes an ordinary media URL for older clients. Do not set `blob` to an AndFS hash: old clients interpret it as an anblob reference.
 
 The AndFS v1 manifest is `{andfs:1,size,chunkSize:262144,chunks:[...]}` with SHA-256 URL-safe unpadded hashes. Keep its ordered JSON serialization byte-for-byte. Do not relabel anblob IDs: anblob uses a different manifest and 1 MiB chunks. MIME and filename are signed presentation metadata outside the AndFS byte identity.
 

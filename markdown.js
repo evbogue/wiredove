@@ -12,6 +12,6 @@ const resolveImage = async (hash, { signal, retry } = {}) => {
 
 resolveImage.subscribe = subscribeHashRequest
 
-export const appendMarkdown = (target, text) => {
-  appendFormattedText(target, text, { resolveImage })
+export const appendMarkdown = (target, text, options = {}) => {
+  appendFormattedText(target, text, { resolveImage, ...options })
 }

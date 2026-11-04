@@ -88,6 +88,8 @@ const root = path.resolve(__dirname, '..');
   const mediaHash = /andfs: ([A-Za-z0-9_-]{43})/.exec(post.content)[1];
   assert.ok(post.content.includes('/#' + mediaHash));
   assert.ok(!post.content.includes('/media/' + mediaHash));
+  assert.ok(!post.content.includes(source));
+  assert.ok(!post.content.includes('media_source:'));
   for (const page of [website, embed]) {
     await page.evaluate(hash => app.navigate(hash), mediaHash);
     await page.locator('.hash-media-view audio').waitFor();
@@ -103,14 +105,16 @@ const root = path.resolve(__dirname, '..');
     const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0vQAAAAASUVORK5CYII='), c => c.charCodeAt(0));
     return await storeMedia(new File([bytes], 'photo.png', {type:'image/png'}), {service:app.session.policy});
   });
+  assert.equal(photo.media_url, '/#' + photo.andfs);
+  assert.equal('media_source' in photo, false);
   for (const page of [website, embed]) {
     await page.evaluate(hash => app.navigate(hash), photo.andfs);
     await page.locator('.hash-media-view img').waitFor();
     assert.equal(await page.locator('.hash-media-view img').evaluate(n => n.src.startsWith('blob:')), true);
     await page.evaluate(async photo => {
-      const {verifiedImageSource} = await import(new URL('/client/ui/image-source.js', photo.media_source));
-      const modern = await verifiedImageSource(photo.media_url);
-      const historical = await verifiedImageSource(photo.media_source + '/media/' + photo.andfs);
+      const {verifiedImageSource} = await import(new URL('/client/ui/image-source.js', app.session.policy.mediaURL));
+      const modern = await verifiedImageSource(photo.media_url, { baseURL: app.session.policy.mediaURL });
+      const historical = await verifiedImageSource(app.session.policy.mediaURL + '/media/' + photo.andfs);
       if (modern !== historical || !modern.startsWith('data:image/png;')) throw Error('Image URL compatibility failed');
     }, photo);
     await page.evaluate(hash => app.navigate(hash), 'A'.repeat(43));

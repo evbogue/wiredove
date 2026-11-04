@@ -14,7 +14,7 @@ export async function storeMedia(input, options = {}) {
   const localStore = await getAndFSStore()
   const client = createAndFSMediaClient({
     files: createAndFS({ store: localStore }),
-    ...(options.service ? { endpoint: options.service.mediaURL + '/api/media', origin: () => options.service.mediaURL } : {}),
+    ...(options.service ? { endpoint: options.service.mediaURL + '/api/media' } : {}),
     async signPayload(authorization) {
       const keypair = await apds.keypair()
       if (!keypair) throw new Error('Create or import an identity before uploading media')
@@ -46,7 +46,7 @@ export function createMediaComposer(options = {}) {
   return createMediaControls({
     ...options, persistMedia: blob => storeMedia(blob, options),
     resolveAttachment: async attachment => new Blob([attachment.andfs
-      ? await readAndFSMedia(attachment, { store: await getAndFSStore() })
+      ? await readAndFSMedia(attachment, { store: await getAndFSStore(), baseURL: options.service?.mediaURL })
       : await readLegacyMedia(attachment, { source: options.service?.legacyMediaURL || options.service?.mediaURL })], { type: attachment.mime || '' })
   })
 }

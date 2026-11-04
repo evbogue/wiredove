@@ -14,8 +14,7 @@ andfs: <43-character URL-safe unpadded AndFS manifest hash>
 mime: video/webm
 media_name: clip.webm
 media_size: 123456
-media_url: https://example.test/#<manifest-hash>
-media_source: https://example.test
+media_url: /#<manifest-hash>
 ```
 
 New attachment links use ordinary `#<hash>` application routes. The router verifies the manifest and chunks, then detects the presentation type from the bytes. The body includes `media_url` as a plain link. Historical `/media/<hash>` URLs remain readable for previously signed posts. Do not put an AndFS hash in the legacy `blob` field. The signature envelope and signed YAML bytes remain the existing ANProto/APDS format.
@@ -26,7 +25,7 @@ AndFS v1 uses 256 KiB chunks, SHA-256 URL-safe unpadded hashes, and a byte-exact
 
 The browser adds media to IndexedDB through an explicit `createAndFS({ store })` instance. It signs the exact `andfs-upload-v1` authorization JSON with the current ANProto identity and uploads the bytes. The server verifies signature freshness, media metadata, size, manifest identity, quotas, and rate limits before writing the blocks and metadata to persistent storage. Publishing is enabled only after the upload succeeds.
 
-The browser fetches AndFS blocks from the signed `media_source`, verifies their SHA-256 identities, reconstructs the file, and assigns the verified bytes to a native audio/video player. The server also exposes a verified media endpoint with GET, HEAD, and byte ranges. This first implementation downloads the full file before browser playback; it is not peer-to-peer streaming.
+New writes omit `media_source`; readers use the consuming application's configured media service. Historical absolute URLs and signed `media_source` values retain their original reader behavior. The browser fetches AndFS blocks from that selected service, verifies their SHA-256 identities, reconstructs the file, and assigns the verified bytes to a native audio/video player. The server also exposes a verified media endpoint with GET, HEAD, and byte ranges. This first implementation downloads the full file before browser playback; it is not peer-to-peer streaming.
 
 Existing signed posts with `blob: anblob:v1:...` keep their original reader and endpoint. The two formats have different manifests and chunk sizes and must never be relabeled or conflated.
 

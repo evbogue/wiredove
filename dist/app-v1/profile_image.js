@@ -3,10 +3,10 @@ import { send } from './send.js'
 import { andfsImageMetadata } from './client/andfs.js'
 import { verifiedImageSource } from './client/ui/image-source.js'
 
-export async function resolveImageSrc(value) {
+export async function resolveImageSrc(value, options = {}) {
   if (!value || typeof value !== 'string') return null
   if (andfsImageMetadata(value)) {
-    try { return await verifiedImageSource(value) } catch { return null }
+    try { return await verifiedImageSource(value, options) } catch { return null }
   }
   if (value.length === 44) {
     const image = await apds.get(value)

@@ -11,7 +11,7 @@ const el = (tag, className, text) => {
 };
 
 // UI only: the consuming frame owns identity, storage and publication.
-export function createProfileEditor({ name = '', bio = '', links = [], imageSrc = '', photoState = null, onImageChange, onBusy }) {
+export function createProfileEditor({ name = '', bio = '', links = [], imageSrc = '', photoState = null, onImageChange, onBusy, mediaOptions }) {
   const fields = el('div', 'profile-fields profile-edit-only');
   const field = (title, control) => {
     const label = el('label', 'profile-field');
@@ -121,7 +121,7 @@ export function createProfileEditor({ name = '', bio = '', links = [], imageSrc 
   upload.onchange = () => { const file = upload.files?.[0]; upload.value = ''; if (file) void openCrop(file); };
   adjust.onclick = async () => {
     adjust.disabled = true;
-    try { await openCrop(originalFile || await readImageFile(state.original), state?.crop); }
+    try { await openCrop(originalFile || await readImageFile(state.original, mediaOptions), state?.crop); }
     catch { photoStatus.textContent = 'Could not retrieve the original photo. Try again.'; }
     finally { adjust.disabled = false; }
   };

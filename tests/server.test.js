@@ -102,7 +102,7 @@ test('Node HTTP routes, signatures, media, notifications and disk restart', asyn
       original = Uint8Array.from({ length: 300000 }, (_, i) => i % 251)
       const client = createAndFSMediaClient({ files: createAndFS({ store: memoryStore() }), origin: () => server.origin, fetchImpl: (url, init) => fetch(new URL(url, server.origin), init), signPayload: async value => an.sign(await an.hash(value), key) })
       attachment = await client.upload(new File([original], 'fixture.png', { type: 'image/png' }))
-      assert.deepEqual(await readAndFSMedia(attachment, { store: memoryStore(), fetchImpl: fetch }), original)
+      assert.deepEqual(await readAndFSMedia(attachment, { store: memoryStore(), baseURL: server.origin, fetchImpl: fetch }), original)
       const range = await get('/media/' + attachment.andfs, { headers: { range: 'bytes=262130-262170' } })
       assert.equal(range.status, 206); assert.deepEqual(new Uint8Array(await range.arrayBuffer()), original.slice(262130, 262171))
       assert.equal((await get('/media/' + attachment.andfs, { method: 'HEAD' })).headers.get('content-length'), String(original.length))

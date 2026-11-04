@@ -24,7 +24,6 @@ export function createAndFSMediaClient(
     signPayload,
     fetchImpl = fetch,
     endpoint = "/api/media",
-    origin = () => location.origin,
     allowedMime = DEFAULT_MEDIA_MIME,
     maxBytes = 32 * 1024 * 1024,
   },
@@ -74,7 +73,7 @@ export function createAndFSMediaClient(
         throw new Error("Upload server did not confirm the expected AndFS attachment");
       }
       onStatus?.("Ready to publish");
-      const media_url = origin().replace(/\/$/, "") + "/#" + added.manifestHash;
+      const media_url = "/#" + added.manifestHash;
       return {
         type: mime.split("/")[0],
         andfs: added.manifestHash,
@@ -82,15 +81,18 @@ export function createAndFSMediaClient(
         media_name: input.name || `${mime.split("/")[0]}-${Date.now()}`,
         media_size: input.size,
         media_url,
-        media_source: origin(),
       };
     },
   };
 }
 
-// Signed source URLs locate bytes; every manifest and chunk is authenticated by AndFS.
-export function andfsSource(meta, baseURL = globalThis.location?.href) {
-  const reference = meta.media_source || meta.media_url;
+// New signed references identify bytes only. The consuming adapter selects storage.
+// Historical absolute references retain their original source for compatibility.
+const moduleURL = new URL(import.meta.url);
+const defaultMediaURL = /^https?:$/.test(moduleURL.protocol) ? moduleURL.origin : undefined;
+const portableReference = value => /^\/?#[A-Za-z0-9_-]{43}$/.test(value || "");
+export function andfsSource(meta, baseURL = defaultMediaURL) {
+  const reference = meta.media_source || (portableReference(meta.media_url) || !meta.media_url ? baseURL : meta.media_url);
   if (!reference) throw new Error('AndFS media has no source');
   const url = new URL(reference, baseURL);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
@@ -134,8 +136,9 @@ export async function readAndFSMedia(meta, { store = memoryStore(), fetchImpl = 
 
 // Inline image URLs are inside the signed Markdown body. The fragment (or
 // historical gateway path) binds the manifest and identifies its source.
-export function andfsImageMetadata(reference, baseURL = globalThis.location?.href) {
+export function andfsImageMetadata(reference, baseURL = defaultMediaURL) {
   try {
+    if (portableReference(reference)) return { type: 'image', andfs: reference.split('#')[1], media_url: reference };
     const url = new URL(reference, baseURL);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
     if (/^#[A-Za-z0-9_-]{43}$/.test(url.hash)) {

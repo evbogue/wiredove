@@ -73,7 +73,7 @@ export function createImagePopover({ document: doc = globalThis.document, getIma
     original.hidden = !href;
     if (href) original.href = href;
     try {
-      const src = await resolveImageSource(item, request.resolveImage, controller.signal, retryRequest);
+      const src = await resolveImageSource(item, request.resolveImage, controller.signal, retryRequest, request.mediaOptions);
       if (current !== sequence || !active) return;
       if (!src) throw Error('Unavailable');
       image.src = src; download.href = src; download.hidden = false;
