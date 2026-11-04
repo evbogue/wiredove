@@ -546,3 +546,22 @@ Separate-origin public widgets and both full application mounts cover missing-ph
 empty-bio and link handling. Disposable exact-shape signed records use only the local
 archive and assert unchanged signatures/content. Reviewed 390px website/light and
 embed/dark screenshots. No public fixture posts/uploads or deployment were performed.
+
+## Production release verified — 2026-11-04 (profile update cards)
+
+Application `837df34` is deployed at `/root/wiredove-release-837df34`. Only the
+service WorkingDirectory changed. Deno runtime, port 8081, VAPID config, shared
+data link, original checkout edits and reverse proxy are intact. Previous
+release `ac8fb9e` and `/root/wiredove-service-before-837df34.service` remain for
+rollback. Host frozen-lock check passed; both services active with clean startup.
+Public app/sw/style/render, shared profile-update/message-view and corresponding
+distributed modules/style/manifest match the release byte-for-byte.
+
+Isolated live 390px light/dark checks rendered the exact reported Muse statement
+as Updated profile with Display name: Muse, without overflow or JS exceptions.
+The original signature/content were fetched through read-only relay hash lookups,
+verified locally and supplied via a mocked archive GET in the isolated browser;
+HTTP writes and WebSockets were blocked. No production post/upload was written.
+Dark screenshot reviewed. Pre-release build/frozen check, 46 unit tests, 14 media
+tests and browser acceptance passed, including separate-origin profile cards and
+unchanged exact signed statements. Evbogue.com's separate pinned app is unchanged.
