@@ -6,6 +6,31 @@ A work-in-progress experimental distributed social networking application built 
 
 Try it at: https://wiredove.net/
 
+### Current status
+
+- **Runtime:** Node 22+ (`npm start` / `serve-node.js`) is the deployed application
+  runtime; Deno remains an optional launcher via `npm run start:deno`. Both consume
+  the same server handler. Start/check commands and release procedures live in
+  [runtime operations](docs/RUNTIME_OPERATIONS.md); dated deployment evidence is in
+  [AGENTS.md](AGENTS.md).
+- **Data/config preservation:** keep the same working directory, port, data paths
+  and VAPID config when switching runtimes; never run two runtime writers against
+  the same writable data. Existing subscriptions, signed archives, AndFS blocks and
+  legacy blobs are read in place.
+- **Shared UI:** the website and embeds mount one shared application. The sole
+  implementation plan is [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md);
+  full feature parity is still in progress.
+- **Portable media:** new writes use origin-free `/#<AndFS manifest hash>`
+  references without signed `media_source`. Historical URLs, APDS images and
+  anblob media remain readable. See [MEDIA_URL_BUG_WORK_ORDER.md](MEDIA_URL_BUG_WORK_ORDER.md)
+  and the media acceptance checks in [WORK_ORDER.md](WORK_ORDER.md).
+- **Last recorded deployment:** application `0086c74` (2026-11-04, Node cutover;
+  Deno still available as an optional launcher). Source changes require
+  synchronization to both GitHub and git-ssb; a release record separating source,
+  artifacts, remotes and consumer deployments is tracked in
+  [docs/RELEASE_RECORD.md](docs/RELEASE_RECORD.md), coordinated by
+  [CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md) §4.
+
 For new message notifications subscribe via https://ntfy.sh/wiredove or enable browser Web Push in Wiredove. See [NOTIFICATION_WORKFLOW.md](NOTIFICATION_WORKFLOW.md) for delivery behavior and the read-only verified post monitor.
 
 The entire application stack runs in a browser window, so there is no installation required. You can clone the repo down and deploy it anywhere. But because all of the data is local-first you will have the same experience if you use the official Wiredove deployment or do it yourself. 
@@ -83,7 +108,7 @@ or establish full website/embed feature parity.
 
 ### AndFS media
 
-New post images and audio/video attachments use AndFS v1 with signed upload authorization, persistent server storage, and verified display/playback. Historical APDS images and anblob attachments remain readable; profile photos preserve the original in AndFS alongside an editable crop of up to 1024 × 1024 pixels. See [MEDIA_PROTOTYPE.md](MEDIA_PROTOTYPE.md) for the local workflow and [WORK_ORDER.md](WORK_ORDER.md) for the cross-client acceptance checks. These local changes are not deployed to production.
+New post images and audio/video attachments use AndFS v1 with signed upload authorization, persistent server storage, and verified display/playback. Historical APDS images and anblob attachments remain readable; profile photos preserve the original in AndFS alongside an editable crop of up to 1024 × 1024 pixels. See [MEDIA_PROTOTYPE.md](MEDIA_PROTOTYPE.md) for the local workflow and [WORK_ORDER.md](WORK_ORDER.md) for the cross-client acceptance checks. These media changes are deployed to wiredove.net production: the origin-free portable references shipped in application `ac8fb9e` on 2026-11-04 and remain in the last recorded release `0086c74` (dated evidence in [AGENTS.md](AGENTS.md)). The separate evbogue.com consumer runs its own pinned application and was not updated by those releases — consumer pins deploy independently.
 
 ### Creating and backing up an identity
 
@@ -191,6 +216,10 @@ The directory is served by [APDS](https://github.com/evbogue/apds). It used to l
 In this version we've opted to include the avatar name in every post due to previous attempts at impersonation attacks. You can now easily see an author's name and image and how they change over the history of their posts so if someone starts off as 'anonymous commenter' and then switches their name to 'ev' you can see this occur in the feed history. It is also easy to confirm the public key of the post and authenticate whether the messages arrived from approved public keys.
 
 The previous message hash is included in each message to make it easy to sync a feed from the latest post until the oldest post. When Wiredove connects over Trystero to other peers it will send a list of public keys that the application wants to sync. Other peers reply by sending the latest message that they have from every author. If the message is newer then network participants will replicate that message and sync each previous message until the feed history has caught up.
+
+### Synchronization
+
+Synchronization is how a peer catches up on the conversations it cares about: it asks other peers for the latest posts from the authors it follows, then walks each author's chain backward until it reaches a post it already has, and stops. Each peer keeps its own slice of the network. The chain itself is the verification — every post links to the previous one, so the history a peer holds can be checked post by post.
 
 ### Trystero serveless multiplayer
 

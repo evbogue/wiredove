@@ -20,7 +20,10 @@ This is the sole shared UI/application-embed work order. It replaces the earlier
 component-first plan, `client/WORK_ORDER.md`, and `docs/SHARED_MESSAGE_HANDOFF.md`;
 historical evidence remains in Git history. Current API documentation lives in
 `client/README.md`. The checklist below is current; dated checkpoints retain their
-historical status and must not be read as current blockers.
+historical status and must not be read as current blockers. Consolidation and
+verification of the November 4 work (docs reconciliation, second-node recovery,
+behavior acceptance matrix, release record) is coordinated in
+[CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md).
 
 ## Outcome
 
@@ -178,6 +181,10 @@ website behavior remains available; unfinished routes are tracked, not removed.
   metadata, explicit empty fields and immediate reload durability.
 - [ ] Complete edit summaries/history, moderation/stubs, async profiles/reply counts,
   timestamp updates, raw data, sharing/QR and author controls in shared modules.
+  (Edit history slice done 2026-11-06: shared `createMessageView` now applies
+  same-author edits with latest-body default, original header/media, `edit:` hint
+  and version nav; verified in `tests/shared-message.browser.cjs`. Moderation/stubs
+  and the rest of this box remain open.)
 - [ ] Complete identity import/export, settings, sync/delivery status and supported
   notifications. Document browser/host capability restrictions per feature.
 - [ ] Retire website/widget bridges only after replacement behavior passes in both
@@ -280,6 +287,45 @@ reconciliation adds no new runtime, browser or production verification.
 Next work: close the remaining milestone-2 feature boundaries and milestone-3
 historical/site compatibility checks, then finish the milestone-4 acceptance matrix.
 Keep implemented local work distinct from production verification throughout.
+
+### 2026-11-04 consolidation gap → milestone mapping (section 3, box 5)
+
+[CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md) §3 mapped every
+remaining behavior-matrix gap to an existing unchecked milestone item; the full
+table is in [docs/BEHAVIOR_MATRIX.md](docs/BEHAVIOR_MATRIX.md) ("Gap → milestone
+mapping"). The gaps landing in this work order:
+
+- **Body-edit version history in the shared widget** (milestone 2):
+  Snapshot semantics (Ev, 2026-11-05): old posts keep the name/photo they were
+  posted with; a new post carries the current profile. GitHub issue #3
+  ("edited posts not updating displayed name/image", closed 2026-10-23)
+  assumed the opposite, so its name/image framing is superseded — the shared
+  widget keeping the old header was correct, and the legacy website path
+  merging an edit's name/image into the original header was the defect, fixed
+  2026-11-05 in `render.js` `refreshEdits` (header now comes only from the
+  original record; shell cache v36-edit-header). What remains is body-edit
+  version history, absent in the shared widget: `createMessageView` has no
+  edit-version lookup. Next slice: a shared edit-version lookup showing
+  version history only, never merging name/image into the original header.
+- **Identity backup import** (milestone 2): no named acceptance harness; next
+  slice is an isolated import harness (disposable backup, in-memory context,
+  signing validated against the public key).
+- **Embed-side notifications** (milestone 2): capability decision first —
+  embeds default notifications off and never register a service worker; either
+  document the restriction or build an embed harness mirroring
+  `tests/composer-notifications.browser.cjs`.
+- **Physical-device evidence** (milestone 4): empty class, stays open until a
+  real-device run exists; Chromium automation is not substituted.
+- **Legacy stored media on production / historical absolute references**
+  (milestones 3–4): live stored-legacy playback is blocked until production
+  `data/blobs` is non-empty; absolute-reference failover needs an explicit
+  decision (document as a known limit vs. a fallback-origin reader slice).
+- **Keyboard-retry focus loss** (milestone 4): focus drops to BODY after retry;
+  the restore-focus slice needs Ev's call on whether it is in the deferred
+  accessibility scope or a keyboard-interaction fix.
+
+No row is promoted to Verified by this mapping; full parity is not claimed
+from the verified subset. Accessibility stays deferred.
 
 For each implementation slice, append its commit, shared application/service owners,
 website and embed checks, observed screenshots/flows, remaining feature gaps and any

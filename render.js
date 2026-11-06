@@ -680,10 +680,11 @@ render.refreshEdits = async (hash, options = {}) => {
     hydrateReplyPreviews(state.contentDiv)
     state.renderedBody = bodySource
   }
-  const profileYaml = currentEdit && currentEdit.yaml
-    ? { ...state.baseYaml, ...currentEdit.yaml }
-    : state.baseYaml
-  await applyProfile(state.contentHash, profileYaml)
+  // A post keeps the name/photo it was posted with. An edit updates the body
+  // and version history, never the original header — a new post carries the
+  // current profile. So the header always comes from the original record,
+  // never merged with an edit's name/image.
+  await applyProfile(state.contentHash, state.baseYaml)
 }
 
 const findMessageTarget = (hash) => {

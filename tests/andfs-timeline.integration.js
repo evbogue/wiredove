@@ -56,7 +56,7 @@ const uploader = (source) => createAndFSMediaClient({
   endpoint: source + '/api/media', origin: () => source,
   signPayload: payload => protocol.signPayload(payload, key)
 });
-let previous;
+let previous, lastMeta;
 const report = [];
 try {
   for (const [index, mime] of ['audio/wav', 'video/webm'].entries()) {
@@ -67,6 +67,7 @@ try {
     assert.deepEqual(a.manifest, b.manifest);
     assert.equal(a.manifestHash, b.manifestHash);
     const meta = await uploader(wiredoveURL).upload(new File([data], 'fixture', { type: mime }));
+    lastMeta = meta;
     const root = await protocol.compose(key, `Local AndFS test\n\n${meta.media_url}`, { ...meta, ...(previous ? { previous } : {}) });
     relayOnline = false;
     await assert.rejects(() => relay.publish(root), /503/);
@@ -81,7 +82,11 @@ try {
     assert.equal(received.signature, root.signature);
     assert.equal(received.content, root.content);
     await timelineVerify(received.signature, received.content);
-    assert.deepEqual(await readAndFSMedia(received.parsed), data);
+    // The Timeline syncs the post, not the blocks: only the Wiredove host
+    // holds the original upload at this point. Origin-free `/#hash`
+    // references (since fcab6e8, 2026-10-31) carry no source, so the
+    // consumer must name it.
+    assert.deepEqual(await readAndFSMedia(received.parsed, { baseURL: wiredoveURL }), data);
 
     const replyMeta = await uploader(timelineURL).upload(new File([data], 'reply', { type: mime }), { reply: root.id, replyto: root.author });
     const reply = await protocol.compose(key, `Local media reply\n\n${replyMeta.media_url}`, { ...replyMeta, previous: root.id, reply: root.id, replyto: root.author });
@@ -97,8 +102,10 @@ try {
     assert.equal(back.parsed.reply, root.id);
     assert.equal(back.parsed.replyto, root.author);
     assert.equal(back.parsed.previous, root.id);
-    assert.deepEqual(await readAndFSMedia(back.parsed), data);
-    assert.deepEqual(await readAndFSMedia(meta), data);
+    // The reply media was uploaded to the Timeline host only; the original
+    // upload lives on the Wiredove host. Each read names its source.
+    assert.deepEqual(await readAndFSMedia(back.parsed, { baseURL: timelineURL }), data);
+    assert.deepEqual(await readAndFSMedia(meta, { baseURL: wiredoveURL }), data);
     // Both hosts return the same stored block bytes, beyond just matching manifest IDs.
     const manifest = JSON.parse(new TextDecoder().decode(a.manifest));
     for (const id of [a.manifestHash, ...manifest.chunks]) {
@@ -108,6 +115,39 @@ try {
     previous = reply.id;
     report.push(`${mime}: matching blocks; Wiredove → local gossip relay → Timeline; Timeline reply → relay → Wiredove; exact signatures/content; media verified after both services restart`);
   }
+  // Unavailable media fails loudly on both hosts instead of returning
+  // wrong or empty bytes.
+  const missing = 'A'.repeat(43);
+  // The AndFS verifier reports the missing manifest before any bytes move.
+  await assert.rejects(() => readAndFSMedia({ andfs: missing, media_url: '/#' + missing }, { baseURL: wiredoveURL }), /No verified source for blob/);
+  const missingResponse = await fetch(`${timelineURL}/blobs/${missing}`);
+  assert.ok(!missingResponse.ok, 'Timeline should not serve unknown blocks');
+  // Reverse-order import: the reply arrives before its parent.
+  const root2 = await protocol.compose(key, `Reverse-order root\n\n${lastMeta.media_url}`, { ...lastMeta, previous });
+  const reply2 = await protocol.compose(key, 'Reverse-order reply', { ...lastMeta, previous: root2.id, reply: root2.id, replyto: root2.author });
+  const imported = await requestJSON('/api/import', { posts: [{ signature: reply2.signature, content: reply2.content }, { signature: root2.signature, content: root2.content }] });
+  assert.equal(imported.imported, 2);
+  const rows2 = (await (await fetch(timelineURL + '/api/posts')).json()).posts;
+  const back2 = rows2.find(row => row.id === reply2.id);
+  assert.ok(back2, 'Timeline did not import the reply-first pair');
+  assert.equal(back2.parsed.reply, root2.id);
+  assert.equal(back2.parsed.previous, root2.id);
+  report.push('unavailable media rejected on both hosts; reply-before-parent import lands with its links intact');
+  // Edit-first sync: the edit reaches the relay before its target post.
+  const root3 = await protocol.compose(key, `Edit-order root\n\n${lastMeta.media_url}`, { ...lastMeta, previous });
+  const edit3 = await protocol.compose(key, 'Edit-order root, edited', { edit: root3.id, previous: root3.id });
+  await relay.publish(edit3);
+  await relay.publish(root3);
+  const timeline3 = await createTimeline({ directory: temp + '/timeline3', config });
+  const timeline3URL = listen(request => timeline3.fetch(request)) + '/timeline';
+  const sync3 = await (await fetch(timeline3URL + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
+  assert.ok(sync3.added >= 2);
+  const rows3 = (await (await fetch(timeline3URL + '/api/posts')).json()).posts;
+  const stored3 = rows3.find(row => row.id === edit3.id);
+  assert.ok(stored3, 'Timeline did not sync the edit-first pair');
+  assert.equal(stored3.parsed.edit, root3.id);
+  assert.ok(rows3.find(row => row.id === root3.id), 'Timeline did not sync the edit target');
+  report.push('edit published before its target syncs with its links intact');
   console.log(JSON.stringify(report, null, 2));
 } finally {
   await Promise.all(servers.map(server => server.shutdown()));
