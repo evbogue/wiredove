@@ -20,7 +20,10 @@ This is the sole shared UI/application-embed work order. It replaces the earlier
 component-first plan, `client/WORK_ORDER.md`, and `docs/SHARED_MESSAGE_HANDOFF.md`;
 historical evidence remains in Git history. Current API documentation lives in
 `client/README.md`. The checklist below is current; dated checkpoints retain their
-historical status and must not be read as current blockers.
+historical status and must not be read as current blockers. Consolidation and
+verification of the November 4 work (docs reconciliation, second-node recovery,
+behavior acceptance matrix, release record) is coordinated in
+[CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md).
 
 ## Outcome
 
@@ -178,6 +181,9 @@ website behavior remains available; unfinished routes are tracked, not removed.
   metadata, explicit empty fields and immediate reload durability.
 - [ ] Complete edit summaries/history, moderation/stubs, async profiles/reply counts,
   timestamp updates, raw data, sharing/QR and author controls in shared modules.
+  (Standalone-widget edit history is deferred to a separate follow-up after
+  the 2026-11-07 review; edit-hash routes, search, flat records and shared controls
+  must be covered before completion is claimed.)
 - [ ] Complete identity import/export, settings, sync/delivery status and supported
   notifications. Document browser/host capability restrictions per feature.
 - [ ] Retire website/widget bridges only after replacement behavior passes in both
@@ -280,6 +286,13 @@ reconciliation adds no new runtime, browser or production verification.
 Next work: close the remaining milestone-2 feature boundaries and milestone-3
 historical/site compatibility checks, then finish the milestone-4 acceptance matrix.
 Keep implemented local work distinct from production verification throughout.
+
+### Consolidation acceptance
+
+See [docs/BEHAVIOR_MATRIX.md](docs/BEHAVIOR_MATRIX.md) for named checks and remaining
+milestone gaps, [docs/SECOND_NODE_RECOVERY.md](docs/SECOND_NODE_RECOVERY.md) for
+recovery limits and [docs/RELEASE_RECORD.md](docs/RELEASE_RECORD.md) for release
+provenance. These records do not close the unchecked application milestones.
 
 For each implementation slice, append its commit, shared application/service owners,
 website and embed checks, observed screenshots/flows, remaining feature gaps and any

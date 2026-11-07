@@ -2,6 +2,9 @@
 
 Updated 2026-11-04. Implemented in Wiredove and the local
 `muse-wiredove-adapter` repository; production deployment is separate.
+Documentation consolidation, second-node recovery verification and the release
+record for the November 4 work are tracked in
+[CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md).
 
 ## Signed format
 

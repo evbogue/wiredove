@@ -1,5 +1,20 @@
 # Wiredove runtime operations
 
+This file is the single current runbook for Wiredove runtime operations: the
+default Node server, checks, Docker, and production cutover/rollback. Detailed
+procedures live here so there is exactly one current authority; other documents
+only point here. Dated deployment evidence stays where it was recorded: the
+"Production release verified" session entries in [../AGENTS.md](../AGENTS.md),
+whose older Deno-only deployment procedure is preserved verbatim and labeled
+historical, the session notes in
+[../SHARED_UI_WORK_ORDER.md](../SHARED_UI_WORK_ORDER.md) (earlier
+pending-deployment notes there are marked historical), and
+[../HOST_PROXY_WORK_ORDER.md](../HOST_PROXY_WORK_ORDER.md) for the independent
+host services, which are outside the application runtime. Consolidation and
+verification of the November 4 work (docs reconciliation, second-node recovery,
+behavior acceptance matrix, release record) is coordinated in
+[../CONSOLIDATION_WORK_ORDER.md](../CONSOLIDATION_WORK_ORDER.md).
+
 Wiredove's default server is Node.js 22+ (`npm ci && npm start`). Both Node and
 optional Deno (`npm run start:deno`) use `server/handler.js`, identical routes and
 disk formats. Keep the Deno launcher and lockfile for compatibility and rollback.
@@ -71,9 +86,10 @@ schema conversion occurs. Code rollback does not undo signed public writes.
 ## Independent host services
 
 The shared TLS proxy and HTTP redirect are separate releases. Other hosted apps
-are outside Wiredove's migration. See `HOST_PROXY_WORK_ORDER.md`; keeping Deno
+are outside Wiredove's migration. See
+[../HOST_PROXY_WORK_ORDER.md](../HOST_PROXY_WORK_ORDER.md); keeping Deno
 installed is deliberate, not an application dependency. Production status and
-observed validation are recorded in AGENTS.md.
+observed validation are recorded in [../AGENTS.md](../AGENTS.md).
 
 ## Verified application release — 2026-11-04
 
@@ -81,4 +97,4 @@ Production runs Node 22.22.0 from `/root/wiredove-release-0086c74`. Previous Den
 release `a25a0be` and private unit/data/config backup at
 `/root/deploy-backups/wiredove-node-0086c74/` are retained. All 112 persisted files
 matched backup after cutover; public source hashes and read-only mobile browser
-smoke passed. See AGENTS.md for checks and scope. The independent proxy remains Deno.
+smoke passed. See [../AGENTS.md](../AGENTS.md) for checks and scope. The independent proxy remains Deno.
