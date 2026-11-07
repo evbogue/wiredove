@@ -1,5 +1,4 @@
 import { renderProfileUpdate } from './profile-update.js';
-import { editVersions } from './edit-history.js';
 import { renderLegacyMedia } from './legacy-media.js';
 import { attachmentDisplayBody } from '../andfs.js';
 import { createMessageMain, placeMessageMetadata } from './message-layout.js';
@@ -172,71 +171,30 @@ export function createMessageView({
   const content = extensions.content || doc.createElement('div');
   if (!extensions.content) {
     content.className = 'content';
-    // Edit history, mirroring the website's render.js: the latest version
-    // shows by default, the header and media always come from the original
-    // record, and the nav steps through versions without rewriting history.
-    const versions = editVersions(post);
-    let currentIndex = versions.length - 1;
-    const renderVersion = (index) => {
-      currentIndex = Math.max(0, Math.min(index, versions.length - 1));
-      legacyCleanup?.();
-      legacyCleanup = null;
-      disposeMedia(content);
-      content.replaceChildren();
-      const version = versions[currentIndex];
-      const versionParsed = { ...parsed, body: version.body };
-      if (versions.length > 1) {
-        const hintEdit = currentIndex > 0 ? version : versions[versions.length - 1];
-        const hint = doc.createElement('p');
-        hint.className = 'edit-hint';
-        hint.textContent = hintEdit.timestamp ? 'edit: ' + human(hintEdit.timestamp) : 'edit';
-        content.append(hint);
-        const nav = doc.createElement('span');
-        nav.className = 'edit-nav';
-        const left = doc.createElement('a');
-        left.className = 'material-symbols-outlined edit-nav-btn';
-        left.textContent = 'Chevron_Left';
-        left.setAttribute('aria-label', 'Show previous version');
-        left.addEventListener('click', event => { event.preventDefault(); renderVersion(currentIndex - 1); });
-        const indexEl = doc.createElement('span');
-        indexEl.className = 'edit-nav-index';
-        indexEl.textContent = (currentIndex + 1) + '/' + versions.length;
-        const right = doc.createElement('a');
-        right.className = 'material-symbols-outlined edit-nav-btn';
-        right.textContent = 'Chevron_Right';
-        right.setAttribute('aria-label', 'Show next version');
-        right.addEventListener('click', event => { event.preventDefault(); renderVersion(currentIndex + 1); });
-        left.classList.toggle('disabled', currentIndex === 0);
-        right.classList.toggle('disabled', currentIndex === versions.length - 1);
-        nav.append(left, indexEl, right);
-        content.append(nav);
+    if (!renderProfileUpdate(parsed, content, { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions })) {
+      if (presentation.renderBody) presentation.renderBody(attachmentDisplayBody(parsed), content, post);
+      else appendFormattedText(content, attachmentDisplayBody(parsed), { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
+    }
+    renderAndFSMedia(parsed, content, { ...presentation.mediaOptions, resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
+    if (parsed.blob && ['audio', 'video'].includes(parsed.type) && !parsed.andfs) {
+      if (typeof presentation.renderLegacyMedia === 'function') {
+        const cleanup = presentation.renderLegacyMedia(parsed, content, post);
+        if (typeof cleanup === 'function') legacyCleanup = cleanup;
+      } else {
+        legacyCleanup = renderLegacyMedia(parsed, content, { source: presentation.legacyMediaURL });
       }
-      if (!renderProfileUpdate(versionParsed, content, { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions })) {
-        if (presentation.renderBody) presentation.renderBody(attachmentDisplayBody(versionParsed), content, post);
-        else appendFormattedText(content, attachmentDisplayBody(versionParsed), { resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
-      }
-      renderAndFSMedia(parsed, content, { ...presentation.mediaOptions, resolveImage: presentation.resolveImage, onOpen: presentation.onOpenGallery, mediaOptions: presentation.mediaOptions });
-      if (parsed.blob && ['audio', 'video'].includes(parsed.type) && !parsed.andfs) {
-        if (typeof presentation.renderLegacyMedia === 'function') {
-          const cleanup = presentation.renderLegacyMedia(parsed, content, post);
-          if (typeof cleanup === 'function') legacyCleanup = cleanup;
-        } else {
-          legacyCleanup = renderLegacyMedia(parsed, content, { source: presentation.legacyMediaURL });
-        }
-      }
-      if (parsed.edit) {
-        const note = doc.createElement('p');
-        note.className = 'edit-hint';
-        note.textContent = 'Edit event; the original post is unchanged.';
-        content.prepend(note);
-      } else if (!parsed.body && !parsed.andfs && !parsed.blob) {
-        const note = doc.createElement('p');
-        note.className = 'message-status';
-        note.textContent = parsed.bio != null ? `New bio: ${parsed.bio}` : 'Message content unavailable in this view.';
-        content.append(note);
-      }
-    };
-    renderVersion(versions.length - 1);
+    }
+    if (parsed.edit) {
+      const note = doc.createElement('p');
+      note.className = 'edit-hint';
+      note.textContent = 'Edit event; the original post is unchanged.';
+      content.prepend(note);
+    } else if (!parsed.body && !parsed.andfs && !parsed.blob) {
+      const note = doc.createElement('p');
+      note.className = 'message-status';
+      note.textContent = parsed.bio != null ? `New bio: ${parsed.bio}` : 'Message content unavailable in this view.';
+      content.append(note);
+    }
   }
   const parentId = parsed.reply || parsed.replyHash || parsed.edit;
   const replyContext = createReplyContext(parentId, {

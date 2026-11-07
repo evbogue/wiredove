@@ -20,7 +20,6 @@ const root = path.resolve(__dirname, '..');
   const id = await an.hash(original.signature);
   const reply = await sign({ name: 'Shared fixture', body: 'Reply fixture', replyHash: id });
   const historical = await sign({ name: 'Shared fixture', body: 'Historical media', type: 'audio', blob: 'anblob:v1:fixture' });
-  const edit = await sign({ name: 'Renamed', body: 'Edited **message**', edit: id });
   const profileFixtures = await Promise.all([
     {name:'Muse', image:'/#'+'B'.repeat(43), body:''},
     {bio:'', body:''},
@@ -46,7 +45,7 @@ import {an} from '/vendor/anproto/an.js';
 defineWiredoveWidget();
 window.widget=document.querySelector('wiredove-widget');
 const protocol=createProtocol({an,yaml:{parse:JSON.parse,create:JSON.stringify}});
-window.records=await Promise.all(${JSON.stringify([original, reply, historical, edit])}.map(p=>protocol.verify(p.signature,p.content)));
+window.records=await Promise.all(${JSON.stringify([original, reply, historical])}.map(p=>protocol.verify(p.signature,p.content)));
 try {await protocol.verify(records[0].signature,records[0].content+' ');window.tamperRejected=false;}catch{window.tamperRejected=true;}
 widget.presentation={postURL:post=>'/post/'+encodeURIComponent(post.id),replyURL:id=>'/post/'+encodeURIComponent(id)};
 window.profileRecords=await Promise.all(${JSON.stringify(profileFixtures)}.map(p=>protocol.verify(p.signature,p.content)));
@@ -79,20 +78,6 @@ widget.posts=records;window.ready=true;
       assert.equal(await frame.evaluate(() => tamperRejected), true);
       assert.equal(await frame.getByRole('button', { name: 'Reply to this post' }).count(), 0);
       assert.equal(await frame.locator('[data-wiredove-message]').count(), 2);
-      // An edit shows its body on the original with the original header,
-      // never as a standalone post; the nav steps through versions.
-      const editedMessage = frame.locator('[data-wiredove-message]').first();
-      assert.ok((await editedMessage.innerText()).includes('Edited message'));
-      assert.ok(!(await editedMessage.innerText()).includes('Canonical message'));
-      assert.equal(await editedMessage.locator('a.avatarlink').innerText(), 'Shared fixture');
-      assert.match(await editedMessage.locator('.edit-hint').first().innerText(), /^edit: /);
-      assert.equal(await editedMessage.locator('.edit-nav-index').innerText(), '2/2');
-      await editedMessage.locator('a[aria-label="Show previous version"]').click();
-      assert.ok((await editedMessage.innerText()).includes('Canonical message'));
-      assert.equal(await editedMessage.locator('.edit-nav-index').innerText(), '1/2');
-      await editedMessage.locator('a[aria-label="Show next version"]').click();
-      assert.ok((await editedMessage.innerText()).includes('Edited message'));
-      assert.equal(await editedMessage.locator('.edit-nav-index').innerText(), '2/2');
       await frame.getByText('Media unavailable. Please retry.', { exact: true }).waitFor();
       assert.equal(await frame.locator('audio').getAttribute('src'), null, 'unverified historical bytes must not reach playback');
       await frame.evaluate(async () => {

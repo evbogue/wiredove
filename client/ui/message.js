@@ -36,8 +36,7 @@ export class WiredoveMessage extends HTMLElement {
     this._handlers ||= {};
     this._handlers.post = post;
     // Equivalent verified records retain playback, focus and image requests.
-    // A new edit changes the key so the message re-renders with its history.
-    const key = post ? JSON.stringify([post.id, post.author, post.timestamp, post.parsed || post, (post.edits || []).map(edit => [edit.id, edit.timestamp])]) : null;
+    const key = post ? JSON.stringify([post.id, post.author, post.timestamp, post.parsed || post]) : null;
     if (key && key === this._renderKey) return;
     this._dispose();
     this._view = null;

@@ -8,7 +8,6 @@ import { defineWiredoveComposer } from "./composer.js";
 import { profileLinksFromHistory } from "../profile-links.js";
 import { renderProfileLinks } from "./profile-links.js";
 import { loadWiredoveFeed } from "../feed.js";
-import { attachEditHistory, isProfileStatement } from "./edit-history.js";
 
 export class WiredoveWidget extends HTMLElement {
   static get observedAttributes() { return ["feed", "relay", "limit", "interactive"]; }
@@ -118,9 +117,7 @@ export class WiredoveWidget extends HTMLElement {
     style.textContent =
       `.widget-nav { display:flex; align-items:center; gap:5px; margin-bottom:10px; }.widget-nav[hidden] { display:none; }.widget-nav button { margin-left:0; }.widget-title { margin-right:auto; font-weight:600; }.widget-view > h3 { margin:0 0 5px; }.widget-profile { margin:0 0 10px; }.widget-search { display:flex; gap:5px; margin-bottom:10px; }.widget-search input { flex:1; }`;
     if (!this._widgetStyle) { root.append(style); this._widgetStyle = style; }
-    // Edit records attach to their targets (never standalone rows); profile
-    // statements stay in the feed unless the host opts out.
-    const posts = attachEditHistory(this._posts || []);
+    const posts = this._posts || [];
     const route = this._route || { type: "feed" };
     const navigate = (next) => this.navigate(next);
     const nav = this._nav;
@@ -269,8 +266,7 @@ export class WiredoveWidget extends HTMLElement {
       }
     } else {
       const roots = posts.filter((post) =>
-        !post.parsed?.reply && !post.parsed?.replyHash &&
-        (this._presentation?.feedProfileEvents !== false || !isProfileStatement(post))
+        !post.parsed?.reply && !post.parsed?.replyHash
       );
       if (roots.length) {
         const size = this.pageSize > 0 ? this.pageSize : roots.length;

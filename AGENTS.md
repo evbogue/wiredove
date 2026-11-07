@@ -14,27 +14,11 @@ This file records project context and session-specific lessons so future agents 
 
 ## Current runtime — Node 22+ (2026-11-04)
 
-The default application server runtime is Node 22+. Start:
-
-- `npm ci && npm start` — launches `node serve-node.js` (set `PORT` for the
-  listen port; production uses `8081`).
-- Deno is optional: `npm run start:deno`. Both runtimes serve
-  `server/handler.js` with identical routes and disk formats. Independent host
-  services (e.g. the reverse proxy) still require Deno.
-
-Checks (no Deno needed):
-
-- `npm run check` (Node syntax + embed build + UI boundary checks)
-- `npm test`, `npm run test:media`, `npm run test:server`
-- Browser acceptance against the real Node handler:
-  `WIREDOVE_TEST_RUNTIME=node npm run test:browser`
-
-Deno compatibility checks (`npm run check:deno`, `npm run test:media:deno`,
-`TEST_DENO_PARITY=1 npm run test:server`) are optional. Full runtime
-procedures, the route inventory and production cutover/rollback live in
-`docs/RUNTIME_OPERATIONS.md`. Production has run Node since application
-release `0086c74` (2026-11-04); older Deno-only instructions further below are
-kept as history.
+`npm ci && npm start` runs the Node application; Deno is an optional launcher.
+Both consume `server/handler.js`. Commands, data/config preservation and release
+procedures live in [docs/RUNTIME_OPERATIONS.md](docs/RUNTIME_OPERATIONS.md).
+Earlier Deno-only procedures below are historical. Last recorded Node cutover:
+`0086c74`; this is dated evidence, not a fresh host observation.
 
 ## Agent publishing quick reference
 
@@ -717,12 +701,6 @@ Ev explicitly requested on 1 November 2026 that all projects also be pushed to g
 
 ## Recovery evidence correction — 2026-11-07
 
-APDS image data URLs are separate raw blobs; signed Markdown/profile records
-contain their hashes. Copying application/records.json alone does not restore
-those images. The prior 91/91 recovery assertion did not check restored APDS
-bytes. `npm run test:recovery` now checks B's companion blob store and adapter,
-including missing/corrupt failures and successful restoration;
-`tests/recovery.browser.cjs` verifies shared-reader rejection and gallery decoding
-on B and a separate-origin iframe. Its recovery-apds-images directory and
-/api/image route are test fixtures, not production storage APIs. Inventory and
-back up the actual APDS store separately; production availability remains unverified.
+Legacy APDS image bytes need a separate blob backup; signed records hold hashes.
+See [docs/SECOND_NODE_RECOVERY.md](docs/SECOND_NODE_RECOVERY.md) for the corrected
+storage inventory, reproducible tests and production-availability limits.

@@ -30,11 +30,11 @@ import {createImagePopover} from '${origin}/client/ui/image-popover.js';
 defineWiredoveMessage();defineWiredoveThread();
 window.mount=async(text,meta={})=>{ const fixture=document.getElementById('fixture');fixture.replaceChildren();if(${embed}){const message=document.createElement('wiredove-message');message.presentation={resolveImage:async hash=>window.sourceResolver?window.sourceResolver(hash):hash.startsWith('a')?${JSON.stringify(png)}:null};message.post={author:'a'.repeat(44),timestamp:Date.now(),parsed:{body:text,...meta}};fixture.append(message);window.bodyNode=message.shadowRoot.querySelector('.content');}else{const content=document.createElement('div');fixture.append(content);await render.content('fixture','',content,null,{body:text,...meta});window.bodyNode=content;}};
 window.edit=async text=>{window.editFixtures=[{hash:'edit-id',author:'author',ts:2,text:JSON.stringify({edit:'fixture-message',body:text})}];render.registerMessage('fixture-message',{author:'author',baseYaml:{body:'Original body'},contentHash:'fixture',contentDiv:window.bodyNode});render.invalidateEdits('fixture-message');await render.refreshEdits('fixture-message',{forceLatest:true});};
-window.mountShell=async(kind='post')=>{
+window.mountShell=async(kind='post',meta={})=>{
   const fixture=document.getElementById('fixture');fixture.replaceChildren();
   window.editFixtures=[];window.fixtureBlobs={};window.fixtureQueries={};
   const author='a'.repeat(44), id='shell-message', contentHash='c'.repeat(43)+'=', parent='p'.repeat(43)+'=';
-  const parsed={name:'Shell Author',body:'Full shell **body**',...(kind==='reply'?{reply:parent}:{}),...(kind==='edit'?{edit:parent,body:'Changed body'}:{})};
+  const parsed={name:'Shell Author',body:'Full shell **body**',...meta,...(kind==='reply'?{reply:parent}:{}),...(kind==='edit'?{edit:parent,body:'Changed body'}:{})};
   window.shellReplyCount=0;
   if(${embed}){
     const message=document.createElement('wiredove-message');
@@ -159,6 +159,23 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
           assert.ok(bounds.width<= (mobile?390:1200));
           assert.equal(await main.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
           await page.screenshot({path:`/tmp/message-shell-${surface}-${mobile?'mobile':'desktop'}-${theme}-${kind}.png`,animations:'disabled'});
+        }
+        if(surface==='site') {
+          // Body edits retain the original header even when the edit carries
+          // a different name/photo. Exercise the actual website renderer.
+          await page.evaluate(async ({oldImage,newImage})=>{
+            const {render}=await import('/render.js');
+            await mountShell('post',{image:oldImage});
+            window.editFixtures=[{hash:'header-edit',author:'a'.repeat(44),ts:2,
+              text:JSON.stringify({edit:'shell-message',body:'Edited body',name:'Renamed Author',image:newImage})}];
+            render.invalidateEdits('shell-message');
+            await render.refreshEdits('shell-message',{forceLatest:true});
+          },{oldImage:origin+'/image/1.svg',newImage:origin+'/image/2.svg'});
+          const contentHash='c'.repeat(43)+'=';
+          assert.equal(await page.locator(`[id="name${contentHash}"]`).textContent(),'Shell Author');
+          assert.equal(await page.locator(`[id="image${contentHash}"]`).getAttribute('src'),origin+'/image/1.svg');
+          assert.ok((await page.locator('.content').first().textContent()).includes('Edited body'));
+          await page.screenshot({path:`/tmp/message-shell-header-${mobile?'mobile':'desktop'}-${theme}.png`,animations:'disabled'});
         }
         // Inline order, repeated sources, containers, captions and literal code.
         await page.evaluate(text=>mount(text),`Before **bold ${image(1)} after** ${image(2)} end\n\nCaption\n\n${image(3)}\n\n- ${image(4)}\n- ${image(4)}\n\n> ${image(5)}\n\n\`${image(6)}\`\n\n\`\`\`md\n${image(7)}\n\`\`\``);

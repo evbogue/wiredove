@@ -61,15 +61,15 @@ Acceptance: real audio and video play and seek on desktop and mobile supported b
 
 - [x] Keep the legacy anblob reader for immutable historical posts.
 - [ ] Inventory existing blobs and retain their original endpoints/backups.
-  (Network inventory done 2026-11-05 from the verified-complete mirror:
+  (Network inventory done 2026-11-05 from the selected mirror:
   680 content + 701 signature records contain zero `blob:` (anblob)
   references, one AndFS media record, and 5 retained media blobs; 14 edit
   events and 10 profile posts also inventoried. Production-store inventory
   (data/andfs, data/media, data/blobs on the host) still needs host access
   — SSH from this VM is reset by the egress proxy.)
 - [x] If migrating bytes, reconstruct and verify the old file, add it to AndFS, and record old-ID → new-manifest mapping outside original signed messages.
-  (No migration needed, 2026-11-05: the verified-complete network history
-  contains zero anblob references, so there are no bytes to migrate. The
+  (No migration needed, 2026-11-05: the selected mirror
+  contains zero anblob references; production-store inventory remains open. The
   legacy anblob reader stays retained for compatibility; historical media
   was verified playable in place by the earlier browser suites.)
 - [x] Never rewrite old signed metadata or assume the two hash encodings/manifests are interchangeable.
@@ -107,7 +107,11 @@ Acceptance: historical audio/video works before and after migration, with identi
   Timeline /blobs endpoint answers non-OK — in the integration test;
   reverse-order import asserted via /api/import with the reply submitted
   before its parent, both landing with links intact.)
-- [x] Handle existing Wiredove edit/profile events without corrupting timeline history. (Checked 2026-11-06: the evbogue.com application slice now accepts same-author edits and profile statements — landed on evbogue.com master as ac32206, and `timeline/tests/application.browser.js` proves edit display + reload in both mounts with originals retained byte-identically. The standalone widget applies edits too: `client/ui/edit-history.js` groups same-author edits under their target and `client/ui/message-view.js` shows the latest body with the original header/media and version nav; verified by `tests/shared-message.browser.cjs` and 4 unit tests in `client/ui/edit-history.test.js`. The integration test in `tests/andfs-timeline.integration.js` proves an edit published before its target syncs with links intact. The stale line "the first slice currently rejects edit events" is superseded — that was the pre-rebase state.)
+- [ ] Handle existing Wiredove edit/profile events without corrupting timeline history.
+  (Last recorded 2026-11-06: evbogue.com source `ac32206` accepts same-author
+  edits/profile statements; `tests/andfs-timeline.integration.js` covers edit-first
+  sync. Standalone-widget edit history remains deferred; see the
+  [behavior matrix](docs/BEHAVIOR_MATRIX.md) and shared-UI milestone 2.)
 
 Use local test relays and disposable identities. Public test posts require Ev's explicit instruction. Completion requires observed round trips, not just matching field names or mocked tests.
 

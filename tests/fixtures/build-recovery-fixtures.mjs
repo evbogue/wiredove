@@ -1,18 +1,16 @@
 // Deterministic second-node recovery fixture builder.
 //
-// Builds the signed fixture set required by CONSOLIDATION_WORK_ORDER.md
-// section 2 ("Prove recovery onto a second isolated node"):
+// Builds the fixture set documented in docs/SECOND_NODE_RECOVERY.md:
 // posts, replies, edits, metadata-only profiles (empty bio/links), inline
 // images, profile original/crop, audio/video, a legacy APDS image and a
 // legacy anblob attachment.
 //
 // Determinism: both disposable identities derive from fixed SHA-256 seeds,
-// Date.now is pinned during signing (an.sign embeds a timestamp), media bytes
-// are fixed literals and AndFS/anblob hashes are content-addressed. Running
-// this script twice with the same --out parent produces byte-identical trees.
+// signatures use a fixed timestamp, media bytes are fixed literals and
+// AndFS/anblob hashes are content-addressed. Fresh exports are byte-identical.
 //
-// Generated storage is written OUTSIDE the repository (default: the OS temp
-// directory). The layout mirrors the server storage inventory documented in
+// The harness writes storage outside the repository in an OS temp directory.
+// The layout mirrors the server storage inventory documented in
 // docs/SECOND_NODE_RECOVERY.md:
 //   <out>/records.json              signed {id, signature, content} records, publish order
 //   <out>/inventory.json            fixture inventory with ids, hashes, sizes, expectations
@@ -20,11 +18,11 @@
 //   <out>/legacy/apds-images/<hash>.dataurl   legacy APDS image data URL bytes
 //   <out>/legacy/anblobs/<blob-id>            legacy anblob raw bytes
 //
-// Usage: node tests/fixtures/build-recovery-fixtures.mjs [--out <dir>]
+// Imported by recovery-harness.mjs; the caller supplies a fresh output directory.
 // Node 22+.
 
 import nacl from '../../vendor/anproto/lib/nacl-fast-es.js'
-import { encode } from '../../vendor/anproto/lib/base64.js'
+import { decode, encode } from '../../vendor/anproto/lib/base64.js'
 import { an } from '../../vendor/anproto/an.js'
 import { yaml } from '../../vendor/apds/yaml.js'
 import { createAndFS } from '../../vendor/andfs/andfs.js'
@@ -32,12 +30,9 @@ import { diskStore } from '../../vendor/andfs/stores.js'
 import { putBlob, MemoryBlobStore } from '../../anproto_blob.js'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { tmpdir } from 'node:os'
 
-// Fixed signing instant: 2026-11-04T12:00:00.000Z. an.sign embeds Date.now()
-// in the signed payload, so pin it for deterministic signatures.
+// Fixed timestamp in deterministic test signatures; never change the global clock.
 const SIGNING_TIME = Date.UTC(2026, 10, 4, 12, 0, 0)
-Date.now = () => SIGNING_TIME
 
 const textEncoder = new TextEncoder()
 
@@ -76,10 +71,9 @@ function mp4Bytes() {
   ])
 }
 
-async function main() {
-  const outIdx = process.argv.indexOf('--out')
-  const out = outIdx >= 0 ? path.resolve(process.argv[outIdx + 1]) : path.join(tmpdir(), 'wiredove-recovery-fixtures')
-  await fs.rm(out, { recursive: true, force: true })
+export async function buildRecoveryFixtures(out) {
+  await fs.mkdir(out, { recursive: true })
+  if ((await fs.readdir(out)).length) throw Error('Fixture output directory must be empty')
   const andfsDir = path.join(out, 'andfs')
   const files = createAndFS({ store: await diskStore(andfsDir) })
 
@@ -113,7 +107,8 @@ async function main() {
   const sign = async (author, kind, metadata, body) => {
     const previous = lastByAuthor[author.pubkey]
     const content = await yaml.create({ ...metadata, ...(previous ? { previous } : {}) }, body)
-    const signature = await an.sign(await an.hash(content), author.key)
+    const signature = author.pubkey + encode(nacl.sign(
+      textEncoder.encode(SIGNING_TIME + await an.hash(content)), decode(author.key.substring(44))))
     const id = await an.hash(signature)
     const record = { id, signature, content }
     records.push({ kind, author: author.pubkey, ...record })
@@ -195,9 +190,5 @@ async function main() {
   }
   await fs.writeFile(path.join(out, 'inventory.json'), JSON.stringify(inventory, null, 2) + '\n')
 
-  console.log('Wrote', records.length, 'records and', Object.keys(inventory.media.andfs).length, 'AndFS manifests to', out)
-  console.log('alice', alice.pubkey)
-  console.log('bob  ', bob.pubkey)
+  return inventory
 }
-
-main().catch(error => { console.error(error); process.exit(1) })
