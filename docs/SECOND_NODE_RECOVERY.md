@@ -1,7 +1,8 @@
 # Second-node recovery guide
 
-Status: complete — section 2 of CONSOLIDATION_WORK_ORDER.md (boxes 1–8 done
-2026-11-04; committed locally, not pushed).
+Status: recovery assertions corrected 2026-11-07. The earlier 91-check run
+did not restore APDS image bytes and is insufficient evidence for legacy image recovery.
+Run `npm run test:recovery` and `node tests/recovery.browser.cjs` for current coverage.
 Goal: restore a Wiredove application node from durable data alone, proving
 that portable fixtures (signed content + media bytes) recover on an isolated
 second node without the first node available.
@@ -20,7 +21,7 @@ historical records or regenerate signatures during restore.
 
 ## Storage inventory (section 2, box 1)
 
-All server paths below live under `DATA_DIR` (default `./data` in the
+Application server data paths below live under `DATA_DIR` (default `./data` in the
 checkout root). Overrides: `APPLICATION_DATA_DIR`, `BLOB_DIR`,
 `MEDIA_DATA_DIR`, `VAPID_CONFIG_PATH` (see `server/handler.js`).
 
@@ -35,9 +36,19 @@ checkout root). Overrides: `APPLICATION_DATA_DIR`, `BLOB_DIR`,
 | `data/subscriptions.json`, `data/state.json` | Web Push subscriptions and notification state | Required to keep notifications working after restore; separable from content. |
 | `config.json` (`VAPID_CONFIG_PATH`, default `./config.json`) | VAPID keypair for Web Push | Without it, existing push subscriptions are unusable. Keep existing keys; never rotate during recovery. |
 
-APDS image blobs are **not** a separate server store: they are data URLs
-embedded in signed content (references `![](hash)`), so they restore as part
-of `records.json`.
+**APDS images require a separate blob backup.** Signed Markdown/profile
+metadata contains their hash, not the data URL bytes stored by `apds.make()`.
+`records.json` alone cannot restore them. Export the raw data URLs from the
+APDS browser database or the historical image service that actually holds them;
+keep their original hashes and bytes. Restore that store and configure a
+`legacyImageURL` adapter for the application to fetch `{source: <data URL>}`.
+The shared artifact reader verifies the returned bytes against the signed hash.
+
+The fixture exercise uses `data/recovery-apds-images/<encoded-hash>.dataurl`
+as an explicit companion backup and a **test-only** `/api/image?hash=…` adapter
+in `tests/fixtures/recovery-harness.mjs`. Neither that directory nor endpoint is
+a production Wiredove storage API. Production recovery must inventory its actual
+APDS store and adapter; this test does not prove those deployments/backups exist.
 
 ### Replaceable caches — do not copy, regenerate locally
 
@@ -109,51 +120,36 @@ into `data/andfs/blocks/`, media rows written per the server schema) and
 verifies the serve path. Environment overrides: `FIXTURES_DIR`, `NODE_URL`,
 `NODE_DATA_DIR`.
 
-Exact exercise commands (observed 2026-11-04):
+Current repeatable commands (isolated Node handlers, ephemeral loopback ports):
 
+```sh
+npm run test:recovery
+node tests/recovery.browser.cjs
 ```
-# 1. Fixtures (byte-identical every run).
-node tests/fixtures/build-recovery-fixtures.mjs --out /tmp/recovery-a
 
-# 2. Node A on an isolated loopback port with an isolated data dir.
-mkdir -p /tmp/recovery-node-a/data /tmp/recovery-node-b/data
-cd <checkout> && HOST=127.0.0.1 PORT=8121 DATA_DIR=/tmp/recovery-node-a/data \
-  VAPID_CONFIG_PATH=/tmp/recovery-node-a/config.json node serve-node.js &
+The checked-in harness builds fresh fixtures outside the repository, ingests A,
+restarts A and verifies reads, stops A, snapshots the durable data and copies it
+to B. The copy includes the application archive, AndFS blocks, media rows,
+anblob files **and the companion APDS image blob store**. B starts from its own
+directory with A offline. All nodes and generated files are cleaned up afterward.
 
-# 3. Ingest on A (exits non-zero on any failure). Media rows are loaded at
-# server startup, so the first run's /media checks 404 — that is expected.
-# Restart A so it loads the new rows, then re-run the script: duplicate
-# record POSTs are accepted, and the /media reads then pass.
-FIXTURES_DIR=/tmp/recovery-a NODE_URL=http://127.0.0.1:8121 \
-  NODE_DATA_DIR=/tmp/recovery-node-a/data \
-  node tests/fixtures/ingest-recovery-fixtures.mjs
-# (First run: 10 FAILURES, all on /media reads.)
-kill <node-A pid>
-cd <checkout> && HOST=127.0.0.1 PORT=8121 DATA_DIR=/tmp/recovery-node-a/data \
-  VAPID_CONFIG_PATH=/tmp/recovery-node-a/config.json node serve-node.js &
-FIXTURES_DIR=/tmp/recovery-a NODE_URL=http://127.0.0.1:8121 \
-  NODE_DATA_DIR=/tmp/recovery-node-a/data \
-  node tests/fixtures/ingest-recovery-fixtures.mjs
-# Expected: INGEST COMPLETE — 10 records POSTed (server verified each
-# signature), anblob PUT 204, 5 media rows written, 10 records + 5 /media
-# reads all 200 with reassembled sizes matching manifests.
+The server regression runs the integrity script, deletes B's APDS blob and
+requires failure, writes corrupt bytes and requires failure, then restores the
+correct bytes and requires success. Original signed archive bytes stay unchanged.
+The browser regression uses the real shared artifact session and image gallery
+with fresh caches on B and in a separate-origin iframe: missing/corrupt images
+are unavailable, restored bytes pass hash verification and decode after retry.
+HTTP requests are restricted to the two fixture origins and GET only.
+These are shared-reader/gallery checks, not complete application-mount acceptance.
 
-# 4. Snapshot A's durable files, stop A, export to B (sha256-verified copy).
-kill <node-A pid>
-cd /tmp/recovery-node-a/data && find . -type f \
-  \( -path "./application/*" -o -path "./andfs/blocks/*" \
-     -o -path "./media/*" -o -path "./blobs/*" \) | sort | xargs sha256sum > /tmp/snapshot-a.txt
-(cd /tmp/recovery-node-a/data && tar cf - application andfs media blobs) | \
-  tar xf - -C /tmp/recovery-node-b/data
-# Expected: 17 durable files; sha256 of each file identical to the snapshot.
-# (subscriptions.json/state.json absent: separable from content; no real
-# subscriptions in this exercise.)
-
-# 5. Node B on a distinct port with A down.
-cd <checkout> && HOST=127.0.0.1 PORT=8122 DATA_DIR=/tmp/recovery-node-b/data \
-  VAPID_CONFIG_PATH=/tmp/recovery-node-b/config.json node serve-node.js &
-# Expected: B serves all 10 records and all media with A unavailable.
-```
+For manual fixture ingestion, set `FIXTURES_DIR`, `NODE_URL`, `NODE_DATA_DIR`
+and optionally `NODE_APDS_DIR` (default `NODE_DATA_DIR/recovery-apds-images`).
+Run `node tests/fixtures/ingest-recovery-fixtures.mjs`, restart the disposable
+server, then run the same command with `--verify-only`. Ingestion no longer
+expects failing media reads before restart. Copy the companion directory along
+with the four application directories when restoring B. The production handler
+does not serve that companion directory; provide an explicit image adapter or
+use the checked-in fixture harness above.
 
 Website and separate-origin selection (observed 2026-11-04, A down): the
 website frame mounted from B via
@@ -168,10 +164,15 @@ publication/relay/notification writes.
 
 `tests/fixtures/assert-recovery-integrity.mjs` (requires `SNAPSHOT_FILE`;
 overrides `NODE_A_URL` — must be down, `NODE_B_URL`, `FIXTURES_DIR`,
-`NODE_B_DATA_DIR`). Observed 2026-11-04: **91/91 checks pass**.
+`NODE_B_DATA_DIR`, `NODE_B_APDS_DIR`). `NODE_B_LEGACY_IMAGE_URL` is required
+and points to B's companion image adapter. The earlier **91/91** result
+(2026-11-04) checked only the fixture image and its reference, not restored bytes;
+that legacy-image claim is superseded by the regressions above.
 
 ```
-SNAPSHOT_FILE=/tmp/snapshot-a.txt node tests/fixtures/assert-recovery-integrity.mjs
+SNAPSHOT_FILE=/tmp/snapshot-a.txt \
+  NODE_B_LEGACY_IMAGE_URL=http://127.0.0.1:8122/api/image \
+  node tests/fixtures/assert-recovery-integrity.mjs
 ```
 
 Asserts, per record: served id/signature/content byte-identical to the fixture
@@ -180,9 +181,9 @@ the exact content; author bound to alice or bob; B's on-disk `records.json`
 byte-identical. Per AndFS media: chunk bytes reassembled from B's disk
 sha256-match the node-A snapshot; `/media/<hash>` and `/blobs/<manifest>` +
 chunk fetches serve identical bytes (the exact reader contracts). anblob on
-disk and served byte-identical; APDS data-URL hash matches the signed
-reference; original hash differs from crop hash and the profile record
-references both (`image_original`, `image`).
+disk and served byte-identical; APDS bytes read from B's companion store
+and adapter match the original data URL and signed hash; original hash differs
+from crop hash and the profile record references both (`image_original`, `image`).
 
 UI spot checks (observed 2026-11-04, node B only, node A down): the real
 shared `createProfileEditor` mounted from B with the fixture photoState —
@@ -220,7 +221,7 @@ either reachable (blocks load) or not (unavailable/retryable).
 | Legacy `/media/<hash>` gateway URLs (`https://<old-origin>/media/<hash>`) | Same resolver: matches `^(.*)/media/<hash>$`, sets `media_source` to origin + path prefix; `andfsSource` strips the `/media/<hash>` pathname for transport | Same as above: pinned to the old origin, no failover to the configured mediaURL. |
 | Signed `media_source` on AndFS audio/video metadata (pre-portability writes) | `andfsSource`: signed `media_source` takes precedence over adapters | Old origin down → verified fetch fails; unavailable/retryable. No failover. |
 | Signed `media_source` on legacy `blob: anblob:v1:...` records | `readLegacyMedia` tries the local cache, then `new HttpBlobStore((media_source || page origin) + '/blobs')`; signed source takes precedence | Records with a signed source to a dead origin stay unavailable. Records **without** a signed source fall back to the current page origin, so re-hosting the blobs on the new node recovers them. |
-| APDS image data URLs embedded in signed content (`apds.make()` blobs, profile images, `![](hash)` in Markdown) | Self-contained: restored with `records.json`; readers decode the embedded bytes | No origin dependency; restore content and they recover. |
+| APDS data URLs stored by `apds.make()`; signed posts/profile fields reference their hashes | The separate blob store must supply the data URL; the configured historical image adapter and shared reader verify it | Restore the raw blob store and adapter as well as `records.json`. An archive containing only hash references is insufficient. |
 | Legacy avatar hashes served only over Trystero gossip (31 profile-avatar refs) | Relay-side concern, not the reader path above | Some blobs exist in the relay store but only via the old direct path; the new `/blobs/<hash>` handler serves only hashes without `/` (19 of 30 contain `/`). Unreachable over HTTP until the relay redeploys — an explicit known gap, not a claim of recovery. |
 
 Observed exercise (2026-11-04, node B on :8122, node A down, node B holding
@@ -240,7 +241,9 @@ publication/relay/notification writes.
 
 - Exports and generated storage stay outside source control (fixtures and
   node data live under `/tmp` in this exercise).
-- The browser spot checks (website/separate-origin mount, re-crop click,
+- The legacy-image reader/gallery regression is now checked in as
+  `tests/recovery.browser.cjs`. The older browser spot checks (full
+  website/separate-origin mount, re-crop click,
   missing/corrupt phases, historical-ref pins) are Playwright harnesses
   recorded in the goal's hidden_files for this run (`select-node-b-browser.cjs`,
   `recrop-node-b-browser.cjs`, `missing-corrupt-block-browser.cjs`,

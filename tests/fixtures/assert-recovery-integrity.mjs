@@ -8,7 +8,9 @@
 // served bytes from B (/media and /blobs) match; manifests resolve.
 // Legacy anblob and APDS data-URL bytes are asserted byte-identical.
 //
-// Environment (all optional except SNAPSHOT_FILE):
+// Environment (SNAPSHOT_FILE and NODE_B_LEGACY_IMAGE_URL required):
+//   NODE_B_APDS_DIR  restored fixture companion image store (default NODE_B_DATA_DIR/recovery-apds-images)
+//   NODE_B_LEGACY_IMAGE_URL required B-side image adapter returning {source}; hash added as query
 //   SNAPSHOT_FILE  sha256 snapshot of node A's durable files, taken before A
 //                  was stopped (see docs/SECOND_NODE_RECOVERY.md)
 //   NODE_A_URL     node A, expected to be DOWN                 (default http://127.0.0.1:8121)
@@ -27,6 +29,9 @@ const A = process.env.NODE_A_URL ?? 'http://127.0.0.1:8121'
 const B = process.env.NODE_B_URL ?? 'http://127.0.0.1:8122'
 const FIX = process.env.FIXTURES_DIR ?? '/tmp/recovery-a'
 const BDATA = process.env.NODE_B_DATA_DIR ?? '/tmp/recovery-node-b/data'
+const APDS = process.env.NODE_B_APDS_DIR ?? path.join(BDATA, 'recovery-apds-images')
+const IMAGE_URL = process.env.NODE_B_LEGACY_IMAGE_URL
+if (!IMAGE_URL) throw Error('NODE_B_LEGACY_IMAGE_URL is required; the application archive does not store APDS image bytes')
 const SNAP = process.env.SNAPSHOT_FILE
 if (!SNAP) { console.error('SNAPSHOT_FILE is required'); process.exit(2) }
 
@@ -111,6 +116,14 @@ const apds = inventory.media.apds_image
 const dataurl = await fs.readFile(path.join(FIX, apds.path), 'utf8')
 expect(await an.hash(dataurl) === apds.hash, 'APDS data-URL hash matches signed reference')
 expect(before.some(rec => rec.content.includes(apds.hash)), 'APDS image reference preserved in signed record body')
+const restoredImage = await fs.readFile(path.join(APDS, encodeURIComponent(apds.hash) + '.dataurl'), 'utf8')
+expect(restoredImage === dataurl && await an.hash(restoredImage) === apds.hash, 'APDS bytes restored on B and match signed hash')
+const imageURL = new URL(IMAGE_URL)
+imageURL.searchParams.set('hash', apds.hash)
+const imageResponse = await fetch(imageURL)
+const imageBody = await imageResponse.json()
+expect(imageResponse.ok && imageBody.source === restoredImage && await an.hash(imageBody.source) === apds.hash,
+  'B image adapter serves the restored, hash-verified APDS bytes')
 
 console.log(fails === 0 ? 'ALL CHECKS PASSED' : `${fails} CHECKS FAILED`)
 process.exit(fails === 0 ? 0 : 1)

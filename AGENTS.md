@@ -713,3 +713,16 @@ Ev explicitly requested on 1 November 2026 that all projects also be pushed to g
 - If the remote is missing, query sbot's `messagesByType` for `git-repo` messages and compare repository IDs, authors, names, and known remotes. Names alone are not unique. Only create a repository when no existing match is found: run `node bin.js git.create <project-name>` from `ssbc`, then configure `ssb` with the returned HTTP URL. Remove surrounding JSON quotes and preserve URL encoding.
 - Fetch both remotes again before pushing. If either advanced, reconcile incoming commits and rerun affected checks before a normal push. Push the intended branch to both remotes; never use force or mirror pushes.
 - Verify local HEAD against fresh `git ls-remote --heads origin` and `git ls-remote --heads ssb` results for the intended branch. Re-read HEAD and worktree status afterward to catch concurrent changes. Report any remaining changes or divergence.
+
+
+## Recovery evidence correction — 2026-11-07
+
+APDS image data URLs are separate raw blobs; signed Markdown/profile records
+contain their hashes. Copying application/records.json alone does not restore
+those images. The prior 91/91 recovery assertion did not check restored APDS
+bytes. `npm run test:recovery` now checks B's companion blob store and adapter,
+including missing/corrupt failures and successful restoration;
+`tests/recovery.browser.cjs` verifies shared-reader rejection and gallery decoding
+on B and a separate-origin iframe. Its recovery-apds-images directory and
+/api/image route are test fixtures, not production storage APIs. Inventory and
+back up the actual APDS store separately; production availability remains unverified.

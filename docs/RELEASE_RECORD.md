@@ -1,5 +1,16 @@
 # Wiredove release record
 
+> Recovery evidence correction (2026-11-07): the earlier 91/91 checks did not
+> restore legacy APDS image bytes; signed records contained only their hash.
+> That part of the historical recovery claim is superseded. The checked-in
+> `npm run test:recovery` regression now requires B's companion APDS blob store
+> and image adapter, fails for missing/corrupt bytes and passes after restoration.
+> `node tests/recovery.browser.cjs` checks verified decoding through the shared
+> reader/gallery on B and a separate-origin iframe. See the corrected
+> [recovery guide](SECOND_NODE_RECOVERY.md); production APDS store/adapter availability remains
+> unverified. Other dated observations below retain their original scope.
+
+
 Created: 2026-11-05. Part of
 [CONSOLIDATION_WORK_ORDER.md](../CONSOLIDATION_WORK_ORDER.md) §4.
 

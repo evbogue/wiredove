@@ -1,5 +1,16 @@
 # Consolidate and verify the portable Wiredove application
 
+> Recovery evidence correction (2026-11-07): the earlier 91/91 checks did not
+> restore legacy APDS image bytes; signed records contained only their hash.
+> That part of the historical recovery claim is superseded. The checked-in
+> `npm run test:recovery` regression now requires B's companion APDS blob store
+> and image adapter, fails for missing/corrupt bytes and passes after restoration.
+> `node tests/recovery.browser.cjs` checks verified decoding through the shared
+> reader/gallery on B and a separate-origin iframe. See the corrected
+> [recovery guide](docs/SECOND_NODE_RECOVERY.md); production APDS store/adapter availability remains
+> unverified. Other dated observations below retain their original scope.
+
+
 Created: 2026-11-04
 Status: Open — planning only; creating this order does not complete its checks.
 Baseline: Wiredove master `1e9544eca2723e213ea8eb89ac8ef7d2f0e21c33`.
@@ -101,7 +112,7 @@ in fixtures, logs or source.
   `data/application/records.json`, `data/andfs/blocks/<hash>`,
   `data/media/*.json`, `data/blobs/<anblob id>`,
   `data/subscriptions.json`/`state.json`, `config.json` VAPID keys;
-  APDS images ride inside signed records; replaceable caches listed
+  APDS images require a separate raw-blob backup (corrected 2026-11-07); replaceable caches listed
   (node_modules, dist, SW caches, feed/AndFS browser stores);
   identity keys are client-side-only, disposable test identities for fixtures.)
 - [x] Build a deterministic fixture set with posts, replies, edits, metadata-only
