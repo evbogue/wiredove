@@ -10,7 +10,7 @@ remain deferred at Ev's request. Agent fixtures are signed inputs to the same re
 | Profile statements, explicit empty bio/links | Covered | Covered | `tests/application-flow.browser.cjs`, `tests/profile-update.browser.cjs` |
 | Post → thread → reply, reload | Covered | Covered | `tests/application-flow.browser.cjs` |
 | Original name/photo retained after body edits | Covered by header regression | Same application path | `tests/image-gallery.browser.cjs`; full application edits in `tests/application-flow.browser.cjs` |
-| Standalone widget body-edit history | Deferred | Deferred | Separate follow-up; grouping must preserve edit-hash navigation, search and flat record support; controls must work without an icon font |
+| Standalone widget body-edit history | Deferred | Deferred | Excluded from this branch; requirements stay in the shared application plan |
 | Inline upload at cursor, preview, cancel | Covered | Covered | `tests/image-upload.browser.cjs` |
 | Profile original/crop/re-crop | Covered | Covered | `tests/application-flow.browser.cjs` |
 | Image pending/paused/retry/arrival | Covered | Covered | `tests/image-gallery.browser.cjs`, `tests/network-image-status.test.js`; keyboard retry focus loss remains open |
@@ -23,14 +23,7 @@ Run `WIREDOVE_TEST_RUNTIME=node npm run test:browser` for current browser checks
 plus `npm test`, `npm run test:media` and `npm run test:server`. Coverage listed
 above names assertions; it is not a claim that production runs this source.
 
-Remaining work stays in the sole [shared application plan](../SHARED_UI_WORK_ORDER.md):
-
-- Milestone 2: standalone-widget edit history, backup import, embed notification
-  capability decision, remaining controls/services consolidation.
-- Milestone 3: independent consumer pins/deployments and historical media inventory.
-- Milestone 4: real-device/browser/format evidence and keyboard retry behavior.
-
-The 2026-11-04 recovery result did not establish APDS byte restoration; that claim
-was corrected on 2026-11-07. The earlier widget-history completion claim is withdrawn
-from this PR while the feature is deferred. Detailed dated observations remain in
-[the prior matrix](https://github.com/evbogue/wiredove/blob/074d28cd9a12b88ad0c38e592ec0cd073dee6d6e/docs/BEHAVIOR_MATRIX.md).
+Remaining implementation and acceptance work is tracked in the sole
+[shared application plan](../SHARED_UI_WORK_ORDER.md). Recovery evidence and its
+historical correction live in the [recovery guide](SECOND_NODE_RECOVERY.md);
+deployment status lives in the [release record](RELEASE_RECORD.md).

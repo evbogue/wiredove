@@ -9,10 +9,8 @@ This work consolidates runtime/status documentation, proves a bounded two-node
 restore and fixes the website header regression: body edits must retain the
 original name/photo. It introduces no production storage API or deployment.
 
-Standalone-widget edit history is a separate follow-up. Its initial implementation
-introduced navigation/search/flat-record regressions and duplicate controls; it
-is excluded here. Keep that milestone open in [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md),
-the sole application-embed implementation plan.
+Standalone-widget edit history is excluded. Its requirements and acceptance stay
+in [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md), the sole application-embed plan.
 
 ## Preserve
 
@@ -52,14 +50,12 @@ git-ssb. Report the commit, checks, remaining work and exact sync blockers.
 Production and independent consumer deployment require their own release evidence.
 No public test messages, uploads or notifications are authorized by this order.
 
-## Historical evidence
+## Evidence ownership
 
-The November 4 exercise's 91/91 result did not test restored APDS bytes; that
-legacy-image claim was corrected on November 7. Earlier manual full-mount/re-crop
-observations remain historical, not assertions supplied by the current harness.
-The original section sign-offs and detailed dated observations are retained in
-[the prior work order](https://github.com/evbogue/wiredove/blob/074d28cd9a12b88ad0c38e592ec0cd073dee6d6e/CONSOLIDATION_WORK_ORDER.md).
-The initial widget-history completion claim is superseded by its deferral above.
+- [Behavior matrix](docs/BEHAVIOR_MATRIX.md): coverage and remaining acceptance.
+- [Recovery guide](docs/SECOND_NODE_RECOVERY.md): storage, commands, limits and the
+  corrected November 4 APDS recovery claim.
+- [Release record](docs/RELEASE_RECORD.md): dated source and deployment evidence.
 
 Related: [media acceptance](WORK_ORDER.md), [portable media](MEDIA_URL_BUG_WORK_ORDER.md),
 [agent publishing](docs/AGENT_PUBLISHING.md), [host proxy scope](docs/HOST_PROXY_WORK_ORDER.md).

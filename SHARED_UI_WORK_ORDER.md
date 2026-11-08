@@ -183,7 +183,7 @@ website behavior remains available; unfinished routes are tracked, not removed.
   timestamp updates, raw data, sharing/QR and author controls in shared modules.
   (Standalone-widget edit history is deferred to a separate follow-up after
   the 2026-11-07 review; edit-hash routes, search, flat records and shared controls
-  must be covered before completion is claimed.)
+  and controls without an icon font must be covered before completion is claimed.)
 - [ ] Complete identity import/export, settings, sync/delivery status and supported
   notifications. Document browser/host capability restrictions per feature.
 - [ ] Retire website/widget bridges only after replacement behavior passes in both
