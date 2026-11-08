@@ -363,7 +363,13 @@ img.post-image:focus {
   outline-offset: 2px;
 }
 
-.material-symbols-outlined { color: #666; vertical-align: middle; font-size: 18px; cursor: pointer;}
+.material-symbols-outlined {
+  color: #666; vertical-align: middle; font-size: 18px; cursor: pointer;
+  font-family: 'Wiredove Symbols', 'Material Symbols Outlined';
+  font-weight: normal; font-style: normal; line-height: 1;
+  letter-spacing: normal; text-transform: lowercase; white-space: nowrap;
+  font-feature-settings: 'liga';
+}
 
 iframe {
   width: 100%;

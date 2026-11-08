@@ -680,10 +680,8 @@ render.refreshEdits = async (hash, options = {}) => {
     hydrateReplyPreviews(state.contentDiv)
     state.renderedBody = bodySource
   }
-  const profileYaml = currentEdit && currentEdit.yaml
-    ? { ...state.baseYaml, ...currentEdit.yaml }
-    : state.baseYaml
-  await applyProfile(state.contentHash, profileYaml)
+  // Body edits retain the original post's name/photo.
+  await applyProfile(state.contentHash, state.baseYaml)
 }
 
 const findMessageTarget = (hash) => {

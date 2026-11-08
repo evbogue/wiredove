@@ -6,16 +6,7 @@ import { createApplication } from './application.js'
 import { createNavigation } from './application-context.js'
 import { createImagePopover } from '../ui/image-popover.js'
 
-const fontLoads = new WeakMap()
-const iconFontURL = new URL('../../vendor/material-symbols/outlined-v382.ttf', import.meta.url).href
-const loadIcons = doc => {
-  if (!fontLoads.has(doc)) {
-    const face = new FontFace('Wiredove Symbols', `url(${iconFontURL})`)
-    doc.fonts.add(face)
-    fontLoads.set(doc, face.load().catch(() => { doc.fonts.delete(face) }))
-  }
-  return fontLoads.get(doc)
-}
+import { ensureSymbolFont as loadIcons } from '../ui/styles.js'
 
 const mounted = new WeakSet()
 const owned = new WeakSet()

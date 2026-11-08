@@ -1,6 +1,6 @@
 # Wiredove: migrate multimedia from anblob to AndFS
 
-Requested by Ev, 2026-09-17. Status: AndFS v1 writes and verified playback are implemented locally. Focused local audio/video upload, replication, playback, corruption/retry and restart checks passed on 2026-10-21; production deployment and the full cross-client matrix remain pending.
+Requested by Ev, 2026-09-17. Status: AndFS v1 writes and verified playback are implemented locally. Focused local audio/video upload, replication, playback, corruption/retry and restart checks passed on 2026-10-21; production deployment and the full cross-client matrix remain pending. Documentation consolidation and release verification for the November 4 work are tracked in [CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md).
 
 ## Outcome
 
@@ -61,7 +61,17 @@ Acceptance: real audio and video play and seek on desktop and mobile supported b
 
 - [x] Keep the legacy anblob reader for immutable historical posts.
 - [ ] Inventory existing blobs and retain their original endpoints/backups.
-- [ ] If migrating bytes, reconstruct and verify the old file, add it to AndFS, and record old-ID → new-manifest mapping outside original signed messages.
+  (Network inventory done 2026-11-05 from the selected mirror:
+  680 content + 701 signature records contain zero `blob:` (anblob)
+  references, one AndFS media record, and 5 retained media blobs; 14 edit
+  events and 10 profile posts also inventoried. Production-store inventory
+  (data/andfs, data/media, data/blobs on the host) still needs host access
+  — SSH from this VM is reset by the egress proxy.)
+- [x] If migrating bytes, reconstruct and verify the old file, add it to AndFS, and record old-ID → new-manifest mapping outside original signed messages.
+  (No migration needed, 2026-11-05: the selected mirror
+  contains zero anblob references; production-store inventory remains open. The
+  legacy anblob reader stays retained for compatibility; historical media
+  was verified playable in place by the earlier browser suites.)
 - [x] Never rewrite old signed metadata or assume the two hash encodings/manifests are interchangeable.
 - [x] Update `MEDIA_PROTOTYPE.md`, `AUDIO_VIDEO_PROPOSAL.md`, `AGENTS.md` and README to distinguish new AndFS writes from legacy reads.
 
@@ -69,12 +79,36 @@ Acceptance: historical audio/video works before and after migration, with identi
 
 ## W05 — Cross-client acceptance
 
-- [ ] Import one disposable identity into both clients; verify identical public keys and valid signatures.
-- [ ] Publish in evbogue.com; retrieve in Wiredove; reply in Wiredove; retrieve that reply on evbogue.com.
-- [ ] Repeat in the opposite direction, preserving previous-message links across clients.
-- [ ] Test an AndFS audio and video attachment in both directions, including verified bytes, restart recovery and seeking.
-- [ ] Test relay outage/retry, duplicate delivery, unavailable content, and imports in reverse order.
-- [ ] Handle existing Wiredove edit/profile events without corrupting timeline history. The first evbogue.com slice currently rejects edit events.
+- [x] Import one disposable identity into both clients; verify identical public keys and valid signatures.
+  (Done 2026-11-05: `deno task timeline:roundtrip` imports the same
+  disposable visitor backup into the site and the Wiredove widget and
+  asserts both identity panels show the same public key; the visitor's
+  signed reply from the widget verifies on the site, and the service-level
+  integration test uses one key for both services with signatures verified
+  on each side.)
+- [x] Publish in evbogue.com; retrieve in Wiredove; reply in Wiredove; retrieve that reply on evbogue.com.
+  (Done 2026-11-05: `deno task timeline:roundtrip` passes — site image stored
+  and relayed, Wiredove reply stored and relayed, bidirectional reply and
+  reload; `tests/andfs-timeline.integration.js` passes the same flow at the
+  service level with exact signed content/signatures.)
+- [x] Repeat in the opposite direction, preserving previous-message links across clients.
+  (Done 2026-11-05: integration test asserts the Timeline reply's `previous`,
+  `reply` and `replyto` match the Wiredove root id/author in both audio and
+  video iterations; roundtrip covers the opposite direction in the browser.)
+- [x] Test an AndFS audio and video attachment in both directions, including verified bytes, restart recovery and seeking.
+  (Done 2026-11-05: integration test verifies audio/wav and video/webm bytes
+  after both services restart from disk; roundtrip verifies playback and
+  seeking in both browser clients. Both directions use identical independent
+  AndFS manifests and blocks.)
+- [x] Test relay outage/retry and duplicate delivery.
+  (Last recorded 2026-11-05 in the integration test and roundtrip suite.)
+- [ ] Complete cross-client unavailable-content and reverse-order import acceptance.
+  These scenarios are outside the consolidation branch. Its bounded recovery
+  checks cover missing/corrupt blocks through the Wiredove readers only.
+- [ ] Handle existing Wiredove edit/profile events without corrupting timeline history.
+  (Last recorded 2026-11-06: evbogue.com source `ac32206` accepts same-author
+  edits/profile statements; edit-first sync acceptance remains open. See the
+  [behavior matrix](docs/BEHAVIOR_MATRIX.md) and shared-UI milestone 2.)
 
 Use local test relays and disposable identities. Public test posts require Ev's explicit instruction. Completion requires observed round trips, not just matching field names or mocked tests.
 

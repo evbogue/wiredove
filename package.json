@@ -5,15 +5,16 @@
   "scripts": {
     "test": "node --experimental-vm-modules --test client/feed_test.js client/profile-links_test.js client/ui/modules_test.js client/ui/message-layout.test.js tests/image-gallery.test.js tests/network-image-status.test.js tests/profile-route.test.cjs tests/post-notifications.test.js tests/service-session.test.js tests/feed-queries.test.js tests/hash-media.test.js",
     "test:media": "node --test tests/andfs-media.test.js client/client_test.js tests/monitor-posts.test.js client/runtime/publishing-session_test.js tests/application-artifacts.test.js",
-    "test:browser": "node tests/image-upload.browser.cjs && node tests/composer-notifications.browser.cjs && node tests/image-gallery.browser.cjs && node tests/shared-message.browser.cjs && node tests/application-state.browser.cjs && node tests/application-shadow.browser.cjs && node tests/application-flow.browser.cjs",
+    "test:browser": "node tests/image-upload.browser.cjs && node tests/composer-notifications.browser.cjs && node tests/image-gallery.browser.cjs && node tests/shared-message.browser.cjs && node tests/application-state.browser.cjs && node tests/application-shadow.browser.cjs && node tests/application-flow.browser.cjs && node tests/recovery.browser.cjs",
     "check": "npm run check:node",
     "build:embed": "node scripts/build-app-embed.js",
     "start": "node serve-node.js",
     "start:deno": "deno run --allow-net --allow-read --allow-write --allow-env serve.js",
-    "test:server": "node --test tests/server.test.js tests/andfs-media.test.js tests/application-artifacts.test.js",
+    "test:server": "node --test tests/server.test.js tests/andfs-media.test.js tests/application-artifacts.test.js tests/recovery.test.js",
     "check:node": "node --check serve-node.js && node --check server/handler.js && node --check server/node-http.js && node --check server/static.js && npm run build:embed && node scripts/check-ui-boundaries.js && node --check scripts/monitor-posts.js",
     "test:media:deno": "deno test --allow-read --allow-write tests/andfs-media.test.js client/client_test.js tests/monitor-posts.test.js client/runtime/publishing-session_test.js tests/application-artifacts.test.js",
-    "check:deno": "deno check --frozen serve.js scripts/monitor-posts.js"
+    "check:deno": "deno check --frozen serve.js scripts/monitor-posts.js",
+    "test:recovery": "node --test tests/recovery.test.js"
   },
   "devDependencies": {
     "@types/web-push": "3.6.4",

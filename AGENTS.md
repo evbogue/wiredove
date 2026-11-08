@@ -12,6 +12,14 @@ This file records project context and session-specific lessons so future agents 
 - The current first milestone is intentionally small:
   `record/upload → AndFS → signed ANProto artifact → fetch → verify → play`
 
+## Current runtime — Node 22+ (2026-11-04)
+
+`npm ci && npm start` runs the Node application; Deno is an optional launcher.
+Both consume `server/handler.js`. Commands, data/config preservation and release
+procedures live in [docs/RUNTIME_OPERATIONS.md](docs/RUNTIME_OPERATIONS.md).
+Earlier Deno-only procedures below are historical. Last recorded Node cutover:
+`0086c74`; this is dated evidence, not a fresh host observation.
+
 ## Agent publishing quick reference
 
 Read [docs/AGENT_PUBLISHING.md](docs/AGENT_PUBLISHING.md) for the tested Node workflow,
@@ -24,6 +32,11 @@ private signing keys or private backup links/identifiers.
 Wiredove is the user-facing product layer.
 
 ANProto should remain a small authentication/provenance layer rather than becoming “SSB 2.”
+
+Synchronization exists so a peer can catch up on what it cares about: follow
+the heads of the authors and threads it follows, walk each chain back until
+reaching a post it already has, then stop. Peers hold different slices of the
+network; the per-author chain is what makes each peer's slice verifiable.
 
 For media:
 
@@ -63,7 +76,7 @@ Historical APDS image references and anblob media remain supported.
 
 ## Audio/video architecture
 
-New audio/video uploads use the pinned AndFS v1 implementation in `vendor/andfs/`. Keep its upstream files unchanged. Use explicit `createAndFS({ store })` instances and the `{ type, andfs, mime, media_name, media_size, media_url, media_source }` signed metadata contract. The upload endpoint requires an ANProto signature over the exact authorization JSON and persists verified blocks. Old `blob: anblob:v1:...` posts must continue to use the legacy reader; never reinterpret or rewrite their IDs.
+New audio/video uploads use the pinned AndFS v1 implementation in `vendor/andfs/`. Keep its upstream files unchanged. Use explicit `createAndFS({ store })` instances and the `{ type, andfs, mime, media_name, media_size, media_url }` signed metadata contract — new writes omit `media_source` (signed URLs are `/#<AndFS manifest hash>`, origin-free). Historical signed `media_source` values remain valid for those records and take precedence when readers resolve them. The upload endpoint requires an ANProto signature over the exact authorization JSON and persists verified blocks. Old `blob: anblob:v1:...` posts must continue to use the legacy reader; never reinterpret or rewrite their IDs.
 
 Follow `WORK_ORDER.md` for the remaining migration and cross-client acceptance work. The Wiredove UI verifies AndFS blocks before playback. The server also provides a verified byte-range media endpoint; native storage chunks are not codec segments, and there is no transcoding or adaptive streaming.
 
@@ -134,7 +147,15 @@ application-embed plan. Both bootstraps must mount the same application runtime.
 - Require cross-frame behavior checks and an observed separate-origin browser embed
   before claiming full shared-widget acceptance. Unit tests alone do not prove it.
 
-## Production deployment (verified 2026-10-20)
+## Production deployment (verified 2026-10-20) — historical, Deno-only procedure
+
+> **Superseded 2026-11-04.** The Wiredove application service now runs Node
+> (`/usr/bin/node serve-node.js`, release `0086c74`); Deno remains only for
+> independent host services (reverse proxy) and optional compatibility. The
+> current cutover/rollback procedure is in `docs/RUNTIME_OPERATIONS.md`
+> ("Production cutover and rollback"). The host facts below (SSH, ports, data
+> symlink, detached release worktrees, VAPID config path) remain valid; the
+> Deno deployment steps are history.
 
 - SSH: `ssh root@evbogue.com`. Read `/root/AGENTS.md` for host operations.
 - Public site: `https://wiredove.net/`; backend port: `8081`.
@@ -155,6 +176,10 @@ application-embed plan. Both bootstraps must mount the same application runtime.
   defaults over production configuration or log its secrets.
 
 Deployment procedure:
+
+> The numbered steps below are preserved verbatim as dated evidence of the
+> 2026-10-20 Deno procedure and are not to be followed. The current
+> cutover/rollback procedure is in `docs/RUNTIME_OPERATIONS.md`.
 
 1. Inspect local Git status and fetch origin. Preserve unfinished work. A divergent
    checkout with media edits is not automatically the release to deploy; use the
@@ -207,6 +232,12 @@ port and an isolated browser context when testing a fresh identity.
 - `tests/profile-setup.browser.js` is a Playwright suite function, run through the
   browser testing tool against a local server. It uses isolated contexts so it
   cannot replace the user's active identity. See `client/README.md` for coverage.
+- Evidence provenance: "live 390px" in the dated release notes below means
+  isolated live-site checks served to the emulated Chromium browser
+  (Playwright), not a physical device or Safari run. Physical-device
+  acceptance remains open — see the unchecked physical Safari/mobile item in
+  `SHARED_UI_WORK_ORDER.md` §4 Acceptance. (Audited 2026-11-04; the two
+  unqualified "Live 390px" occurrences below are annotated in place.)
 - Localhost uses the normal network transport: publishing from a local UI can
   broadcast public signed updates. Use clearly named test identities, minimal
   fixtures, and never use the user's real identity for automated publication tests.
@@ -221,7 +252,14 @@ port and an isolated browser context when testing a fresh identity.
   coordinated refresh. Test warm-cache upgrades as well as fresh contexts, and
   never clear browser identity storage just to refresh the application.
 
-## Reproducible local acceptance (2026-10-29)
+## Reproducible local acceptance (2026-10-29) — superseded
+
+> **Superseded 2026-11-04** by the completed Node migration: the application
+> server runs on Node 22+ by default (`npm ci && npm start`), with Deno
+> retained as an optional compatibility launcher (`npm run start:deno`).
+> The statements below about the application "still" running on Deno and the
+> planned-but-unstarted Node server migration are outdated. Current
+> instructions: the "Current runtime" section near the top of this file.
 
 - The application still runs on Deno. Root npm metadata supplies pinned Playwright
   and test scripts only; it does not implement the planned Node server migration.
@@ -285,7 +323,8 @@ rollback. Original checkout production edits are untouched. Local build/check,
 38 unit tests, 12 media tests and the full browser suite passed, including warm
 cache and separate-origin application flows. Host frozen-lock check passed.
 Public app.js, sw.js, style.css, navbar.js, route.js and client/application.css
-SHA-256 hashes match the release. Live 390px screenshot review showed the refresh
+SHA-256 hashes match the release. Live 390px screenshot review (emulated
+Chromium browser, not a physical device) showed the refresh
 icon and no overflow or JavaScript exceptions. Browser non-GET requests were
 blocked; no public test messages were published. Both services active; proxy
 unchanged. Evbogue.com post-only master `af31961` was also pulled and verified on
@@ -348,7 +387,8 @@ passed; both services active and startup log clean.
 Local build/check, 41 unit tests, 12 media tests and the full browser suite passed.
 Mobile screenshot review covered website/light and embed/dark. Public app.js,
 sw.js, style.css, application CSS, distributed router/AndFS/hash-media/media-render
-and renderer hashes match the release. Live 390px light/dark checks showed 18px
+and renderer hashes match the release. Live 390px light/dark checks (emulated
+Chromium browser, not a physical device) showed 18px
 navbar icons, avatars at header top, no overflow or JavaScript exceptions. An
 existing stored WebP loaded and decoded through its `#hash` route in both themes.
 Historical feed images also loaded with outgoing WebSocket traffic restricted to

@@ -81,7 +81,11 @@ try {
     assert.equal(received.signature, root.signature);
     assert.equal(received.content, root.content);
     await timelineVerify(received.signature, received.content);
-    assert.deepEqual(await readAndFSMedia(received.parsed), data);
+    // The Timeline syncs the post, not the blocks: only the Wiredove host
+    // holds the original upload at this point. Origin-free `/#hash`
+    // references (since fcab6e8, 2026-10-31) carry no source, so the
+    // consumer must name it.
+    assert.deepEqual(await readAndFSMedia(received.parsed, { baseURL: wiredoveURL }), data);
 
     const replyMeta = await uploader(timelineURL).upload(new File([data], 'reply', { type: mime }), { reply: root.id, replyto: root.author });
     const reply = await protocol.compose(key, `Local media reply\n\n${replyMeta.media_url}`, { ...replyMeta, previous: root.id, reply: root.id, replyto: root.author });
@@ -97,8 +101,10 @@ try {
     assert.equal(back.parsed.reply, root.id);
     assert.equal(back.parsed.replyto, root.author);
     assert.equal(back.parsed.previous, root.id);
-    assert.deepEqual(await readAndFSMedia(back.parsed), data);
-    assert.deepEqual(await readAndFSMedia(meta), data);
+    // The reply media was uploaded to the Timeline host only; the original
+    // upload lives on the Wiredove host. Each read names its source.
+    assert.deepEqual(await readAndFSMedia(back.parsed, { baseURL: timelineURL }), data);
+    assert.deepEqual(await readAndFSMedia(meta, { baseURL: wiredoveURL }), data);
     // Both hosts return the same stored block bytes, beyond just matching manifest IDs.
     const manifest = JSON.parse(new TextDecoder().decode(a.manifest));
     for (const id of [a.manifestHash, ...manifest.chunks]) {

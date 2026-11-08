@@ -1,3 +1,4 @@
+import { ensureSymbolFont } from './styles.js';
 import { resolveImageSource, safeImageURL } from './image-source.js';
 import { openImageGallery } from './image-popover.js';
 
@@ -13,16 +14,6 @@ export const imageRequestActive = (state) =>
 // Retry stays available while paused: the queue will not send, but the retry
 // re-checks the local cache, which may have filled through another path.
 export const imageRequestRetryVisible = (state) => state !== 'queued' && state !== 'requested';
-
-const symbolFontURL = new URL('../../vendor/material-symbols/outlined-v382.ttf', import.meta.url).href;
-function ensureSymbolFont(doc) {
-  if (!doc.fonts || [...doc.fonts].some(face => face.family.replaceAll('"', '') === 'Wiredove Symbols')) return;
-  const Font = doc.defaultView.FontFace;
-  if (!Font) return;
-  const face = new Font('Wiredove Symbols', `url(${symbolFontURL})`);
-  doc.fonts.add(face);
-  void face.load().catch(() => { doc.fonts.delete(face); });
-}
 
 // Registration is explicit/lazy: importing body/gallery modules has no app effects.
 class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
