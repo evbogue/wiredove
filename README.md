@@ -17,7 +17,7 @@ The website and embeds mount one shared application. See the
 [behavior matrix](docs/BEHAVIOR_MATRIX.md) for coverage and gaps, and
 [recovery guide](docs/SECOND_NODE_RECOVERY.md) for second-node restoration.
 The [release record](docs/RELEASE_RECORD.md) owns dated production and consumer-pin
-status; [consolidation scope](CONSOLIDATION_WORK_ORDER.md) covers this branch.
+status.
 
 For new message notifications subscribe via https://ntfy.sh/wiredove or enable browser Web Push in Wiredove. See [NOTIFICATION_WORKFLOW.md](NOTIFICATION_WORKFLOW.md) for delivery behavior and the read-only verified post monitor.
 

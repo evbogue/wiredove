@@ -10,10 +10,8 @@ historical, the session notes in
 [../SHARED_UI_WORK_ORDER.md](../SHARED_UI_WORK_ORDER.md) (earlier
 pending-deployment notes there are marked historical), and
 [../HOST_PROXY_WORK_ORDER.md](../HOST_PROXY_WORK_ORDER.md) for the independent
-host services, which are outside the application runtime. Consolidation and
-verification of the November 4 work (docs reconciliation, second-node recovery,
-behavior acceptance matrix, release record) is coordinated in
-[../CONSOLIDATION_WORK_ORDER.md](../CONSOLIDATION_WORK_ORDER.md).
+host services, which are outside the application runtime. Completed consolidation evidence lives in the [recovery guide](SECOND_NODE_RECOVERY.md),
+[behavior matrix](BEHAVIOR_MATRIX.md), and [release record](RELEASE_RECORD.md).
 
 Wiredove's default server is Node.js 22+ (`npm ci && npm start`). Both Node and
 optional Deno (`npm run start:deno`) use `server/handler.js`, identical routes and

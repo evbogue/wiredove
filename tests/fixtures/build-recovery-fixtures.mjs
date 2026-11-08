@@ -167,7 +167,7 @@ export async function buildRecoveryFixtures(out) {
   await fs.writeFile(path.join(out, 'legacy', 'anblobs', anblobId), Buffer.from(anblobBytes))
 
   const inventory = {
-    generated: 'deterministic fixture set for second-node recovery (CONSOLIDATION_WORK_ORDER.md section 2)',
+    generated: 'deterministic fixture set for second-node recovery (docs/SECOND_NODE_RECOVERY.md)',
     signing_time: new Date(SIGNING_TIME).toISOString(),
     authors: { alice: alice.pubkey, bob: bob.pubkey },
     note: 'Disposable test identities. Never use production keys. External publication, relay/WebSocket writes and notifications must be blocked during the recovery exercise.',

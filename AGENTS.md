@@ -544,7 +544,7 @@ mediaURL, passed as baseURL to reader adapters. Standalone HTTP-loaded widgets
 fall back to their module origin. Keep historical absolute URLs/APDS/anblob
 readers and signed bytes intact. Muse's separate adapter has the same write-format
 fix and preserves exact historical pending signatures/references on retry.
-See MEDIA_URL_BUG_WORK_ORDER.md. Source changes do not imply deployment or storage
+See docs/SECOND_NODE_RECOVERY.md. Source changes do not imply deployment or storage
 replication; a selected node must supply the verified blocks.
 
 ## Production release verified — 2026-11-04 (portable media)

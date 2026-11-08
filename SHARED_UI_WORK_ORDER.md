@@ -20,10 +20,8 @@ This is the sole shared UI/application-embed work order. It replaces the earlier
 component-first plan, `client/WORK_ORDER.md`, and `docs/SHARED_MESSAGE_HANDOFF.md`;
 historical evidence remains in Git history. Current API documentation lives in
 `client/README.md`. The checklist below is current; dated checkpoints retain their
-historical status and must not be read as current blockers. Consolidation and
-verification of the November 4 work (docs reconciliation, second-node recovery,
-behavior acceptance matrix, release record) is coordinated in
-[CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md).
+historical status and must not be read as current blockers. Completed consolidation evidence lives in the [recovery guide](docs/SECOND_NODE_RECOVERY.md),
+[behavior matrix](docs/BEHAVIOR_MATRIX.md), and [release record](docs/RELEASE_RECORD.md).
 
 ## Outcome
 

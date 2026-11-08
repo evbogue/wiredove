@@ -1,6 +1,6 @@
 # Wiredove: migrate multimedia from anblob to AndFS
 
-Requested by Ev, 2026-09-17. Status: AndFS v1 writes and verified playback are implemented locally. Focused local audio/video upload, replication, playback, corruption/retry and restart checks passed on 2026-10-21; production deployment and the full cross-client matrix remain pending. Documentation consolidation and release verification for the November 4 work are tracked in [CONSOLIDATION_WORK_ORDER.md](CONSOLIDATION_WORK_ORDER.md).
+Requested by Ev, 2026-09-17. Status: AndFS v1 writes and verified playback are implemented locally. Focused local audio/video upload, replication, playback, corruption/retry and restart checks passed on 2026-10-21; production deployment and the full cross-client matrix remain pending. Completed consolidation and validation are recorded in the [release record](docs/RELEASE_RECORD.md); storage recovery requirements live in the [recovery guide](docs/SECOND_NODE_RECOVERY.md).
 
 ## Outcome
 
