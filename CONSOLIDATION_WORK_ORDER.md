@@ -7,10 +7,14 @@ Baseline: master `c1832c3670b8b744d253ef1bdf5e7e5c40f448f8`.
 
 This work consolidates runtime/status documentation, proves a bounded two-node
 restore and fixes the website header regression: body edits must retain the
-original name/photo. It introduces no production storage API or deployment.
+original name/photo. Standalone controls load the bundled icon font. Recovery
+acceptance covers stored bytes and shared readers; full application restore,
+re-cropping and video codec playback are outside this branch. It introduces no
+production storage API or deployment.
 
-Standalone-widget edit history is excluded. Its requirements and acceptance stay
-in [SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md), the sole application-embed plan.
+New Timeline ordering scenarios and standalone-widget edit history are excluded.
+Remaining acceptance stays in [WORK_ORDER.md](WORK_ORDER.md) and
+[SHARED_UI_WORK_ORDER.md](SHARED_UI_WORK_ORDER.md), the sole application-embed plan.
 
 ## Preserve
 

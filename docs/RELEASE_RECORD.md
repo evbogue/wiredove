@@ -33,3 +33,14 @@ and dated deployment entries in [AGENTS.md](../AGENTS.md).
 For the next release, record: repository/branch/full SHA and checks; generated
 manifest; freshly observed tips on both remotes; host revision/public asset hashes;
 each consumer's source/deployed pin; compatibility gaps; backup/rollback evidence.
+
+## 2026-11-07 final branch validation
+
+Newly verified locally: `npm run check`, `npm test`, `npm run test:media`,
+`npm run test:server` (including recovery), and the complete
+`WIREDOVE_TEST_RUNTIME=node npm run test:browser` suite passed. The retained
+Timeline integration passed against the local evbogue.com Timeline checkout;
+it verifies exact signed audio/video round trips and bytes after restart.
+New ordering scenarios were removed from this branch. Recovery remains limited
+to stored bytes and shared readers, as documented in the recovery guide.
+No production deployment or public test publication was performed.

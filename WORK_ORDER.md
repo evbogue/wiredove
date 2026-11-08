@@ -100,17 +100,14 @@ Acceptance: historical audio/video works before and after migration, with identi
   after both services restart from disk; roundtrip verifies playback and
   seeking in both browser clients. Both directions use identical independent
   AndFS manifests and blocks.)
-- [x] Test relay outage/retry, duplicate delivery, unavailable content, and imports in reverse order.
-  (Done 2026-11-05: outage/retry and duplicate delivery in the integration
-  test and the roundtrip suite; unavailable media asserted rejected on both
-  hosts — the AndFS verifier reports "No verified source for blob" and the
-  Timeline /blobs endpoint answers non-OK — in the integration test;
-  reverse-order import asserted via /api/import with the reply submitted
-  before its parent, both landing with links intact.)
+- [x] Test relay outage/retry and duplicate delivery.
+  (Last recorded 2026-11-05 in the integration test and roundtrip suite.)
+- [ ] Complete cross-client unavailable-content and reverse-order import acceptance.
+  These scenarios are outside the consolidation branch. Its bounded recovery
+  checks cover missing/corrupt blocks through the Wiredove readers only.
 - [ ] Handle existing Wiredove edit/profile events without corrupting timeline history.
   (Last recorded 2026-11-06: evbogue.com source `ac32206` accepts same-author
-  edits/profile statements; `tests/andfs-timeline.integration.js` covers edit-first
-  sync. Standalone-widget edit history remains deferred; see the
+  edits/profile statements; edit-first sync acceptance remains open. See the
   [behavior matrix](docs/BEHAVIOR_MATRIX.md) and shared-UI milestone 2.)
 
 Use local test relays and disposable identities. Public test posts require Ev's explicit instruction. Completion requires observed round trips, not just matching field names or mocked tests.
