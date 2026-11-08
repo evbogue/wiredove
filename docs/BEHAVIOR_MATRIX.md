@@ -11,7 +11,7 @@ remain deferred at Ev's request. Agent fixtures are signed inputs to the same re
 | Post → thread → reply, reload | Covered | Covered | `tests/application-flow.browser.cjs` |
 | Original name/photo retained after body edits | Covered | Covered | `tests/image-gallery.browser.cjs` checks conflicting edit metadata; `tests/application-parity.cjs` asserts unchanged headers after edits and version navigation in both full mounts |
 | Standalone message control icons | Covered | Covered standalone widgets | `tests/image-gallery.browser.cjs` checks loaded bundled font and compact controls; `tests/shared-message.browser.cjs` covers 320/390/1200px light/dark; shell cache v37 |
-| Standalone widget body-edit history | Deferred | Deferred | Excluded from this branch; requirements stay in the shared application plan |
+| Standalone widget body-edit history | Out of scope | Out of scope | Proposal discarded; not required for shared application closeout |
 | Inline upload at cursor, preview, cancel | Covered | Covered | `tests/image-upload.browser.cjs` |
 | Profile original/crop/re-crop | Covered | Covered | `tests/application-flow.browser.cjs` |
 | Image pending/paused/retry/arrival | Covered | Covered | `tests/image-gallery.browser.cjs`, `tests/network-image-status.test.js`; keyboard retry focus loss remains open |
@@ -24,7 +24,7 @@ Run `WIREDOVE_TEST_RUNTIME=node npm run test:browser` for current browser checks
 plus `npm test`, `npm run test:media` and `npm run test:server`. Coverage listed
 above names assertions; it is not a claim that production runs this source.
 
-Remaining implementation and acceptance work is tracked in the sole
+Required application closeout checks are tracked in the sole
 [shared application plan](../SHARED_UI_WORK_ORDER.md). Recovery evidence and its
 historical correction live in the [recovery guide](SECOND_NODE_RECOVERY.md);
 deployment status lives in the [release record](RELEASE_RECORD.md).

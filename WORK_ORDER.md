@@ -60,6 +60,9 @@ Acceptance: real audio and video play and seek on desktop and mobile supported b
 ## W04 — Preserve existing anblob posts
 
 - [x] Keep the legacy anblob reader for immutable historical posts.
+- [ ] Fix the evbogue.com historical-image size limit with bounded, hash-verified
+  reads; the earlier shared UI review recorded two images over 6 MiB rejected by
+  the site's 4 MiB limit. Verify current behavior in that repository before editing.
 - [ ] Inventory existing blobs and retain their original endpoints/backups.
   (Network inventory done 2026-11-05 from the selected mirror:
   680 content + 701 signature records contain zero `blob:` (anblob)
@@ -108,7 +111,7 @@ Acceptance: historical audio/video works before and after migration, with identi
 - [ ] Handle existing Wiredove edit/profile events without corrupting timeline history.
   (Last recorded 2026-11-06: evbogue.com source `ac32206` accepts same-author
   edits/profile statements; edit-first sync acceptance remains open. See the
-  [behavior matrix](docs/BEHAVIOR_MATRIX.md) and shared-UI milestone 2.)
+  [behavior matrix](docs/BEHAVIOR_MATRIX.md).)
 
 Use local test relays and disposable identities. Public test posts require Ev's explicit instruction. Completion requires observed round trips, not just matching field names or mocked tests.
 
