@@ -262,6 +262,7 @@ const root = path.resolve(__dirname, '..');
     await page.screenshot({path:path.join(root,`test-results/application-flow-${page===website?'website':'embed'}-${width}-${colorScheme}.png`),fullPage:true});
   }
   await require('./profile-update.browser.cjs')({website,embed,source,photo});
+  await require('./identity-import.browser.cjs')({website,embed,source});
   assert.deepEqual(errors,[]);
   console.log('Real website ↔ separate-origin embed: identity/profile, signed post, second-author thread/reply, reload, durable draft and exact outbox retry passed');
  } finally {
