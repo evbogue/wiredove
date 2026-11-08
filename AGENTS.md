@@ -122,8 +122,8 @@ Keep scope tight: prove the simplest working media path before adding transcodin
 
 Ev requested a single shared UI implementation for the website and embeds on
 2026-10-03, clarified on 2026-10-30 as a mountable full Wiredove application,
-not just shared timeline components. Follow `SHARED_UI_WORK_ORDER.md`, the sole
-application-embed plan. Both bootstraps must mount the same application runtime.
+not just shared timeline components. Both bootstraps mount the same application runtime. See `client/README.md` for
+the API and `docs/BEHAVIOR_MATRIX.md` for coverage and remaining limitations.
 
 - Both application frames must consume the same individually importable rendering
   and UI widgets. The website is the primary consumer, not a parallel renderer.
@@ -142,8 +142,8 @@ application-embed plan. Both bootstraps must mount the same application runtime.
   Website node extensions retain rich APDS controls and observer-bound content;
   edit-event summaries and services remain compatibility paths. The full shared
   widget migration and cross-client acceptance are not complete. See
-  `client/README.md` for the current widget API and `SHARED_UI_WORK_ORDER.md`
-  for the application migration and remaining acceptance.
+  `client/README.md` for the current widget API and `docs/BEHAVIOR_MATRIX.md`
+  for observed coverage.
 - Require cross-frame behavior checks and an observed separate-origin browser embed
   before claiming full shared-widget acceptance. Unit tests alone do not prove it.
 
@@ -236,7 +236,7 @@ port and an isolated browser context when testing a fresh identity.
   isolated live-site checks served to the emulated Chromium browser
   (Playwright), not a physical device or Safari run. Physical-device
   acceptance remains open — see the unchecked physical Safari/mobile item in
-  `SHARED_UI_WORK_ORDER.md` §4 Acceptance. (Audited 2026-11-04; the two
+  `docs/BEHAVIOR_MATRIX.md`. (Audited 2026-11-04; the two
   unqualified "Live 390px" occurrences below are annotated in place.)
 - Localhost uses the normal network transport: publishing from a local UI can
   broadcast public signed updates. Use clearly named test identities, minimal

@@ -13,7 +13,7 @@ commands, persistent storage and release procedures live in
 [runtime operations](docs/RUNTIME_OPERATIONS.md).
 
 The website and embeds mount one shared application. See the
-[shared application plan](SHARED_UI_WORK_ORDER.md) for implementation work,
+[application API](client/README.md) for embedding,
 [behavior matrix](docs/BEHAVIOR_MATRIX.md) for coverage and gaps, and
 [recovery guide](docs/SECOND_NODE_RECOVERY.md) for second-node restoration.
 The [release record](docs/RELEASE_RECORD.md) owns dated production and consumer-pin

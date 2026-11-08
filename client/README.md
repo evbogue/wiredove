@@ -100,7 +100,7 @@ observer-bound metadata, content and rich controls in light DOM; the public
 custom element mounts the same component in shadow DOM. Website edit-event
 summaries and APDS data services remain compatibility paths; this does not claim
 complete edit/moderation/profile or service parity. See
-[application-embed work order](../SHARED_UI_WORK_ORDER.md). Target service/record contracts are
+[behavior matrix](../docs/BEHAVIOR_MATRIX.md). Target service/record contracts are
 in `core/contracts.js`; adapters implementing them are a later stage.
 
 Run module registration/import checks with `node --test client/ui/modules_test.js`.
@@ -307,7 +307,7 @@ shows an unavailable message. Existing `renderBody`, `resolveImage`, `avatarURL`
 `timestamp`, `authorURL` and `onOpenGallery` presentation hooks remain supported.
 The website retains its original legacy media reader and immutable references.
 
-See [application-embed work order](../SHARED_UI_WORK_ORDER.md) for coordination,
+See [behavior matrix](../docs/BEHAVIOR_MATRIX.md) for coordination,
 validation boundaries and release notes. `npm run test:browser` includes signed
 fixture, separate-origin, keyboard, draft failure/retry and playback-retention
 checks at desktop, 390px and 320px in light/dark modes. Publication callbacks in
@@ -348,7 +348,7 @@ Callers still share the existing APDS/storage/transport session and require the
 website dependency setup. When given a session lease, UI disposal releases that lease and returns its
 shutdown promise. The last lease stops transport/sync and flushes indexes; the
 APDS database handle and its persistence timers remain page-lifetime resources. See
-`SHARED_UI_WORK_ORDER.md` for the remaining service and embed acceptance work.
+`docs/BEHAVIOR_MATRIX.md` for service and embed coverage limits.
 `npm run test:browser` includes an offline two-root ownership and website-bootstrap
 suite; it does not publish to public relays.
 
@@ -441,9 +441,10 @@ cryptography, identity/profile → signed post/audio → thread → second-autho
 reload, durable draft, failed-delivery exact retry, live/cached search, 28-row
 pagination, delayed-route cancellation and offline refresh/retry. It uses disposable storage
 and blocks public writes. `npm run test:media` includes archive restart/tampering/
-persistence tests. Milestone 1 acceptance and remaining milestones are recorded in
-[SHARED_UI_WORK_ORDER.md](../SHARED_UI_WORK_ORDER.md); full feature parity,
-evbogue.com replacement and production/device release acceptance remain open.
+persistence tests. Current acceptance and release evidence are recorded in the
+[behavior matrix](../docs/BEHAVIOR_MATRIX.md) and
+[release record](../docs/RELEASE_RECORD.md). Physical-device coverage and full
+standalone-widget feature parity remain outside the completed application closeout.
 
 Owner-scoped application hosts may pass `owner` to restrict root composing while
 allowing visitors to reply and edit their own replies through normal signed edit

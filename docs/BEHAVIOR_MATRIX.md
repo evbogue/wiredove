@@ -17,14 +17,14 @@ remain deferred at Ev's request. Agent fixtures are signed inputs to the same re
 | Image pending/paused/retry/arrival | Covered | Covered | `tests/image-gallery.browser.cjs`, `tests/network-image-status.test.js`; keyboard retry focus loss remains open |
 | Verified AndFS and legacy reads | Covered fixtures | Covered fixtures | `tests/andfs-media.test.js`, `tests/application-flow.browser.cjs`; production legacy availability and broader format/device matrix remain open |
 | Recovery with A offline | Stored bytes verified | APDS reader/gallery verified in iframe | `tests/recovery.test.js`, `tests/recovery.browser.cjs`; see [recovery limits](SECOND_NODE_RECOVERY.md) |
-| Draft and exact signed retry | Covered | Covered | `tests/application-flow.browser.cjs`, `tests/service-session.test.js`; identity backup-import acceptance remains open |
+| Draft and exact signed retry | Covered | Covered | `tests/application-flow.browser.cjs`, `tests/service-session.test.js`; `tests/identity-import.browser.cjs` verifies invalid-backup preservation, valid UI import, reload and signing in both full mounts |
 | Notification failure isolation | Covered | Unverified | `tests/composer-notifications.browser.cjs`; embed capability/acceptance remains open |
 
 Run `WIREDOVE_TEST_RUNTIME=node npm run test:browser` for current browser checks,
 plus `npm test`, `npm run test:media` and `npm run test:server`. Coverage listed
 above names assertions; it is not a claim that production runs this source.
 
-Required application closeout checks are tracked in the sole
-[shared application plan](../SHARED_UI_WORK_ORDER.md). Recovery evidence and its
+Shared application closeout is complete; release evidence is in the
+[release record](RELEASE_RECORD.md). Recovery evidence and its
 historical correction live in the [recovery guide](SECOND_NODE_RECOVERY.md);
 deployment status lives in the [release record](RELEASE_RECORD.md).

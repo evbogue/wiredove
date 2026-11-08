@@ -44,3 +44,41 @@ it verifies exact signed audio/video round trips and bytes after restart.
 New ordering scenarios were removed from this branch. Recovery remains limited
 to stored bytes and shared readers, as documented in the recovery guide.
 No production deployment or public test publication was performed.
+
+## 2026-11-07 shared application closeout
+
+**Newly verified:** Wiredove application `d80b0b9a12a7857d83ac6088e6366c91bb5aa8c0`
+is running in `/root/wiredove-release-d80b0b9` under Node. evbogue.com source
+`9d132c9ed10a5ac84dd9a38aa21f6d413d2463fa` is deployed in `/root/evbogue.com`,
+with that same application pin, using Deno in tmux `10:0.0` on port 8082.
+
+- Full application tests now exercise the actual identity import dialog in both
+  mounts: invalid input preserves the active public identity; valid disposable-key
+  import persists after reload and produces a valid signature. Keys stay in browser
+  memory/storage and are not logged or captured.
+- Wiredove build/boundary, unit, media, server/recovery and full application-flow
+  checks passed. Site unit (17 tests) and real pinned application browser suites
+  passed, including migration, reply/edit/reload and historical media fixtures.
+- Eight important Wiredove public assets and all 186 pinned site assets match
+  reviewed SHA-256 hashes. The running site config selects the new pin.
+- Isolated live 390px light/dark smoke passed on both sites; dark screenshots were
+  reviewed. HTTP writes and WebSockets were blocked, so sync-error/missing-image
+  states do not establish production historical-media availability. No public
+  test messages, uploads or notifications were sent.
+- Both Wiredove/proxy services are active. All 187 backed-up Wiredove data files,
+  97 site timeline-data files, and Wiredove config match after release. Original
+  Wiredove production edits and site private files remain intact; proxy unchanged.
+
+Rollback: Wiredove previous release `0086c74`, saved unit/data/config under
+`/root/deploy-backups/wiredove-closeout-d80b0b9/`. Site previous source `65c8175`,
+complete site backup under `/root/deploy-backups/evbogue-closeout-9d132c9/`;
+restore source/pin while retaining later data, then reload only the tmux app.
+The site's shell-history restart referenced a deleted helper; the recorded
+`deno serve -A --no-lock --port=8082 serve.js` command restored service. Capture
+current command/environment privately before future reloads; do not assume Up
+restarts the app.
+
+The two application closeout checks are complete and the work order is removed.
+This does not claim physical-device acceptance, full standalone-widget parity or
+production media backup completeness. Later documentation-only commits do not
+change the deployed runtime assets or the recorded pin.

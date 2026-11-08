@@ -6,10 +6,7 @@ procedures live here so there is exactly one current authority; other documents
 only point here. Dated deployment evidence stays where it was recorded: the
 "Production release verified" session entries in [../AGENTS.md](../AGENTS.md),
 whose older Deno-only deployment procedure is preserved verbatim and labeled
-historical, the session notes in
-[../SHARED_UI_WORK_ORDER.md](../SHARED_UI_WORK_ORDER.md) (earlier
-pending-deployment notes there are marked historical), and
-[../HOST_PROXY_WORK_ORDER.md](../HOST_PROXY_WORK_ORDER.md) for the independent
+historical, and [HOST_PROXY_WORK_ORDER.md](HOST_PROXY_WORK_ORDER.md) for the independent
 host services, which are outside the application runtime. Completed consolidation evidence lives in the [recovery guide](SECOND_NODE_RECOVERY.md),
 [behavior matrix](BEHAVIOR_MATRIX.md), and [release record](RELEASE_RECORD.md).
 
@@ -85,7 +82,7 @@ schema conversion occurs. Code rollback does not undo signed public writes.
 
 The shared TLS proxy and HTTP redirect are separate releases. Other hosted apps
 are outside Wiredove's migration. See
-[../HOST_PROXY_WORK_ORDER.md](../HOST_PROXY_WORK_ORDER.md); keeping Deno
+[HOST_PROXY_WORK_ORDER.md](HOST_PROXY_WORK_ORDER.md); keeping Deno
 installed is deliberate, not an application dependency. Production status and
 observed validation are recorded in [../AGENTS.md](../AGENTS.md).
 
@@ -96,3 +93,12 @@ release `a25a0be` and private unit/data/config backup at
 `/root/deploy-backups/wiredove-node-0086c74/` are retained. All 112 persisted files
 matched backup after cutover; public source hashes and read-only mobile browser
 smoke passed. See [../AGENTS.md](../AGENTS.md) for checks and scope. The independent proxy remains Deno.
+
+## Shared application closeout release — 2026-11-07
+
+Wiredove runs Node from `/root/wiredove-release-d80b0b9`; evbogue.com source
+`9d132c9` pins the same application `d80b0b9`. See the release record for observed
+checks. Wiredove rollback unit/data/config are retained under
+`/root/deploy-backups/wiredove-closeout-d80b0b9/`. Restore the saved unit to select
+`0086c74`, reload systemd and restart Wiredove; both releases use the same data.
+Do not restore old data over later publications.
