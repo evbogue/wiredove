@@ -1,3 +1,16 @@
+// Load the bundled symbols when UI is mounted, never at module import time.
+const symbolFontURL = new URL('../../vendor/material-symbols/outlined-v382.ttf', import.meta.url).href;
+export function ensureSymbolFont(doc) {
+  if (!doc.fonts) return Promise.resolve();
+  const existing = [...doc.fonts].find(face => face.family.replaceAll('"', '') === 'Wiredove Symbols');
+  if (existing) return existing.loaded.catch(() => {});
+  const Font = doc.defaultView?.FontFace;
+  if (!Font) return Promise.resolve();
+  const face = new Font('Wiredove Symbols', `url(${symbolFontURL})`);
+  doc.fonts.add(face);
+  return face.load().catch(() => { doc.fonts.delete(face); });
+}
+
 const css = `
 :host { display:block; color:inherit; font:inherit; }
 .identity-panel { margin:1rem 0; padding:1rem 0; border-block:1px solid var(--wiredove-control-border,#ddd); }
@@ -17,6 +30,7 @@ const css = `
 `;
 const wiredoveStyleURL = new URL("../../style.css", import.meta.url).href;
 export const applyWiredoveStyles = (root) => {
+  void ensureSymbolFont(root.ownerDocument);
   const stylesheet = document.createElement("link");
   stylesheet.rel = "stylesheet";
   stylesheet.href = wiredoveStyleURL;

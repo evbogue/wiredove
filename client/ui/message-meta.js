@@ -1,3 +1,4 @@
+import { ensureSymbolFont } from './styles.js';
 // Shared right-metadata cluster: pubkey, QR toggle, permalink, raw toggle, timestamp.
 // Frames supply the nodes they own (e.g. the website's live timestamp link);
 // the cluster owns the order, separators and classes. Controls are optional:
@@ -6,6 +7,7 @@
 export function createMessageMeta({
   post = {}, controls = {}, document: doc = globalThis.document,
 } = {}) {
+  void ensureSymbolFont(doc);
   const meta = doc.createElement('span');
   meta.className = 'message-meta';
   const pubkey = doc.createElement('span');

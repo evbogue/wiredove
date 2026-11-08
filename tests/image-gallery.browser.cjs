@@ -155,6 +155,14 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
             await main.locator('.avatarlink').click();
             assert.equal(await page.evaluate(()=>window.shellNavigation.type),'profile');
           }
+          await page.evaluate(()=>document.fonts.ready);
+          assert.equal(await page.evaluate(()=>[...document.fonts].some(face=>face.family.replaceAll('"','')==='Wiredove Symbols' && face.status==='loaded')),true);
+          const symbols=main.locator('.material-symbols-outlined');
+          assert.ok(await symbols.count()>0);
+          assert.equal(await symbols.evaluateAll(nodes=>nodes.every(node=>
+            getComputedStyle(node).fontFamily.includes('Wiredove Symbols') &&
+            getComputedStyle(node).whiteSpace==='nowrap' && node.getBoundingClientRect().width<=44
+          )),true,JSON.stringify(await symbols.evaluateAll(nodes=>nodes.map(node=>({text:node.textContent,font:getComputedStyle(node).fontFamily,space:getComputedStyle(node).whiteSpace,width:node.getBoundingClientRect().width})))));
           const bounds=await main.boundingBox();
           assert.ok(bounds.width<= (mobile?390:1200));
           assert.equal(await main.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
@@ -322,7 +330,7 @@ const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     assert.equal(await cachePage.locator('.image-gallery-tile').count(),10);
     assert.equal(await cachePage.evaluate(()=>localStorage.getItem('identity-sentinel')),'preserve-me');
     const cacheKeys=await cachePage.evaluate(()=>caches.keys());
-    assert.ok(cacheKeys.includes('wiredove-app-shell-v36-edit-header'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
+    assert.ok(cacheKeys.includes('wiredove-app-shell-v37-standalone-symbols'));assert.ok(!cacheKeys.some(key=>key.includes('v8-')));
     console.log('Warm service-worker cache upgrade preserves storage and renders new gallery');await cacheContext.close();
   } finally {await browser.close();server.close();parent.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
