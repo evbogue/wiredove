@@ -33,5 +33,5 @@ Existing signed posts with `blob: anblob:v1:...` keep their original reader and 
 
 - Browser-native `MediaRecorder` formats are used; unsupported codecs can still fail to play on another device.
 - There is no transcoding, adaptive bitrate, resumable upload, or live streaming.
-- Cross-client checks must cover Wiredove and evbogue.com uploads, signature and byte verification, server restart recovery, reply compatibility, and audio/video seeking. See `WORK_ORDER.md`.
+- Cross-client checks must cover Wiredove and evbogue.com uploads, signature and byte verification, server restart recovery, reply compatibility, and audio/video seeking. Recorded validation and storage requirements live in `docs/SECOND_NODE_RECOVERY.md` and `docs/RELEASE_RECORD.md`.
 - Local implementation changes do not imply production deployment; production behavior changes only after review and deployment.

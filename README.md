@@ -92,7 +92,7 @@ or establish full website/embed feature parity.
 
 ### AndFS media
 
-New post images and audio/video attachments use AndFS v1 with signed upload authorization, persistent server storage, and verified display/playback. Historical APDS images and anblob attachments remain readable; profile photos preserve the original in AndFS alongside an editable crop of up to 1024 × 1024 pixels. See [MEDIA_PROTOTYPE.md](MEDIA_PROTOTYPE.md) for the local workflow and [WORK_ORDER.md](WORK_ORDER.md) for the cross-client acceptance checks. Deployment and separate consumer-pin evidence live in the [release record](docs/RELEASE_RECORD.md).
+New post images and audio/video attachments use AndFS v1 with signed upload authorization, persistent server storage, and verified display/playback. Historical APDS images and anblob attachments remain readable; profile photos preserve the original in AndFS alongside an editable crop of up to 1024 × 1024 pixels. See [MEDIA_PROTOTYPE.md](MEDIA_PROTOTYPE.md) for the local workflow and [recovery guide](docs/SECOND_NODE_RECOVERY.md) for production storage and backup requirements. Deployment and separate consumer-pin evidence live in the [release record](docs/RELEASE_RECORD.md).
 
 ### Creating and backing up an identity
 

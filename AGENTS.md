@@ -78,7 +78,7 @@ Historical APDS image references and anblob media remain supported.
 
 New audio/video uploads use the pinned AndFS v1 implementation in `vendor/andfs/`. Keep its upstream files unchanged. Use explicit `createAndFS({ store })` instances and the `{ type, andfs, mime, media_name, media_size, media_url }` signed metadata contract — new writes omit `media_source` (signed URLs are `/#<AndFS manifest hash>`, origin-free). Historical signed `media_source` values remain valid for those records and take precedence when readers resolve them. The upload endpoint requires an ANProto signature over the exact authorization JSON and persists verified blocks. Old `blob: anblob:v1:...` posts must continue to use the legacy reader; never reinterpret or rewrite their IDs.
 
-Follow `WORK_ORDER.md` for the remaining migration and cross-client acceptance work. The Wiredove UI verifies AndFS blocks before playback. The server also provides a verified byte-range media endpoint; native storage chunks are not codec segments, and there is no transcoding or adaptive streaming.
+See `docs/SECOND_NODE_RECOVERY.md` for storage, backups and observed recovery limits. The Wiredove UI verifies AndFS blocks before playback. The server also provides a verified byte-range media endpoint; native storage chunks are not codec segments, and there is no transcoding or adaptive streaming.
 
 ## Mockup / image upload lesson
 

@@ -82,3 +82,21 @@ The two application closeout checks are complete and the work order is removed.
 This does not claim physical-device acceptance, full standalone-widget parity or
 production media backup completeness. Later documentation-only commits do not
 change the deployed runtime assets or the recorded pin.
+
+## 2026-11-07 historical image and media backup closeout
+
+Newly verified: evbogue.com source `f41188c` is deployed with its existing Wiredove
+`d80b0b9` pin. Both previously rejected >6 MiB historical photos return exact
+hash-verified originals and decode at 4000×3000 in Chromium. Site unit tests (18)
+and the full pinned application browser suite pass, including the new bounded
+large-image/cache/retry regression. Runtime argv/environment were captured
+privately and match exactly after reload; data/private files and proxy preserved.
+Rollback source/runtime/data are retained under
+`/root/deploy-backups/evbogue-images-f41188c/`; retain later data when reverting code.
+
+Available production media was backed up and restored independently on the host
+and a separate machine: 14 AndFS files, 64 APDS images, 685 signed records. Four
+historical image hashes remain unavailable from the audited sources; see the
+[recovery guide](SECOND_NODE_RECOVERY.md) for the inventory, backup paths/hash and
+limits. No public test posts/uploads/notifications were published. The media work
+order was removed; optional sync/device/architecture expansion is not required.
