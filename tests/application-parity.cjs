@@ -40,6 +40,16 @@ module.exports=async({website,embed,source,post})=>{
   // Check only presence; no secret backup is downloaded, logged or captured.
   await page.getByRole('button',{name:'Refresh selected archive',exact:true}).click();
  }
+ const originalHeaders=new Map();
+ for(const page of [website,embed]) {
+  await page.evaluate(id=>app.navigate(id),post.id);
+  const article=page.locator('[id="'+post.id+'"]');
+  await article.getByText('Real local two-author acceptance post',{exact:true}).waitFor();
+  originalHeaders.set(page,await article.evaluate(node=>({
+    name:node.querySelector('[id^="name"]').textContent,
+    image:node.querySelector('[id^="image"]').getAttribute('src'),
+  })));
+ }
  await website.evaluate(id=>app.navigate(id),post.id);
  const original=post.content;
  await website.locator('[id="'+post.id+'"]').getByText('Edit',{exact:true}).first().click();
@@ -48,9 +58,15 @@ module.exports=async({website,embed,source,post})=>{
  for(const page of [website,embed]) {
   await page.evaluate(async id=>{await app.session.refresh();await app.navigate(id)},post.id);
   const article=page.locator('[id="'+post.id+'"]');await article.getByText('Shared parity edited original',{exact:true}).waitFor();
+  const header=()=>article.evaluate(node=>({
+    name:node.querySelector('[id^="name"]').textContent,
+    image:node.querySelector('[id^="image"]').getAttribute('src'),
+  }));
+  assert.deepEqual(await header(),originalHeaders.get(page),'Body edits preserve the original name/photo');
   await article.getByText('Chevron_Left',{exact:true}).first().click();
   await article.getByText('Real local two-author acceptance post',{exact:true}).waitFor();
   await article.getByText('Chevron_Right',{exact:true}).first().click();await article.getByText('Shared parity edited original',{exact:true}).waitFor();
+  assert.deepEqual(await header(),originalHeaders.get(page),'Version navigation preserves the original name/photo');
   await article.getByTitle('Hide message',{exact:true}).first().click();
   await article.getByText('Hidden by local moderation',{exact:true}).waitFor();
   await article.getByRole('button',{name:'Unhide',exact:true}).click();await article.getByText('Shared parity edited original',{exact:true}).waitFor();

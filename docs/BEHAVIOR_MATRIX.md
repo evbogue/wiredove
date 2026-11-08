@@ -9,7 +9,7 @@ remain deferred at Ev's request. Agent fixtures are signed inputs to the same re
 | --- | --- | --- | --- |
 | Profile statements, explicit empty bio/links | Covered | Covered | `tests/application-flow.browser.cjs`, `tests/profile-update.browser.cjs` |
 | Post → thread → reply, reload | Covered | Covered | `tests/application-flow.browser.cjs` |
-| Original name/photo retained after body edits | Covered by header regression | Same application path | `tests/image-gallery.browser.cjs`; full application edits in `tests/application-flow.browser.cjs` |
+| Original name/photo retained after body edits | Covered | Covered | `tests/image-gallery.browser.cjs` checks conflicting edit metadata; `tests/application-parity.cjs` asserts unchanged headers after edits and version navigation in both full mounts |
 | Standalone widget body-edit history | Deferred | Deferred | Excluded from this branch; requirements stay in the shared application plan |
 | Inline upload at cursor, preview, cancel | Covered | Covered | `tests/image-upload.browser.cjs` |
 | Profile original/crop/re-crop | Covered | Covered | `tests/application-flow.browser.cjs` |
