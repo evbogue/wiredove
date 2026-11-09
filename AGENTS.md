@@ -693,7 +693,7 @@ Ev explicitly requested on 1 November 2026 that all projects also be pushed to g
 
 ### Local git-ssb workflow
 
-- From the workspace's `ssbc` checkout, run `npm run agent:preflight` to ensure sbot is listening on port 8989. Leave sbot running.
+- At the start of a work session, run `npm run agent:preflight` from the workspace's `ssbc` checkout before fetching from `ssb`. Preflight starts sbot if needed and checks that it is listening at `127.0.0.1:8989`. Leave sbot running.
 - If the remote is missing, query sbot's `messagesByType` for `git-repo` messages and compare repository IDs, authors, names, and known remotes. Names alone are not unique. Only create a repository when no existing match is found: run `node bin.js git.create <project-name>` from `ssbc`, then configure `ssb` with the returned HTTP URL. Remove surrounding JSON quotes and preserve URL encoding.
-- Fetch both remotes again before pushing. If either advanced, reconcile incoming commits and rerun affected checks before a normal push. Push the intended branch to both remotes; never use force or mirror pushes.
+- Fetch both remotes again before pushing. If either advanced, reconcile incoming commits and rerun affected checks. From this project's checkout, run `git push origin <branch>` and `git push ssb <branch>` with the intended branch name. Use normal pushes without force or mirroring.
 - Verify local HEAD against fresh `git ls-remote --heads origin` and `git ls-remote --heads ssb` results for the intended branch. Re-read HEAD and worktree status afterward to catch concurrent changes. Report any remaining changes or divergence.
