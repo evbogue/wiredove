@@ -15,6 +15,36 @@ optional Deno (`npm run start:deno`) use `server/handler.js`, identical routes a
 disk formats. Keep the Deno launcher and lockfile for compatibility and rollback.
 Browser CDN imports are browser dependencies, not Node server dependencies.
 
+## Low-bandwidth local testing
+
+1. Keep a persistent local test dataset outside disposable checkouts. Start
+   Wiredove with `HOST=127.0.0.1 PORT=8000 DATA_DIR=/absolute/path/to/test-data npm start`
+   after installing dependencies with `npm ci`. Use the same URL and dedicated
+   browser profile across manual runs so IndexedDB survives. Keep that profile
+   separate from your everyday Wiredove identity.
+2. Before testing, verify that the local dataset serves the latest post hashes
+   needed for the test and that their referenced media loads. Keep a known-good
+   local snapshot for reseeding. When a newer dataset is needed, catch up on
+   Wi-Fi by fetching missing posts and media incrementally. On a hotspot, use
+   the existing snapshot or local fixtures.
+3. For sync testing, start a separate, persistent local APDS relay seeded with
+   the relevant posts, heads and legacy image blobs. In a local-only checkout,
+   point `makeWs` in [connect.js](../connect.js) at the loopback relay and
+   disable the public `makeRoom('wiredovev1')` connection. Set
+   `FEED_ROWS_UPSTREAM` to the local HTTP upstream serving feed rows. The Node
+   server's feed setting only affects server-side feed requests. Browser alias
+   lookups and Settings' remote log can still call the public relay directly.
+   Block external data requests and WebSockets in the test browser, then verify
+   in its Network panel that sync and feed requests stay local before opening
+   a fresh profile. Keep local endpoint edits out of source commits.
+4. For a clean browser state or when a seeded relay is unavailable, use local
+   fixtures. For example, run
+   `WIREDOVE_TEST_RUNTIME=node node tests/application-flow.browser.cjs` for
+   a local archive/media test with website relay sync disabled. Its browser
+   dependencies can still require small CDN or GitHub downloads. Use the
+   [second-node recovery fixtures](SECOND_NODE_RECOVERY.md) when historical
+   image and media coverage is needed.
+
 ## Verification and route inventory
 
 `npm run check`, `npm test`, `npm run test:media`, `npm run test:server` and

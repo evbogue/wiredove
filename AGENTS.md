@@ -229,6 +229,13 @@ port and an isolated browser context when testing a fresh identity.
 
 ## Browser testing and UI verification
 
+- **Local-first testing is the default, especially on a hotspot.** Before
+  opening Wiredove, start the local server and verify its persistent test data
+  includes the latest relevant posts and media. For sync tests, use a seeded
+  local APDS relay and verify the browser connects only to it. Reuse the same
+  test browser profile and origin for manual checks. Use local fixtures for
+  clean-state tests and refresh the local dataset incrementally on Wi-Fi.
+  Follow the [low-bandwidth testing workflow](docs/RUNTIME_OPERATIONS.md#low-bandwidth-local-testing).
 - `tests/profile-setup.browser.js` is a Playwright suite function, run through the
   browser testing tool against a local server. It uses isolated contexts so it
   cannot replace the user's active identity. See `client/README.md` for coverage.
