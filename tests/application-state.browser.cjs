@@ -7,7 +7,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const stubs = {
-  '/offline-apds.js': `export const apds={put:async()=>{},getHashLog:async()=>[],getOpenedLog:async()=>[],start:async()=>{},pubkey:async()=>null,keypair:async()=>null,query:async()=>[],visual:async()=>document.createElement('img'),get:async key=>key==='name'?'Offline fixture':null,parseYaml:async()=>({}),human:async()=>'',open:async()=>null};`,
+  '/offline-apds.js': `export const apds={put:async()=>{},getHashLog:async()=>[],getOpenedLog:async()=>[],start:async(name)=>{window.testDatabase=name},pubkey:async()=>null,keypair:async()=>null,query:async()=>[],visual:async()=>document.createElement('img'),get:async key=>key==='name'?'Offline fixture':null,parseYaml:async()=>({}),human:async()=>'',open:async()=>null};`,
   '/connect.js': 'export const connect=async()=>{},disconnect=async()=>{};',
   '/sync.js': 'export const startSync=async()=>{},stopSync=()=>{},noteInterest=async()=>{},noteSeen=async()=>{};',
   '/offline-h.js': `export function h(tag,attrs={},children=[]){if(Array.isArray(attrs)){children=attrs;attrs={}}const node=document.createElement(tag);for(const [k,v]of Object.entries(attrs)){if(k==='classList')node.className=v;else node[k]=v}for(const child of children)if(child)node.append(child);return node}`,
@@ -44,6 +44,14 @@ const stubs = {
         res.end(JSON.stringify({ selection: {
           repoId: 'a'.repeat(43) + '=', ref: 'refs/heads/main', updateId: 'verified-update',
         } }));
+        return;
+      }
+      if (url.pathname === '/hosted') {
+        res.setHeader('content-type','text/html');
+        res.end(`<!doctype html><script type="importmap">{"imports":{"apds":"/offline-apds.js","h":"/offline-h.js"}}</script><script type="module">
+          import {anbotWebsiteServices, startWebsiteApplication} from '/client/runtime/website-application.js';
+          await startWebsiteApplication({services:anbotWebsiteServices,network:false});
+        </script>`);
         return;
       }
       if (url.pathname === '/website') {
@@ -211,6 +219,11 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await page.getByText('Refresh failed. Showing the last known Git selection.').waitFor();
     await page.getByText('verified-update').waitFor();
     await page.getByRole('heading', { name: 'Browser Social sync' }).waitFor();
+    assert.deepEqual(errors,[]);
+    await page.goto(origin + '/hosted#compose');
+    await page.getByPlaceholder('Write a message').waitFor();
+    assert.equal(await page.evaluate(() => window.testDatabase), 'anbot-wiredove-preview');
+    assert.match(await page.getByPlaceholder('Write a message').inputValue(), /Existing draft/);
     assert.deepEqual(errors,[]);
     console.log('Website bootstrap: offline startup, hash search and home passed');
     console.log('Application ownership: two roots, navigation, cached panels, scroll, renderer IDs, feed enqueue/status and disposal passed');

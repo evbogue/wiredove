@@ -8,6 +8,12 @@ import { startSync, stopSync } from '../../sync.js'
 import { send } from '../../send.js'
 import { resumeQueue, pauseQueue } from '../../network_queue.js'
 
+export const anbotWebsiteServices = {
+  database: 'anbot-wiredove-preview',
+  anbotSocial: true,
+  capabilities: { notifications: false, recording: false, upload: false },
+}
+
 let started = false
 export const startWebsiteApplication = async ({ services = {}, network = true } = {}) => {
   if (started) throw new Error('The website application is already started')

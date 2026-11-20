@@ -13,19 +13,19 @@ let manager
 let artifacts
 // The pinned APDS module is a singleton: all mounts in this module graph share
 // one explicitly selected identity/database/backend. Conflicts are rejected.
-export const acquireDefaultSession = async ({ database = 'wiredovedbversion1', backendURL = sourceOrigin, mediaURL = sourceOrigin, canonicalURL = sourceOrigin + '/', capabilities = {}, owner = null, legacyDatabase = null, legacyImageURL = null, legacyMediaURL = null } = {}) => {
+export const acquireDefaultSession = async ({ database = 'wiredovedbversion1', backendURL = sourceOrigin, mediaURL = sourceOrigin, canonicalURL = sourceOrigin + '/', capabilities = {}, owner = null, legacyDatabase = null, legacyImageURL = null, legacyMediaURL = null, anbotSocial = false } = {}) => {
   const httpURL = value => {
     const url = new URL(value)
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw Error('Expected an HTTP(S) service URL')
     return url.href.replace(/\/$/, '')
   }
-  const policy = { legacyMediaURL: legacyMediaURL ? httpURL(legacyMediaURL) : null, database, owner, legacyDatabase, legacyImageURL, backendURL: httpURL(backendURL), mediaURL: httpURL(mediaURL), canonicalURL: httpURL(canonicalURL), capabilities: { compose: true, reply: true, upload: true, recording: false, notifications: false, ...capabilities } }
+  const policy = { anbotSocial, legacyMediaURL: legacyMediaURL ? httpURL(legacyMediaURL) : null, database, owner, legacyDatabase, legacyImageURL, backendURL: httpURL(backendURL), mediaURL: httpURL(mediaURL), canonicalURL: httpURL(canonicalURL), capabilities: { compose: true, reply: true, upload: true, recording: false, notifications: false, ...capabilities } }
   const selection = JSON.stringify(policy)
   if (selected && selected !== selection) throw Error('This application graph already owns another service configuration')
   if (!manager) {
     selected = selection
     const store = createBrowserStore(database + ':application')
-    artifacts = createArtifactSession({ protocol: apds, store, endpoint: policy.backendURL + '/api/application', legacyImageURL, receive: async signature => { await deliverToRenderers('shouldWe', signature); await deliverToRenderers('blob', signature) } })
+    artifacts = createArtifactSession({ protocol: apds, store, endpoint: policy.backendURL + '/api/application', anbotSocial, legacyImageURL, receive: async signature => { await deliverToRenderers('shouldWe', signature); await deliverToRenderers('blob', signature) } })
     manager = createServiceSession({ serialize: serializeWebsiteWrite,
       async startStorage(name) {
         await apds.start(name)

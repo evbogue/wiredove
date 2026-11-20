@@ -55,9 +55,13 @@ function createWorkspaceGitGateway(value) {
       }
     }
     const raw = workspaceGitRaw.test(url.pathname) || /^\/git\/[A-Za-z0-9_-]+\/commit\/[0-9a-f]{40}\/raw\/.+/.test(url.pathname)
-    if (!raw && url.pathname !== '/sync/status' && !workspaceGitRead.test(url.pathname)) return null
-    if (!['GET', 'HEAD'].includes(request.method)) {
-      return new Response(null, { status: 405, headers: { allow: 'GET, HEAD' } })
+    const socialWrite = url.pathname === '/posts' || url.pathname === '/profiles'
+    const socialRecord = url.pathname === '/raw' && url.searchParams.has('post')
+    const socialBlock = /^\/blobs\/[A-Za-z0-9_-]{43}$/.test(url.pathname) && ['GET', 'HEAD'].includes(request.method)
+    const socialPoll = url.pathname === '/gossip/poll' && url.searchParams.has('since')
+    if (!raw && !socialWrite && !socialRecord && !socialBlock && !socialPoll && url.pathname !== '/sync/status' && !workspaceGitRead.test(url.pathname)) return null
+    if (!(socialWrite ? ['POST'] : ['GET', 'HEAD']).includes(request.method)) {
+      return new Response(null, { status: 405, headers: { allow: socialWrite ? 'POST' : 'GET, HEAD' } })
     }
     const headers = new Headers({
       'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
@@ -65,10 +69,11 @@ function createWorkspaceGitGateway(value) {
     try {
       const response = await fetch(new URL(url.pathname + url.search, upstream.origin), {
         redirect: 'error', signal: AbortSignal.any([request.signal, AbortSignal.timeout(15000)]),
-        headers: { accept: raw ? '*/*' : 'application/json' },
+        headers: { accept: raw || socialBlock ? '*/*' : 'application/json', ...(socialWrite ? { 'content-type': 'application/json' } : {}) },
+        ...(socialWrite ? { method: 'POST', body: request.body, duplex: 'half' } : {}),
       })
       const type = response.headers.get('content-type')
-      if (raw) {
+      if (raw || socialBlock) {
         headers.set('content-security-policy', 'sandbox')
         headers.set('content-type', response.ok && type ? type : 'application/octet-stream')
       } else {
@@ -136,11 +141,17 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
     try { pathname = decodeURIComponent(new URL(request.url).pathname) }
     catch { return new Response(null, { status: 400 }) }
     if (/^\/(?:data(?:\/|$)|config\.json$|\.git(?:\/|$))/.test(pathname)) return new Response(null, { status: 404 })
-    const git = await workspaceGit?.(request)
+    const blockRoute = /^\/blobs\/[A-Za-z0-9_-]{43}$/.test(pathname) && ['GET', 'HEAD'].includes(request.method)
+    const git = !blockRoute && await workspaceGit?.(request)
     if (git) return git
     for (const service of [application.handleRequest, media.handleRequest, legacyBlob, notifications.handleRequest]) {
       const response = await service(request)
-      if (response) return response
+      if (response) {
+        if (blockRoute && service === media.handleRequest && response.status === 404 && workspaceGit) {
+          return await workspaceGit(request) || response
+        }
+        return response
+      }
     }
     const response = await staticFiles(request)
     if (pathname.startsWith('/dist/app-v1/') || pathname === '/app-embed.js' || pathname.startsWith('/client/') || pathname.startsWith('/vendor/') || ['/embed.js', '/style.css'].includes(pathname)) response.headers.set('access-control-allow-origin', '*')

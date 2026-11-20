@@ -27,9 +27,14 @@ gateway is enabled. The same-origin raw byte routes remain on ANBot.
 
 Deploy Wiredove directly at `bot.anproto.com`, with ANBot behind it for
 Git transport and verified reads. The production route map must pass Git
-smart HTTP traffic through to ANBot. Before deletion, close the remaining
-hosted Social adapter and relay-control parity checks and test a returning
-browser with the existing database, identity, drafts and outbox.
+smart HTTP traffic through to ANBot. At that hostname Wiredove opens the
+existing `anbot-wiredove-preview` database and uses ANBot for its hosted
+Social archive, profile and post delivery. A disposable ANBot accepted and
+returned signed posts and replies through the Wiredove gateway. A browser
+fixture verified the selected database name and reopening a saved draft.
+Before deletion, verify a returning browser against the staged deployment,
+including its actual identity, pending signed sends and historical media,
+and resolve the legacy custom relay and per-peer control parity.
 
 | Ticket | Owner and work | Exit check |
 |---|---|---|

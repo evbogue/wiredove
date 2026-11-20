@@ -1,6 +1,7 @@
-import { startWebsiteApplication } from './client/runtime/website-application.js'
+import { anbotWebsiteServices, startWebsiteApplication } from './client/runtime/website-application.js'
 
-await startWebsiteApplication()
+const hosted = location.hostname === 'bot.anproto.com'
+await startWebsiteApplication(hosted ? { services: anbotWebsiteServices, network: false } : undefined)
 
 if ('serviceWorker' in navigator) {
   const register = () => {

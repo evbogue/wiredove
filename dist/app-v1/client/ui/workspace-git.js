@@ -236,7 +236,7 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
   const selection = h('dl')
   const queue = h('p')
   const updateQueue = state => {
-    queue.textContent = `Browser transport: ${state.wsReady || state.gossipReady ? 'connected' : 'disconnected'}. ${state.total} queued.`
+    queue.textContent = `Browser peer transport: ${state.wsReady || state.gossipReady ? 'connected' : 'disconnected'}. ${state.total} queued.`
   }
   updateQueue(getQueueStatusSnapshot())
   const unsubscribe = subscribeQueueStatus(updateQueue)

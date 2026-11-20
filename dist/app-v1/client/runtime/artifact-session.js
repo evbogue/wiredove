@@ -2,7 +2,7 @@ import { an } from '../../vendor/anproto/an.js'
 
 // Transport and storage contracts contain exact signed artifacts. All untrusted
 // backend records are checked before reaching APDS or a renderer.
-export const createArtifactSession = ({ protocol, store, endpoint, legacyImageURL = null, fetchImpl = fetch, receive = async () => {} }) => {
+export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial = false, legacyImageURL = null, fetchImpl = fetch, receive = async () => {} }) => {
   const listeners = new Set()
   const changed = () => { for (const listener of listeners) listener() }
   const missingImages = new Set()
@@ -68,8 +68,13 @@ export const createArtifactSession = ({ protocol, store, endpoint, legacyImageUR
   const pending = async () => await store.get('outbox') || []
   const deliver = async record => {
     await ingest(record)
-    const saved = await request(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(record) })
-    if (!saved.saved || saved.id !== record.id) throw Error('Backend did not confirm the exact artifact')
+    let destination = endpoint
+    if (anbotSocial) {
+      const { body } = await protocol.parseYaml(record.content)
+      destination = new URL(body.trim() ? '/posts' : '/profiles', endpoint)
+    }
+    const saved = await request(destination, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(record) })
+    if (!(anbotSocial ? saved.status === 'published' : saved.saved) || saved.id !== record.id) throw Error('Backend did not confirm the exact artifact')
     if (saved.relayed === false) throw Error(saved.relayError || 'Saved on this backend; relay confirmation pending. Retry pending publication.')
     await store.set('outbox', (await pending()).filter(item => item.id !== record.id))
     return { ...record, saved: true, relayed: true }
@@ -85,13 +90,19 @@ export const createArtifactSession = ({ protocol, store, endpoint, legacyImageUR
       const author = keypair.substring(0,44)
       const history = (await protocol.query?.(author) || []).slice().sort((a,b) => Number(b.ts) - Number(a.ts))
       const inherited = {}
+      const candidates = []
       for (const row of history) {
         const parsed = await protocol.parseYaml(row.text || '')
+        if (anbotSocial && row.author === author && typeof parsed?.body === 'string'
+            && !(typeof parsed.type === 'string' && parsed.type.startsWith('git-'))) candidates.push({ row, previous: parsed.previous })
         for (const field of ['bio', 'links', 'image_original', 'image_crop']) if (!(field in inherited) && Object.hasOwn(parsed || {}, field)) inherited[field] = parsed[field]
       }
-      let previous = await protocol.get('previous')
+      const referenced = new Set(candidates.map(item => item.previous))
+      const tip = candidates.filter(item => !referenced.has(item.row.hash))
+        .sort((a, b) => Number(b.row.ts) - Number(a.row.ts) || (a.row.hash < b.row.hash ? -1 : 1))[0]
+      let previous = tip?.row.hash || await protocol.get('previous')
       if (previous && (await protocol.get(previous))?.substring(0,44) !== author) previous = null
-      previous ||= history[0]?.hash
+      if (!anbotSocial) previous ||= history[0]?.hash
       const name = await protocol.get('name'), image = await protocol.get('image')
       const content = await protocol.createYaml({ ...inherited, ...(name ? { name } : {}), ...(image ? { image } : {}), ...metadata, ...(previous ? { previous } : {}) }, body)
       const signature = await an.sign(await an.hash(content), keypair)
@@ -125,6 +136,24 @@ export const createArtifactSession = ({ protocol, store, endpoint, legacyImageUR
       pulling = (async () => {
         let more = true
         while (more && !stopped) {
+          if (anbotSocial) {
+            const url = new URL('/gossip/poll', endpoint)
+            url.searchParams.set('since', cursor)
+            const { messages, nextSince } = await request(url)
+            if (!Array.isArray(messages) || messages.length > 512 || messages.length % 2
+                || !Number.isSafeInteger(nextSince) || nextSince < cursor
+                || (messages.length && nextSince === cursor)) throw Error('Unsupported ANBot poll response')
+            for (let index = 0; index < messages.length; index += 2) {
+              if (stopped) return
+              const [signature, content] = [messages[index], messages[index + 1]]
+              if (typeof signature !== 'string' || typeof content !== 'string') throw Error('Invalid ANBot artifact pair')
+              await ingest({ id: await an.hash(signature), signature, content })
+            }
+            cursor = nextSince
+            more = messages.length > 0
+            lastError = null
+            continue
+          }
           const url = new URL(endpoint); url.searchParams.set('after', cursor)
           const page = await request(url)
           if (page.scope !== 'backend-archive' || !Array.isArray(page.records) || page.records.length > 100 || !Number.isInteger(page.cursor) || page.cursor < cursor || (page.more && page.cursor <= cursor)) throw Error('Unsupported backend response')
