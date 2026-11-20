@@ -1,5 +1,6 @@
 // Website frame: shared mount/services with explicit legacy transport, window
 // routing and browser capabilities. Service-worker registration stays in app.js.
+import { getPeerTransportControls } from '../ui/workspace-sync-controls.js'
 import { mountApplication } from './mount.js'
 import { createWindowNavigation } from './application-context.js'
 import { acquireDefaultSession } from './default-session.js'
@@ -23,12 +24,13 @@ export const startWebsiteApplication = async ({ services = {}, network = true } 
   try {
     lease = await acquireDefaultSession({ ...services, capabilities: { recording: true, notifications: true, ...services.capabilities } })
     lease.legacyNetwork = network
+    lease.transportControls = getPeerTransportControls
     if (network) { await connect(); await startSync(send); resumeQueue() }
     const host = document.createElement('main')
     document.body.append(host)
     application = await mountApplication(host, { session: lease, layout: 'page',
       navigation: createWindowNavigation(window) })
-    if (network) application.cleanup.push(async () => { pauseQueue(); stopSync(); await disconnect() })
+    application.cleanup.push(async () => { pauseQueue(); if (network) stopSync(); await disconnect() })
     application.cleanup.push(() => { started = false })
     if (!window.location.hash) window.location.hash = '#'
     return application

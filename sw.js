@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v41-workspace-hosted-social'
+const CACHE_VERSION = 'v42-workspace-headless'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',

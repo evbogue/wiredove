@@ -5,7 +5,7 @@ import { an } from '../../vendor/anproto/an.js'
 export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial = false, legacyImageURL = null, fetchImpl = fetch, receive = async () => {} }) => {
   const listeners = new Set()
   const changed = () => { for (const listener of listeners) listener() }
-  const missingImages = new Set()
+  const missingImages = new Map()
   let cursor = 0
   let pulling
   let stopped = false
@@ -31,10 +31,10 @@ export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial =
     if (stopped) throw Error('Application session stopped')
     const existing = await protocol.get(record.id)
     await protocol.make(record.content)
-    if (legacyImageURL) {
+    if (legacyImageURL || anbotSocial) {
       const parsed = await protocol.parseYaml(record.content)
       const hashes = new Set([parsed?.image, ...[...(parsed?.body || '').matchAll(/!\[[^\]]*\]\(([A-Za-z0-9+/]{43}=)\)/g)].map(match => match[1])].filter(value => /^[A-Za-z0-9+/]{43}=$/.test(value || '')))
-      for (const hash of hashes) if (!await protocol.get(hash)) missingImages.add(hash)
+      for (const hash of hashes) if (!await protocol.get(hash)) missingImages.set(hash, record.id)
     }
     await protocol.add(record.signature)
     await flush()
@@ -46,12 +46,29 @@ export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial =
   // Image availability is independent of the archive cursor. Failed requests
   // stay queued for a later refresh, including otherwise empty archive pages.
   const retryImages = async () => {
-    await Promise.all([...missingImages].slice(0, 8).map(async hash => {
+    await Promise.all([...missingImages].slice(0, 8).map(async ([hash, post]) => {
       if (stopped) return
       try {
         if (!await protocol.get(hash)) {
-          const url = new URL(legacyImageURL); url.searchParams.set('hash', hash)
-          const { source } = await request(url)
+          let source
+          if (legacyImageURL) {
+            const url = new URL(legacyImageURL)
+            url.searchParams.set('hash', hash)
+            source = (await request(url)).source
+          } else {
+            const url = new URL('/wiredove/image', endpoint)
+            url.search = new URLSearchParams({ id: post, hash })
+            const response = await fetchImpl(url, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]) })
+            const mime = response.headers.get('content-type')
+            if (!response.ok || !/^image\/(png|jpeg|gif|webp)$/.test(mime)) throw Error('Historical image unavailable')
+            const bytes = new Uint8Array(await response.arrayBuffer())
+            if (bytes.length > 8 * 1024 * 1024) throw Error('Historical image is too large')
+            const chunks = []
+            for (let index = 0; index < bytes.length; index += 8192) {
+              chunks.push(String.fromCharCode(...bytes.subarray(index, index + 8192)))
+            }
+            source = `data:${mime};base64,${btoa(chunks.join(''))}`
+          }
           if (typeof source !== 'string' || !source.startsWith('data:image/') || await an.hash(source) !== hash) throw Error('Historical image verification failed')
           if (stopped) return
           await protocol.make(source)
@@ -61,7 +78,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial =
         missingImages.delete(hash)
       } catch {
         // Rotate failures so an unavailable image cannot starve later images.
-        missingImages.delete(hash); missingImages.add(hash)
+        missingImages.delete(hash); missingImages.set(hash, post)
       }
     }))
   }
@@ -161,7 +178,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial =
           cursor = page.cursor; more = page.more === true
           lastError = null
         }
-        if (!stopped && legacyImageURL) await retryImages()
+        if (!stopped && (legacyImageURL || anbotSocial)) await retryImages()
       })().catch(error => { lastError = error.message; throw error }).finally(() => { pulling = null })
       return pulling
     },

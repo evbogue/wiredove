@@ -54,7 +54,7 @@ test('Workspace Git gateway sends legacy page links to Wiredove and forwards sta
   const upstream = createServer((req, res) => {
     assert.equal(req.url, '/sync/status')
     res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify({ selection: null }))
+    res.end(JSON.stringify({ selection: { repoId: 'a'.repeat(43) + '=' } }))
   })
   const listening = once(upstream, 'listening')
   upstream.listen(0, '127.0.0.1')
@@ -66,6 +66,7 @@ test('Workspace Git gateway sends legacy page links to Wiredove and forwards sta
     const hash = 'a'.repeat(40)
     const cases = [
       ['/git', '#workspace/'],
+      ['/tree/sub?rev=main', '#workspace/git/' + 'a'.repeat(43) + '/tree/sub?rev=main'],
       ['/git/demo/tree/sub?rev=main', '#workspace/git/demo/tree/sub?rev=main'],
       ['/git/demo/commit/' + hash + '/diff/file%20name', '#workspace/git/demo/diff/file%20name?rev=' + hash],
       ['/git/demo/compare/feature%2Fx...main?diff=file%20name', '#workspace/git/demo/compare/file%20name?base=feature%2Fx&head=main'],
@@ -73,9 +74,9 @@ test('Workspace Git gateway sends legacy page links to Wiredove and forwards sta
     for (const [path, target] of cases) {
       const response = await fetch(server.origin + path, { redirect: 'manual' })
       assert.equal(response.status, 307)
-      assert.equal(response.headers.get('location'), server.origin + '/' + target)
+      assert.equal(response.headers.get('location'), '/' + target)
     }
-    assert.deepEqual(await (await fetch(server.origin + '/sync/status')).json(), { selection: null })
+    assert.deepEqual(await (await fetch(server.origin + '/sync/status')).json(), { selection: { repoId: 'a'.repeat(43) + '=' } })
     assert.equal((await fetch(server.origin + '/sync/status', { method: 'POST' })).status, 405)
   } finally {
     await server?.stop()

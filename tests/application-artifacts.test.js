@@ -126,7 +126,9 @@ test('ANBot Social verifies fetched signature pairs and retries exact signed byt
     add: async signature => blobs.set(await an.hash(signature), signature),
     parseYaml: JSON.parse, createYaml: (meta, body) => JSON.stringify({ ...meta, body }),
     getHashLog: () => [], getOpenedLog: () => [] }
-  const existing = await signed('{"body":"Published before the UI move"}')
+  const image = 'data:image/png;base64,AAAA'
+  const imageHash = await an.hash(image)
+  const existing = await signed(JSON.stringify({ image: imageHash, body: 'Published before the UI move' }))
   let available = false
   const writes = [], cursors = []
   const session = createArtifactSession({ protocol,
@@ -139,6 +141,10 @@ test('ANBot Social verifies fetched signature pairs and retries exact signed byt
         cursors.push(since)
         return Response.json({ messages: since ? [] : [existing.signature, existing.content], nextSince: 1 })
       }
+      if (url.pathname === '/wiredove/image') {
+        assert(url.searchParams.get('hash') === imageHash && url.searchParams.get('id') === existing.id)
+        return new Response(Uint8Array.of(0, 0, 0), { headers: { 'content-type': 'image/png' } })
+      }
       const record = JSON.parse(options.body)
       writes.push({ path: url.pathname, ...record })
       if (!available) return new Response(null, { status: 503 })
@@ -147,6 +153,7 @@ test('ANBot Social verifies fetched signature pairs and retries exact signed byt
   })
   await session.pull()
   assert(blobs.has(existing.id) && cursors.join(',') === '0,1')
+  assert(blobs.get(imageHash) === image)
   const message = await session.publish('Continue the discussion')
   assert(!message.relayed && writes[0].path === '/posts')
   available = true

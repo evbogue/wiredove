@@ -6,19 +6,13 @@ import { adaptiveConcurrency } from './adaptive_concurrency.js'
 import { perfMeasure, perfStart, perfEnd } from './perf.js'
 
 const pubs = new Set()
-const sockets = new Set()
 let generation = 0
-let httpAbort = new AbortController()
-const wsBackoff = new Map()
+let primaryRelay = null
+const connections = new Map()
 const HTTP_POLL_INTERVAL_MS = 5000
 const RECENT_LATEST_WINDOW_MS = 24 * 60 * 60 * 1000
 const INCOMING_BATCH_CONCURRENCY = adaptiveConcurrency({ base: 6, min: 2, max: 10, type: 'network' })
-const httpState = {
-  baseUrl: null,
-  ready: false,
-  pollTimer: null,
-  lastSince: 0
-}
+const pollHistory = new Map()
 const DEFAULT_CONFIRM_TIMEOUT_MS = 12000
 const DEFAULT_CONFIRM_INTERVAL_MS = 600
 const DEFAULT_CONFIRM_LOOKBACK_MS = 2 * 60 * 1000
@@ -75,7 +69,7 @@ const mapLimit = async (items, limit, worker) => {
   return results
 }
 
-const processIncomingBatch = async (messages) => {
+const processIncomingBatch = async (messages, state) => {
   if (!Array.isArray(messages) || !messages.length) { return }
   const token = perfStart('net.batch.process')
   const seen = new Set()
@@ -86,28 +80,28 @@ const processIncomingBatch = async (messages) => {
     return true
   })
   await mapLimit(deduped, INCOMING_BATCH_CONCURRENCY, async (msg) => {
-    await handleIncoming(msg)
+    if (!state.abort.signal.aborted) await handleIncoming(msg, state)
   })
   perfEnd(token)
 }
 
-const handleIncoming = async (msg) => {
+const handleIncoming = async (msg, state) => {
   const current = generation
   if (!isHash(msg)) noteReceived(msg)
   if (isHash(msg)) {
     const blob = await apds.get(msg)
-    if (current !== generation) return
+    if (current !== generation || state?.abort.signal.aborted) return
     if (blob) {
       if (pubs.size) {
         deliverWs(blob)
       } else {
-        await sendHttp(blob)
+        await sendHttp(blob, state)
       }
     }
     return
   }
   const author = msg.substring(0, 44)
-  if (await isBlockedAuthor(author)) { return }
+  if (await isBlockedAuthor(author) || state?.abort.signal.aborted) { return }
   await deliverToRenderers('shouldWe', msg)
   await apds.make(msg)
   await apds.add(msg)
@@ -122,113 +116,87 @@ const normalizeSince = (value) => {
   return Math.max(0, Math.floor(parsed))
 }
 
-const pollHttpSince = async (since) => {
-  if (!httpState.ready || !httpState.baseUrl) { return null }
+const pollHttpSince = async (state, since) => {
+  const url = new URL('/gossip/poll', state.baseUrl)
+  url.searchParams.set('since', String(normalizeSince(since)))
   try {
-    const url = new URL('/gossip/poll', httpState.baseUrl)
-    url.searchParams.set('since', String(normalizeSince(since)))
-    const res = await perfMeasure('net.http.poll', async () => fetch(url.toString(), { cache: 'no-store', signal: httpAbort.signal }))
-    if (!res.ok) { return { ok: false, status: res.status } }
-    const data = await res.json()
-    return {
-      ok: true,
-      messages: Array.isArray(data.messages) ? data.messages : [],
-      nextSince: Number.isFinite(data.nextSince) ? data.nextSince : null
+    const signal = AbortSignal.any([state.abort.signal, AbortSignal.timeout(5000)])
+    const response = await perfMeasure('net.http.poll', () => fetch(url, { cache: 'no-store', signal }))
+    if (!response.ok) return null
+    const data = await response.json()
+    if (!Array.isArray(data.messages)) return null
+    return { messages: data.messages, nextSince: Number.isFinite(data.nextSince) ? data.nextSince : since }
+  } catch {
+    return null
+  }
+}
+
+const pollHttp = async state => {
+  const signal = state.abort.signal
+  if (signal.aborted) return
+  let delay = HTTP_POLL_INTERVAL_MS
+  try {
+    if (!state.catchUp && isWsOpen(state.socket)) {
+      state.polling = 'Standby'
+      return
     }
-  } catch (err) {
-    console.warn('http gossip poll failed', err)
-    return { ok: false, error: err }
-  }
-}
-
-const scheduleHttpPoll = () => {
-  if (!httpState.ready || httpState.pollTimer) { return }
-  httpState.pollTimer = setTimeout(pollHttp, HTTP_POLL_INTERVAL_MS)
-}
-
-const pollHttp = async () => {
-  const current = generation
-  httpState.pollTimer = null
-  if (!httpState.ready || pubs.size) {
-    scheduleHttpPoll()
-    return
-  }
-  try {
-    const polled = await pollHttpSince(httpState.lastSince)
-    if (polled?.ok) {
-      if (!httpState.ready || current !== generation) return
-      await processIncomingBatch(polled.messages)
-      if (Number.isFinite(polled.nextSince)) {
-        httpState.lastSince = Math.max(httpState.lastSince, polled.nextSince)
-      }
+    const polled = await pollHttpSince(state, state.history.lastSince)
+    if (signal.aborted) return
+    if (!polled) { state.polling = 'Unavailable'; return }
+    await processIncomingBatch(polled.messages, state)
+    if (signal.aborted) return
+    state.polling = 'Active'
+    state.history.lastPollAt = Date.now()
+    if (state.catchUp && polled.messages.length >= 200 && polled.nextSince > state.history.lastSince) delay = 0
+    state.history.lastSince = Math.max(state.history.lastSince, polled.nextSince)
+  } catch (error) {
+    if (!signal.aborted) {
+      state.polling = 'Unavailable'
+      console.warn('APDS poll processing failed', error)
     }
   } finally {
-    if (current === generation) scheduleHttpPoll()
+    if (!signal.aborted) state.pollTimer = setTimeout(() => void pollHttp(state), delay)
   }
 }
 
-const sendHttp = async (msg) => {
-  const current = generation
-  if (!httpState.ready) { return }
+const sendHttp = async (msg, state = connections.get(primaryRelay)) => {
+  if (!state || state.readOnly) return
+  const signal = state.abort.signal
   try {
-    const url = new URL('/gossip', httpState.baseUrl)
-    const res = await perfMeasure('net.http.send', async () => fetch(url.toString(), {
-      signal: httpAbort.signal,
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: msg
+    const response = await perfMeasure('net.http.send', () => fetch(new URL('/gossip', state.baseUrl), {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]), method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, body: msg,
     }))
-    if (!res.ok) { return }
-    const data = await res.json()
-    const messages = Array.isArray(data.messages) ? data.messages : []
-    if (!httpState.ready || current !== generation) return
-    await processIncomingBatch(messages)
+    if (!response.ok) return
+    const data = await response.json()
+    if (!signal.aborted) await processIncomingBatch(data.messages, state)
   } catch (err) {
-    console.warn('http gossip send failed', err)
+    if (!signal.aborted) console.warn('http gossip send failed', err)
   }
 }
 
-export const startHttpGossip = async (baseUrl) => {
-  if (httpState.ready) { return }
-  if (httpAbort.signal.aborted) httpAbort = new AbortController()
-  const current = generation
-  httpState.baseUrl = baseUrl
-  httpState.ready = true
-  try {
-    const q = await apds.query()
-    if (current !== generation) return
-    if (q && q.length) {
-      let ts = 0
-      q.forEach((entry) => {
-        const value = Number.parseInt(entry?.ts || '0', 10)
-        if (Number.isFinite(value) && value > ts) { ts = value }
-      })
-      if (Number.isFinite(ts)) {
-        httpState.lastSince = ts
-      }
-    }
-  } catch (err) {
-    console.warn('http gossip seed failed', err)
+export const getRelayStatus = (url = primaryRelay) => {
+  const state = connections.get(url)
+  return {
+    enabled: !!state,
+    connected: pubs.has(state?.socket),
+    polling: state?.polling || 'Off',
+    lastPollAt: pollHistory.get(url)?.lastPollAt ?? null,
   }
-  if (current !== generation) return
-  void pollHttp()
-  scheduleHttpPoll()
 }
 
 export const sendWs = async (msg) => {
-  if (pubs.size) {
-    deliverWs(msg)
-  } else {
-    await sendHttp(msg)
-  }
+  deliverWs(msg)
+  await Promise.all([...connections.values()].filter(state => !isWsOpen(state.socket)).map(state => sendHttp(msg, state)))
 }
 
-export const hasWs = () => pubs.size > 0 || httpState.ready
+export const hasWs = () => [...connections.values()].some(state => !state.readOnly)
 
 export const confirmMessagesPersisted = async (messages, options = {}) => {
   const targets = Array.from(new Set((messages || []).filter((msg) => typeof msg === 'string' && msg.length)))
   if (!targets.length) { return { ok: true, missing: [], attempts: 0 } }
-  if (!httpState.ready || !httpState.baseUrl) {
+  const relay = connections.get(primaryRelay)
+  if (!relay) {
     return { ok: false, missing: targets, attempts: 0, reason: 'unconfirmed' }
   }
 
@@ -240,10 +208,10 @@ export const confirmMessagesPersisted = async (messages, options = {}) => {
   let cursor = normalizeSince(options.since ?? (Date.now() - lookbackMs))
   let attempts = 0
 
-  while (httpState.ready && Date.now() <= deadline && pending.size) {
+  while (!relay.abort.signal.aborted && Date.now() <= deadline && pending.size) {
     attempts += 1
-    const polled = await pollHttpSince(cursor)
-    if (polled?.ok) {
+    const polled = await pollHttpSince(relay, cursor)
+    if (polled) {
       polled.messages.forEach((msg) => pending.delete(msg))
       if (Number.isFinite(polled.nextSince)) {
         cursor = Math.max(cursor, normalizeSince(polled.nextSince))
@@ -264,136 +232,106 @@ registerNetworkSenders({
   hasWs
 })
 
-export const makeWs = async (pub, { waitForReady = true } = {}) => {
-  const current = generation
-  const httpBase = toHttpBase(pub)
-  await startHttpGossip(httpBase)
-  if (current !== generation) return
-
-  const getBackoff = () => {
-    let state = wsBackoff.get(pub)
-    if (!state) {
-      state = { delayMs: 1000, timer: null }
-      wsBackoff.set(pub, state)
-    }
-    return state
+export const makeWs = async (pub, { waitForReady = true, catchUp = false, primary = false, readOnly = false, waitForInitialPoll = false } = {}) => {
+  if (connections.has(pub)) return waitForReady ? wsReady : undefined
+  if (!readOnly && (primary || !primaryRelay)) primaryRelay = pub
+  if (!pollHistory.has(pub)) pollHistory.set(pub, { lastSince: 0, lastPollAt: null })
+  const state = {
+    delayMs: 1000, timer: null, socket: null, abort: new AbortController(),
+    baseUrl: toHttpBase(pub), catchUp, readOnly, history: pollHistory.get(pub), polling: 'Waiting', pollTimer: null,
   }
+  connections.set(pub, state)
+  const active = () => connections.get(pub) === state
 
   const scheduleReconnect = () => {
-    if (current !== generation) return
-    const state = getBackoff()
-    if (state.timer) return
+    if (!active() || state.timer) return
     state.timer = setTimeout(() => {
       state.timer = null
       connectWs()
-      state.delayMs *= 2
+      state.delayMs = Math.min(state.delayMs * 2, 60000)
     }, state.delayMs)
   }
 
-  const resetBackoff = () => {
-    const state = getBackoff()
-    if (state.timer) {
-      clearTimeout(state.timer)
-      state.timer = null
-    }
-    state.delayMs = 1000
-  }
-
   const connectWs = () => {
-    if (current !== generation) return
+    if (!active()) return
     const ws = new WebSocket(pub)
-    sockets.add(ws)
+    state.socket = ws
 
     ws.onopen = async () => {
-      if (current !== generation) { ws.close(); return }
-      console.log('OPEN')
-    pubs.add(ws)
-    resetBackoff()
-    wsReadyResolver?.()
-    const now = Date.now()
-    let pubkeys = []
+      if (!active()) { ws.close(); return }
+      pubs.add(ws)
+      state.delayMs = 1000
+      wsReadyResolver?.()
+      const now = Date.now()
+      let pubkeys = []
       try {
         const next = await apds.getPubkeys()
         pubkeys = Array.isArray(next) ? next : []
       } catch (err) {
         console.warn('getPubkeys failed', err)
-        pubkeys = []
       }
       const moderation = await getModerationState()
       const blocked = new Set(moderation.blockedAuthors || [])
-      const announceable = pubkeys.filter((pub) => !blocked.has(pub))
-      await mapLimit(announceable, INCOMING_BATCH_CONCURRENCY, async (pub) => {
-        if (!safeWsSend(ws, pub)) { return }
-        const latest = await apds.getLatest(pub)
-        if (!latest) { return }
-        const openedTs = parseOpenedTimestamp(latest.opened)
-        if (!openedTs || now - openedTs > RECENT_LATEST_WINDOW_MS) { return }
-        if (!latest.sig) { return }
-        safeWsSend(ws, latest.sig)
+      const announceable = pubkeys.filter(key => !blocked.has(key))
+      await mapLimit(announceable, INCOMING_BATCH_CONCURRENCY, async key => {
+        if (!active() || !safeWsSend(ws, key)) return
+        const latest = await apds.getLatest(key)
+        const openedTs = parseOpenedTimestamp(latest?.opened)
+        if (active() && openedTs && now - openedTs <= RECENT_LATEST_WINDOW_MS && latest.sig) {
+          safeWsSend(ws, latest.sig)
+        }
       })
-      //below sends everything in the client to a dovepub pds server
-      //const log = await apds.query()
-      //if (log) {
-      //  const ar = []
-      //  for (const msg of log) {
-      //    ws.send(msg.sig)
-      //    if (msg.text) {
-      //      ws.send(msg.text)
-      //      const yaml = await apds.parseYaml(msg.text)
-      //      //console.log(yaml)
-      //      if (yaml.image && !ar.includes(yaml.image)) {
-      //        const get = await apds.get(yaml.image)
-      //        if (get) {
-      //          ws.send(get)
-      //          ar.push(yaml.image)
-      //        }
-      //      }
-      //    }
-      //    if (!msg.text) {
-      //      const get = await apds.get(msg.opened.substring(13))
-      //      if (get) {ws.send(get)}
-      //    }
-      //  }
-      //}
     }
 
-  ws.onmessage = async (m) => {
-    if (current !== generation) return
-    await handleIncoming(m.data)
-  }
+    ws.onmessage = async event => {
+      if (active()) await handleIncoming(event.data, state)
+    }
 
     ws.onerror = () => {
-      scheduleReconnect()
+      if (active()) ws.close()
     }
 
-    ws.onclose = async () => {
-      console.log('CLOSED')
-      sockets.delete(ws)
+    ws.onclose = () => {
       pubs.delete(ws)
-      if (!pubs.size) {
-        wsReady = createWsReadyPromise()
-      }
+      if (state.socket === ws) state.socket = null
+      if (!pubs.size) wsReady = createWsReadyPromise()
       scheduleReconnect()
     }
   }
 
-  connectWs()
-  return waitForReady ? wsReady : undefined
+  const httpOnly = readOnly || /^https?:/.test(pub)
+  try {
+    if (!httpOnly) connectWs()
+  } catch (error) {
+    stopWs(pub)
+    throw error
+  }
+  const initialPoll = pollHttp(state)
+  if (waitForInitialPoll) await initialPoll
+  return waitForReady && !httpOnly ? wsReady : undefined
+}
+
+export const stopWs = pub => {
+  const state = connections.get(pub)
+  if (!state) return
+  connections.delete(pub)
+  state.abort.abort()
+  clearTimeout(state.pollTimer)
+  clearTimeout(state.timer)
+  const ws = state.socket
+  if (ws) {
+    pubs.delete(ws)
+    ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null
+    ws.close()
+  }
+  if (!pubs.size) wsReady = createWsReadyPromise()
+  if (primaryRelay === pub) primaryRelay = [...connections].find(([, entry]) => !entry.readOnly)?.[0] ?? null
 }
 
 export const stopNetwork = () => {
   generation += 1
-  httpState.ready = false
-  httpAbort.abort()
-  clearTimeout(httpState.pollTimer)
-  httpState.pollTimer = null
-  for (const state of wsBackoff.values()) clearTimeout(state.timer)
-  wsBackoff.clear()
-  for (const ws of sockets) {
-    ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null
-    ws.close()
-  }
-  sockets.clear()
-  pubs.clear()
+  primaryRelay = null
+  pollHistory.clear()
+  for (const pub of connections.keys()) stopWs(pub)
   wsReady = createWsReadyPromise()
 }

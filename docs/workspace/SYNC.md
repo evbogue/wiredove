@@ -18,8 +18,10 @@ Open Workspace → Sync or use the existing `#sync` link. The server panel
 reads ANBot's selected publication through `/sync/status` and retains
 the last selection if a refresh fails. The browser panel shows Wiredove
 transport readiness and queue size and refreshes the Social archive
-through the current application session. ANBot's custom relay and
-per-peer controls still need parity review before retiring the legacy UI.
+through the current application session. The website's Sync view retains the ANBot custom relay addresses, lets users
+enable and disable each relay, and shows connection and poll status. It also
+controls the Trystero room and lets users pause individual peers. These
+transport controls belong to the website session.
 
 ## Migration boundary
 

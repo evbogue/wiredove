@@ -16,7 +16,7 @@ import { parseWorkspaceGitRoute, readWorkspaceSelection, workspaceGitHref } from
 import { createWorkspaceGitView, createWorkspaceSyncView } from './client/ui/workspace-git.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
-  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, mediaSource = globalThis.location?.origin }) => {
+  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, transportControls = false, mediaSource = globalThis.location?.origin }) => {
 const document = scopeDocument(root)
 const render = renderer
 const composer = compose
@@ -180,7 +180,7 @@ const route = async () => {
   try {
     if (src === 'workspace/sync') {
       createWorkspaceSyncView({ panel, signal: run.signal, isActive,
-        refreshSocial: () => queries?.refresh(),
+        refreshSocial: () => queries?.refresh(), transportControls,
       })
       return
     }

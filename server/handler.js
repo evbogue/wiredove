@@ -47,19 +47,51 @@ function createWorkspaceGitGateway(value) {
   return async request => {
     const url = new URL(request.url)
     if (['GET', 'HEAD'].includes(request.method)) {
+      const legacy = /^\/(?:refs$|commits$|tree(?:\/|$)|blob\/|commit\/|raw\/|compare\/)/
+      if (legacy.test(url.pathname)) {
+        try {
+          const result = await fetch(new URL('/sync/status', upstream.origin), {
+            redirect: 'error', signal: AbortSignal.any([request.signal, AbortSignal.timeout(5000)]),
+          })
+          if (!result.ok) return new Response(null, { status: 503 })
+          const id = (await result.json()).selection?.repoId
+          if (!/^[A-Za-z0-9+/_-]{43}=?$/.test(id)) return new Response(null, { status: 404 })
+          const repo = id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+          url.pathname = '/git/' + repo + url.pathname
+        } catch { return new Response(null, { status: 503 }) }
+      }
       const page = workspaceGitPage(url)
       if (page) {
         const target = new URL('/', url.origin)
         target.hash = page
-        return Response.redirect(target, 307)
+        return new Response(null, { status: 307, headers: { location: '/' + target.hash, 'cache-control': 'no-store' } })
+      }
+    }
+    const gitTransport = /^\/git\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)?\.git\/(?:info\/refs|git-upload-pack|git-receive-pack|anbot-auth)$/.test(url.pathname)
+    if (gitTransport) {
+      if (!['GET', 'POST'].includes(request.method)) return new Response(null, { status: 405 })
+      const headers = new Headers()
+      for (const key of ['authorization', 'content-encoding', 'content-length', 'content-type', 'git-protocol', 'x-anbot-author']) {
+        if (request.headers.has(key)) headers.set(key, request.headers.get(key))
+      }
+      try {
+        const response = await fetch(new URL(url.pathname + url.search, upstream.origin), {
+          redirect: 'error', signal: request.signal, method: request.method, headers,
+          ...(request.method === 'POST' ? { body: request.body, duplex: 'half' } : {}),
+        })
+        return new Response(response.body, { status: response.status,
+          headers: { 'content-type': response.headers.get('content-type') || 'application/octet-stream', 'cache-control': 'no-store' } })
+      } catch {
+        return new Response('Git transport unavailable\n', { status: 503 })
       }
     }
     const raw = workspaceGitRaw.test(url.pathname) || /^\/git\/[A-Za-z0-9_-]+\/commit\/[0-9a-f]{40}\/raw\/.+/.test(url.pathname)
     const socialWrite = url.pathname === '/posts' || url.pathname === '/profiles'
     const socialRecord = url.pathname === '/raw' && url.searchParams.has('post')
+    const socialImage = url.pathname === '/wiredove/image'
     const socialBlock = /^\/blobs\/[A-Za-z0-9_-]{43}$/.test(url.pathname) && ['GET', 'HEAD'].includes(request.method)
     const socialPoll = url.pathname === '/gossip/poll' && url.searchParams.has('since')
-    if (!raw && !socialWrite && !socialRecord && !socialBlock && !socialPoll && url.pathname !== '/sync/status' && !workspaceGitRead.test(url.pathname)) return null
+    if (!raw && !socialWrite && !socialRecord && !socialImage && !socialBlock && !socialPoll && url.pathname !== '/sync/status' && !workspaceGitRead.test(url.pathname)) return null
     if (!(socialWrite ? ['POST'] : ['GET', 'HEAD']).includes(request.method)) {
       return new Response(null, { status: 405, headers: { allow: socialWrite ? 'POST' : 'GET, HEAD' } })
     }
@@ -69,11 +101,11 @@ function createWorkspaceGitGateway(value) {
     try {
       const response = await fetch(new URL(url.pathname + url.search, upstream.origin), {
         redirect: 'error', signal: AbortSignal.any([request.signal, AbortSignal.timeout(15000)]),
-        headers: { accept: raw || socialBlock ? '*/*' : 'application/json', ...(socialWrite ? { 'content-type': 'application/json' } : {}) },
+        headers: { accept: raw || socialBlock || socialImage ? '*/*' : 'application/json', ...(socialWrite ? { 'content-type': 'application/json' } : {}) },
         ...(socialWrite ? { method: 'POST', body: request.body, duplex: 'half' } : {}),
       })
       const type = response.headers.get('content-type')
-      if (raw || socialBlock) {
+      if (raw || socialBlock || socialImage) {
         headers.set('content-security-policy', 'sandbox')
         headers.set('content-type', response.ok && type ? type : 'application/octet-stream')
       } else {

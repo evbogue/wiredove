@@ -219,6 +219,24 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await page.getByText('Refresh failed. Showing the last known Git selection.').waitFor();
     await page.getByText('verified-update').waitFor();
     await page.getByRole('heading', { name: 'Browser Social sync' }).waitFor();
+    await page.evaluate(() => {
+      window.testRelaySockets = [];
+      window.WebSocket = class {
+        static OPEN = 1;
+        constructor(url) { this.url = url; window.testRelaySockets.push(this); }
+        close() { this.closed = true; }
+      };
+    });
+    const relayAddress = page.getByLabel('APDS WebSocket URL');
+    for (const address of ['ws://127.0.0.1:9000/', 'ws://127.0.0.1:9001/']) {
+      await relayAddress.fill(address);
+      await page.getByRole('button', { name: 'Add APDS relay' }).click();
+      await page.getByRole('switch', { name: new RegExp(address) }).waitFor();
+    }
+    await page.getByRole('switch', { name: /9000/ }).uncheck();
+    assert.deepEqual(await page.evaluate(() => testRelaySockets.map(socket => !!socket.closed)), [true, false]);
+    assert.match(await page.evaluate(() => localStorage.getItem('anbot:custom-apds')), /9000.*9001/);
+
     assert.deepEqual(errors,[]);
     await page.goto(origin + '/hosted#compose');
     await page.getByPlaceholder('Write a message').waitFor();

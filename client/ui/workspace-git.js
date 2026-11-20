@@ -230,7 +230,7 @@ function render(data, request, href, navigate) {
   return body
 }
 
-export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial }) {
+export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial, transportControls }) {
   const status = h('p')
   status.setAttribute('role', 'status')
   const selection = h('dl')
@@ -280,6 +280,7 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
     text('h1', 'Sync'), link('Repositories', '#workspace/'),
     text('h2', 'Server Git selection'), refresh, status, selection,
     text('h2', 'Browser Social sync'), queue, social, socialStatus,
+    ...(transportControls ? [transportControls({ signal, isActive })] : []),
   ]))
   void load()
 }

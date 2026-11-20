@@ -26,15 +26,27 @@ separately. Existing scoped Git page URLs resolve to Wiredove views when the
 gateway is enabled. The same-origin raw byte routes remain on ANBot.
 
 Deploy Wiredove directly at `bot.anproto.com`, with ANBot behind it for
-Git transport and verified reads. The production route map must pass Git
-smart HTTP traffic through to ANBot. At that hostname Wiredove opens the
+Git transport and verified reads. ANBot `serve --headless` disables its Social
+shell and HTML Git pages. The Wiredove gateway forwards ANBot's smart HTTP
+and signed push challenge endpoints and redirects legacy Git page links into
+Workspace. The local headless acceptance covered clone, signed push, fetch,
+commit reads, raw downloads and signed Social post and reply retrieval. At that hostname Wiredove opens the
 existing `anbot-wiredove-preview` database and uses ANBot for its hosted
 Social archive, profile and post delivery. A disposable ANBot accepted and
 returned signed posts and replies through the Wiredove gateway. A browser
 fixture verified the selected database name and reopening a saved draft.
 Before deletion, verify a returning browser against the staged deployment,
 including its actual identity, pending signed sends and historical media,
-and resolve the legacy custom relay and per-peer control parity.
+using the staged hostname and a rollback to the previous UI. The legacy
+custom relay list, independent APDS toggles, Trystero connection, and
+per-peer pause controls are available in Wiredove's Sync view.
+
+For a staged switch, start ANBot with its existing data path and
+`serve --headless --push-origin https://bot.anproto.com`. Keep the
+configured push and replication flags. Point the Wiredove deployment's
+`WORKSPACE_GIT_UPSTREAM` at the internal ANBot origin. Keep both data
+volumes in place. Roll back by routing the hostname to the previous
+ANBot launch without `--headless`.
 
 | Ticket | Owner and work | Exit check |
 |---|---|---|
