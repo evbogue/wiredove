@@ -178,7 +178,6 @@ export const navbar = async (application) => {
     h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
       h('img', {src: new URL('./dovepurple_sm.png', import.meta.url).href, classList: 'avatar_small', alt: ''})
     ]),
-    views,
     ...((application.session?.policy?.capabilities?.compose === false || (application.session?.policy?.owner && await apds.pubkey() !== application.session.policy.owner)) ? [] : [await composeButton(application)]),
   ])
 
@@ -222,7 +221,7 @@ export const navbar = async (application) => {
     span,
   ])
 
-  const div = h('nav', {id: 'navbar', 'aria-label': 'Main navigation'}, [left, right])
+  const div = h('nav', {id: 'navbar', 'aria-label': 'Main navigation'}, [left, views, right])
 
   if (!await apds.keypair()) {
     span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair(undefined, application) }, ['person_add']))

@@ -16,8 +16,13 @@
 #navbar { position: sticky; top: 0; left: auto; width: 100%; z-index: 100; }
 #navbar .nav-icon.is-refreshing { animation: wiredove-spin 1s linear infinite; }
 @container (max-width: 475px) {
-  #navbar .nav-source { display: none; }
-  #navbar #search:focus { width: min(120px, max(48px, calc(100cqi - 261px))); }
+  #navbar {
+    display: grid; grid-template-columns: auto minmax(0, 1fr);
+    height: auto; column-gap: 8px; row-gap: 2px;
+  }
+  #navbar .navbar-right { grid-column: 1 / -1; width: 100%; }
+  #navbar #search { flex: 1; }
+  #navbar #search:focus { width: auto; }
 }
 @keyframes wiredove-spin { to { transform: rotate(360deg); } }
 .modal-overlay { position: absolute; height: 100%; }
