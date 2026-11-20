@@ -1,6 +1,6 @@
 # Work order for the Wiredove UI migration
 
-**Status: planned · 20 November 2026**
+**Status: first slice in development · 20 November 2026**
 
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser
@@ -8,6 +8,15 @@ and supported human workflows from ANBot. Wave builds on Wiredove.
 ANBot remains the agent CLI and retains its Git capability during this
 migration. Keep Git pushes open and post editing solo. Wave can define
 collaboration rules when that work begins.
+
+The first slice has a shared Social / Workspace shell and browser-rendered
+overview, tree, and file views. ANBot commit `a38ee52` supplies the structured
+reads. A Chromium fixture against a disposable ANBot node verified that
+Refresh sees a pushed commit while pinned links keep resolving to their
+original commit. The shared-shell browser check covers keyboard entry,
+alternate views, Back, reload, and a retained Social panel at phone width.
+The host route mapping, full view parity, and rollback checks are still
+required before cutover.
 
 | Ticket | Owner and work | Exit check |
 |---|---|---|
@@ -34,6 +43,8 @@ projects. Pull in a backend dependency when it blocks a specific acceptance
 case. Finish Wave before building an audience.
 
 [Git browser design](GIT_BROWSER.md) · [Layout](LAYOUT.md) · [Controls](CONTROLS.md) · [Sync](SYNC.md)
+
+[Migration baseline and cutover checks](MIGRATION_BASELINE.md)
 
 ## Work-order disposition
 

@@ -1,6 +1,6 @@
 import { marked } from '../../vendor/marked/marked.esm.js';
 import { createImageGallery } from './image-gallery.js';
-import { safeLinkURL } from './image-source.js';
+import { safeImageURL, safeLinkURL } from './image-source.js';
 
 const wrappers = { strong: 'strong', em: 'em', del: 'del', link: 'a' };
 function inlineUnits(tokens, parents = []) {
@@ -71,11 +71,13 @@ function decodeEntities(doc, text) {
   area.innerHTML = text; // Detached RCDATA element decodes entities without interpreting markup.
   return area.value;
 }
-function renderUnits(target, units, doc) {
+function renderUnits(target, units, options, doc) {
   for (const unit of units) {
     let parent = target;
     for (const wrap of unit.parents || []) {
-      const href = wrap.tag === 'a' ? safeLinkURL(decodeEntities(doc, wrap.href || '')) : null;
+      const rawHref = wrap.tag === 'a' ? decodeEntities(doc, wrap.href || '') : '';
+      const resolved = rawHref && options.resolveLink?.(rawHref);
+      const href = resolved === undefined ? safeLinkURL(rawHref) : resolved;
       if (wrap.tag === 'a' && !href) continue;
       const node = doc.createElement(wrap.tag);
       if (href) { node.href = href; node.rel = 'noreferrer'; }
@@ -85,7 +87,9 @@ function renderUnits(target, units, doc) {
     if (unit.br) { parent.append(doc.createElement('br')); continue; }
     if (unit.code) { const code = doc.createElement('code'); code.textContent = decodeEntities(doc, unit.text); parent.append(code); continue; }
     const text = unit.literal ? unit.text : decodeEntities(doc, unit.text);
-    if (unit.literal || unit.parents?.some(wrap => wrap.tag === 'a')) { parent.append(doc.createTextNode(text)); continue; }
+    if (options.hashtags === false || unit.literal || unit.parents?.some(wrap => wrap.tag === 'a')) {
+      parent.append(doc.createTextNode(text)); continue;
+    }
     let cursor = 0;
     for (const match of text.matchAll(/(^|\s)(#[\p{L}\p{N}_-]+)/gu)) {
       const start = match.index + match[1].length;
@@ -99,6 +103,21 @@ function renderUnits(target, units, doc) {
 function renderBlocks(target, blocks, options, doc) {
   for (const block of blocks) {
     if (block.images) {
+      if (options.resolveMarkdownImage) {
+        for (const image of block.images) {
+          const rawSrc = decodeEntities(doc, image.src || '');
+          const src = options.resolveMarkdownImage(rawSrc) ?? safeImageURL(rawSrc);
+          const alt = decodeEntities(doc, image.alt || '');
+          if (!src) { target.append(doc.createTextNode(alt)); continue; }
+          const node = doc.createElement('img');
+          node.alt = alt;
+          node.loading = 'lazy';
+          node.referrerPolicy = 'no-referrer';
+          node.src = src;
+          target.append(node);
+        }
+        continue;
+      }
       target.append(createImageGallery({ ...options, document: doc, images: block.images.map(image => ({ ...image,
         src: decodeEntities(doc, image.src || ''), alt: decodeEntities(doc, image.alt || ''),
         title: decodeEntities(doc, image.title || ''), link: decodeEntities(doc, image.link || '') })) }));
@@ -113,7 +132,7 @@ function renderBlocks(target, blocks, options, doc) {
       if (block.lang) code.className = 'language-' + block.lang.split(/\s/)[0];
       node.append(code);
     }
-    if (block.units) renderUnits(node, block.units, doc);
+    if (block.units) renderUnits(node, block.units, options, doc);
     if (block.children) renderBlocks(node, block.children, options, doc);
     target.append(node);
   }

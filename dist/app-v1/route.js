@@ -12,6 +12,8 @@ import { buildProfileHeader } from './profile_header.js'
 import { perfStart, perfEnd } from './perf.js'
 import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
+import { parseWorkspaceGitRoute, workspaceGitHref } from './client/runtime/workspace-git.js'
+import { createWorkspaceGitView } from './client/ui/workspace-git.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
   compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, mediaSource = globalThis.location?.origin }) => {
@@ -55,6 +57,8 @@ const getRoutePanel = (scroller, key) => {
 }
 
 const activatePanel = (key, panel) => {
+  const switchesView = activePanelKey !== null &&
+    activePanelKey.startsWith('workspace/') !== key.startsWith('workspace/')
   if (activePanelKey && activePanelKey !== key) {
     const previous = routePanels.get(activePanelKey)
     if (previous) {
@@ -65,7 +69,7 @@ const activatePanel = (key, panel) => {
   }
   activePanelKey = key
   feeds?.activateFeed?.(panelKeyToSrc(key))
-  const savedTop = routeScrollTop.get(key)
+  const savedTop = routeScrollTop.get(key) ?? (switchesView ? 0 : undefined)
   if (typeof savedTop === 'number') {
     clearTimeout(scrollTimer)
     scrollTimer = setTimeout(() => {
@@ -173,6 +177,36 @@ const route = async () => {
   activatePanel(panelKey, panel)
 
   try {
+    if (src.startsWith('workspace/')) {
+      const request = parseWorkspaceGitRoute(src)
+      if (request) {
+        createWorkspaceGitView({ panel, request, signal: run.signal, isActive })
+        return
+      }
+      if (panel.dataset.ready === 'true') return
+      const section = h('section', { classList: 'workspace-panel' }, [h('h1', {}, ['Workspace'])])
+      if (src === 'workspace/') {
+        const input = h('input', { type: 'text', required: true, pattern: '[A-Za-z0-9_\\-]+',
+          id: 'workspace-repo', autocapitalize: 'none', spellcheck: false })
+        const form = h('form', {}, [
+          h('label', { htmlFor: 'workspace-repo' }, ['Repository ID']), input,
+          h('button', { type: 'submit' }, ['Open repository']),
+        ])
+        form.addEventListener('submit', event => {
+          event.preventDefault()
+          if (!/^[A-Za-z0-9_-]+$/.test(input.value)) return
+          void navigation.navigate(workspaceGitHref({ repo: input.value, kind: 'overview' }).slice(1))
+        })
+        section.append(form)
+      } else {
+        section.append(h('p', {}, ['This Workspace link is invalid.']),
+          h('a', { href: '#workspace/' }, ['Open Workspace']))
+      }
+      panel.replaceChildren(section)
+      panel.dataset.ready = 'true'
+      return
+    }
+
     if (src === 'compose' || /^reply=[A-Za-z0-9+/]{43}=$/.test(src)) {
       const signature = src.startsWith('reply=') ? await apds.get(src.slice(6)) : null
       if (!isActive()) return

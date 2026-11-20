@@ -389,6 +389,18 @@ iframe {
 .navbar-left, .navbar-right { display: inline-flex; align-items: center; gap: 4px; }
 .navbar-left { flex-shrink: 0; }
 .navbar-right { margin-left: auto; min-width: 0; }
+.navbar-views { display: inline-flex; align-items: center; }
+.navbar-views a {
+  color: inherit; display: inline-flex; align-items: center; min-height: 32px;
+  padding-inline: 5px; border-radius: 4px; text-decoration: none; font-size: 14px;
+}
+.navbar-views a:hover, .navbar-views a[aria-current="page"] {
+  background: var(--wiredove-control-hover);
+}
+.navbar-views a[aria-current="page"] { font-weight: 700; }
+.workspace-panel { padding: 16px; overflow-wrap: anywhere; }
+.workspace-panel form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.workspace-panel input { min-width: 0; max-width: 100%; }
 .navbar-profile { display: inline-flex; align-items: center; flex: 0 0 28px; }
 #navbar .nav-icon, #navbar .notifications-link {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1136,3 +1148,14 @@ wiredove-inline-image { display: inline-block; max-width: 100%; }
 .profile-update { overflow-wrap: anywhere; }
 .profile-update > p { margin: .5rem 0; }
 .profile-update > .image-gallery { max-width: 240px; }
+
+.workspace-git { min-width: 0; overflow-wrap: anywhere; }
+.workspace-git-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.workspace-git-controls > button { min-height: 44px; }
+.workspace-git [role='status']:empty { margin: 0; }
+.workspace-git-breadcrumbs { margin-block: 1rem; }
+.workspace-git-entries { list-style: none; padding: 0; }
+.workspace-git-entries > li { border-bottom: 1px solid var(--wiredove-border); }
+.workspace-git-entries > li > :is(a, span) { display: block; padding: .45rem .6rem; }
+.workspace-git-preview > pre { max-width: 100%; overflow: auto; overflow-wrap: normal; }
+.workspace-git-preview img { display: inline-block; max-width: 100%; height: auto; }

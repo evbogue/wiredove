@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v37-standalone-symbols'
+const CACHE_VERSION = 'v38-workspace-shell'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -39,6 +39,10 @@ const APP_SHELL_ASSETS = [
   '/client/runtime/application-context.js',
   '/client/runtime/render-delivery.js',
   '/client/runtime/website-application.js',
+  '/client/runtime/workspace-git.js',
+  '/client/ui/workspace-git.js',
+  '/navbar.js',
+  '/route.js',
   '/composer.js',
   '/render.js',
   '/ntfy.js',
@@ -65,6 +69,7 @@ const isCacheableRequest = (request) => {
   if (!request || request.method !== 'GET') { return false }
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) { return false }
+  if (url.pathname.startsWith('/git/') || url.pathname.startsWith('/api/git/')) return false
   return true
 }
 

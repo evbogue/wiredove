@@ -19,6 +19,14 @@ const stubs = {
       res.setHeader('content-type',url.pathname.endsWith('.css')?'text/css':'text/javascript');
       if (url.pathname === '/api/application') { res.setHeader('content-type','application/json');res.end(JSON.stringify({records:[],cursor:0,more:false,scope:'backend-archive'}));return; }
       if (url.pathname === '/gossip/poll') { res.setHeader('content-type','application/json');res.end(JSON.stringify({messages:[],nextSince:0}));return; }
+      if (url.pathname === '/api/git/demo-repo/overview') {
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({
+          repository: { id: 'demo-repo', name: 'Demo repository' },
+          revision: { ref: 'refs/heads/main', commit: 'a'.repeat(40) }, path: '', entries: [],
+        }));
+        return;
+      }
       if (url.pathname === '/website') {
         res.setHeader('content-type','text/html');
         res.end(`<!doctype html><link rel="stylesheet" href="/style.css"><script type="importmap">{"imports":{"apds":"/offline-apds.js","h":"/offline-h.js"}}</script><script type="module" src="/app.js"></script>`);return;
@@ -142,6 +150,27 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await page.locator('.route-panel[data-route-key="?website-search"]').waitFor();
     await page.getByRole('link',{name:'Home',exact:true}).click();
     await page.locator('.route-panel[data-route-key="__home__"]').waitFor();
+    await page.setViewportSize({ width: 390, height: 780 });
+    await page.getByRole('searchbox').fill('workspace-back');
+    const socialPanel = page.locator('.route-panel[data-route-key="?workspace-back"]');
+    await socialPanel.waitFor();
+    await socialPanel.evaluate(node => { node.dataset.workspaceTest = 'original'; });
+    const workspace = page.getByRole('link', { name: 'Workspace', exact: true });
+    await workspace.focus();
+    await workspace.press('Enter');
+    await page.getByRole('heading', { name: 'Workspace' }).waitFor();
+    assert.equal(await workspace.getAttribute('aria-current'), 'page');
+    await page.getByLabel('Repository ID').fill('demo-repo');
+    await page.getByRole('button', { name: 'Open repository' }).click();
+    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    const repositoryURL = page.url();
+    await page.getByRole('link', { name: 'Social', exact: true }).click();
+    assert.equal(await socialPanel.getAttribute('data-workspace-test'), 'original');
+    await page.goBack();
+    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    assert.equal(page.url(), repositoryURL);
+    await page.reload();
+    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
     assert.deepEqual(errors,[]);
     console.log('Website bootstrap: offline startup, hash search and home passed');
     console.log('Application ownership: two roots, navigation, cached panels, scroll, renderer IDs, feed enqueue/status and disposal passed');
