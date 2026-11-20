@@ -15,8 +15,13 @@ reads. A Chromium fixture against a disposable ANBot node verified that
 Refresh sees a pushed commit while pinned links keep resolving to their
 original commit. The shared-shell browser check covers keyboard entry,
 alternate views, Back, reload, and a retained Social panel at phone width.
-The host route mapping, full view parity, and rollback checks are still
-required before cutover.
+The next slice adds branches and tags available in the verified publication,
+paged history, full commit messages, per-file diffs and revision comparisons.
+Commit pages can open the existing Social composer with a pinned link.
+ANBot commit `009559f` supplies the extended reads.
+Set `WORKSPACE_GIT_UPSTREAM` to the ANBot HTTP(S) origin to run the same-origin
+gateway in Wiredove. The production mapping, Sync and route parity, and
+rollback checks are still required before cutover.
 
 | Ticket | Owner and work | Exit check |
 |---|---|---|

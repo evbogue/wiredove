@@ -27,6 +27,16 @@ const stubs = {
         }));
         return;
       }
+      if (url.pathname === '/api/git/demo-repo/commit') {
+        res.setHeader('content-type', 'application/json');
+        const hash = 'a'.repeat(40);
+        res.end(JSON.stringify({
+          repository: { id: 'demo-repo', name: 'Demo repository' },
+          revision: { ref: null, commit: hash }, path: '', files: [],
+          details: { hash, author: 'Fixture author', parents: [], message: '<script>commit message</script>' },
+        }));
+        return;
+      }
       if (url.pathname === '/website') {
         res.setHeader('content-type','text/html');
         res.end(`<!doctype html><link rel="stylesheet" href="/style.css"><script type="importmap">{"imports":{"apds":"/offline-apds.js","h":"/offline-h.js"}}</script><script type="module" src="/app.js"></script>`);return;
@@ -171,6 +181,17 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     assert.equal(page.url(), repositoryURL);
     await page.reload();
     await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    assert.deepEqual(errors,[]);
+    await page.getByRole('link', { name: 'Latest commit in view' }).click();
+    await page.getByText('<script>commit message</script>', { exact: true }).waitFor();
+    const commitURL = page.url();
+    await page.evaluate(() => {
+      localStorage.setItem('wiredove-composer-draft:anon:new', JSON.stringify({ body: 'Existing draft' }));
+    });
+    await page.getByRole('link', { name: 'Discuss in Social' }).click();
+    const draftBody = await page.getByPlaceholder('Write a message').inputValue();
+    assert.ok(draftBody.startsWith('Existing draft\n\n'));
+    assert.ok(draftBody.includes(commitURL));
     assert.deepEqual(errors,[]);
     console.log('Website bootstrap: offline startup, hash search and home passed');
     console.log('Application ownership: two roots, navigation, cached panels, scroll, renderer IDs, feed enqueue/status and disposal passed');

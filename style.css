@@ -1159,3 +1159,7 @@ wiredove-inline-image { display: inline-block; max-width: 100%; }
 .workspace-git-entries > li > :is(a, span) { display: block; padding: .45rem .6rem; }
 .workspace-git-preview > pre { max-width: 100%; overflow: auto; overflow-wrap: normal; }
 .workspace-git-preview img { display: inline-block; max-width: 100%; height: auto; }
+
+.workspace-git-compare-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.workspace-git-compare-form label { display: grid; max-width: 100%; }
+.workspace-git-compare-form input { max-width: 100%; }

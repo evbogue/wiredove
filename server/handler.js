@@ -6,8 +6,52 @@ import { createAndFsMediaService } from '../andfs_media_server.js'
 import { createApplicationBackend } from '../application_backend.js'
 import { createStaticHandler } from './static.js'
 
+const workspaceGitRead = /^\/api\/git\/[A-Za-z0-9_-]+\/(overview|tree|blob|refs|commits|commit|diff|compare)$/
+const workspaceGitRaw = /^\/git\/[A-Za-z0-9_-]+\/raw\/.+/
+
+function createWorkspaceGitGateway(value) {
+  if (!value) return null
+  const upstream = new URL(value)
+  if (!['http:', 'https:'].includes(upstream.protocol) || upstream.href !== upstream.origin + '/') {
+    throw new Error('WORKSPACE_GIT_UPSTREAM must be an HTTP(S) origin')
+  }
+  return async request => {
+    const url = new URL(request.url)
+    const raw = workspaceGitRaw.test(url.pathname)
+    if (!raw && !workspaceGitRead.test(url.pathname)) return null
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      return new Response(null, { status: 405, headers: { allow: 'GET, HEAD' } })
+    }
+    const headers = new Headers({
+      'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
+    })
+    try {
+      const response = await fetch(new URL(url.pathname + url.search, upstream.origin), {
+        redirect: 'error', signal: AbortSignal.any([request.signal, AbortSignal.timeout(15000)]),
+        headers: { accept: raw ? '*/*' : 'application/json' },
+      })
+      const type = response.headers.get('content-type')
+      if (raw) {
+        headers.set('content-security-policy', 'sandbox')
+        headers.set('content-type', response.ok && type ? type : 'application/octet-stream')
+      } else {
+        headers.set('content-type', 'application/json')
+        if (response.ok && !type?.startsWith('application/json')) {
+          await response.body?.cancel()
+          return new Response(null, { status: 502, headers })
+        }
+      }
+      if (request.method === 'HEAD') await response.body?.cancel()
+      return new Response(request.method === 'HEAD' ? null : response.body, { status: response.status, headers })
+    } catch {
+      return new Response(null, { status: 503, headers })
+    }
+  }
+}
+
 // Both listeners use this exact route graph and on-disk formats.
 export async function createWiredoveHandler({ env = processEnv, root = cwd(), notificationsOptions = {} } = {}) {
+  const workspaceGit = createWorkspaceGitGateway(env.WORKSPACE_GIT_UPSTREAM)
   root = await fs.realpath(root)
   const dataDir = resolve(root, env.DATA_DIR || './data')
   const applicationDir = resolve(root, env.APPLICATION_DATA_DIR || `${dataDir}/application`)
@@ -55,6 +99,8 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
     try { pathname = decodeURIComponent(new URL(request.url).pathname) }
     catch { return new Response(null, { status: 400 }) }
     if (/^\/(?:data(?:\/|$)|config\.json$|\.git(?:\/|$))/.test(pathname)) return new Response(null, { status: 404 })
+    const git = await workspaceGit?.(request)
+    if (git) return git
     for (const service of [application.handleRequest, media.handleRequest, legacyBlob, notifications.handleRequest]) {
       const response = await service(request)
       if (response) return response

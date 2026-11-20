@@ -57,17 +57,138 @@ function preview(file, { readme = false, renderMarkdown } = {}) {
   return section
 }
 
-function render(data, request, href) {
+function linkedList(items, renderItem) {
+  return h('ul', { classList: 'workspace-git-entries' }, items.map(item => h('li', {}, [renderItem(item)])))
+}
+
+function commitList(commits, commitHref) {
+  if (!commits.length) return text('p', 'No commits.')
+  return linkedList(commits, item => link(
+    [item.hash.slice(0, 12), item.subject || '(No subject)', item.author, item.date?.slice(0, 10)].filter(Boolean).join(' · '),
+    commitHref(item.hash)))
+}
+
+function changedFiles(files, fileHref) {
+  if (!files.length) return text('p', 'No changed files.')
+  return linkedList(files, file => link(
+    [file.status, file.oldPath ? file.oldPath + ' → ' + file.path : file.path,
+      file.binary ? 'Binary' : '+' + file.added + ' −' + file.removed].join(' · '), fileHref(file.path)))
+}
+
+function patchView(data) {
+  return h('section', { classList: 'workspace-git-preview' }, [
+    text('h3', data.path),
+    data.patch?.truncated ? text('p', 'Showing the beginning of this diff.') : null,
+    data.patch?.text ? h('pre', {}, [text('code', data.patch.text)])
+      : text('p', data.file.binary ? 'Binary file changed.' : 'No text changes.'),
+  ].filter(Boolean))
+}
+
+function compareForm(commit, compareHref, navigate, baseCommit = '') {
+  const base = h('input', { name: 'base', required: true, value: baseCommit })
+  const head = h('input', { name: 'head', required: true, value: commit || '' })
+  const form = h('form', { classList: 'workspace-git-compare-form' }, [
+    h('label', {}, ['Base revision ', base]),
+    h('label', {}, ['Head revision ', head]),
+    text('button', 'Compare', { type: 'submit' }),
+  ])
+  form.addEventListener('submit', event => {
+    event.preventDefault()
+    if (base.value.trim() && head.value.trim()) navigate(compareHref(base.value.trim(), head.value.trim()))
+  })
+  return form
+}
+
+function renderRevision(body, data, request, url, navigate) {
+  const { revision, details, files } = data
+  const commitHref = rev => url('commit', { rev })
+  const compareHref = (base, head, path = '') => url('compare', { base, head, path })
+  switch (request.kind) {
+  case 'refs':
+    for (const [label, refs] of [['Branches', data.branches], ['Tags', data.tags]]) {
+      body.append(text('h3', label), refs.length
+        ? linkedList(refs, item => link(item.name, url('overview', { rev: item.ref })))
+        : text('p', 'None published.'))
+    }
+    body.append(compareForm(revision.commit, compareHref, navigate))
+    return true
+  case 'commits': {
+    body.append(text('h3', 'Commit history'), commitList(data.commits, commitHref))
+    const page = offset => url('commits', { rev: revision.commit, offset })
+    const controls = h('div', { classList: 'workspace-git-controls' })
+    if (data.offset > 0) controls.append(link('Newer commits', page(Math.max(0, data.offset - 50))))
+    if (data.hasMore) controls.append(link('Older commits', page(data.offset + 50)))
+    body.append(controls)
+    return true
+  }
+  case 'commit': {
+    body.append(text('h3', 'Commit message'), text('p', [details.author, details.date].filter(Boolean).join(' · ')),
+      h('div', { classList: 'workspace-git-preview' }, [text('pre', details.message || '(No commit message)')]))
+    const links = h('div', { classList: 'workspace-git-controls' }, [
+      link('Browse at this commit', url('overview', { rev: revision.commit })),
+    ])
+    for (const parent of details.parents) {
+      links.append(link('Parent ' + parent.slice(0, 12), commitHref(parent)))
+    }
+    const permalink = new URL(commitHref(revision.commit), body.ownerDocument.URL).href
+    const share = encodeURIComponent(JSON.stringify({
+      url: permalink, title: 'Commit ' + revision.commit.slice(0, 12), appendToDraft: true,
+    }))
+    links.append(link('Discuss in Social', '#share=' + share))
+    body.append(links, text('h3', 'Changed files'),
+      changedFiles(files, path => url('diff', { rev: revision.commit, path })))
+    return true
+  }
+  case 'diff':
+    body.append(link('Back to commit', commitHref(revision.commit)), patchView(data))
+    if (data.file.newMode !== '000000' && data.file.newMode !== '160000') {
+      body.append(link('Browse file at this commit', url('blob', { rev: revision.commit, path: data.path })))
+    }
+    return true
+  case 'compare':
+    body.append(text('h3', 'Compare revisions'), compareForm(revision.commit, compareHref, navigate, data.base.commit),
+      h('p', {}, [link(data.base.commit.slice(0, 12), commitHref(data.base.commit)), ' → ',
+        link(revision.commit.slice(0, 12), commitHref(revision.commit))]))
+    if (data.path) {
+      body.append(link('Back to comparison', compareHref(data.base.commit, revision.commit)), patchView(data))
+    } else {
+      body.append(text('h4', `Commits (${data.totalCommits})`), commitList(data.commits, commitHref),
+        text('h4', `Changed files (${data.totalFiles})`),
+        changedFiles(files, path => compareHref(data.base.commit, revision.commit, path)))
+      if (data.truncated || data.commits.length < data.totalCommits) {
+        body.append(text('p', 'Showing the first results.'))
+      }
+    }
+    return true
+  default:
+    return false
+  }
+}
+
+function render(data, request, href, navigate) {
   const { repository, revision } = data
-  const pinnedHref = (kind, path = '') => href({ repo: repository.id, kind, path, rev: revision.commit })
+  const url = (kind, options = {}) => href({ repo: repository.id, kind, ...options })
+  const pinnedHref = (kind, path = '') => url(kind, { path, rev: revision.commit })
   const body = h('div', { classList: 'workspace-git-content' })
   body.append(text('h2', repository.name))
   if (revision.commit) {
     const label = revision.ref || 'Commit'
-    const permalink = link(revision.commit.slice(0, 12), pinnedHref(request.kind, data.path))
+    const pinnedView = request.kind === 'compare'
+      ? url('compare', { path: data.path, base: data.base.commit, head: revision.commit })
+      : url(request.kind, { path: data.path, rev: revision.commit, offset: data.offset })
+    const permalink = link(revision.commit.slice(0, 12), pinnedView)
     permalink.setAttribute('aria-label', 'Permalink at commit ' + revision.commit)
     body.append(h('p', {}, [text('span', label + ' '), permalink]))
   }
+  const menu = h('nav', { classList: 'workspace-git-controls' }, [
+    link('Overview', url('overview')),
+    link('Branches and tags', url('refs')),
+    link('History', pinnedHref('commits')),
+    link('Latest commit in view', pinnedHref('commit')),
+  ])
+  menu.setAttribute('aria-label', 'Repository views')
+  body.append(menu)
+  if (renderRevision(body, data, request, url, navigate)) return body
   body.append(breadcrumbs(data.path, pinnedHref))
   if (request.kind === 'blob') body.append(preview(data.file))
   else {
@@ -97,6 +218,7 @@ function render(data, request, href) {
 
 export function createWorkspaceGitView({
   panel, request, signal, isActive = () => true, readGit = readWorkspaceGit, href = workspaceGitHref,
+  navigate = target => { panel.ownerDocument.defaultView.location.hash = target },
 }) {
   const refresh = text('button', 'Refresh', { type: 'button' })
   const status = h('p')
@@ -116,7 +238,7 @@ export function createWorkspaceGitView({
     try {
       const data = await readGit(request, { signal })
       if (!active()) return
-      content.replaceChildren(render(data, request, href))
+      content.replaceChildren(render(data, request, href, navigate))
       loaded = true
       status.textContent = ''
     } catch (error) {

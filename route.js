@@ -180,7 +180,9 @@ const route = async () => {
     if (src.startsWith('workspace/')) {
       const request = parseWorkspaceGitRoute(src)
       if (request) {
-        createWorkspaceGitView({ panel, request, signal: run.signal, isActive })
+        createWorkspaceGitView({ panel, request, signal: run.signal, isActive,
+          navigate: target => navigation.navigate(target.slice(1)),
+        })
         return
       }
       if (panel.dataset.ready === 'true') return
@@ -228,7 +230,7 @@ const route = async () => {
           deferred.delete(timer)
           if (disposed) return
           try {
-            const compose = await composer(null, { initialBody: message, autoGenKeypair: true })
+            const compose = await composer(null, { initialBody: message, autoGenKeypair: true, appendSharedBody: payload.appendToDraft === true })
             if (!disposed) document.body.appendChild(compose)
           } catch (err) {
             console.log(err)

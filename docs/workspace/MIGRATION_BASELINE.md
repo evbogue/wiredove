@@ -22,7 +22,7 @@ Snapshot taken November 20, 2026. The checklist covers the existing human workfl
 | ANBot Sync view and `/sync/status` | Port useful status into Workspace. Keep server-selected Git update distinct from browser relay connectivity and last successful poll. | Verify refresh, offline and recovery status. Check that switching views leaves one Social session and its transport active. |
 | ANBot's copied Wiredove app, theme, server-rendered Git pages and UI-only assets | Retire after the pinned upstream distribution, route compatibility, and rollback pass verification. Consolidate visual controls upstream. | Restore the previous pin and route map without replacing browser or node data. Repeat the CLI and transport checks from a fresh checkout after removal. |
 
-The Workspace preview navigates to `#workspace/git/<repo>/…` and reads the same-origin `/api/git/<repo>/…` and `/git/<repo>/raw/…` routes. The host must connect those requests to ANBot. Standalone Wiredove has no Git backend without that gateway. Keep existing path-based links and Git transport available while verifying the host mapping.
+The Workspace preview navigates to `#workspace/git/<repo>/…` and reads the same-origin `/api/git/<repo>/…` and `/git/<repo>/raw/…` routes. The host can set `WORKSPACE_GIT_UPSTREAM` to the ANBot HTTP(S) origin or map those reads at the reverse proxy. A standalone Wiredove server needs one of those mappings for Git views. Keep existing path-based links and Git transport available while verifying the host mapping.
 
 ## Baseline checks
 
