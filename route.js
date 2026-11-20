@@ -12,8 +12,8 @@ import { buildProfileHeader } from './profile_header.js'
 import { perfStart, perfEnd } from './perf.js'
 import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
-import { parseWorkspaceGitRoute, workspaceGitHref } from './client/runtime/workspace-git.js'
-import { createWorkspaceGitView } from './client/ui/workspace-git.js'
+import { parseWorkspaceGitRoute, readWorkspaceSelection, workspaceGitHref } from './client/runtime/workspace-git.js'
+import { createWorkspaceGitView, createWorkspaceSyncView } from './client/ui/workspace-git.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
   compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, mediaSource = globalThis.location?.origin }) => {
@@ -168,15 +168,22 @@ const watchFeed = (src, panel) => {
 const route = async () => {
   if (disposed) return
   const token = perfStart('route', navigation.get() || 'home')
-  const src = navigation.get()
+  const current = navigation.get()
+  const src = current === 'sync' ? 'workspace/sync' : current
   const run = beginRouteRun()
-  const isActive = () => !disposed && run.runId === activeRouteRun && navigation.get() === src
+  const isActive = () => !disposed && run.runId === activeRouteRun && navigation.get() === current
   const scroller = getScroller()
   const panelKey = getPanelKey(src)
   const panel = getRoutePanel(scroller, panelKey)
   activatePanel(panelKey, panel)
 
   try {
+    if (src === 'workspace/sync') {
+      createWorkspaceSyncView({ panel, signal: run.signal, isActive,
+        refreshSocial: () => queries?.refresh(),
+      })
+      return
+    }
     if (src.startsWith('workspace/')) {
       const request = parseWorkspaceGitRoute(src)
       if (request) {
@@ -199,13 +206,19 @@ const route = async () => {
           if (!/^[A-Za-z0-9_-]+$/.test(input.value)) return
           void navigation.navigate(workspaceGitHref({ repo: input.value, kind: 'overview' }).slice(1))
         })
-        section.append(form)
+        const selected = h('p', { hidden: true })
+        section.append(h('a', { href: '#workspace/sync' }, ['Sync']), selected, form)
+        void readWorkspaceSelection({ signal: run.signal }).then(data => {
+          if (!data || !isActive()) return
+          selected.append(h('a', { href: workspaceGitHref({ repo: data.repo, kind: 'overview' }) }, ['Open current repository']))
+          selected.hidden = false
+        }).catch(() => {}).finally(() => { if (isActive()) panel.dataset.ready = 'true' })
       } else {
         section.append(h('p', {}, ['This Workspace link is invalid.']),
           h('a', { href: '#workspace/' }, ['Open Workspace']))
       }
       panel.replaceChildren(section)
-      panel.dataset.ready = 'true'
+      if (src !== 'workspace/') panel.dataset.ready = 'true'
       return
     }
 

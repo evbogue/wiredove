@@ -1,6 +1,7 @@
 import { h } from 'h'
 import { appendFormattedText } from './body.js'
-import { readWorkspaceGit, workspaceGitHref } from '../runtime/workspace-git.js'
+import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
+import { readWorkspaceGit, readWorkspaceSelection, workspaceGitHref } from '../runtime/workspace-git.js'
 
 const text = (tag, value, attrs = {}) => h(tag, { ...attrs, textContent: value })
 const link = (label, href) => text('a', label, { href })
@@ -188,6 +189,19 @@ function render(data, request, href, navigate) {
   ])
   menu.setAttribute('aria-label', 'Repository views')
   body.append(menu)
+  if (request.kind === 'overview') {
+    const clone = new URL('/git/' + encodeURIComponent(repository.id) + '.git', body.ownerDocument.URL).href
+    const result = h('span')
+    result.setAttribute('role', 'status')
+    const copy = text('button', 'Copy clone URL', { type: 'button' })
+    copy.addEventListener('click', async () => {
+      try {
+        await body.ownerDocument.defaultView.navigator.clipboard.writeText(clone)
+        result.textContent = 'Copied.'
+      } catch { result.textContent = 'Select the URL to copy it.' }
+    })
+    body.append(h('details', {}, [text('summary', 'Clone URL'), h('code', { textContent: clone }), copy, result]))
+  }
   if (renderRevision(body, data, request, url, navigate)) return body
   body.append(breadcrumbs(data.path, pinnedHref))
   if (request.kind === 'blob') body.append(preview(data.file))
@@ -214,6 +228,60 @@ function render(data, request, href, navigate) {
     }))
   }
   return body
+}
+
+export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial }) {
+  const status = h('p')
+  status.setAttribute('role', 'status')
+  const selection = h('dl')
+  const queue = h('p')
+  const updateQueue = state => {
+    queue.textContent = `Browser transport: ${state.wsReady || state.gossipReady ? 'connected' : 'disconnected'}. ${state.total} queued.`
+  }
+  updateQueue(getQueueStatusSnapshot())
+  const unsubscribe = subscribeQueueStatus(updateQueue)
+  signal.addEventListener('abort', unsubscribe, { once: true })
+  const refresh = text('button', 'Refresh Git status', { type: 'button' })
+  const social = text('button', 'Refresh Social archive', { type: 'button' })
+  const socialStatus = h('p')
+  socialStatus.setAttribute('role', 'status')
+  social.addEventListener('click', async () => {
+    social.disabled = true
+    socialStatus.textContent = 'Refreshing Social archive…'
+    try {
+      await refreshSocial()
+      if (isActive()) socialStatus.textContent = 'Social archive refreshed.'
+    } catch {
+      if (isActive()) socialStatus.textContent = 'Social archive unavailable. Retry refresh.'
+    } finally { social.disabled = false }
+  })
+  const load = async () => {
+    refresh.disabled = true
+    status.textContent = 'Loading Git selection…'
+    try {
+      const data = await readWorkspaceSelection({ signal })
+      if (!isActive()) return
+      selection.replaceChildren()
+      if (data) {
+        const { repo, ref, updateId } = data
+        selection.append(text('dt', 'Repository'),
+          h('dd', {}, [link(repo, workspaceGitHref({ repo, kind: 'overview' }))]),
+          text('dt', 'Branch'), text('dd', ref), text('dt', 'Update'), text('dd', updateId))
+        status.textContent = ''
+      } else status.textContent = 'No repository selected.'
+    } catch {
+      if (isActive()) status.textContent = selection.childElementCount
+        ? 'Refresh failed. Showing the last known Git selection.'
+        : 'Git status unavailable. Retry refresh.'
+    } finally { refresh.disabled = false }
+  }
+  refresh.addEventListener('click', load)
+  panel.replaceChildren(h('section', { classList: 'workspace-git' }, [
+    text('h1', 'Sync'), link('Repositories', '#workspace/'),
+    text('h2', 'Server Git selection'), refresh, status, selection,
+    text('h2', 'Browser Social sync'), queue, social, socialStatus,
+  ]))
+  void load()
 }
 
 export function createWorkspaceGitView({

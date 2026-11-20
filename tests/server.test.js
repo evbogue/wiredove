@@ -49,6 +49,41 @@ async function start(f, runtime = 'node') {
   } }
 }
 
+test('Workspace Git gateway sends legacy page links to Wiredove and forwards status', async () => {
+  const f = await fixture()
+  const upstream = createServer((req, res) => {
+    assert.equal(req.url, '/sync/status')
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify({ selection: null }))
+  })
+  const listening = once(upstream, 'listening')
+  upstream.listen(0, '127.0.0.1')
+  await listening
+  let server
+  try {
+    f.env.WORKSPACE_GIT_UPSTREAM = 'http://127.0.0.1:' + upstream.address().port
+    server = await start(f)
+    const hash = 'a'.repeat(40)
+    const cases = [
+      ['/git', '#workspace/'],
+      ['/git/demo/tree/sub?rev=main', '#workspace/git/demo/tree/sub?rev=main'],
+      ['/git/demo/commit/' + hash + '/diff/file%20name', '#workspace/git/demo/diff/file%20name?rev=' + hash],
+      ['/git/demo/compare/feature%2Fx...main?diff=file%20name', '#workspace/git/demo/compare/file%20name?base=feature%2Fx&head=main'],
+    ]
+    for (const [path, target] of cases) {
+      const response = await fetch(server.origin + path, { redirect: 'manual' })
+      assert.equal(response.status, 307)
+      assert.equal(response.headers.get('location'), server.origin + '/' + target)
+    }
+    assert.deepEqual(await (await fetch(server.origin + '/sync/status')).json(), { selection: null })
+    assert.equal((await fetch(server.origin + '/sync/status', { method: 'POST' })).status, 405)
+  } finally {
+    await server?.stop()
+    await new Promise(resolve => upstream.close(resolve))
+    await f.close()
+  }
+})
+
 test('Node HTTP routes, signatures, media, notifications and disk restart', async t => {
   const f = await fixture()
   let server

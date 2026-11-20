@@ -44,7 +44,7 @@ export const navbar = async (application) => {
   const views = h('div', { classList: 'navbar-views' }, [socialLink, workspaceLink])
   const syncViews = () => {
     const route = application.navigation.get()
-    const inWorkspace = route.startsWith('workspace/')
+    const inWorkspace = route === 'sync' || route.startsWith('workspace/')
     if (inWorkspace) workspaceLink.setAttribute('href', '#' + route)
     else if (route !== 'compose' && !route.startsWith('reply=') && !route.startsWith('share=')) {
       socialLink.setAttribute('href', '#' + route)

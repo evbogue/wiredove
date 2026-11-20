@@ -20,8 +20,16 @@ paged history, full commit messages, per-file diffs and revision comparisons.
 Commit pages can open the existing Social composer with a pinned link.
 ANBot commit `009559f` supplies the extended reads.
 Set `WORKSPACE_GIT_UPSTREAM` to the ANBot HTTP(S) origin to run the same-origin
-gateway in Wiredove. The production mapping, Sync and route parity, and
-rollback checks are still required before cutover.
+gateway in Wiredove. Workspace now discovers the selected repository,
+shows the clone URL, and presents Git selection and browser Social sync
+separately. Existing scoped Git page URLs resolve to Wiredove views when the
+gateway is enabled. The same-origin raw byte routes remain on ANBot.
+
+Deploy Wiredove directly at `bot.anproto.com`, with ANBot behind it for
+Git transport and verified reads. The production route map must pass Git
+smart HTTP traffic through to ANBot. Before deletion, close the remaining
+hosted Social adapter and relay-control parity checks and test a returning
+browser with the existing database, identity, drafts and outbox.
 
 | Ticket | Owner and work | Exit check |
 |---|---|---|
@@ -29,7 +37,7 @@ rollback checks are still required before cutover.
 | 2. Shared shell | Wiredove. Add Social / Workspace routing and reuse Wiredove's stylesheet, controls, app session, and lifecycle. | Social permalinks, identity, drafts, focus, browser history, and embedded mounts still work. Switching views keeps one session. |
 | 3. Git browser vertical slice | Git capability owner supplies structured reads from existing readers. Wiredove renders overview → tree → file with hyperscript. Follow the Git browser design. | A disposable push is visible after Refresh. Commit-pinned links remain stable. Clone, fetch, and open push work as before. |
 | 4. Complete Git and status parity | Wiredove + ANBot. Port remaining verified Git views and useful Sync status. Reuse existing Social workflows and shared transport. | Each baseline workflow has a passing parity case or a documented retirement decision. Test a fresh node, a returning browser with existing identity and drafts, and a second node receiving a Git publication. |
-| 5. Switch consumers to canonical Wiredove | Wiredove + consumer owners. Use a pinned upstream Wiredove distribution wherever ANBot or another host needs UI. Validate the evbogue.com embed at its actual pin. Preserve public URLs through forwarding or compatibility routes. | Same upstream UI on the relevant hosts. Old links and current embed behavior pass the checklist. Returning browsers retain identity, drafts, and pending sends on any supported origin transition. |
+| 5. Serve Wiredove directly | Wiredove + host owners. Put the Wiredove deployment at `bot.anproto.com` in front of ANBot. Validate the evbogue.com embed at its actual pin and preserve public URLs through routing. | Wiredove owns the UI at the product URL. Old links and current embed behavior pass the checklist. Returning browsers retain identity, drafts, and pending sends on any supported origin transition. |
 | 6. Remove duplicate UI | ANBot. Remove the forked browser UI, server-rendered pages, and their UI-only assets once replacement and rollback are verified. Remove dead code and any obsolete browser-only dependency. | ANBot has no independently implemented human UI. The CLI, Git transport, and the data reads Wiredove needs still pass their checks. Verify removal from a fresh checkout and build. |
 | 7. Prove Wave handoff | Wave + Wiredove. Open and discuss a solo author's exact published revision in Workspace using shared Wiredove components. | A second node can retrieve the same revision and its discussion after a later release. |
 

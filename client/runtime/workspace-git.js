@@ -76,3 +76,15 @@ export async function readWorkspaceGit({ repo, kind, path, rev, offset, base, he
   }
   return data
 }
+
+export async function readWorkspaceSelection({ signal } = {}) {
+  const response = await fetch('/sync/status', { signal, cache: 'no-store' })
+  if (!response.ok) throw new Error('Git status unavailable')
+  const { selection } = await response.json()
+  if (selection === null) return null
+  const { repoId, ref, updateId } = selection
+  if (!/^[A-Za-z0-9+/_-]{43}=?$/.test(repoId) || typeof ref !== 'string' || typeof updateId !== 'string') {
+    throw new Error('Invalid Git selection')
+  }
+  return { repo: repoId.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''), ref, updateId }
+}

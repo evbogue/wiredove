@@ -13,6 +13,7 @@ const stubs = {
   '/offline-h.js': `export function h(tag,attrs={},children=[]){if(Array.isArray(attrs)){children=attrs;attrs={}}const node=document.createElement(tag);for(const [k,v]of Object.entries(attrs)){if(k==='classList')node.className=v;else node[k]=v}for(const child of children)if(child)node.append(child);return node}`,
 };
 (async () => {
+  let syncFailure = false;
   const server = http.createServer(async (req,res) => {
     try {
       const url = new URL(req.url,'http://localhost');
@@ -35,6 +36,14 @@ const stubs = {
           revision: { ref: null, commit: hash }, path: '', files: [],
           details: { hash, author: 'Fixture author', parents: [], message: '<script>commit message</script>' },
         }));
+        return;
+      }
+      if (url.pathname === '/sync/status') {
+        res.setHeader('content-type', 'application/json');
+        if (url.search || syncFailure) { res.statusCode = 503; res.end('{}'); return; }
+        res.end(JSON.stringify({ selection: {
+          repoId: 'a'.repeat(43) + '=', ref: 'refs/heads/main', updateId: 'verified-update',
+        } }));
         return;
       }
       if (url.pathname === '/website') {
@@ -192,6 +201,16 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     const draftBody = await page.getByPlaceholder('Write a message').inputValue();
     assert.ok(draftBody.startsWith('Existing draft\n\n'));
     assert.ok(draftBody.includes(commitURL));
+    assert.deepEqual(errors,[]);
+    await page.keyboard.press('Escape');
+    await page.goto(origin + '/website#sync');
+    await page.getByRole('heading', { name: 'Server Git selection' }).waitFor();
+    await page.getByText('verified-update').waitFor();
+    syncFailure = true;
+    await page.getByRole('button', { name: 'Refresh Git status' }).click();
+    await page.getByText('Refresh failed. Showing the last known Git selection.').waitFor();
+    await page.getByText('verified-update').waitFor();
+    await page.getByRole('heading', { name: 'Browser Social sync' }).waitFor();
     assert.deepEqual(errors,[]);
     console.log('Website bootstrap: offline startup, hash search and home passed');
     console.log('Application ownership: two roots, navigation, cached panels, scroll, renderer IDs, feed enqueue/status and disposal passed');

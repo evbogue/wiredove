@@ -9,6 +9,35 @@ import { createStaticHandler } from './static.js'
 const workspaceGitRead = /^\/api\/git\/[A-Za-z0-9_-]+\/(overview|tree|blob|refs|commits|commit|diff|compare)$/
 const workspaceGitRaw = /^\/git\/[A-Za-z0-9_-]+\/raw\/.+/
 
+function workspaceGitPage(url) {
+  if (url.pathname === '/git' || url.pathname === '/git/') return 'workspace/'
+  const scope = /^\/git\/([A-Za-z0-9_-]+)(\/.*)?$/.exec(url.pathname)
+  if (!scope) return null
+  const [, repo, rest = ''] = scope
+  const query = new URLSearchParams()
+  let view = ''
+  const revision = url.searchParams.get('rev')
+  if (revision !== null) query.set('rev', revision)
+  const commit = /^\/commit\/([0-9a-f]{40})(?:\/(blob|diff)\/(.+))?$/.exec(rest)
+  const compare = /^\/compare\/(.+?)\.\.\.(.+)$/.exec(rest)
+  if (commit) {
+    view = '/' + (commit[2] || 'commit') + (commit[3] ? '/' + commit[3] : '')
+    query.set('rev', commit[1])
+  } else if (compare) {
+    view = '/compare'
+    query.delete('rev')
+    query.set('base', decodeURIComponent(compare[1]))
+    query.set('head', decodeURIComponent(compare[2]))
+    const path = url.searchParams.get('diff')
+    if (path) view += '/' + path.split('/').map(encodeURIComponent).join('/')
+  } else if (/^\/(refs|commits|tree(?:\/.+)?|blob\/.+)$/.test(rest)) {
+    view = rest
+    const offset = url.searchParams.get('offset')
+    if (rest === '/commits' && offset !== null) query.set('offset', offset)
+  } else if (rest !== '' && rest !== '/') return null
+  return 'workspace/git/' + repo + view + (query.size ? '?' + query : '')
+}
+
 function createWorkspaceGitGateway(value) {
   if (!value) return null
   const upstream = new URL(value)
@@ -17,8 +46,16 @@ function createWorkspaceGitGateway(value) {
   }
   return async request => {
     const url = new URL(request.url)
-    const raw = workspaceGitRaw.test(url.pathname)
-    if (!raw && !workspaceGitRead.test(url.pathname)) return null
+    if (['GET', 'HEAD'].includes(request.method)) {
+      const page = workspaceGitPage(url)
+      if (page) {
+        const target = new URL('/', url.origin)
+        target.hash = page
+        return Response.redirect(target, 307)
+      }
+    }
+    const raw = workspaceGitRaw.test(url.pathname) || /^\/git\/[A-Za-z0-9_-]+\/commit\/[0-9a-f]{40}\/raw\/.+/.test(url.pathname)
+    if (!raw && url.pathname !== '/sync/status' && !workspaceGitRead.test(url.pathname)) return null
     if (!['GET', 'HEAD'].includes(request.method)) {
       return new Response(null, { status: 405, headers: { allow: 'GET, HEAD' } })
     }
