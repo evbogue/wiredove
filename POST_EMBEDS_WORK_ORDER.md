@@ -14,6 +14,57 @@ shows a generic favicon, not the post. Two causes, both verified 2026-11-20:
 - `index.html` has no Open Graph or Twitter Card tags at all (verified by grep:
   no `og:` or `twitter:card` anywhere in the repo).
 
+## Design trade-off (explicit)
+
+Post links have lived in the URL fragment (`/#<id>`) by design, and that
+choice has two sides:
+
+**Hash URLs — what they buy:**
+
+- Portable and origin-free: the id is the content address; the same link
+  works on any node hosting the app, and the app resolves it client-side via
+  gossip without the server knowing the post.
+- No server routing needed; links keep working even for posts the serving
+  node never synced (the client fetches them).
+
+**Hash URLs — what they cost:**
+
+- The fragment never reaches the server, so the server cannot render
+  per-post pages or Open Graph tags for that link. Unfurlers fetch
+  `wiredove.net/` and see the generic shell.
+- Nothing can retrofit links already shared this way — not the server, not
+  the client, not a redirect. The fetch that builds the preview never
+  includes the post id.
+
+**Real path URLs (`/post/<id>`) — the other side:**
+
+- The id is in the path, so the server sees it and can render the post with
+  proper tags. Rich embeds, and search engines can index per-post pages.
+- The cost is origin-coupling: the URL names a specific server, and that
+  server must hold the post (or fetch it from the relay) to render it. A
+  link minted on one node only unfurls richly if the serving node can
+  resolve it.
+
+So this order takes the pragmatic side: mint path URLs for new shares, keep
+hash URLs working as app links. The trade-off is not resolved by this order —
+it is the thing to keep working on. Note the gap is specifically link unfurls
+in chat apps: sites that embed Wiredove posts with the embed widget
+(`/embed.js`) already show the post content; only the unfurl path is blind.
+
+**Open questions — how this could work better:**
+
+- Query-param share URLs (`/?post=<id>`): the query *does* reach the
+  server, so a share link in that shape would unfurl *and* stay routable by
+  the client on load. Needs client routing support and a decision on the
+  canonical share shape.
+- Crawlers that execute JavaScript (Googlebot does; chat unfurlers generally
+  do not): client-rendered meta tags would help only the former, so they
+  cannot replace server rendering.
+- Making path URLs portable: any node can already serve `/post/<id>` if it
+  holds the record or fetches it from the relay — the remaining question is
+  what a share link should name when the author's home node is not
+  wiredove.net.
+
 ## Scope
 
 - New real post URLs served by the server, each returning a static page that
