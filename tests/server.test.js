@@ -52,7 +52,11 @@ async function start(f, runtime = 'node') {
 test('Workspace Git gateway sends legacy page links to Wiredove and forwards status', async () => {
   const f = await fixture()
   const upstream = createServer((req, res) => {
-    assert.equal(req.url, '/sync/status')
+    if (req.url !== '/sync/status') {
+      res.setHeader('content-type', 'application/json')
+      res.end(JSON.stringify({ path: req.url, method: req.method, range: req.headers.range }))
+      return
+    }
     res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify({ selection: { repoId: 'a'.repeat(43) + '=' } }))
   })
@@ -78,6 +82,17 @@ test('Workspace Git gateway sends legacy page links to Wiredove and forwards sta
     }
     assert.deepEqual(await (await fetch(server.origin + '/sync/status')).json(), { selection: { repoId: 'a'.repeat(43) + '=' } })
     assert.equal((await fetch(server.origin + '/sync/status', { method: 'POST' })).status, 405)
+    const id = 'a'.repeat(43)
+    for (const route of ['/gossip/poll', '/gossip/poll?since=0', '/gossip/heads', '/posts/' + id, '/blocks/' + id, '/profiles?author=test']) {
+      assert.deepEqual(await (await fetch(server.origin + route)).json(), { path: route, method: 'GET' })
+    }
+    const media = '/media/' + id + '/' + id
+    assert.deepEqual(await (await fetch(server.origin + media, { headers: { range: 'bytes=0-5' } })).json(),
+      { path: media, method: 'GET', range: 'bytes=0-5' })
+    for (const [route, method] of [['/gossip', 'POST'], ['/uploads/' + id + '/' + id, 'PUT']]) {
+      assert.deepEqual(await (await fetch(server.origin + route, { method, body: 'fixture' })).json(), { path: route, method })
+      assert.equal((await fetch(server.origin + route)).status, 405)
+    }
   } finally {
     await server?.stop()
     await new Promise(resolve => upstream.close(resolve))
