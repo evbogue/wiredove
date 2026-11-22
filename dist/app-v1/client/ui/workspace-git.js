@@ -182,9 +182,6 @@ function render(data, request, href, navigate) {
     body.append(h('p', {}, [text('span', label + ' '), permalink]))
   }
   const menu = h('nav', { classList: 'workspace-git-controls' }, [
-    link('Overview', url('overview')),
-    link('Branches and tags', url('refs')),
-    link('History', pinnedHref('commits')),
     link('Latest commit in view', pinnedHref('commit')),
   ])
   menu.setAttribute('aria-label', 'Repository views')
@@ -230,7 +227,7 @@ function render(data, request, href, navigate) {
   return body
 }
 
-export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial, transportControls }) {
+export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial, transportControls, onSelection }) {
   const status = h('p')
   status.setAttribute('role', 'status')
   const selection = h('dl')
@@ -262,6 +259,7 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
       const data = await readWorkspaceSelection({ signal })
       if (!isActive()) return
       selection.replaceChildren()
+      onSelection?.(data)
       if (data) {
         const { repo, ref, updateId } = data
         selection.append(text('dt', 'Repository'),
@@ -277,7 +275,7 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
   }
   refresh.addEventListener('click', load)
   panel.replaceChildren(h('section', { classList: 'workspace-git' }, [
-    text('h1', 'Sync'), link('Repositories', '#workspace/'),
+    text('h1', 'Sync'),
     text('h2', 'Server Git selection'), refresh, status, selection,
     text('h2', 'Browser Social sync'), queue, social, socialStatus,
     ...(transportControls ? [transportControls({ signal, isActive })] : []),
@@ -286,14 +284,14 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
 }
 
 export function createWorkspaceGitView({
-  panel, request, signal, isActive = () => true, readGit = readWorkspaceGit, href = workspaceGitHref,
+  panel, request, signal, onRevision, isActive = () => true, readGit = readWorkspaceGit, href = workspaceGitHref,
   navigate = target => { panel.ownerDocument.defaultView.location.hash = target },
 }) {
   const refresh = text('button', 'Refresh', { type: 'button' })
   const status = h('p')
   status.setAttribute('role', 'status')
   const content = h('div')
-  const controls = h('div', { classList: 'workspace-git-controls' }, [link('Repositories', '#workspace/'), refresh])
+  const controls = h('div', { classList: 'workspace-git-controls' }, [refresh])
   panel.replaceChildren(h('section', { classList: 'workspace-git' }, [controls, status, content]))
   let pending = false
   let loaded = false
@@ -308,6 +306,7 @@ export function createWorkspaceGitView({
       const data = await readGit(request, { signal })
       if (!active()) return
       content.replaceChildren(render(data, request, href, navigate))
+      onRevision?.(data.revision.commit)
       loaded = true
       status.textContent = ''
     } catch (error) {

@@ -178,47 +178,86 @@ const route = async () => {
   activatePanel(panelKey, panel)
 
   try {
-    if (src === 'workspace/sync') {
-      createWorkspaceSyncView({ panel, signal: run.signal, isActive,
-        refreshSocial: () => queries?.refresh(), transportControls,
-      })
-      return
-    }
     if (src.startsWith('workspace/')) {
+      const sync = src === 'workspace/sync'
       const request = parseWorkspaceGitRoute(src)
-      if (request) {
-        createWorkspaceGitView({ panel, request, signal: run.signal, isActive,
-          navigate: target => navigation.navigate(target.slice(1)),
-        })
-        return
+      const overview = request ? workspaceGitHref({ repo: request.repo, kind: 'overview' }) : '#workspace/'
+      const repositoryLink = h('a', { href: overview }, ['Repository'])
+      const syncLink = h('a', { href: '#workspace/sync' }, ['Sync'])
+      if (sync) syncLink.setAttribute('aria-current', 'page')
+      else if (!request || request.kind === 'overview') repositoryLink.setAttribute('aria-current', 'page')
+
+      const input = h('input', { type: 'text', required: true,
+        autocapitalize: 'none', spellcheck: false })
+      const form = h('form', {}, [
+        h('label', {}, ['Repository ID', input]),
+        h('button', { type: 'submit' }, ['Open repository']),
+      ])
+      input.addEventListener('input', () => input.setCustomValidity(''))
+      form.addEventListener('submit', event => {
+        event.preventDefault()
+        const repo = input.value.trim()
+        if (!/^[A-Za-z0-9_-]+$/.test(repo)) {
+          input.setCustomValidity('Enter a valid repository ID.')
+          input.reportValidity()
+          return
+        }
+        void navigation.navigate(workspaceGitHref({ repo, kind: 'overview' }).slice(1))
+      })
+
+      const repositoryViews = h('div', { classList: 'workspace-sidebar-views' })
+      const sidebar = h('nav', { classList: 'workspace-sidebar' }, [repositoryLink, repositoryViews, syncLink,
+        h('details', {}, [h('summary', {}, ['Open by ID']), form]),
+      ])
+      sidebar.setAttribute('aria-label', 'Workspace navigation')
+      const main = h('div', { classList: 'workspace-main' })
+      panel.replaceChildren(h('div', { classList: 'workspace-layout' }, [sidebar, main]))
+
+      const showRepositoryViews = selection => {
+        const url = kind => workspaceGitHref({ repo: selection.repo, kind, rev: kind === 'refs' ? null : selection.rev })
+        repositoryViews.replaceChildren(...[
+          ['Files', 'tree'], ['History', 'commits'], ['Branches and tags', 'refs'],
+        ].map(([label, kind]) => {
+          const link = h('a', { href: url(kind) }, [label])
+          if (selection.kind === kind) link.setAttribute('aria-current', 'page')
+          return link
+        }))
       }
-      if (panel.dataset.ready === 'true') return
-      const section = h('section', { classList: 'workspace-panel' }, [h('h1', {}, ['Workspace'])])
-      if (src === 'workspace/') {
-        const input = h('input', { type: 'text', required: true, pattern: '[A-Za-z0-9_\\-]+',
-          id: 'workspace-repo', autocapitalize: 'none', spellcheck: false })
-        const form = h('form', {}, [
-          h('label', { htmlFor: 'workspace-repo' }, ['Repository ID']), input,
-          h('button', { type: 'submit' }, ['Open repository']),
-        ])
-        form.addEventListener('submit', event => {
-          event.preventDefault()
-          if (!/^[A-Za-z0-9_-]+$/.test(input.value)) return
-          void navigation.navigate(workspaceGitHref({ repo: input.value, kind: 'overview' }).slice(1))
+      const showRepository = selection => {
+        showRepositoryViews(selection)
+        createWorkspaceGitView({
+          panel: main, request: selection, signal: run.signal, isActive,
+          navigate: target => navigation.navigate(target.slice(1)),
+          onRevision: rev => showRepositoryViews({ ...selection, rev }),
         })
-        const selected = h('p', { hidden: true })
-        section.append(h('a', { href: '#workspace/sync' }, ['Sync']), selected, form)
-        void readWorkspaceSelection({ signal: run.signal }).then(data => {
-          if (!data || !isActive()) return
-          selected.append(h('a', { href: workspaceGitHref({ repo: data.repo, kind: 'overview' }) }, ['Open current repository']))
-          selected.hidden = false
-        }).catch(() => {}).finally(() => { if (isActive()) panel.dataset.ready = 'true' })
+      }
+      if (sync) {
+        createWorkspaceSyncView({ panel: main, signal: run.signal, isActive,
+          refreshSocial: () => queries?.refresh(), transportControls,
+          onSelection: selection => { if (selection) showRepositoryViews(selection) },
+        })
+      } else if (request) {
+        showRepository(request)
+      } else if (src === 'workspace/') {
+        const status = h('p', {}, ['Loading published repository…'])
+        status.setAttribute('role', 'status')
+        main.append(status)
+        try {
+          const selection = await readWorkspaceSelection({ signal: run.signal })
+          if (!isActive()) return
+          if (selection) showRepository({ repo: selection.repo, kind: 'overview' })
+          else status.textContent = 'No repository has been published on this node.'
+        } catch {
+          if (!isActive()) return
+          status.textContent = 'The published repository is unavailable.'
+          const retry = h('button', { type: 'button' }, ['Retry'])
+          retry.addEventListener('click', () => { void route() })
+          main.append(retry)
+        }
       } else {
-        section.append(h('p', {}, ['This Workspace link is invalid.']),
+        main.append(h('p', {}, ['This Workspace link is invalid.']),
           h('a', { href: '#workspace/' }, ['Open Workspace']))
       }
-      panel.replaceChildren(section)
-      if (src !== 'workspace/') panel.dataset.ready = 'true'
       return
     }
 

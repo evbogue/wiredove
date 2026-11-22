@@ -20,19 +20,19 @@ const stubs = {
       res.setHeader('content-type',url.pathname.endsWith('.css')?'text/css':'text/javascript');
       if (url.pathname === '/api/application') { res.setHeader('content-type','application/json');res.end(JSON.stringify({records:[],cursor:0,more:false,scope:'backend-archive'}));return; }
       if (url.pathname === '/gossip/poll') { res.setHeader('content-type','application/json');res.end(JSON.stringify({messages:[],nextSince:0}));return; }
-      if (url.pathname === '/api/git/demo-repo/overview') {
+      if (['/api/git/demo-repo/overview', '/api/git/' + 'a'.repeat(43) + '/overview'].includes(url.pathname)) {
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify({
-          repository: { id: 'demo-repo', name: 'Demo repository' },
+          repository: { id: url.pathname.split('/')[3], name: 'Demo repository' },
           revision: { ref: 'refs/heads/main', commit: 'a'.repeat(40) }, path: '', entries: [],
         }));
         return;
       }
-      if (url.pathname === '/api/git/demo-repo/commit') {
+      if (['/api/git/demo-repo/commit', '/api/git/' + 'a'.repeat(43) + '/commit'].includes(url.pathname)) {
         res.setHeader('content-type', 'application/json');
         const hash = 'a'.repeat(40);
         res.end(JSON.stringify({
-          repository: { id: 'demo-repo', name: 'Demo repository' },
+          repository: { id: url.pathname.split('/')[3], name: 'Demo repository' },
           revision: { ref: null, commit: hash }, path: '', files: [],
           details: { hash, author: 'Fixture author', parents: [], message: '<script>commit message</script>' },
         }));
@@ -185,10 +185,21 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     const workspace = page.getByRole('link', { name: 'Workspace', exact: true });
     await workspace.focus();
     await workspace.press('Enter');
-    await page.getByRole('heading', { name: 'Workspace' }).waitFor();
+    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
     assert.equal(await workspace.getAttribute('aria-current'), 'page');
-    await page.getByLabel('Repository ID').fill('demo-repo');
-    await page.getByRole('button', { name: 'Open repository' }).click();
+    const sidebar = page.getByRole('navigation', { name: 'Workspace navigation' });
+    await sidebar.getByRole('link', { name: 'Files', exact: true }).waitFor();
+    assert.equal(await sidebar.getByLabel('Repository ID').isVisible(), false);
+    const workspaceColumns = () => page.locator('.workspace-layout:visible').evaluate(
+      layout => getComputedStyle(layout).gridTemplateColumns.split(' ').length,
+    );
+    assert.equal(await workspaceColumns(), 1);
+    await page.setViewportSize({ width: 1200, height: 780 });
+    assert.equal(await workspaceColumns(), 2);
+    await page.setViewportSize({ width: 390, height: 780 });
+    await sidebar.getByText('Open by ID', { exact: true }).click();
+    await sidebar.getByLabel('Repository ID').fill('demo-repo');
+    await sidebar.getByRole('button', { name: 'Open repository' }).click();
     await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
     const repositoryURL = page.url();
     await page.getByRole('link', { name: 'Social', exact: true }).click();
