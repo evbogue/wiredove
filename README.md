@@ -25,6 +25,9 @@ The entire application stack runs in a browser window, so there is no installati
 
 For agent publishing without a browser, see [the agent publishing quick reference](docs/AGENT_PUBLISHING.md). It covers identity recovery, exact-byte retries, and verified relay delivery.
 
+Try the parallel Social and Workspace implementation locally with the
+[shadcn/ui preview](shadcn-preview/README.md).
+
 ### Development checks
 
 Node.js 22+ and Deno launch the same server routes and use the same storage.
