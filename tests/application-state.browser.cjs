@@ -238,7 +238,18 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     assert.match(await page.evaluate(() => localStorage.getItem('anbot:custom-apds')), /9000.*9001/);
 
     assert.deepEqual(errors,[]);
-    await page.goto(origin + '/hosted#compose');
+    let releaseHostedPoll;
+    const hostedPoll = new Promise(resolve => { releaseHostedPoll = resolve; });
+    await page.route(origin + '/gossip/poll?since=0', async route => {
+      await hostedPoll;
+      await route.continue();
+    });
+    try {
+      await page.goto(origin + '/hosted#compose');
+      await page.getByPlaceholder('Write a message').waitFor({timeout:5000});
+    } finally {
+      releaseHostedPoll();
+    }
     await page.getByPlaceholder('Write a message').waitFor();
     assert.equal(await page.evaluate(() => window.testDatabase), 'anbot-wiredove-preview');
     assert.match(await page.getByPlaceholder('Write a message').inputValue(), /Existing draft/);

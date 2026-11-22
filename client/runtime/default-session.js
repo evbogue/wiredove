@@ -35,8 +35,9 @@ export const acquireDefaultSession = async ({ database = 'wiredovedbversion1', b
         pauseQueue()
         artifacts.start()
         await artifacts.recover()
-        // Offline startup retains local content and pending publications.
-        await artifacts.pull().catch(() => {})
+        // Let the hosted UI render while ANBot replays the archive.
+        const initialPull = artifacts.pull().catch(() => {})
+        if (!anbotSocial) await initialPull
         const timer = setInterval(() => { void artifacts.pull().catch(() => {}) }, 3000)
         return async () => { clearInterval(timer); await artifacts.stop() }
       }, flushStorage: artifacts.flush,

@@ -14,7 +14,7 @@
   "client/runtime/application.js": "6636c6932694df4dd36137bdaf049ec7531912618bf059df8d5461272b56b54d",
   "client/runtime/artifact-session.js": "1f5ba55e8b32ce953bdf0e1de5a4a0ae9a90d3f51249394bbfa79ad132721413",
   "client/runtime/browser-store.js": "8831649031a91f98460817c89d917f493a61c749c5d9bcb968e31e35a2ecbd92",
-  "client/runtime/default-session.js": "efa9ec39b4722c4eb4750f4265c1bf8769f5e980d063a9332a3f38130d40cc63",
+  "client/runtime/default-session.js": "80e41fd07392474d5555681eae1e55a42e5ff062a6319cc5ed95b23d4834f3f5",
   "client/runtime/feed-queries.js": "fc8657de34c813b7b3610858006cce4307e84aeb9ae974ec8e6da28035df1015",
   "client/runtime/legacy-session.js": "00fdd57d40d2af69cf9776c190bf69ada869914fcb26bf40b89c77e3d0b5d7b2",
   "client/runtime/mount.js": "bc3790b2e2a2c2d733d5b3f52556d975ac6250f6f782d832f3bf0ff5bf84bf72",
