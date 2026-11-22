@@ -7,7 +7,7 @@ Merge `6a1358b` passed `npm run check`, `npm test` (46 tests),
 `WIREDOVE_TEST_RUNTIME=node npm run test:browser`. The browser suite
 covered local website and separate-origin embed flows.
 
-Production now routes `bot.anproto.com` to Wiredove `2c05a88` on loopback
+The initial production cutover routed `bot.anproto.com` to Wiredove `2c05a88` on loopback
 port 8792. Headless ANBot `c654921` keeps port 8787 and the existing data
 directory. The gateway forwards Git, gossip, and media routes, and the TLS
 proxy preserves the site's hash redirects. Public assets, Git overview and
@@ -22,6 +22,14 @@ The prior running ANBot revision was `6565792`. Keep the existing data
 directories during rollback. The local returning-browser rehearsal covered
 identity and saved drafts. Production returning-browser acceptance for
 pending sends, historical media and warm-cache rollback remains open.
+
+Hosted startup fix `1d8743c` is live. It renders the Social and Workspace
+controls while the ANBot archive loads and updates the service-worker cache
+version. The build, 46 unit tests, and a browser regression with a held-open
+archive request passed. Public Chromium at 390px showed both controls, and
+the live startup module and service worker matched the release. The prior
+Wiredove service unit is saved at
+`/root/deploy-backups/wiredove-anbot-startup.zvXwFn/wiredove-anbot.service`.
 
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser
