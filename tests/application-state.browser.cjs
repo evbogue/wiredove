@@ -23,7 +23,7 @@ const stubs = {
       if (['/api/git/demo-repo/overview', '/api/git/' + 'a'.repeat(43) + '/overview'].includes(url.pathname)) {
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify({
-          repository: { id: url.pathname.split('/')[3], name: 'Demo repository' },
+          repository: { id: url.pathname.split('/')[3], name: 'Demo repository', level: 2 },
           revision: { ref: 'refs/heads/main', commit: 'a'.repeat(40) }, path: '', entries: [],
         }));
         return;
@@ -32,7 +32,7 @@ const stubs = {
         res.setHeader('content-type', 'application/json');
         const hash = 'a'.repeat(40);
         res.end(JSON.stringify({
-          repository: { id: url.pathname.split('/')[3], name: 'Demo repository' },
+          repository: { id: url.pathname.split('/')[3], name: 'Demo repository', level: 2 },
           revision: { ref: null, commit: hash }, path: '', files: [],
           details: { hash, author: 'Fixture author', parents: [], message: '<script>commit message</script>' },
         }));
@@ -208,7 +208,7 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await page.waitForFunction(() => location.hash === '#?inside-workspace');
     await openMenu();
     await sidebar.getByRole('link', { name: 'Repository', exact: true }).click();
-    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    await page.getByRole('heading', { name: 'Demo repository', level: 2 }).waitFor();
     await sidebar.waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Copy clone URL' }).waitFor();
     const workspaceColumns = () => page.locator('.workspace-layout:visible').evaluate(
@@ -226,17 +226,17 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await sidebar.getByText('Open by ID', { exact: true }).click();
     await sidebar.getByLabel('Repository ID').fill('demo-repo');
     await sidebar.getByRole('button', { name: 'Open repository' }).click();
-    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    await page.getByRole('heading', { name: 'Demo repository', level: 2 }).waitFor();
     const repositoryURL = page.url();
     await openMenu();
     await sidebar.getByRole('button', { name: 'Social view', exact: true }).click();
     await sidebar.waitFor({ state: 'detached' });
     await page.locator('.route-panel[data-route-key="?inside-workspace"]').waitFor();
     await page.goBack();
-    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    await page.getByRole('heading', { name: 'Demo repository', level: 2 }).waitFor();
     assert.equal(page.url(), repositoryURL);
     await page.reload();
-    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    await page.getByRole('heading', { name: 'Demo repository', level: 2 }).waitFor();
     assert.deepEqual(errors,[]);
     await page.getByRole('link', { name: 'Latest commit in view' }).click();
     await page.getByText('<script>commit message</script>', { exact: true }).waitFor();

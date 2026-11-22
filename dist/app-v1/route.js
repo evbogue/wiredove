@@ -258,7 +258,10 @@ const route = async () => {
           createWorkspaceGitView({
             panel: main, request: selection, signal: run.signal, isActive,
             navigate: target => navigation.navigate(target.slice(1)),
-            onRevision: rev => showRepositoryViews({ ...selection, rev }),
+            onRevision: (rev, name) => {
+              showRepositoryViews({ ...selection, rev })
+              workspaceShell?.setTitle(selection.path || name)
+            },
           })
         }
         if (sync) {

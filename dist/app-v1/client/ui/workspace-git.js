@@ -174,12 +174,13 @@ function renderRevision(body, data, request, url, navigate) {
   }
 }
 
-function render(data, request, href, navigate) {
+function render(data, request, href, navigate, refresh) {
   const { repository, revision } = data
   const url = (kind, options = {}) => href({ repo: repository.id, kind, ...options })
   const pinnedHref = (kind, path = '') => url(kind, { path, rev: revision.commit })
   const body = h('div', { classList: 'workspace-git-content' })
-  const heading = h('header', { classList: 'workspace-item-header' }, [text('h2', repository.name)])
+  const headingActions = h('div', { classList: 'workspace-item-actions' }, [refresh])
+  const heading = h('header', { classList: 'workspace-item-header' }, [text('h2', repository.name), headingActions])
   body.append(heading)
   if (revision.commit) {
     const label = revision.ref?.replace(/^refs\/(heads|tags)\//, '') || 'Commit'
@@ -188,13 +189,13 @@ function render(data, request, href, navigate) {
       : url(request.kind, { path: data.path, rev: revision.commit, offset: data.offset })
     const permalink = link(revision.commit.slice(0, 12), pinnedView)
     permalink.setAttribute('aria-label', 'Permalink at commit ' + revision.commit)
-    body.append(h('p', { classList: 'workspace-revision-summary' }, [text('code', label), ' ', permalink]))
+    body.append(h('p', { classList: 'workspace-revision-summary' }, [text('code', label), h('span', { classList: 'workspace-revision-subject' }), permalink]))
   }
   const menu = h('nav', { classList: 'workspace-git-controls' }, [
     link('Latest commit in view', pinnedHref('commit')),
   ])
   menu.setAttribute('aria-label', 'Repository views')
-  body.append(menu)
+  if (request.kind !== 'overview') body.append(menu)
   if (request.kind === 'overview') {
     const clone = new URL('/git/' + encodeURIComponent(repository.id) + '.git', body.ownerDocument.URL).href
     const result = h('span')
@@ -207,7 +208,7 @@ function render(data, request, href, navigate) {
         result.textContent = 'Copied.'
       } catch { cloneDetails.open = true; result.textContent = 'Select the URL to copy it.' }
     })
-    heading.append(copy)
+    headingActions.append(copy)
     body.append(result)
     body.append(cloneDetails)
   }
@@ -235,7 +236,8 @@ function render(data, request, href, navigate) {
     if (request.kind === 'overview') {
       const recent = h('section', { classList: 'workspace-recent-commits' }, [
         h('div', { classList: 'workspace-item-header' }, [
-          text('h3', 'Recent commits'), link('All commits', pinnedHref('commits')),
+          text('h3', 'Recent commits'),
+          h('div', { classList: 'workspace-item-actions' }, [menu, link('All commits', pinnedHref('commits'))]),
         ]),
       ])
       const revisionInput = h('input', { placeholder: 'branch, tag, or commit', required: true })
@@ -377,13 +379,15 @@ export function createWorkspaceGitView({
     try {
       const data = await readGit(request, { signal })
       if (!active()) return
-      content.replaceChildren(render(data, request, href, navigate))
-      onRevision?.(data.revision.commit)
+      content.replaceChildren(render(data, request, href, navigate, refresh))
+      onRevision?.(data.revision.commit, data.repository.name)
       if (request.kind === 'overview' && data.revision.commit) {
         const recent = content.querySelector('.workspace-recent-commits')
         void readGit({ repo: data.repository.id, kind: 'commits', rev: data.revision.commit }, { signal })
           .then(({ commits }) => {
             if (!active() || !recent?.isConnected || !commits?.length) return
+            const subject = content.querySelector('.workspace-revision-subject')
+            if (subject) subject.textContent = commits[0].subject || ''
             recent.append(commitList(commits.slice(0, 5), rev => href({ repo: data.repository.id, kind: 'commit', rev })))
           }).catch(() => {})
       }
