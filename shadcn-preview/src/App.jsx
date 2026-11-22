@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
@@ -78,16 +78,18 @@ function Profile({ name, setName, theme, setTheme, inSidebar = false }) {
 }
 
 function WorkspaceSidebar({ repository, profile }) {
-  const { setOpenMobile } = useSidebar()
-  const closeMobile = () => setOpenMobile(false)
+  const { isMobile } = useSidebar()
   return (
-    <Sidebar className="top-12 h-[calc(100svh-3rem)]">
-      <SidebarHeader><h2 className="px-2 py-1 text-sm font-semibold">Workspace</h2></SidebarHeader>
+    <Sidebar
+      collapsible={isMobile ? 'none' : 'offcanvas'}
+      className={isMobile ? 'h-auto w-full border-b' : 'top-12 h-[calc(100svh-3rem)]'}
+    >
+      <SidebarHeader className="hidden md:flex"><h2 className="px-2 py-1 text-sm font-semibold">Workspace</h2></SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#feed" onClick={closeMobile}><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/" onClick={closeMobile}><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
+          <SidebarMenu className="max-md:grid max-md:grid-cols-2">
+            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#feed"><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
+            <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/"><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
@@ -115,10 +117,9 @@ export default function App() {
       <SidebarProvider className="flex-col">
         <header className="sticky top-0 z-20 grid h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 border-b bg-background px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-1">
-            {workspace && <SidebarTrigger className="md:hidden" />}
             <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
               <Bird className="size-4 shrink-0" />
-              <span className={workspace ? 'max-sm:sr-only' : undefined}>Wiredove</span>
+              <span>Wiredove</span>
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -127,7 +128,7 @@ export default function App() {
           </div>
           {!workspace && <div className="flex min-w-0 justify-end"><Profile {...profile} /></div>}
         </header>
-        <div className="flex min-h-[calc(100svh-3rem)] w-full">
+        <div className="flex min-h-[calc(100svh-3rem)] w-full flex-col md:flex-row">
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">

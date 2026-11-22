@@ -21,7 +21,7 @@ npm --prefix shadcn-preview run dev -- --strictPort --port 5173
 Open http://localhost:5173/. The preview proxies API requests to `http://127.0.0.1:8000`. Set `WIREDOVE_PREVIEW_BACKEND` when starting Vite to use another Wiredove origin.
 
 - **Social** shows up to 50 recent verified plaintext posts from the Wiredove node archive and can publish signed text posts to that archive. The first publish loads the same pinned APDS module used by Wiredove and creates an identity in a preview-specific browser database. Failed deliveries can be retried from the saved signed outbox.
-- **Workspace** uses the same feed and adds a sidebar and read-only repository browsing. Start Wiredove with `WORKSPACE_GIT_UPSTREAM` pointing to an ANBot instance with a selected repository to try the file tree and text previews.
+- **Workspace** uses the same feed and adds a sidebar and read-only repository browsing. On phones, the sidebar sits above the content and shows navigation and Profile inline. Start Wiredove with `WORKSPACE_GIT_UPSTREAM` pointing to an ANBot instance with a selected repository to try the file tree and text previews.
 - The **Workspace** switch stays centered in the header and changes the layout without navigating away from the current page.
 - **Profile** sits at the top right in Social and at the bottom of the Workspace sidebar. It shows the preview identity’s public key and saves a display name and light/dark preference.
 - Set `VITE_WIREDOVE_HOSTED=1` when running or building the preview to use the ANBot-backed feed and publishing routes of a Wiredove gateway. Use a disposable local gateway for publishing tests. The origin selected for the preview keeps its own browser storage.
