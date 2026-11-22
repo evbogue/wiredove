@@ -196,6 +196,8 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     assert.equal(await workspaceColumns(), 1);
     await page.setViewportSize({ width: 1200, height: 780 });
     assert.equal(await workspaceColumns(), 2);
+    assert.ok((await page.locator('.workspace-layout:visible').boundingBox()).width > 1000);
+    assert.ok((await sidebar.boundingBox()).x < 30);
     await page.setViewportSize({ width: 390, height: 780 });
     await sidebar.getByText('Open by ID', { exact: true }).click();
     await sidebar.getByLabel('Repository ID').fill('demo-repo');
