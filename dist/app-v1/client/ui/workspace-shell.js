@@ -2,6 +2,7 @@ import { h } from 'https://esm.sh/gh/evbogue/apds@78abedd/lib/h.js'
 import { apds } from 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js'
 import { canCompose, openComposer } from '../../navbar.js'
 import { promptKeypair } from '../../identify.js'
+import { imageSpan } from '../../profile.js'
 import { notificationsButton } from '../../notifications.js'
 import { subscribeQueueStatus } from '../../network_queue.js'
 
@@ -58,7 +59,7 @@ export function createWorkspaceShell(scroller, application) {
     const mobile = drawerButton.getClientRects().length > 0
     if (drawer.open && !mobile) drawer.close()
     if (mobile && identity.parentNode !== mobileBar) mobileBar.append(identity)
-    if (!mobile && identity.parentNode !== footer) footer.prepend(identity)
+    if (!mobile && identity.parentNode !== footer) footer.append(identity)
   })
   resize?.observe(layout)
 
@@ -83,18 +84,23 @@ export function createWorkspaceShell(scroller, application) {
   const identity = h('div', { classList: 'workspace-identity' })
   const social = h('button', { type: 'button' }, ['Social view'])
   social.addEventListener('click', () => { void application?.navigation.setWorkspace(false) })
-  footer.append(identity, h('a', { href: '#settings' }, ['Settings']))
+  const options = h('details', { classList: 'workspace-options' }, [
+    h('summary', {}, ['Workspace options']), h('a', { href: '#settings' }, ['Settings']),
+  ])
   if (application?.session?.policy?.capabilities?.notifications !== false && application) {
-    footer.append(notificationsButton())
+    options.append(notificationsButton())
   }
-  footer.append(h('a', { href: 'https://github.com/evbogue/wiredove' }, ['Source on GitHub']), social)
+  options.append(h('a', { href: 'https://github.com/evbogue/wiredove' }, ['Source on GitHub']), social)
+  footer.append(options, identity)
 
   async function refreshIdentity() {
     if (!application) return
     const key = await apds.pubkey()
     newPost.hidden = !await canCompose(application)
     const label = key ? 'Your profile' : 'Posting identity'
-    const content = [workspaceIcon(key ? 'person' : 'person_add'),
+    const image = key ? await imageSpan() : workspaceIcon('person_add')
+    if (key) image.alt = ''
+    const content = [image,
       h('span', { classList: 'workspace-identity-label' }, [label])]
     const control = key ? h('a', { href: '#' + key }, content)
       : h('button', { type: 'button', onclick: () => {

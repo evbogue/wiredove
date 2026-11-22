@@ -438,7 +438,13 @@ iframe {
 .workspace-sidebar-views > a { min-height: 44px; font-size: 15px; }
 .workspace-sidebar a[aria-current="page"], .workspace-sidebar a:hover,
 .workspace-sidebar summary:hover { background: var(--wiredove-control-hover); }
-.workspace-sidebar-footer { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--wiredove-border); }
+.workspace-sidebar-footer { margin-top: auto; }
+.workspace-sidebar-footer .workspace-identity { padding-top: 12px; border-top: 1px solid var(--wiredove-border); }
+.workspace-sidebar-footer .workspace-identity :is(a, button) { width: 100%; }
+.workspace-identity .material-symbols-outlined { color: inherit; }
+.workspace-identity img { width: 28px; height: 28px; border-radius: 50%; }
+.workspace-options { margin-bottom: 8px; color: var(--wiredove-muted); }
+.workspace-options > summary { min-height: 32px; font-size: 13px; }
 .workspace-sidebar-footer button, .workspace-mobile-bar button { border: 0; background: transparent; }
 .workspace-sidebar-views .workspace-sidebar-views { margin-inline-start: .8rem; }
 .workspace-sidebar-views:empty { display: none; }

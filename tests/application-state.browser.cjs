@@ -229,6 +229,7 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await page.getByRole('heading', { name: 'Demo repository', level: 2 }).waitFor();
     const repositoryURL = page.url();
     await openMenu();
+    await sidebar.getByText('Workspace options', { exact: true }).click();
     await sidebar.getByRole('button', { name: 'Social view', exact: true }).click();
     await sidebar.waitFor({ state: 'detached' });
     await page.locator('.route-panel[data-route-key="?inside-workspace"]').waitFor();
