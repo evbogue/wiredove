@@ -1,3 +1,5 @@
+import { actionButton } from './action-button.js';
+
 // UI only: frames supply identity, attachments, drafts and publication.
 export function iconButton(label, icon, onClick) {
   // Font faces live in the document so icons also work inside embed shadow roots.
@@ -67,10 +69,9 @@ export function createComposerSurface({ textarea, identity, context, onPreview, 
     }
     else textarea.focus();
   });
-  const publish = document.createElement('button');
-  publish.type = 'button';
-  publish.className = 'composer-publish';
-  publish.textContent = publishLabel;
+  const publishSymbol = publishLabel === 'Save changes' ? 'check' : publishLabel === 'Reply' ? 'reply' : 'send';
+  const publish = actionButton(publishLabel, publishSymbol, { primary: true, classList: 'composer-publish' });
+  const publishText = publish.lastChild;
   publish.addEventListener('click', event => onPublish?.(event));
   actions.append(previewButton, publish);
   footer.append(tools, actions);
@@ -84,5 +85,5 @@ export function createComposerSurface({ textarea, identity, context, onPreview, 
       event.preventDefault(); publish.click();
     }
   });
-  return { root, header, body, textarea, preview, attachments, tools, publish, status };
+  return { root, header, body, textarea, preview, attachments, tools, publish, publishText, status };
 }

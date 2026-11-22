@@ -439,7 +439,7 @@ export const composer = async (sig, options = {}) => {
     textarea.readOnly = true
     try {
       button.disabled = true
-      button.textContent = 'Publishing...'
+      surface.publishText.data = 'Publishing...'
       if (ENABLE_EVENT_COMPOSER && composerMode === 'event') {
         const dateValue = eventDate.value
         const startLabel = eventStartTime.value
@@ -462,31 +462,31 @@ export const composer = async (sig, options = {}) => {
         if (!loc) {
           setHelp('Location is required.', eventLocation)
           button.disabled = false
-          button.textContent = 'Publish'
+          surface.publishText.data = 'Publish'
           return
         }
         if (!dateValue) {
           setHelp('Event date is required.', eventDate)
           button.disabled = false
-          button.textContent = 'Publish'
+          surface.publishText.data = 'Publish'
           return
         }
         if (!startValue) {
           setHelp('Start time is required.', eventStartTime)
           button.disabled = false
-          button.textContent = 'Publish'
+          surface.publishText.data = 'Publish'
           return
         }
         if (!endValue) {
           setHelp('End time is required.', eventEndTime)
           button.disabled = false
-          button.textContent = 'Publish'
+          surface.publishText.data = 'Publish'
           return
         }
         if (endMs < startMs) {
           setHelp('End time must be after the start time.', eventEndTime)
           button.disabled = false
-          button.textContent = 'Publish'
+          surface.publishText.data = 'Publish'
           return
         }
       }
@@ -614,7 +614,7 @@ export const composer = async (sig, options = {}) => {
       publishing = false
       surface.tools.inert = false
       textarea.readOnly = false
-      button.textContent = isEdit ? 'Save changes' : sig ? 'Reply' : 'Publish'
+      surface.publishText.data = isEdit ? 'Save changes' : sig ? 'Reply' : 'Publish'
       updatePublishState()
     }
   }

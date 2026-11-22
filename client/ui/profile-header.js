@@ -1,3 +1,4 @@
+import { actionButton } from './action-button.js'
 import { profileLinksFromHistory } from '../profile-links.js'
 import { renderProfileLinks } from './profile-links.js'
 import { createProfileEditor } from './profile-editor.js'
@@ -180,7 +181,7 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
   editor.fields.addEventListener('input', () => { status.textContent = '' })
   const editButton = h('button', { type: 'button', classList: canEdit ? 'profile-view-only' : 'hidden' }, ['Edit profile'])
   if (!canEdit) { editButton.style.display = 'none' }
-  const saveButton = h('button', { type: 'button', classList: 'primary-action' }, ['Save changes'])
+  const saveButton = actionButton('Save changes', 'check', { primary: true })
   const cancelButton = h('button', { type: 'button' }, ['Cancel'])
 
   const setEditing = (isEditing) => {

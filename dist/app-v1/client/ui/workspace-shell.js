@@ -6,11 +6,9 @@ import { profileAvatarLink } from '../../profile.js'
 import { notificationsButton } from '../../notifications.js'
 import { subscribeQueueStatus } from '../../network_queue.js'
 
-export function workspaceIcon(name) {
-  const icon = h('span', { classList: 'material-symbols-outlined' }, [name])
-  icon.setAttribute('aria-hidden', 'true')
-  return icon
-}
+import { actionButton, actionIcon as workspaceIcon, newPostButton } from './action-button.js'
+
+export { workspaceIcon }
 
 export function createWorkspaceShell(scroller, application) {
   const primary = h('div', { classList: 'workspace-sidebar-views' })
@@ -22,12 +20,10 @@ export function createWorkspaceShell(scroller, application) {
   const slot = h('aside', { classList: 'workspace-sidebar-slot' }, [sidebar])
   const drawer = h('dialog', { classList: 'workspace-drawer' })
   drawer.setAttribute('aria-label', 'Workspace navigation drawer')
-  const drawerButton = h('button', { type: 'button', classList: 'workspace-menu' }, [workspaceIcon('menu')])
-  drawerButton.setAttribute('aria-label', 'Menu')
+  const drawerButton = actionButton('Menu', 'menu', { classList: 'workspace-menu', iconOnly: true })
   drawerButton.setAttribute('aria-expanded', 'false')
   drawerButton.setAttribute('aria-haspopup', 'dialog')
-  const close = h('button', { type: 'button', classList: 'workspace-close-menu' }, [workspaceIcon('close')])
-  close.setAttribute('aria-label', 'Close menu')
+  const close = actionButton('Close menu', 'close', { iconOnly: true })
   close.addEventListener('click', () => drawer.close())
   drawer.append(close)
   drawerButton.addEventListener('click', () => {
@@ -65,8 +61,7 @@ export function createWorkspaceShell(scroller, application) {
 
   const search = h('input', { type: 'search', placeholder: 'Search', autocomplete: 'off' })
   search.setAttribute('aria-label', 'Search Wiredove')
-  const submitSearch = h('button', { type: 'submit' }, [workspaceIcon('search')])
-  submitSearch.setAttribute('aria-label', 'Search')
+  const submitSearch = actionButton('Search', 'search', { type: 'submit', iconOnly: true })
   const searchForm = h('form', { classList: 'workspace-search' }, [search, submitSearch])
   searchForm.addEventListener('submit', event => {
     event.preventDefault()
@@ -74,15 +69,14 @@ export function createWorkspaceShell(scroller, application) {
     const query = search.value.trim()
     void application?.navigation.navigate(query ? '?' + query : '')
   })
-  const newPost = h('button', { type: 'button', classList: 'workspace-new-post', hidden: true }, ['New post'])
-  newPost.addEventListener('click', () => {
+  const newPost = newPostButton(() => {
     if (drawer.open) drawer.close()
     void openComposer(application)
-  })
+  }, { classList: 'workspace-new-post', hidden: true })
   header.append(searchForm, newPost)
 
   const identity = h('div', { classList: 'workspace-identity' })
-  const social = h('button', { type: 'button' }, ['Social view'])
+  const social = actionButton('Social view', 'dynamic_feed')
   social.addEventListener('click', () => { void application?.navigation.setWorkspace(false) })
   const options = h('details', { classList: 'workspace-options' }, [
     h('summary', {}, ['Workspace options']), h('a', { href: '#settings' }, ['Settings']),

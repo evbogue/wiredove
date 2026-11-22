@@ -1,3 +1,4 @@
+import { actionButton } from './client/ui/action-button.js'
 import { validHash } from './vendor/andfs/andfs.js'
 import { createHashMediaView } from './client/ui/hash-media.js'
 import { apds } from 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js'
@@ -204,7 +205,7 @@ const route = async () => {
         autocapitalize: 'none', spellcheck: false })
       const form = h('form', {}, [
         h('label', {}, ['Repository ID', input]),
-        h('button', { type: 'submit' }, ['Open repository']),
+        actionButton('Open repository', 'folder_open', { type: 'submit' }),
       ])
       input.addEventListener('input', () => input.setCustomValidity(''))
       form.addEventListener('submit', event => {
@@ -231,8 +232,7 @@ const route = async () => {
         : src.startsWith('?') ? 'Search' : src === 'compose' ? 'New post' : src ? 'Profile' : 'Feed')
       workspaceShell.actions.replaceChildren()
       if (src === '' || src.startsWith('?') || src.length === 44) {
-        const refresh = h('button', { type: 'button', title: 'Refresh feed', classList: 'workspace-refresh-feed' }, [workspaceIcon('refresh')])
-        refresh.setAttribute('aria-label', 'Refresh feed')
+        const refresh = actionButton('Refresh feed', 'refresh', { iconOnly: true })
         refresh.addEventListener('click', async () => {
           refresh.disabled = true
           try { await refreshFeed() } finally { refresh.disabled = false }

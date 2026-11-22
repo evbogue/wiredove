@@ -71,7 +71,7 @@ const root = path.resolve(__dirname, '..');
   assert.equal(await embed.evaluate(()=>location.hash),'#host-route');
   assert.equal(await embed.locator('iframe').count(),0);
   const publish=async(page,body,attachment)=>{
-    await page.getByRole('button',{name:'Compose',exact:true}).click();
+    await page.getByRole('button',{name:'New post',exact:true}).click();
     await page.getByPlaceholder('Write a message').fill(body);
     if(attachment) {
       await page.locator('.media-composer input[type=file]').setInputFiles(attachment);
@@ -155,7 +155,7 @@ const root = path.resolve(__dirname, '..');
   // Delivery interruption keeps exactly one signed artifact; reload + retry
   // delivers that same ID without signing a duplicate.
   await embed.route(source+'/api/application',route=>route.request().method()==='POST'?route.fulfill({status:503,body:'offline'}):route.continue());
-  await embed.getByRole('button',{name:'Compose',exact:true}).click();
+  await embed.getByRole('button',{name:'New post',exact:true}).click();
   await embed.getByPlaceholder('Write a message').fill('Exact pending acceptance post');
   await embed.getByRole('button',{name:'Publish',exact:true}).click();
   await embed.getByText('Saved locally. Delivery is pending; use Retry pending publication in the navigation bar.',{exact:true}).waitFor();
