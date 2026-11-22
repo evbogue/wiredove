@@ -1,6 +1,6 @@
 # Work order for the Wiredove UI migration
 
-**Status: planned · 20 November 2026**
+**Status: first slice in development · 20 November 2026**
 
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser
@@ -9,13 +9,52 @@ ANBot remains the agent CLI and retains its Git capability during this
 migration. Keep Git pushes open and post editing solo. Wave can define
 collaboration rules when that work begins.
 
+The first slice has a shared Social / Workspace shell and browser-rendered
+overview, tree, and file views. ANBot commit `a38ee52` supplies the structured
+reads. A Chromium fixture against a disposable ANBot node verified that
+Refresh sees a pushed commit while pinned links keep resolving to their
+original commit. The shared-shell browser check covers keyboard entry,
+alternate views, Back, reload, and a retained Social panel at phone width.
+The next slice adds branches and tags available in the verified publication,
+paged history, full commit messages, per-file diffs and revision comparisons.
+Commit pages can open the existing Social composer with a pinned link.
+ANBot commit `009559f` supplies the extended reads.
+Set `WORKSPACE_GIT_UPSTREAM` to the ANBot HTTP(S) origin to run the same-origin
+gateway in Wiredove. Workspace now discovers the selected repository,
+shows the clone URL, and presents Git selection and browser Social sync
+separately. Existing scoped Git page URLs resolve to Wiredove views when the
+gateway is enabled. The same-origin raw byte routes remain on ANBot.
+
+Deploy Wiredove directly at `bot.anproto.com`, with ANBot behind it for
+Git transport and verified reads. ANBot `serve --headless` disables its Social
+shell and HTML Git pages. The Wiredove gateway forwards ANBot's smart HTTP
+and signed push challenge endpoints and redirects legacy Git page links into
+Workspace. The local headless acceptance covered clone, signed push, fetch,
+commit reads, raw downloads and signed Social post and reply retrieval. At that hostname Wiredove opens the
+existing `anbot-wiredove-preview` database and uses ANBot for its hosted
+Social archive, profile and post delivery. A disposable ANBot accepted and
+returned signed posts and replies through the Wiredove gateway. A browser
+fixture verified the selected database name and reopening a saved draft.
+Before deletion, verify a returning browser against the staged deployment,
+including its actual identity, pending signed sends and historical media,
+using the staged hostname and a rollback to the previous UI. The legacy
+custom relay list, independent APDS toggles, Trystero connection, and
+per-peer pause controls are available in Wiredove's Sync view.
+
+For a staged switch, start ANBot with its existing data path and
+`serve --headless --push-origin https://bot.anproto.com`. Keep the
+configured push and replication flags. Point the Wiredove deployment's
+`WORKSPACE_GIT_UPSTREAM` at the internal ANBot origin. Keep both data
+volumes in place. Roll back by routing the hostname to the previous
+ANBot launch without `--headless`.
+
 | Ticket | Owner and work | Exit check |
 |---|---|---|
 | 1. Inventory and baseline | Wiredove + ANBot. List routes and workflows in upstream Wiredove, ANBot's hosted Wiredove copy, and ANBot's server-rendered Git UI. Record live/source revisions and embed pins. Mark each workflow port, reuse, or retire with a reason. | Checklist includes identity, local and pending data, routes, Social publish/reply/retry, media, Git views and transport, and Sync. Establish the rollback revision and record clean baseline results. |
 | 2. Shared shell | Wiredove. Add Social / Workspace routing and reuse Wiredove's stylesheet, controls, app session, and lifecycle. | Social permalinks, identity, drafts, focus, browser history, and embedded mounts still work. Switching views keeps one session. |
 | 3. Git browser vertical slice | Git capability owner supplies structured reads from existing readers. Wiredove renders overview → tree → file with hyperscript. Follow the Git browser design. | A disposable push is visible after Refresh. Commit-pinned links remain stable. Clone, fetch, and open push work as before. |
 | 4. Complete Git and status parity | Wiredove + ANBot. Port remaining verified Git views and useful Sync status. Reuse existing Social workflows and shared transport. | Each baseline workflow has a passing parity case or a documented retirement decision. Test a fresh node, a returning browser with existing identity and drafts, and a second node receiving a Git publication. |
-| 5. Switch consumers to canonical Wiredove | Wiredove + consumer owners. Use a pinned upstream Wiredove distribution wherever ANBot or another host needs UI. Validate the evbogue.com embed at its actual pin. Preserve public URLs through forwarding or compatibility routes. | Same upstream UI on the relevant hosts. Old links and current embed behavior pass the checklist. Returning browsers retain identity, drafts, and pending sends on any supported origin transition. |
+| 5. Serve Wiredove directly | Wiredove + host owners. Put the Wiredove deployment at `bot.anproto.com` in front of ANBot. Validate the evbogue.com embed at its actual pin and preserve public URLs through routing. | Wiredove owns the UI at the product URL. Old links and current embed behavior pass the checklist. Returning browsers retain identity, drafts, and pending sends on any supported origin transition. |
 | 6. Remove duplicate UI | ANBot. Remove the forked browser UI, server-rendered pages, and their UI-only assets once replacement and rollback are verified. Remove dead code and any obsolete browser-only dependency. | ANBot has no independently implemented human UI. The CLI, Git transport, and the data reads Wiredove needs still pass their checks. Verify removal from a fresh checkout and build. |
 | 7. Prove Wave handoff | Wave + Wiredove. Open and discuss a solo author's exact published revision in Workspace using shared Wiredove components. | A second node can retrieve the same revision and its discussion after a later release. |
 
@@ -34,6 +73,8 @@ projects. Pull in a backend dependency when it blocks a specific acceptance
 case. Finish Wave before building an audience.
 
 [Git browser design](GIT_BROWSER.md) · [Layout](LAYOUT.md) · [Controls](CONTROLS.md) · [Sync](SYNC.md)
+
+[Migration baseline and cutover checks](MIGRATION_BASELINE.md)
 
 ## Work-order disposition
 

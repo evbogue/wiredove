@@ -39,12 +39,28 @@ const composeButton = async (application) => {
 }
 
 export const navbar = async (application) => {
+  const socialLink = h('a', { href: '#' }, ['Social'])
+  const workspaceLink = h('a', { href: '#workspace/' }, ['Workspace'])
+  const views = h('div', { classList: 'navbar-views' }, [socialLink, workspaceLink])
+  const syncViews = () => {
+    const route = application.navigation.get()
+    const inWorkspace = route === 'sync' || route.startsWith('workspace/')
+    if (inWorkspace) workspaceLink.setAttribute('href', '#' + route)
+    else if (route !== 'compose' && !route.startsWith('reply=') && !route.startsWith('share=')) {
+      socialLink.setAttribute('href', '#' + route)
+    }
+    const active = inWorkspace ? workspaceLink : socialLink
+    const inactive = inWorkspace ? socialLink : workspaceLink
+    active.setAttribute('aria-current', 'page')
+    inactive.removeAttribute('aria-current')
+  }
   const searchInput = h('input', {
     id: 'search', type: 'search', placeholder: 'Search',
     'aria-label': 'Search Wiredove', autocomplete: 'off',
     oninput: () => { application.navigation.navigate(searchInput.value ? '?' + searchInput.value : '') }
   })
   const syncSearch = () => {
+    syncViews()
     const hash = application.navigation.get()
     try { searchInput.value = hash.startsWith('?') ? decodeURI(hash.slice(1)) : '' }
     catch { searchInput.value = hash.startsWith('?') ? hash.slice(1) : '' }
@@ -205,7 +221,7 @@ export const navbar = async (application) => {
     span,
   ])
 
-  const div = h('nav', {id: 'navbar', 'aria-label': 'Main navigation'}, [left, right])
+  const div = h('nav', {id: 'navbar', 'aria-label': 'Main navigation'}, [left, views, right])
 
   if (!await apds.keypair()) {
     span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair(undefined, application) }, ['person_add']))

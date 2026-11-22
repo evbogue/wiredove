@@ -12,6 +12,17 @@ Wiredove `d934138`.
 | Standard Wiredove application session | Pulls its configured backend archive on startup and every three seconds. Its website transport can also run the social sync loop when networking is enabled. |
 | ANBot node | Can run a server-side peer pull loop when configured. The loop records pull outcomes and runs independently of browser tabs. |
 
+## Wiredove Sync view
+
+Open Workspace → Sync or use the existing `#sync` link. The server panel
+reads ANBot's selected publication through `/sync/status` and retains
+the last selection if a refresh fails. The browser panel shows Wiredove
+transport readiness and queue size and refreshes the Social archive
+through the current application session. The website's Sync view retains the ANBot custom relay addresses, lets users
+enable and disable each relay, and shows connection and poll status. It also
+controls the Trystero room and lets users pause individual peers. These
+transport controls belong to the website session.
+
 ## Migration boundary
 
 Keep one Wiredove application session for both views, with shared identity,

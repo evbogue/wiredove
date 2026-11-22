@@ -6,8 +6,126 @@ import { createAndFsMediaService } from '../andfs_media_server.js'
 import { createApplicationBackend } from '../application_backend.js'
 import { createStaticHandler } from './static.js'
 
+const workspaceGitRead = /^\/api\/git\/[A-Za-z0-9_-]+\/(overview|tree|blob|refs|commits|commit|diff|compare)$/
+const workspaceGitRaw = /^\/git\/[A-Za-z0-9_-]+\/raw\/.+/
+
+function workspaceGitPage(url) {
+  if (url.pathname === '/git' || url.pathname === '/git/') return 'workspace/'
+  const scope = /^\/git\/([A-Za-z0-9_-]+)(\/.*)?$/.exec(url.pathname)
+  if (!scope) return null
+  const [, repo, rest = ''] = scope
+  const query = new URLSearchParams()
+  let view = ''
+  const revision = url.searchParams.get('rev')
+  if (revision !== null) query.set('rev', revision)
+  const commit = /^\/commit\/([0-9a-f]{40})(?:\/(blob|diff)\/(.+))?$/.exec(rest)
+  const compare = /^\/compare\/(.+?)\.\.\.(.+)$/.exec(rest)
+  if (commit) {
+    view = '/' + (commit[2] || 'commit') + (commit[3] ? '/' + commit[3] : '')
+    query.set('rev', commit[1])
+  } else if (compare) {
+    view = '/compare'
+    query.delete('rev')
+    query.set('base', decodeURIComponent(compare[1]))
+    query.set('head', decodeURIComponent(compare[2]))
+    const path = url.searchParams.get('diff')
+    if (path) view += '/' + path.split('/').map(encodeURIComponent).join('/')
+  } else if (/^\/(refs|commits|tree(?:\/.+)?|blob\/.+)$/.test(rest)) {
+    view = rest
+    const offset = url.searchParams.get('offset')
+    if (rest === '/commits' && offset !== null) query.set('offset', offset)
+  } else if (rest !== '' && rest !== '/') return null
+  return 'workspace/git/' + repo + view + (query.size ? '?' + query : '')
+}
+
+function createWorkspaceGitGateway(value) {
+  if (!value) return null
+  const upstream = new URL(value)
+  if (!['http:', 'https:'].includes(upstream.protocol) || upstream.href !== upstream.origin + '/') {
+    throw new Error('WORKSPACE_GIT_UPSTREAM must be an HTTP(S) origin')
+  }
+  return async request => {
+    const url = new URL(request.url)
+    if (['GET', 'HEAD'].includes(request.method)) {
+      const legacy = /^\/(?:refs$|commits$|tree(?:\/|$)|blob\/|commit\/|raw\/|compare\/)/
+      if (legacy.test(url.pathname)) {
+        try {
+          const result = await fetch(new URL('/sync/status', upstream.origin), {
+            redirect: 'error', signal: AbortSignal.any([request.signal, AbortSignal.timeout(5000)]),
+          })
+          if (!result.ok) return new Response(null, { status: 503 })
+          const id = (await result.json()).selection?.repoId
+          if (!/^[A-Za-z0-9+/_-]{43}=?$/.test(id)) return new Response(null, { status: 404 })
+          const repo = id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+          url.pathname = '/git/' + repo + url.pathname
+        } catch { return new Response(null, { status: 503 }) }
+      }
+      const page = workspaceGitPage(url)
+      if (page) {
+        const target = new URL('/', url.origin)
+        target.hash = page
+        return new Response(null, { status: 307, headers: { location: '/' + target.hash, 'cache-control': 'no-store' } })
+      }
+    }
+    const gitTransport = /^\/git\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)?\.git\/(?:info\/refs|git-upload-pack|git-receive-pack|anbot-auth)$/.test(url.pathname)
+    if (gitTransport) {
+      if (!['GET', 'POST'].includes(request.method)) return new Response(null, { status: 405 })
+      const headers = new Headers()
+      for (const key of ['authorization', 'content-encoding', 'content-length', 'content-type', 'git-protocol', 'x-anbot-author']) {
+        if (request.headers.has(key)) headers.set(key, request.headers.get(key))
+      }
+      try {
+        const response = await fetch(new URL(url.pathname + url.search, upstream.origin), {
+          redirect: 'error', signal: request.signal, method: request.method, headers,
+          ...(request.method === 'POST' ? { body: request.body, duplex: 'half' } : {}),
+        })
+        return new Response(response.body, { status: response.status,
+          headers: { 'content-type': response.headers.get('content-type') || 'application/octet-stream', 'cache-control': 'no-store' } })
+      } catch {
+        return new Response('Git transport unavailable\n', { status: 503 })
+      }
+    }
+    const raw = workspaceGitRaw.test(url.pathname) || /^\/git\/[A-Za-z0-9_-]+\/commit\/[0-9a-f]{40}\/raw\/.+/.test(url.pathname)
+    const socialWrite = url.pathname === '/posts' || url.pathname === '/profiles'
+    const socialRecord = url.pathname === '/raw' && url.searchParams.has('post')
+    const socialImage = url.pathname === '/wiredove/image'
+    const socialBlock = /^\/blobs\/[A-Za-z0-9_-]{43}$/.test(url.pathname) && ['GET', 'HEAD'].includes(request.method)
+    const socialPoll = url.pathname === '/gossip/poll' && url.searchParams.has('since')
+    if (!raw && !socialWrite && !socialRecord && !socialImage && !socialBlock && !socialPoll && url.pathname !== '/sync/status' && !workspaceGitRead.test(url.pathname)) return null
+    if (!(socialWrite ? ['POST'] : ['GET', 'HEAD']).includes(request.method)) {
+      return new Response(null, { status: 405, headers: { allow: socialWrite ? 'POST' : 'GET, HEAD' } })
+    }
+    const headers = new Headers({
+      'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
+    })
+    try {
+      const response = await fetch(new URL(url.pathname + url.search, upstream.origin), {
+        redirect: 'error', signal: AbortSignal.any([request.signal, AbortSignal.timeout(15000)]),
+        headers: { accept: raw || socialBlock || socialImage ? '*/*' : 'application/json', ...(socialWrite ? { 'content-type': 'application/json' } : {}) },
+        ...(socialWrite ? { method: 'POST', body: request.body, duplex: 'half' } : {}),
+      })
+      const type = response.headers.get('content-type')
+      if (raw || socialBlock || socialImage) {
+        headers.set('content-security-policy', 'sandbox')
+        headers.set('content-type', response.ok && type ? type : 'application/octet-stream')
+      } else {
+        headers.set('content-type', 'application/json')
+        if (response.ok && !type?.startsWith('application/json')) {
+          await response.body?.cancel()
+          return new Response(null, { status: 502, headers })
+        }
+      }
+      if (request.method === 'HEAD') await response.body?.cancel()
+      return new Response(request.method === 'HEAD' ? null : response.body, { status: response.status, headers })
+    } catch {
+      return new Response(null, { status: 503, headers })
+    }
+  }
+}
+
 // Both listeners use this exact route graph and on-disk formats.
 export async function createWiredoveHandler({ env = processEnv, root = cwd(), notificationsOptions = {} } = {}) {
+  const workspaceGit = createWorkspaceGitGateway(env.WORKSPACE_GIT_UPSTREAM)
   root = await fs.realpath(root)
   const dataDir = resolve(root, env.DATA_DIR || './data')
   const applicationDir = resolve(root, env.APPLICATION_DATA_DIR || `${dataDir}/application`)
@@ -55,9 +173,17 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
     try { pathname = decodeURIComponent(new URL(request.url).pathname) }
     catch { return new Response(null, { status: 400 }) }
     if (/^\/(?:data(?:\/|$)|config\.json$|\.git(?:\/|$))/.test(pathname)) return new Response(null, { status: 404 })
+    const blockRoute = /^\/blobs\/[A-Za-z0-9_-]{43}$/.test(pathname) && ['GET', 'HEAD'].includes(request.method)
+    const git = !blockRoute && await workspaceGit?.(request)
+    if (git) return git
     for (const service of [application.handleRequest, media.handleRequest, legacyBlob, notifications.handleRequest]) {
       const response = await service(request)
-      if (response) return response
+      if (response) {
+        if (blockRoute && service === media.handleRequest && response.status === 404 && workspaceGit) {
+          return await workspaceGit(request) || response
+        }
+        return response
+      }
     }
     const response = await staticFiles(request)
     if (pathname.startsWith('/dist/app-v1/') || pathname === '/app-embed.js' || pathname.startsWith('/client/') || pathname.startsWith('/vendor/') || ['/embed.js', '/style.css'].includes(pathname)) response.headers.set('access-control-allow-origin', '*')

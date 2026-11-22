@@ -114,7 +114,10 @@ export const composer = async (sig, options = {}) => {
     const saved = storage?.getItem(draftKey) || window.sessionStorage?.getItem(draftKey)
     if (saved) {
       const draft = JSON.parse(saved)
-      textarea.value = draft.body || ''
+      const savedBody = draft.body || ''
+      const sharedBody = options.appendSharedBody && options.initialBody
+      textarea.value = sharedBody && !savedBody.includes(sharedBody)
+        ? [savedBody, sharedBody].filter(Boolean).join('\n\n') : savedBody
       mediaAttachment = draft.attachment || null
     }
   } catch {}

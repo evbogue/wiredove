@@ -7,18 +7,53 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const stubs = {
-  '/offline-apds.js': `export const apds={put:async()=>{},getHashLog:async()=>[],getOpenedLog:async()=>[],start:async()=>{},pubkey:async()=>null,keypair:async()=>null,query:async()=>[],visual:async()=>document.createElement('img'),get:async key=>key==='name'?'Offline fixture':null,parseYaml:async()=>({}),human:async()=>'',open:async()=>null};`,
+  '/offline-apds.js': `export const apds={put:async()=>{},getHashLog:async()=>[],getOpenedLog:async()=>[],start:async(name)=>{window.testDatabase=name},pubkey:async()=>null,keypair:async()=>null,query:async()=>[],visual:async()=>document.createElement('img'),get:async key=>key==='name'?'Offline fixture':null,parseYaml:async()=>({}),human:async()=>'',open:async()=>null};`,
   '/connect.js': 'export const connect=async()=>{},disconnect=async()=>{};',
   '/sync.js': 'export const startSync=async()=>{},stopSync=()=>{},noteInterest=async()=>{},noteSeen=async()=>{};',
   '/offline-h.js': `export function h(tag,attrs={},children=[]){if(Array.isArray(attrs)){children=attrs;attrs={}}const node=document.createElement(tag);for(const [k,v]of Object.entries(attrs)){if(k==='classList')node.className=v;else node[k]=v}for(const child of children)if(child)node.append(child);return node}`,
 };
 (async () => {
+  let syncFailure = false;
   const server = http.createServer(async (req,res) => {
     try {
       const url = new URL(req.url,'http://localhost');
       res.setHeader('content-type',url.pathname.endsWith('.css')?'text/css':'text/javascript');
       if (url.pathname === '/api/application') { res.setHeader('content-type','application/json');res.end(JSON.stringify({records:[],cursor:0,more:false,scope:'backend-archive'}));return; }
       if (url.pathname === '/gossip/poll') { res.setHeader('content-type','application/json');res.end(JSON.stringify({messages:[],nextSince:0}));return; }
+      if (url.pathname === '/api/git/demo-repo/overview') {
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({
+          repository: { id: 'demo-repo', name: 'Demo repository' },
+          revision: { ref: 'refs/heads/main', commit: 'a'.repeat(40) }, path: '', entries: [],
+        }));
+        return;
+      }
+      if (url.pathname === '/api/git/demo-repo/commit') {
+        res.setHeader('content-type', 'application/json');
+        const hash = 'a'.repeat(40);
+        res.end(JSON.stringify({
+          repository: { id: 'demo-repo', name: 'Demo repository' },
+          revision: { ref: null, commit: hash }, path: '', files: [],
+          details: { hash, author: 'Fixture author', parents: [], message: '<script>commit message</script>' },
+        }));
+        return;
+      }
+      if (url.pathname === '/sync/status') {
+        res.setHeader('content-type', 'application/json');
+        if (url.search || syncFailure) { res.statusCode = 503; res.end('{}'); return; }
+        res.end(JSON.stringify({ selection: {
+          repoId: 'a'.repeat(43) + '=', ref: 'refs/heads/main', updateId: 'verified-update',
+        } }));
+        return;
+      }
+      if (url.pathname === '/hosted') {
+        res.setHeader('content-type','text/html');
+        res.end(`<!doctype html><script type="importmap">{"imports":{"apds":"/offline-apds.js","h":"/offline-h.js"}}</script><script type="module">
+          import {anbotWebsiteServices, startWebsiteApplication} from '/client/runtime/website-application.js';
+          await startWebsiteApplication({services:anbotWebsiteServices,network:false});
+        </script>`);
+        return;
+      }
       if (url.pathname === '/website') {
         res.setHeader('content-type','text/html');
         res.end(`<!doctype html><link rel="stylesheet" href="/style.css"><script type="importmap">{"imports":{"apds":"/offline-apds.js","h":"/offline-h.js"}}</script><script type="module" src="/app.js"></script>`);return;
@@ -142,6 +177,71 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await page.locator('.route-panel[data-route-key="?website-search"]').waitFor();
     await page.getByRole('link',{name:'Home',exact:true}).click();
     await page.locator('.route-panel[data-route-key="__home__"]').waitFor();
+    await page.setViewportSize({ width: 390, height: 780 });
+    await page.getByRole('searchbox').fill('workspace-back');
+    const socialPanel = page.locator('.route-panel[data-route-key="?workspace-back"]');
+    await socialPanel.waitFor();
+    await socialPanel.evaluate(node => { node.dataset.workspaceTest = 'original'; });
+    const workspace = page.getByRole('link', { name: 'Workspace', exact: true });
+    await workspace.focus();
+    await workspace.press('Enter');
+    await page.getByRole('heading', { name: 'Workspace' }).waitFor();
+    assert.equal(await workspace.getAttribute('aria-current'), 'page');
+    await page.getByLabel('Repository ID').fill('demo-repo');
+    await page.getByRole('button', { name: 'Open repository' }).click();
+    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    const repositoryURL = page.url();
+    await page.getByRole('link', { name: 'Social', exact: true }).click();
+    assert.equal(await socialPanel.getAttribute('data-workspace-test'), 'original');
+    await page.goBack();
+    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    assert.equal(page.url(), repositoryURL);
+    await page.reload();
+    await page.getByRole('heading', { name: 'Demo repository' }).waitFor();
+    assert.deepEqual(errors,[]);
+    await page.getByRole('link', { name: 'Latest commit in view' }).click();
+    await page.getByText('<script>commit message</script>', { exact: true }).waitFor();
+    const commitURL = page.url();
+    await page.evaluate(() => {
+      localStorage.setItem('wiredove-composer-draft:anon:new', JSON.stringify({ body: 'Existing draft' }));
+    });
+    await page.getByRole('link', { name: 'Discuss in Social' }).click();
+    const draftBody = await page.getByPlaceholder('Write a message').inputValue();
+    assert.ok(draftBody.startsWith('Existing draft\n\n'));
+    assert.ok(draftBody.includes(commitURL));
+    assert.deepEqual(errors,[]);
+    await page.keyboard.press('Escape');
+    await page.goto(origin + '/website#sync');
+    await page.getByRole('heading', { name: 'Server Git selection' }).waitFor();
+    await page.getByText('verified-update').waitFor();
+    syncFailure = true;
+    await page.getByRole('button', { name: 'Refresh Git status' }).click();
+    await page.getByText('Refresh failed. Showing the last known Git selection.').waitFor();
+    await page.getByText('verified-update').waitFor();
+    await page.getByRole('heading', { name: 'Browser Social sync' }).waitFor();
+    await page.evaluate(() => {
+      window.testRelaySockets = [];
+      window.WebSocket = class {
+        static OPEN = 1;
+        constructor(url) { this.url = url; window.testRelaySockets.push(this); }
+        close() { this.closed = true; }
+      };
+    });
+    const relayAddress = page.getByLabel('APDS WebSocket URL');
+    for (const address of ['ws://127.0.0.1:9000/', 'ws://127.0.0.1:9001/']) {
+      await relayAddress.fill(address);
+      await page.getByRole('button', { name: 'Add APDS relay' }).click();
+      await page.getByRole('switch', { name: new RegExp(address) }).waitFor();
+    }
+    await page.getByRole('switch', { name: /9000/ }).uncheck();
+    assert.deepEqual(await page.evaluate(() => testRelaySockets.map(socket => !!socket.closed)), [true, false]);
+    assert.match(await page.evaluate(() => localStorage.getItem('anbot:custom-apds')), /9000.*9001/);
+
+    assert.deepEqual(errors,[]);
+    await page.goto(origin + '/hosted#compose');
+    await page.getByPlaceholder('Write a message').waitFor();
+    assert.equal(await page.evaluate(() => window.testDatabase), 'anbot-wiredove-preview');
+    assert.match(await page.getByPlaceholder('Write a message').inputValue(), /Existing draft/);
     assert.deepEqual(errors,[]);
     console.log('Website bootstrap: offline startup, hash search and home passed');
     console.log('Application ownership: two roots, navigation, cached panels, scroll, renderer IDs, feed enqueue/status and disposal passed');

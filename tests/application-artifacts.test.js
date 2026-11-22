@@ -116,3 +116,49 @@ test('historical image failures retry after archive cursor advances and notify m
   assert(attempts === 3, 'Cached image fetched again')
   assert(JSON.stringify(cursors) === '[0,1,1,1]', 'Image retry rewound the archive')
 })
+
+
+test('ANBot Social verifies fetched signature pairs and retries exact signed bytes', async () => {
+  const keypair = await an.gen(), state = new Map(), blobs = new Map()
+  const protocol = { keypair: () => keypair, pubkey: () => keypair.slice(0,44),
+    get: key => blobs.get(key), put: (key, value) => blobs.set(key, value),
+    make: async value => blobs.set(await an.hash(value), value),
+    add: async signature => blobs.set(await an.hash(signature), signature),
+    parseYaml: JSON.parse, createYaml: (meta, body) => JSON.stringify({ ...meta, body }),
+    getHashLog: () => [], getOpenedLog: () => [] }
+  const image = 'data:image/png;base64,AAAA'
+  const imageHash = await an.hash(image)
+  const existing = await signed(JSON.stringify({ image: imageHash, body: 'Published before the UI move' }))
+  let available = false
+  const writes = [], cursors = []
+  const session = createArtifactSession({ protocol,
+    store: { get: key => state.get(key), set: (key, value) => state.set(key, value) },
+    endpoint: 'http://local/api/application', anbotSocial: true,
+    fetchImpl: async (request, options) => {
+      const url = new URL(request)
+      if (url.pathname === '/gossip/poll') {
+        const since = Number(url.searchParams.get('since'))
+        cursors.push(since)
+        return Response.json({ messages: since ? [] : [existing.signature, existing.content], nextSince: 1 })
+      }
+      if (url.pathname === '/wiredove/image') {
+        assert(url.searchParams.get('hash') === imageHash && url.searchParams.get('id') === existing.id)
+        return new Response(Uint8Array.of(0, 0, 0), { headers: { 'content-type': 'image/png' } })
+      }
+      const record = JSON.parse(options.body)
+      writes.push({ path: url.pathname, ...record })
+      if (!available) return new Response(null, { status: 503 })
+      return Response.json({ id: record.id, status: 'published' })
+    },
+  })
+  await session.pull()
+  assert(blobs.has(existing.id) && cursors.join(',') === '0,1')
+  assert(blobs.get(imageHash) === image)
+  const message = await session.publish('Continue the discussion')
+  assert(!message.relayed && writes[0].path === '/posts')
+  available = true
+  await session.retry()
+  assert(writes[1].signature === message.signature && writes[1].content === message.content)
+  assert((await session.pending()).length === 0)
+  assert((await session.publish('', { name: 'Updated profile' })).relayed && writes[2].path === '/profiles')
+})

@@ -12,9 +12,11 @@ import { buildProfileHeader } from './profile_header.js'
 import { perfStart, perfEnd } from './perf.js'
 import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
+import { parseWorkspaceGitRoute, readWorkspaceSelection, workspaceGitHref } from './client/runtime/workspace-git.js'
+import { createWorkspaceGitView, createWorkspaceSyncView } from './client/ui/workspace-git.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
-  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, mediaSource = globalThis.location?.origin }) => {
+  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, transportControls = false, mediaSource = globalThis.location?.origin }) => {
 const document = scopeDocument(root)
 const render = renderer
 const composer = compose
@@ -55,6 +57,8 @@ const getRoutePanel = (scroller, key) => {
 }
 
 const activatePanel = (key, panel) => {
+  const switchesView = activePanelKey !== null &&
+    activePanelKey.startsWith('workspace/') !== key.startsWith('workspace/')
   if (activePanelKey && activePanelKey !== key) {
     const previous = routePanels.get(activePanelKey)
     if (previous) {
@@ -65,7 +69,7 @@ const activatePanel = (key, panel) => {
   }
   activePanelKey = key
   feeds?.activateFeed?.(panelKeyToSrc(key))
-  const savedTop = routeScrollTop.get(key)
+  const savedTop = routeScrollTop.get(key) ?? (switchesView ? 0 : undefined)
   if (typeof savedTop === 'number') {
     clearTimeout(scrollTimer)
     scrollTimer = setTimeout(() => {
@@ -164,15 +168,60 @@ const watchFeed = (src, panel) => {
 const route = async () => {
   if (disposed) return
   const token = perfStart('route', navigation.get() || 'home')
-  const src = navigation.get()
+  const current = navigation.get()
+  const src = current === 'sync' ? 'workspace/sync' : current
   const run = beginRouteRun()
-  const isActive = () => !disposed && run.runId === activeRouteRun && navigation.get() === src
+  const isActive = () => !disposed && run.runId === activeRouteRun && navigation.get() === current
   const scroller = getScroller()
   const panelKey = getPanelKey(src)
   const panel = getRoutePanel(scroller, panelKey)
   activatePanel(panelKey, panel)
 
   try {
+    if (src === 'workspace/sync') {
+      createWorkspaceSyncView({ panel, signal: run.signal, isActive,
+        refreshSocial: () => queries?.refresh(), transportControls,
+      })
+      return
+    }
+    if (src.startsWith('workspace/')) {
+      const request = parseWorkspaceGitRoute(src)
+      if (request) {
+        createWorkspaceGitView({ panel, request, signal: run.signal, isActive,
+          navigate: target => navigation.navigate(target.slice(1)),
+        })
+        return
+      }
+      if (panel.dataset.ready === 'true') return
+      const section = h('section', { classList: 'workspace-panel' }, [h('h1', {}, ['Workspace'])])
+      if (src === 'workspace/') {
+        const input = h('input', { type: 'text', required: true, pattern: '[A-Za-z0-9_\\-]+',
+          id: 'workspace-repo', autocapitalize: 'none', spellcheck: false })
+        const form = h('form', {}, [
+          h('label', { htmlFor: 'workspace-repo' }, ['Repository ID']), input,
+          h('button', { type: 'submit' }, ['Open repository']),
+        ])
+        form.addEventListener('submit', event => {
+          event.preventDefault()
+          if (!/^[A-Za-z0-9_-]+$/.test(input.value)) return
+          void navigation.navigate(workspaceGitHref({ repo: input.value, kind: 'overview' }).slice(1))
+        })
+        const selected = h('p', { hidden: true })
+        section.append(h('a', { href: '#workspace/sync' }, ['Sync']), selected, form)
+        void readWorkspaceSelection({ signal: run.signal }).then(data => {
+          if (!data || !isActive()) return
+          selected.append(h('a', { href: workspaceGitHref({ repo: data.repo, kind: 'overview' }) }, ['Open current repository']))
+          selected.hidden = false
+        }).catch(() => {}).finally(() => { if (isActive()) panel.dataset.ready = 'true' })
+      } else {
+        section.append(h('p', {}, ['This Workspace link is invalid.']),
+          h('a', { href: '#workspace/' }, ['Open Workspace']))
+      }
+      panel.replaceChildren(section)
+      if (src !== 'workspace/') panel.dataset.ready = 'true'
+      return
+    }
+
     if (src === 'compose' || /^reply=[A-Za-z0-9+/]{43}=$/.test(src)) {
       const signature = src.startsWith('reply=') ? await apds.get(src.slice(6)) : null
       if (!isActive()) return
@@ -194,7 +243,7 @@ const route = async () => {
           deferred.delete(timer)
           if (disposed) return
           try {
-            const compose = await composer(null, { initialBody: message, autoGenKeypair: true })
+            const compose = await composer(null, { initialBody: message, autoGenKeypair: true, appendSharedBody: payload.appendToDraft === true })
             if (!disposed) document.body.appendChild(compose)
           } catch (err) {
             console.log(err)

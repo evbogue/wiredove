@@ -1,0 +1,34 @@
+# Wiredove migration baseline
+
+Snapshot taken November 20, 2026. The checklist covers the existing human workflows and Git transport before the shared shell and browser-rendered Git views are introduced.
+
+| Source or host | Revision and evidence |
+|---|---|
+| Wiredove baseline source | `cd7fbd2ec4d5f1be7a97fa0f2f7211c83a870e87` |
+| ANBot baseline source | `12d06aa96ffeb961823eae16569df13f4b1f6044`. The copied Social client documents its upstream base as Wiredove `59d6bafb9bf49cbedbd029878fe9ad682ca9a56f`. |
+| Wiredove production | The [release record](../RELEASE_RECORD.md) records `d80b0b9a12a7857d83ac6088e6366c91bb5aa8c0` as the verified production release. The public `app.js`, `route.js`, `navbar.js`, `style.css`, `sw.js` and website bootstrap matched that commit's SHA-256 hashes. |
+| ANBot production | The public homepage, hosted bootstrap and Git overview responded. The overview showed published commit `12d06aa96ffeb961823eae16569df13f4b1f6044`. The live bootstrap uses ANBot-hosted storage and HTTP gossip. Capture the running server revision, data path and rollback target before cutover. |
+| evbogue.com Timeline | GitHub source `264cc3902a711272deb7ae09fef45730fc0826ff` pins Wiredove `d80b0b9a12a7857d83ac6088e6366c91bb5aa8c0` in `timeline/wiredove-client.json`. Public `/timeline/api/config` pointed to the application distribution at that commit. The [release record](../RELEASE_RECORD.md) tracks earlier deployment and browser checks at this pin. |
+
+| Workflow and existing route | Disposition | Cutover check |
+|---|---|---|
+| Wiredove home, profile and author feed, signed post and conversation, search, settings and hash media | Reuse the Social router and permalink formats. Embedded mounts use host-provided navigation. | Reload copied links, exercise Back and Forward, preserve feed position and verify a host-controlled route. |
+| ANBot-hosted feed at `/`, identity, profile, post and reply, and `GET /raw?post=…` | Reuse Wiredove components with host capabilities. Preserve signed record links, ANBot same-origin gossip, and its local signed-write path (`POST /posts` and `POST /profiles`) until parity is verified. | Return in the same browser with existing keys and drafts, create one disposable post and reply locally, verify failed sends remain queued, and retry the exact signed bytes after reload. |
+| Browser data and drafts | Reuse the current application session and storage namespace per mount. ANBot's hosted namespace is `anbot-wiredove-preview` and its application store adds `:application`. Wiredove defaults to `wiredovedbversion1`. | Verify an existing identity, new-post and reply drafts, cached reads, and pending signed sends on the same origin, including a warm-cache rollback. Any origin migration needs explicit data transfer and verification. A key backup transfers identity only. |
+| Media and attachments | Reuse verified AndFS and legacy readers. ANBot hosted Social disables upload in its UI and directs uploads to its CLI. Preserve compatible media routes and host upload capabilities. | Read existing local and replicated media, test missing/retry behavior, and verify the Timeline's pinned legacy media and reply flow. |
+| ANBot server-rendered Git overview, tree and file | Port `/git/<repo>`, `/tree[/…]`, and `/blob/…` under the repository prefix. Preserve `?rev=`, raw downloads, and unscoped compatibility redirects. | Compare the old and new views against the same disposable repository. Verify commit-pinned drill-down and branch Refresh after a local push. |
+| ANBot Git refs, history, commit, diff and compare | Port after the first Git slice. Keep legacy HTML and navigation available until parity. | Cover pagination, refs and tags, historical commit permalinks, merge diffs, encoded paths, and binary or oversized files. |
+| ANBot clone, fetch, open push and server replication | Reuse existing Git smart HTTP, `.git` URLs and CLI. Keep ANBot peer replication independent of browser refresh. | Run local clone, fetch and push before and after cutover. Verify a second node receives and serves the same publication. |
+| ANBot Sync view and `/sync/status` | Port useful status into Workspace. Keep server-selected Git update distinct from browser relay connectivity and last successful poll. | Verify refresh, offline and recovery status. Check that switching views leaves one Social session and its transport active. |
+| ANBot's copied Wiredove app, theme, server-rendered Git pages and UI-only assets | Retire after the pinned upstream distribution, route compatibility, and rollback pass verification. Consolidate visual controls upstream. | Restore the previous pin and route map without replacing browser or node data. Repeat the CLI and transport checks from a fresh checkout after removal. |
+
+The Workspace preview navigates to `#workspace/git/<repo>/…` and reads the same-origin `/api/git/<repo>/…` and `/git/<repo>/raw/…` routes. The host can set `WORKSPACE_GIT_UPSTREAM` to the ANBot HTTP(S) origin or map those reads at the reverse proxy. A standalone Wiredove server needs one of those mappings for Git views. Keep existing path-based links and Git transport available while verifying the host mapping.
+
+## Baseline checks
+
+- Clean Wiredove source passed `npm test` (46), `npm run test:media` (14), `npm run test:server` (18), and `npm run check`, including the application distribution build and UI boundary checks.
+- Clean Wiredove source passed `WIREDOVE_TEST_RUNTIME=node npm run test:browser` on Chromium 153. Local website and separate-origin embed cases covered warm service-worker upgrade, signed post and reply, identity import and reload, durable drafts, exact signed retry and media recovery with the source offline. External font requests failed in the runner, while the suite passed.
+- Clean ANBot source passed `sh test/webui.sh`, `sh test/wiredove.sh` against the baseline Wiredove checkout, and `sh test/self-host.sh`, including two generations, recovery after interruption, fetch and clone. The local `sh test/browser.sh` harness passed on Chromium 153, including browser storage, pull, and seven publishing and artifact tests.
+- The ANBot copied client's `node tests/anbot-preview.browser.cjs` reached its Sync checks but failed the desktop header alignment assertion on Chromium 153 (right edge at 1265px in a 1280px viewport). This is a baseline failure. The [behavior matrix](../BEHAVIOR_MATRIX.md) records earlier Wiredove desktop, mobile-width and separate-origin coverage.
+
+Ticket 1 remains open for the fresh and returning browser baselines on the actual mounts, exact running revision or asset provenance where still missing, and the rollback pin and route map verified with preserved data. Carry the recorded hosts and pins into the cutover checklist. Keep all acceptance writes on local fixtures.
