@@ -1,6 +1,13 @@
 # Work order for the Wiredove UI migration
 
-**Status: first slice in development · 20 November 2026**
+**Status: merged to master and verified locally · 22 November 2026**
+
+Merge `6a1358b` passed `npm run check`, `npm test` (46 tests),
+`npm run test:media` (15 tests), `npm run test:server` (20 tests), and
+`WIREDOVE_TEST_RUNTIME=node npm run test:browser`. The browser suite
+covered local website and separate-origin embed flows. The staged host
+cutover and rollback, live Timeline pin acceptance, and second-node Git
+publication checks remain open.
 
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser
