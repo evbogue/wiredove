@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v50-shared-profile-avatar'
+const CACHE_VERSION = 'v51-shared-button-styles'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -42,6 +42,8 @@ const APP_SHELL_ASSETS = [
   '/client/runtime/workspace-git.js',
   '/client/ui/workspace-git.js',
   '/client/ui/workspace-shell.js',
+  '/client/ui/action-button.js',
+  '/client/ui/composer-surface.js',
   '/navbar.js',
   '/profile.js',
   '/route.js',

@@ -9,16 +9,7 @@ export function iconButton(label, icon, onClick) {
     font.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&family=Source+Sans+3';
     document.head.append(font);
   }
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'composer-icon';
-  button.title = label;
-  button.setAttribute('aria-label', label);
-  const glyph = document.createElement('span');
-  glyph.className = 'material-symbols-outlined';
-  glyph.setAttribute('aria-hidden', 'true');
-  glyph.textContent = icon;
-  button.append(glyph);
+  const button = actionButton(label, icon, { iconOnly: true, classList: 'composer-icon' });
   button.addEventListener('click', onClick);
   return button;
 }
@@ -53,15 +44,13 @@ export function createComposerSurface({ textarea, identity, context, onPreview, 
   tools.setAttribute('aria-label', 'Attachments');
   const actions = document.createElement('div');
   actions.className = 'composer-submit-actions';
-  const previewButton = document.createElement('button');
-  previewButton.type = 'button';
-  previewButton.textContent = 'Preview';
+  const previewButton = actionButton('Preview', 'visibility');
   let previewing = false;
   previewButton.addEventListener('click', async () => {
     previewing = !previewing;
     textarea.hidden = previewing;
     preview.hidden = !previewing;
-    previewButton.textContent = previewing ? 'Back to editing' : 'Preview';
+    previewButton.lastChild.data = previewing ? 'Back to editing' : 'Preview';
     previewButton.setAttribute('aria-pressed', String(previewing));
     if (previewing) {
       try { await onPreview?.(preview); }

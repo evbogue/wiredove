@@ -179,10 +179,10 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
   const status = h('div', { classList: 'profile-bio-status', role: 'status' })
   status.setAttribute('aria-live', 'polite')
   editor.fields.addEventListener('input', () => { status.textContent = '' })
-  const editButton = h('button', { type: 'button', classList: canEdit ? 'profile-view-only' : 'hidden' }, ['Edit profile'])
+  const editButton = actionButton('Edit profile', 'edit', { classList: canEdit ? 'profile-view-only' : 'hidden' })
   if (!canEdit) { editButton.style.display = 'none' }
   const saveButton = actionButton('Save changes', 'check', { primary: true })
-  const cancelButton = h('button', { type: 'button' }, ['Cancel'])
+  const cancelButton = actionButton('Cancel', 'close')
 
   const setEditing = (isEditing) => {
     header.classList.toggle('profile-editing', isEditing)
@@ -285,10 +285,10 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
     h('p', ['Add a photo, bio, or links. You can change these later.'])
   ])
   setupIntro.hidden = !onboarding
-  const backupButton = h('button', { type: 'button', onclick: async () => {
+  const backupButton = actionButton('Download identity backup', 'download', { onclick: async () => {
     try { await downloadIdentityBackup(); backupStatus.textContent = 'Backup downloaded. Keep it somewhere private.' }
     catch { backupStatus.textContent = 'Could not download your backup. Please try again.' }
-  } }, ['Download identity backup'])
+  } })
   const backupStatus = h('p', { role: 'status' })
   const backupCard = h('section', { classList: 'identity-backup' }, [
     h('p', { classList: 'profile-help' }, ['Step 3 of 3']),
@@ -302,10 +302,10 @@ const buildProfileHeader = async ({ label, messages, canEdit = false, pubkey = n
     sessionStorage.removeItem('wiredove.setup')
     setupIntro.hidden = true
     backupCard.hidden = false
-    cancelButton.textContent = 'Cancel'
+    cancelButton.lastChild.data = 'Cancel'
   }
   if (onboarding) {
-    cancelButton.textContent = 'Skip for now'
+    cancelButton.lastChild.data = 'Skip for now'
     const cancel = cancelButton.onclick
     cancelButton.onclick = () => { cancel(); finishSetup() }
   }

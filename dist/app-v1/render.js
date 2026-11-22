@@ -1,3 +1,4 @@
+import { actionButton } from './client/ui/action-button.js'
 import { renderProfileUpdate } from './client/ui/profile-update.js';
 import { createMessageControls } from './client/ui/message-controls.js'
 import { attachmentDisplayBody } from './client/andfs.js'
@@ -850,7 +851,7 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     editNav.wrap
   ])
   editControls.appendChild(moderationControls)
-  const details = h('button', { type: 'button', classList: 'workspace-message-details' }, ['Details'])
+  const details = actionButton('Details', 'info', { classList: 'workspace-message-details', iconOnly: true })
   details.setAttribute('aria-expanded', 'false')
   details.addEventListener('click', () => {
     const open = details.getAttribute('aria-expanded') === 'true'
@@ -900,9 +901,8 @@ render.comments = async (hash, blob, div, actionsRow) => {
   }
 
   if (application?.session?.policy?.capabilities?.reply === false) return
-  const reply = h('button', {
-    type: 'button', title: 'Reply',
-    classList: 'material-symbols-outlined',
+  const reply = actionButton('Reply', 'chat_bubble', {
+    iconOnly: true,
     onclick: async () => {
       if (document.getElementById('reply-composer-' + hash)) { return }
       if (await apds.pubkey()) {
@@ -911,15 +911,12 @@ render.comments = async (hash, blob, div, actionsRow) => {
       }
       promptKeypair(undefined, application)
     }
-  }, [h('span', { classList: 'reply-glyph' }, ['Chat_Bubble']), h('span', { classList: 'workspace-reply-label' }, ['Reply'])])
-  reply.setAttribute('aria-label', 'Reply')
+  })
 
   if (actionsRow) {
     const slot = actionsRow.querySelector('.message-actions-reply')
     if (slot) {
-      slot.appendChild(reply)
-      slot.appendChild(h('span', [' ']))
-      slot.appendChild(num)
+      slot.append(reply, num)
     }
   } else {
     const target = h('div', {style: 'margin-left: 43px;'})

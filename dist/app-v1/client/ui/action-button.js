@@ -21,5 +21,5 @@ export function actionButton(label, symbol, { classList = '', primary = false, i
 }
 
 export function newPostButton(onclick, attributes) {
-  return actionButton('New post', 'edit_square', { ...attributes, primary: true, onclick })
+  return actionButton('New post', 'edit_square', { ...attributes, classList: ['wiredove-new-post', attributes?.classList].filter(Boolean).join(' '), onclick })
 }

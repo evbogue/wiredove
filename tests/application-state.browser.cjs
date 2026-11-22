@@ -183,13 +183,19 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
       return locator.evaluate(button => ({
         height: Math.round(button.getBoundingClientRect().height),
         background: getComputedStyle(button).backgroundColor,
+        color: getComputedStyle(button).color,
+        border: getComputedStyle(button).borderTopColor,
         icon: button.querySelector('[aria-hidden="true"]')?.textContent,
+        iconColor: getComputedStyle(button.querySelector('[aria-hidden="true"]')).color,
       }))
     }
     const newPost = page.getByRole('button', { name: 'New post', exact: true })
     const socialNewPost = await buttonStyle(newPost)
     assert.equal(socialNewPost.height, 44)
     assert.equal(socialNewPost.icon, 'edit_square')
+    assert.equal(socialNewPost.iconColor, socialNewPost.color)
+    assert.equal(socialNewPost.background, 'rgba(0, 0, 0, 0)')
+    assert.notEqual(socialNewPost.border, 'rgba(0, 0, 0, 0)')
     assert.equal((await buttonStyle(page.getByRole('button', { name: 'Refresh feed' }))).height, 44)
     await page.getByRole('searchbox').fill('workspace-back');
     const socialPanel = page.locator('.route-panel[data-route-key="?workspace-back"]');

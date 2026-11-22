@@ -1,3 +1,4 @@
+import { actionButton } from './action-button.js'
 import { h } from 'https://esm.sh/gh/evbogue/apds@78abedd/lib/h.js'
 import { appendFormattedText } from './body.js'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
@@ -99,7 +100,7 @@ function compareForm(commit, compareHref, navigate, baseCommit = '') {
   const form = h('form', { classList: 'workspace-git-compare-form' }, [
     h('label', {}, ['Base revision ', base]),
     h('label', {}, ['Head revision ', head]),
-    text('button', 'Compare', { type: 'submit' }),
+    actionButton('Compare', 'compare_arrows', { type: 'submit' }),
   ])
   form.addEventListener('submit', event => {
     event.preventDefault()
@@ -200,7 +201,7 @@ function render(data, request, href, navigate, refresh) {
     const clone = new URL('/git/' + encodeURIComponent(repository.id) + '.git', body.ownerDocument.URL).href
     const result = h('span')
     result.setAttribute('role', 'status')
-    const copy = text('button', 'Copy clone URL', { type: 'button' })
+    const copy = actionButton('Copy clone URL', 'content_copy')
     const cloneDetails = h('details', {}, [text('summary', 'Clone URL'), h('code', { textContent: clone })])
     copy.addEventListener('click', async () => {
       try {
@@ -215,12 +216,12 @@ function render(data, request, href, navigate, refresh) {
   if (renderRevision(body, data, request, url, navigate)) return body
   if (request.kind !== 'overview') body.append(breadcrumbs(data.path, pinnedHref))
   if (request.kind === 'blob') {
-    const copy = text('button', 'Copy path', { type: 'button' })
+    const copy = actionButton('Copy path', 'content_copy')
     copy.addEventListener('click', async () => {
       try {
         await body.ownerDocument.defaultView.navigator.clipboard.writeText(data.path)
-        copy.textContent = 'Path copied'
-      } catch { copy.textContent = 'Copy the path from the breadcrumb' }
+        copy.lastChild.data = 'Path copied'
+      } catch { copy.lastChild.data = 'Copy the path from the breadcrumb' }
     })
     const file = preview(data.file)
     const raw = file.querySelector('a[download]')
@@ -243,7 +244,7 @@ function render(data, request, href, navigate, refresh) {
       const revisionInput = h('input', { placeholder: 'branch, tag, or commit', required: true })
       revisionInput.setAttribute('aria-label', 'Revision')
       const picker = h('form', { classList: 'workspace-revision-picker' }, [
-        text('span', 'Revision'), revisionInput, text('button', 'View revision', { type: 'submit' }),
+        text('span', 'Revision'), revisionInput, actionButton('View revision', 'visibility', { type: 'submit' }),
       ])
       picker.addEventListener('submit', event => {
         event.preventDefault()
@@ -289,8 +290,8 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
   updateQueue(getQueueStatusSnapshot())
   const unsubscribe = subscribeQueueStatus(updateQueue)
   signal.addEventListener('abort', unsubscribe, { once: true })
-  const refresh = text('button', 'Refresh Git status', { type: 'button' })
-  const social = text('button', 'Refresh Social archive', { type: 'button' })
+  const refresh = actionButton('Refresh Git status', 'refresh')
+  const social = actionButton('Refresh Social archive', 'refresh')
   const socialStatus = h('p')
   socialStatus.setAttribute('role', 'status')
   social.addEventListener('click', async () => {
@@ -333,7 +334,7 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
   if (session?.artifacts) {
     const status = h('p')
     status.setAttribute('role', 'status')
-    const button = text('button', 'Retry pending publication', { type: 'button', hidden: true })
+    const button = actionButton('Retry pending publication', 'refresh', { hidden: true })
     const update = async () => {
       try { button.hidden = !(await session.artifacts.pending()).length } catch {}
     }
@@ -361,7 +362,7 @@ export function createWorkspaceGitView({
   panel, request, signal, onRevision, isActive = () => true, readGit = readWorkspaceGit, href = workspaceGitHref,
   navigate = target => { panel.ownerDocument.defaultView.location.hash = target },
 }) {
-  const refresh = text('button', 'Refresh', { type: 'button' })
+  const refresh = actionButton('Refresh', 'refresh')
   const status = h('p')
   status.setAttribute('role', 'status')
   const content = h('div')
@@ -374,7 +375,7 @@ export function createWorkspaceGitView({
     if (pending || !active()) return
     pending = true
     refresh.setAttribute('aria-disabled', 'true')
-    refresh.textContent = 'Refresh'
+    refresh.lastChild.data = 'Refresh'
     status.textContent = loaded ? 'Refreshing repository…' : 'Loading repository…'
     try {
       const data = await readGit(request, { signal })
@@ -395,7 +396,7 @@ export function createWorkspaceGitView({
       status.textContent = ''
     } catch (error) {
       if (!active()) return
-      refresh.textContent = 'Retry'
+      refresh.lastChild.data = 'Retry'
       if (loaded) status.textContent = 'Refresh failed. Showing the last loaded revision.'
       else if (error.status === 400) status.textContent = 'This repository link is invalid.'
       else if (error.status === 404) status.textContent = 'Repository, revision, or path not found.'

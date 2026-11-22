@@ -285,7 +285,7 @@ const route = async () => {
           } catch {
             if (!isActive()) return
             status.textContent = 'The published repository is unavailable.'
-            const retry = h('button', { type: 'button' }, ['Retry'])
+            const retry = actionButton('Retry', 'refresh')
             retry.addEventListener('click', () => { void route() })
             main.append(retry)
           }
@@ -405,12 +405,12 @@ const route = async () => {
       if (workspaceShell && isActive()) {
         workspaceShell.setTitle('Conversation')
         const back = h('a', { href: '#' }, ['Back to feed'])
-        const copy = h('button', { type: 'button' }, ['Copy link'])
+        const copy = actionButton('Copy link', 'content_copy')
         copy.addEventListener('click', async () => {
           try {
             await root.ownerDocument.defaultView.navigator.clipboard.writeText(root.ownerDocument.URL)
-            copy.textContent = 'Link copied'
-          } catch { copy.textContent = 'Copy the URL from the address bar' }
+            copy.lastChild.data = 'Link copied'
+          } catch { copy.lastChild.data = 'Copy the URL from the address bar' }
         })
         workspaceShell.actions.replaceChildren(back, copy)
       }
