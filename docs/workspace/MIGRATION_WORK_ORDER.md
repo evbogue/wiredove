@@ -118,5 +118,5 @@ and design references. Keep Git publication, existing browser parity, and
 backend sync work in their owning orders. Defer new fork, issue, and review
 workflows. Preserve the earlier Wiredove and evbogue.com reading and reply
 acceptance as baseline evidence and recheck the supported mounts during
-cutover. The Muse adapter work is closed. Audience-building follows Wave
+cutover. Audience-building follows Wave
 readiness.
