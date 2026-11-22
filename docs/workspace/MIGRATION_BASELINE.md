@@ -32,3 +32,16 @@ The Workspace preview navigates to `#workspace/git/<repo>/…` and reads the sam
 - The ANBot copied client's `node tests/anbot-preview.browser.cjs` reached its Sync checks but failed the desktop header alignment assertion on Chromium 153 (right edge at 1265px in a 1280px viewport). This is a baseline failure. The [behavior matrix](../BEHAVIOR_MATRIX.md) records earlier Wiredove desktop, mobile-width and separate-origin coverage.
 
 Ticket 1 remains open for the fresh and returning browser baselines on the actual mounts, exact running revision or asset provenance where still missing, and the rollback pin and route map verified with preserved data. Carry the recorded hosts and pins into the cutover checklist. Keep all acceptance writes on local fixtures.
+
+## Second-node Git publication acceptance · 22 November 2026
+
+Passed on loopback using ANBot `e68c7af` and Wiredove `01ca6df`.
+A fresh headless node B bootstrapped from node A using
+`serve --headless --sync-from <node-a> --sync-interval 1`. One signed
+`anbot push` to A advanced the fixture from `7ff9686` to `32e7de7`.
+B advertised the new branch tip through background sync. With A stopped,
+`git fetch` and a fresh `git clone` from B returned the new commit and file.
+Chromium opened both commits' pinned tree links and rendered the expected
+file contents through Wiredove's `WORKSPACE_GIT_UPSTREAM` gateway to B.
+The browser used the existing offline APDS and DOM helper fixtures. Git
+reads used the live local gateway and node B. All test data was disposable.
