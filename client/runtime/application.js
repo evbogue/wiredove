@@ -9,7 +9,22 @@ import { navbar } from '../../navbar.js'
 import { buildProfileHeader } from '../../profile_header.js'
 
 // UI ownership only. The caller still owns the APDS/transport session.
-export const createApplication = async ({ root, navigation, scroll, session = null }) => {
+export const createApplication = async ({ root, navigation: hostNavigation, scroll, session = null }) => {
+  const workspaceFeed = 'workspace/feed/'
+  const inWorkspace = route => route === 'sync' || route.startsWith('workspace/')
+  const navigation = {
+    get: () => {
+      const route = hostNavigation.get()
+      return route.startsWith(workspaceFeed) ? route.slice(workspaceFeed.length) : route
+    },
+    getViewRoute: () => hostNavigation.get(),
+    navigate(route, options) {
+      const target = inWorkspace(hostNavigation.get()) && !inWorkspace(route) && !options?.standalone
+        ? workspaceFeed + route : route
+      return hostNavigation.navigate(target, options)
+    },
+    subscribe(listener) { return hostNavigation.subscribe(listener) },
+  }
   const application = { root, navigation, scroll, session, cleanup: [] }
   application.queries = createFeedQueries({ protocol: apds, refresh: () => session?.refresh?.(),
     subscribe: listener => session?.artifacts?.subscribe(listener) || (() => {}) })
@@ -34,7 +49,7 @@ export const createApplication = async ({ root, navigation, scroll, session = nu
     const route = href.startsWith('#') ? href.slice(1) : session?.policy && href.startsWith(canonical) ? href.slice(canonical.length) : null
     if (route === null) return
     event.preventDefault()
-    void navigation.navigate(route)
+    void navigation.navigate(route, { standalone: anchor.hasAttribute('data-social-view') })
   }
   root.addEventListener('click', onClick)
   let destroyed = false

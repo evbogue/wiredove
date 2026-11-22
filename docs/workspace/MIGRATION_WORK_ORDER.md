@@ -31,11 +31,13 @@ the live startup module and service worker matched the release. The prior
 Wiredove service unit is saved at
 `/root/deploy-backups/wiredove-anbot-startup.zvXwFn/wiredove-anbot.service`.
 
-Workspace opens the node's published repository directly. Its desktop
-sidebar links to Repository, Files, History, Branches and tags, and Sync.
-The same navigation wraps above the content in narrow mounts. Open by ID
-is available from a collapsed control. Social and Workspace use the existing
-application session and keep their routes and shared publishing controls.
+Workspace opens the shared Wiredove feed. Its neutral desktop sidebar
+stays available while reading posts, searching, opening conversations,
+composing, or browsing Git. Repository opens the node's publication
+directly, with Files, History, and Branches and tags available in that view.
+Sync and Settings are available in the sidebar. Navigation wraps above
+the content in narrow mounts. The standalone Social view uses the same
+application session and shared publishing controls.
 
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser

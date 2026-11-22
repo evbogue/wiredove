@@ -28,6 +28,7 @@ let activeRouteRun = 0
 let activeRouteController = null
 let activeOrchestrator = null
 let activePanelKey = null
+let workspaceLayout = null
 const routePanels = new Map()
 const routeScrollTop = new Map()
 const mediaViews = new Set()
@@ -178,13 +179,24 @@ const route = async () => {
   activatePanel(panelKey, panel)
 
   try {
-    if (src.startsWith('workspace/')) {
+    const viewRoute = navigation.getViewRoute?.() ?? current
+    const workspaceSocial = viewRoute.startsWith('workspace/feed/')
+    const workspace = workspaceSocial || src.startsWith('workspace/')
+    if (!workspace && workspaceLayout) {
+      workspaceLayout.replaceWith(scroller)
+      workspaceLayout = null
+    }
+    if (workspace) {
       const sync = src === 'workspace/sync'
       const request = parseWorkspaceGitRoute(src)
       const overview = request ? workspaceGitHref({ repo: request.repo, kind: 'overview' }) : '#workspace/'
+      const feedLink = h('a', { href: '#workspace/feed/' }, ['Feed'])
       const repositoryLink = h('a', { href: overview }, ['Repository'])
       const syncLink = h('a', { href: '#workspace/sync' }, ['Sync'])
-      if (sync) syncLink.setAttribute('aria-current', 'page')
+      const settingsLink = h('a', { href: '#workspace/feed/settings' }, ['Settings'])
+      if (workspaceSocial) {
+        (src === 'settings' ? settingsLink : feedLink).setAttribute('aria-current', 'page')
+      } else if (sync) syncLink.setAttribute('aria-current', 'page')
       else if (!request || request.kind === 'overview') repositoryLink.setAttribute('aria-current', 'page')
 
       const input = h('input', { type: 'text', required: true,
@@ -206,59 +218,69 @@ const route = async () => {
       })
 
       const repositoryViews = h('div', { classList: 'workspace-sidebar-views' })
-      const sidebar = h('nav', { classList: 'workspace-sidebar' }, [repositoryLink, repositoryViews, syncLink,
+      const sidebar = h('nav', { classList: 'workspace-sidebar' }, [
+        h('a', { href: '#workspace/feed/compose', classList: 'workspace-new-post' }, ['New post']),
+        feedLink, repositoryLink, repositoryViews, syncLink, settingsLink,
         h('details', {}, [h('summary', {}, ['Open by ID']), form]),
       ])
       sidebar.setAttribute('aria-label', 'Workspace navigation')
-      const main = h('div', { classList: 'workspace-main' })
-      panel.replaceChildren(h('div', { classList: 'workspace-layout' }, [sidebar, main]))
+      if (!workspaceLayout) {
+        workspaceLayout = h('div', { classList: 'workspace-layout' })
+        scroller.before(workspaceLayout)
+        workspaceLayout.append(sidebar, scroller)
+      } else workspaceLayout.firstElementChild.replaceWith(sidebar)
+      workspaceLayout.classList.toggle('workspace-social', workspaceSocial)
+      if (!workspaceSocial) {
+        const main = h('div', { classList: 'workspace-main' })
+        panel.replaceChildren(main)
 
-      const showRepositoryViews = selection => {
-        const url = kind => workspaceGitHref({ repo: selection.repo, kind, rev: kind === 'refs' ? null : selection.rev })
-        repositoryViews.replaceChildren(...[
-          ['Files', 'tree'], ['History', 'commits'], ['Branches and tags', 'refs'],
-        ].map(([label, kind]) => {
-          const link = h('a', { href: url(kind) }, [label])
-          if (selection.kind === kind) link.setAttribute('aria-current', 'page')
-          return link
-        }))
-      }
-      const showRepository = selection => {
-        showRepositoryViews(selection)
-        createWorkspaceGitView({
-          panel: main, request: selection, signal: run.signal, isActive,
-          navigate: target => navigation.navigate(target.slice(1)),
-          onRevision: rev => showRepositoryViews({ ...selection, rev }),
-        })
-      }
-      if (sync) {
-        createWorkspaceSyncView({ panel: main, signal: run.signal, isActive,
-          refreshSocial: () => queries?.refresh(), transportControls,
-          onSelection: selection => { if (selection) showRepositoryViews(selection) },
-        })
-      } else if (request) {
-        showRepository(request)
-      } else if (src === 'workspace/') {
-        const status = h('p', {}, ['Loading published repository…'])
-        status.setAttribute('role', 'status')
-        main.append(status)
-        try {
-          const selection = await readWorkspaceSelection({ signal: run.signal })
-          if (!isActive()) return
-          if (selection) showRepository({ repo: selection.repo, kind: 'overview' })
-          else status.textContent = 'No repository has been published on this node.'
-        } catch {
-          if (!isActive()) return
-          status.textContent = 'The published repository is unavailable.'
-          const retry = h('button', { type: 'button' }, ['Retry'])
-          retry.addEventListener('click', () => { void route() })
-          main.append(retry)
+        const showRepositoryViews = selection => {
+          const url = kind => workspaceGitHref({ repo: selection.repo, kind, rev: kind === 'refs' ? null : selection.rev })
+          repositoryViews.replaceChildren(...[
+            ['Files', 'tree'], ['History', 'commits'], ['Branches and tags', 'refs'],
+          ].map(([label, kind]) => {
+            const link = h('a', { href: url(kind) }, [label])
+            if (selection.kind === kind) link.setAttribute('aria-current', 'page')
+            return link
+          }))
         }
-      } else {
-        main.append(h('p', {}, ['This Workspace link is invalid.']),
-          h('a', { href: '#workspace/' }, ['Open Workspace']))
+        const showRepository = selection => {
+          showRepositoryViews(selection)
+          createWorkspaceGitView({
+            panel: main, request: selection, signal: run.signal, isActive,
+            navigate: target => navigation.navigate(target.slice(1)),
+            onRevision: rev => showRepositoryViews({ ...selection, rev }),
+          })
+        }
+        if (sync) {
+          createWorkspaceSyncView({ panel: main, signal: run.signal, isActive,
+            refreshSocial: () => queries?.refresh(), transportControls,
+            onSelection: selection => { if (selection) showRepositoryViews(selection) },
+          })
+        } else if (request) {
+          showRepository(request)
+        } else if (src === 'workspace/') {
+          const status = h('p', {}, ['Loading published repository…'])
+          status.setAttribute('role', 'status')
+          main.append(status)
+          try {
+            const selection = await readWorkspaceSelection({ signal: run.signal })
+            if (!isActive()) return
+            if (selection) showRepository({ repo: selection.repo, kind: 'overview' })
+            else status.textContent = 'No repository has been published on this node.'
+          } catch {
+            if (!isActive()) return
+            status.textContent = 'The published repository is unavailable.'
+            const retry = h('button', { type: 'button' }, ['Retry'])
+            retry.addEventListener('click', () => { void route() })
+            main.append(retry)
+          }
+        } else {
+          main.append(h('p', {}, ['This Workspace link is invalid.']),
+            h('a', { href: '#workspace/' }, ['Open Workspace']))
+        }
+        return
       }
-      return
     }
 
     if (src === 'compose' || /^reply=[A-Za-z0-9+/]{43}=$/.test(src)) {

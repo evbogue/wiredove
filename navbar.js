@@ -40,10 +40,11 @@ const composeButton = async (application) => {
 
 export const navbar = async (application) => {
   const socialLink = h('a', { href: '#' }, ['Social'])
-  const workspaceLink = h('a', { href: '#workspace/' }, ['Workspace'])
+  socialLink.setAttribute('data-social-view', '')
+  const workspaceLink = h('a', { href: '#workspace/feed/' }, ['Workspace'])
   const views = h('div', { classList: 'navbar-views' }, [socialLink, workspaceLink])
   const syncViews = () => {
-    const route = application.navigation.get()
+    const route = application.navigation.getViewRoute?.() ?? application.navigation.get()
     const inWorkspace = route === 'sync' || route.startsWith('workspace/')
     if (inWorkspace) workspaceLink.setAttribute('href', '#' + route)
     else if (route !== 'compose' && !route.startsWith('reply=') && !route.startsWith('share=')) {

@@ -124,7 +124,8 @@ body {
 }
 
 #scroller {max-width: 680px; margin-left: auto; margin-right: auto;}
-#scroller:has(> .route-panel[data-route-key^="workspace/"]) { max-width: none; }
+.workspace-layout > #scroller { width: 100%; max-width: none; min-width: 0; }
+.workspace-layout.workspace-social > #scroller { max-width: 850px; }
 
 blockquote { border-left: 5px solid #f5f5f5; margin-left: none; padding-left: 10px; color: #777; }
 
@@ -411,6 +412,7 @@ iframe {
 .workspace-sidebar a[aria-current="page"], .workspace-sidebar a:hover,
 .workspace-sidebar summary:hover { background: var(--wiredove-control-hover); }
 .workspace-sidebar a[aria-current="page"] { font-weight: 700; }
+.workspace-sidebar .workspace-new-post { border: 1px solid var(--wiredove-control-border); margin-block-end: .45rem; }
 .workspace-sidebar-views { margin-inline-start: .55rem; }
 .workspace-sidebar-views:empty { display: none; }
 .workspace-sidebar form { display: grid; gap: .4rem; padding: .4rem; }
