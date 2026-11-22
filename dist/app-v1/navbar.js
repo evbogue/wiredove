@@ -20,23 +20,26 @@ const h = (tag, attributes, children) => {
 
 const PUBLISH_STATUS_FLASH_MS = 8000
 
-const composeButton = async (application) => {
-  return h('button', {
-    type: 'button',
-    title: 'Compose',
-    'aria-label': 'Compose',
-    classList: 'nav-icon material-symbols-outlined',
-    onclick: async (e) => {
-      e.preventDefault()
-      if (!await apds.pubkey()) {
-        promptKeypair(undefined, application)
-        return
-      }
-      const compose = await composer(undefined, { application })
-      application.root.appendChild(compose)
-    }
-  }, ['edit_square'])
+export const canCompose = async application => {
+  const policy = application.session?.policy
+  return policy?.capabilities?.compose !== false && (!policy?.owner || await apds.pubkey() === policy.owner)
 }
+
+export const openComposer = async application => {
+  if (!await apds.pubkey()) {
+    promptKeypair(undefined, application)
+    return
+  }
+  application.root.appendChild(await composer(undefined, { application }))
+}
+
+const composeButton = application => h('button', {
+  type: 'button',
+  title: 'Compose',
+  'aria-label': 'Compose',
+  classList: 'nav-icon material-symbols-outlined',
+  onclick: () => openComposer(application),
+}, ['edit_square'])
 
 export const navbar = async (application) => {
   const selectLayout = workspace => event => {
@@ -48,6 +51,7 @@ export const navbar = async (application) => {
   const views = h('div', { classList: 'navbar-views' }, [socialLink, workspaceLink])
   const syncViews = () => {
     const inWorkspace = application.navigation.isWorkspace()
+    div.hidden = inWorkspace
     const active = inWorkspace ? workspaceLink : socialLink
     const inactive = inWorkspace ? socialLink : workspaceLink
     active.setAttribute('aria-current', 'page')
@@ -65,7 +69,6 @@ export const navbar = async (application) => {
     catch { searchInput.value = hash.startsWith('?') ? hash.slice(1) : '' }
   }
   application.cleanup.push(application.navigation.subscribe(syncSearch))
-  syncSearch()
   searchInput.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') searchInput.blur()
     if (event.key === 'Enter') { event.preventDefault(); searchInput.blur() }
@@ -177,7 +180,7 @@ export const navbar = async (application) => {
     h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
       h('img', {src: new URL('./dovepurple_sm.png', import.meta.url).href, classList: 'avatar_small', alt: ''})
     ]),
-    ...((application.session?.policy?.capabilities?.compose === false || (application.session?.policy?.owner && await apds.pubkey() !== application.session.policy.owner)) ? [] : [await composeButton(application)]),
+    ...(await canCompose(application) ? [composeButton(application)] : []),
   ])
 
   // Feed refresh lives behind a navbar icon instead of a feed toolbar row. The
@@ -221,6 +224,7 @@ export const navbar = async (application) => {
   ])
 
   const div = h('nav', {id: 'navbar', 'aria-label': 'Main navigation'}, [left, views, right])
+  syncSearch()
 
   if (!await apds.keypair()) {
     span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair(undefined, application) }, ['person_add']))

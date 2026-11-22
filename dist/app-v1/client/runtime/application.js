@@ -51,7 +51,7 @@ export const createApplication = async ({ root, navigation: hostNavigation, scro
   const settings = createSettings(application)
   application.cleanup.push(settings.destroy)
   application.router = createRouter({ ...settings,
-    root, navigation, scroll, transportControls: session?.transportControls, mediaSource: session?.policy?.mediaURL || new URL(import.meta.url).origin, feeds: application.feeds, render: application.render, queries: application.queries,
+    root, navigation, scroll, application, transportControls: session?.transportControls, mediaSource: session?.policy?.mediaURL || new URL(import.meta.url).origin, feeds: application.feeds, render: application.render, queries: application.queries,
     compose: (sig, options) => composer(sig, { ...options, application }),
     profileHeader: options => buildProfileHeader({ ...options, root, runExclusive: session?.runExclusive, session }),
   })

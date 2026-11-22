@@ -171,7 +171,8 @@ function render(data, request, href, navigate) {
   const url = (kind, options = {}) => href({ repo: repository.id, kind, ...options })
   const pinnedHref = (kind, path = '') => url(kind, { path, rev: revision.commit })
   const body = h('div', { classList: 'workspace-git-content' })
-  body.append(text('h2', repository.name))
+  const heading = h('header', { classList: 'workspace-item-header' }, [text('h2', repository.name)])
+  body.append(heading)
   if (revision.commit) {
     const label = revision.ref || 'Commit'
     const pinnedView = request.kind === 'compare'
@@ -191,17 +192,30 @@ function render(data, request, href, navigate) {
     const result = h('span')
     result.setAttribute('role', 'status')
     const copy = text('button', 'Copy clone URL', { type: 'button' })
+    const cloneDetails = h('details', {}, [text('summary', 'Clone URL'), h('code', { textContent: clone })])
     copy.addEventListener('click', async () => {
       try {
         await body.ownerDocument.defaultView.navigator.clipboard.writeText(clone)
         result.textContent = 'Copied.'
-      } catch { result.textContent = 'Select the URL to copy it.' }
+      } catch { cloneDetails.open = true; result.textContent = 'Select the URL to copy it.' }
     })
-    body.append(h('details', {}, [text('summary', 'Clone URL'), h('code', { textContent: clone }), copy, result]))
+    heading.append(copy)
+    body.append(cloneDetails, result)
   }
   if (renderRevision(body, data, request, url, navigate)) return body
   body.append(breadcrumbs(data.path, pinnedHref))
-  if (request.kind === 'blob') body.append(preview(data.file))
+  if (request.kind === 'blob') {
+    const copy = text('button', 'Copy path', { type: 'button' })
+    copy.addEventListener('click', async () => {
+      try {
+        await body.ownerDocument.defaultView.navigator.clipboard.writeText(data.path)
+        copy.textContent = 'Path copied'
+      } catch { copy.textContent = 'Copy the path from the breadcrumb' }
+    })
+    const file = preview(data.file)
+    const raw = file.querySelector('a[download]')
+    body.append(h('div', { classList: 'workspace-item-header' }, [copy, raw].filter(Boolean)), file)
+  }
   else {
     body.append(listing(data, pinnedHref))
     if (data.truncated) body.append(text('p', 'Only the first entries are shown.'))
@@ -227,7 +241,7 @@ function render(data, request, href, navigate) {
   return body
 }
 
-export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial, transportControls, onSelection }) {
+export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial, transportControls, onSelection, session, onAvailability }) {
   const status = h('p')
   status.setAttribute('role', 'status')
   const selection = h('dl')
@@ -259,6 +273,7 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
       const data = await readWorkspaceSelection({ signal })
       if (!isActive()) return
       selection.replaceChildren()
+      onAvailability?.(true)
       onSelection?.(data)
       if (data) {
         const { repo, ref, updateId } = data
@@ -268,16 +283,38 @@ export function createWorkspaceSyncView({ panel, signal, isActive, refreshSocial
         status.textContent = ''
       } else status.textContent = 'No repository selected.'
     } catch {
-      if (isActive()) status.textContent = selection.childElementCount
-        ? 'Refresh failed. Showing the last known Git selection.'
-        : 'Git status unavailable. Retry refresh.'
+      if (isActive()) {
+        onAvailability?.(false)
+        status.textContent = selection.childElementCount
+          ? 'Refresh failed. Showing the last known Git selection.'
+          : 'Git status unavailable. Retry refresh.'
+      }
     } finally { refresh.disabled = false }
   }
   refresh.addEventListener('click', load)
+  const retry = []
+  if (session?.artifacts) {
+    const status = h('p')
+    status.setAttribute('role', 'status')
+    const button = text('button', 'Retry pending publication', { type: 'button', hidden: true })
+    const update = async () => {
+      try { button.hidden = !(await session.artifacts.pending()).length } catch {}
+    }
+    button.addEventListener('click', async () => {
+      button.disabled = true
+      try { await session.retry(); status.textContent = 'Delivery confirmed.' }
+      catch (error) { status.textContent = error.message }
+      finally { button.disabled = false; void update() }
+    })
+    void update()
+    const timer = setInterval(update, 1000)
+    signal.addEventListener('abort', () => clearInterval(timer), { once: true })
+    retry.push(button, status)
+  }
   panel.replaceChildren(h('section', { classList: 'workspace-git' }, [
     text('h1', 'Sync'),
     text('h2', 'Server Git selection'), refresh, status, selection,
-    text('h2', 'Browser Social sync'), queue, social, socialStatus,
+    text('h2', 'Browser Social sync'), queue, social, socialStatus, ...retry,
     ...(transportControls ? [transportControls({ signal, isActive })] : []),
   ]))
   void load()

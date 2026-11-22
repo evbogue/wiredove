@@ -14,9 +14,10 @@ import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
 import { parseWorkspaceGitRoute, readWorkspaceSelection, workspaceGitHref } from './client/runtime/workspace-git.js'
 import { createWorkspaceGitView, createWorkspaceSyncView } from './client/ui/workspace-git.js'
+import { createWorkspaceShell } from './client/ui/workspace-shell.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
-  compose, profileHeader = buildProfileHeader, settings, importKey, queries = null, transportControls = false, mediaSource = globalThis.location?.origin }) => {
+  compose, profileHeader = buildProfileHeader, settings, importKey, application = null, queries = null, transportControls = false, mediaSource = globalThis.location?.origin }) => {
 const document = scopeDocument(root)
 const render = renderer
 const composer = compose
@@ -28,7 +29,7 @@ let activeRouteRun = 0
 let activeRouteController = null
 let activeOrchestrator = null
 let activePanelKey = null
-let workspaceLayout = null
+let workspaceShell = null
 const routePanels = new Map()
 const routeScrollTop = new Map()
 const mediaViews = new Set()
@@ -182,9 +183,9 @@ const route = async () => {
     const gitRoute = src.startsWith('workspace/')
     const workspace = gitRoute || navigation.isWorkspace?.()
     const workspaceSocial = workspace && !gitRoute
-    if (!workspace && workspaceLayout) {
-      workspaceLayout.replaceWith(scroller)
-      workspaceLayout = null
+    if (!workspace && workspaceShell) {
+      workspaceShell.destroy()
+      workspaceShell = null
     }
     if (workspace) {
       const sync = src === 'workspace/sync'
@@ -193,9 +194,8 @@ const route = async () => {
       const feedLink = h('a', { href: '#' }, ['Feed'])
       const repositoryLink = h('a', { href: overview }, ['Repository'])
       const syncLink = h('a', { href: '#workspace/sync' }, ['Sync'])
-      const settingsLink = h('a', { href: '#settings' }, ['Settings'])
       if (workspaceSocial) {
-        (src === 'settings' ? settingsLink : feedLink).setAttribute('aria-current', 'page')
+        if (src !== 'settings') feedLink.setAttribute('aria-current', 'page')
       } else if (sync) syncLink.setAttribute('aria-current', 'page')
       else if (!request || request.kind === 'overview') repositoryLink.setAttribute('aria-current', 'page')
 
@@ -218,18 +218,25 @@ const route = async () => {
       })
 
       const repositoryViews = h('div', { classList: 'workspace-sidebar-views' })
-      const sidebar = h('nav', { classList: 'workspace-sidebar' }, [
-        h('a', { href: '#compose', classList: 'workspace-new-post' }, ['New post']),
-        feedLink, repositoryLink, repositoryViews, syncLink, settingsLink,
-        h('details', {}, [h('summary', {}, ['Open by ID']), form]),
-      ])
-      sidebar.setAttribute('aria-label', 'Workspace navigation')
-      if (!workspaceLayout) {
-        workspaceLayout = h('div', { classList: 'workspace-layout' })
-        scroller.before(workspaceLayout)
-        workspaceLayout.append(sidebar, scroller)
-      } else workspaceLayout.firstElementChild.replaceWith(sidebar)
-      workspaceLayout.classList.toggle('workspace-social', workspaceSocial)
+      workspaceShell ||= createWorkspaceShell(scroller, application)
+      workspaceShell.closeMenu()
+      workspaceShell.primary.replaceChildren(feedLink, repositoryLink, repositoryViews, syncLink,
+        h('details', {}, [h('summary', {}, ['Open by ID']), form]))
+      workspaceShell.layout.classList.toggle('workspace-social', workspaceSocial)
+      workspaceShell.watchSync(syncLink)
+      void workspaceShell.refreshIdentity()
+      workspaceShell.search.value = src.startsWith('?') ? src.slice(1) : ''
+      workspaceShell.setTitle(sync ? 'Sync' : gitRoute ? 'Repository' : src === 'settings' ? 'Settings'
+        : src.startsWith('?') ? 'Search' : src === 'compose' ? 'New post' : src ? 'Profile' : 'Feed')
+      workspaceShell.actions.replaceChildren()
+      if (src === '' || src.startsWith('?') || src.length === 44) {
+        const refresh = h('button', { type: 'button' }, ['Refresh feed'])
+        refresh.addEventListener('click', async () => {
+          refresh.disabled = true
+          try { await refreshFeed() } finally { refresh.disabled = false }
+        })
+        workspaceShell.actions.append(refresh)
+      }
       if (!workspaceSocial) {
         const main = h('div', { classList: 'workspace-main' })
         panel.replaceChildren(main)
@@ -255,6 +262,8 @@ const route = async () => {
         if (sync) {
           createWorkspaceSyncView({ panel: main, signal: run.signal, isActive,
             refreshSocial: () => queries?.refresh(), transportControls,
+            session: application?.session,
+            onAvailability: available => workspaceShell?.setSyncUnavailable(!available),
             onSelection: selection => { if (selection) showRepositoryViews(selection) },
           })
         } else if (request) {
@@ -388,6 +397,18 @@ const route = async () => {
     }
 
     if (src.length === 44 && await apds.open(await apds.get(src) || '')) {
+      if (workspaceShell && isActive()) {
+        workspaceShell.setTitle('Conversation')
+        const back = h('a', { href: '#' }, ['Back to feed'])
+        const copy = h('button', { type: 'button' }, ['Copy link'])
+        copy.addEventListener('click', async () => {
+          try {
+            await root.ownerDocument.defaultView.navigator.clipboard.writeText(root.ownerDocument.URL)
+            copy.textContent = 'Link copied'
+          } catch { copy.textContent = 'Copy the URL from the address bar' }
+        })
+        workspaceShell.actions.replaceChildren(back, copy)
+      }
       if (panel.dataset.ready === 'true') return
       panel.replaceChildren()
       const signed = await apds.get(src), opened = await apds.open(signed)
@@ -502,6 +523,7 @@ return { route, refreshFeed, invalidate() { for (const panel of routePanels.valu
   unsubscribeQueries?.()
   activeOrchestrator?.stop()
   activeRouteController?.abort()
+  workspaceShell?.destroy()
   for (const panel of routePanels.values()) panel.remove()
   for (const media of mediaViews) media.dispose()
   mediaViews.clear()

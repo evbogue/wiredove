@@ -40,6 +40,13 @@ Sync and Settings are available in the sidebar. Navigation wraps above
 the content in narrow mounts. The standalone Social view uses the same
 application session and shared publishing controls.
 
+Workspace places its global controls in the sidebar. New post, Search,
+Feed, Repository, and Sync are grouped above the identity, Settings, and
+Social view controls. Narrow mounts use a keyboard-operable drawer opened
+from the contextual header. The standalone Social layout retains its
+navigation bar. Conversation, repository, and file actions sit with their
+respective content.
+
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser
 and supported human workflows from ANBot. Wave builds on Wiredove.

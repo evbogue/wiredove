@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v46-workspace-feed'
+const CACHE_VERSION = 'v47-workspace-controls'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -41,6 +41,7 @@ const APP_SHELL_ASSETS = [
   '/client/runtime/website-application.js',
   '/client/runtime/workspace-git.js',
   '/client/ui/workspace-git.js',
+  '/client/ui/workspace-shell.js',
   '/navbar.js',
   '/route.js',
   '/composer.js',
