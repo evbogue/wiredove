@@ -202,7 +202,7 @@ const buildMetaCluster = ({ author, hash, blob, opened, contentBlob, ts }) => {
     },
     document,
   })
-  return { right, rawDiv, qrTarget }
+  return { right, rawDiv, qrTarget, rawToggle }
 }
 
 const queueEditRefresh = (editHash) => {
@@ -817,7 +817,7 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     }
   }, ['Edit']) : null
 
-  const { right, rawDiv, qrTarget } = buildMetaCluster({ author, hash, blob, opened, contentBlob, ts })
+  const { right, rawDiv, qrTarget, rawToggle } = buildMetaCluster({ author, hash, blob, opened, contentBlob, ts })
   const editedHint = h('span', {classList: 'edit-hint', style: 'display: none;'}, [''])
   const editNav = buildEditNav(hash)
 
@@ -850,10 +850,14 @@ render.meta = async (blob, opened, hash, div, options = {}) => {
     editNav.wrap
   ])
   editControls.appendChild(moderationControls)
-  const actionsRow = h('div', {classList: 'message-actions'}, [
-    replySlot,
-    editControls
-  ])
+  const details = h('button', { type: 'button', classList: 'workspace-message-details' }, ['Details'])
+  details.setAttribute('aria-expanded', 'false')
+  details.addEventListener('click', () => {
+    const open = details.getAttribute('aria-expanded') === 'true'
+    details.setAttribute('aria-expanded', String(!open))
+    rawToggle.click()
+  })
+  const actionsRow = h('div', {classList: 'message-actions'}, [replySlot, details, editControls])
 
   const { article: meta } = createMessageView({
     post: { id: hash, signature: blob, content: contentBlob, author, timestamp, contentHash, parsed: yaml || {} },
@@ -907,7 +911,7 @@ render.comments = async (hash, blob, div, actionsRow) => {
       }
       promptKeypair(undefined, application)
     }
-  }, ['Chat_Bubble'])
+  }, [h('span', { classList: 'reply-glyph' }, ['Chat_Bubble']), h('span', { classList: 'workspace-reply-label' }, ['Reply'])])
   reply.setAttribute('aria-label', 'Reply')
 
   if (actionsRow) {

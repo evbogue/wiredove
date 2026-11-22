@@ -40,12 +40,13 @@ Sync and Settings are available in the sidebar. Navigation wraps above
 the content in narrow mounts. The standalone Social view uses the same
 application session and shared publishing controls.
 
-Workspace places its global controls in the sidebar. New post, Search,
-Feed, Repository, and Sync are grouped above the identity, Settings, and
-Social view controls. Narrow mounts use a keyboard-operable drawer opened
-from the contextual header. The standalone Social layout retains its
-navigation bar. Conversation, repository, and file actions sit with their
-respective content.
+The Workspace appearance follows the last deployed ANBot frontend
+(`6565792`). Local Chromium captures of that release served with disposable
+posts and a disposable Git publication informed the 204px rail, warm
+charcoal theme, 56px header, flat feed rows, file table, and mobile drawer.
+Search and New post sit in the Workspace header. On phones, New post
+floats above the bottom edge and the posting identity sits in the masthead.
+The Social view switch remains in the Workspace sidebar footer.
 
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser

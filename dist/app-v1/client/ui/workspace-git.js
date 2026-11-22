@@ -24,21 +24,26 @@ function breadcrumbs(path, pinnedHref) {
 function listing(data, pinnedHref) {
   if (!data.revision.commit) return text('p', 'This repository has no commits yet.')
   if (!data.entries.length) return text('p', 'This directory is empty.')
-  const list = h('ul', { classList: 'workspace-git-entries' })
-  for (const entry of data.entries) {
-    const label = entry.name + (entry.type === 'tree' ? '/' : '')
+  const rows = data.entries.map(entry => {
     const path = data.path ? data.path + '/' + entry.name : entry.name
-    const item = h('li')
-    item.append(entry.type === 'tree' || entry.type === 'blob'
-      ? link(label, pinnedHref(entry.type, path)) : text('span', label))
-    list.append(item)
-  }
-  return list
+    const directory = entry.type === 'tree'
+    const label = entry.name + (directory ? '/' : '')
+    const name = directory || entry.type === 'blob'
+      ? link(label, pinnedHref(entry.type, path)) : text('span', label)
+    return h('tr', {}, [
+      h('td', {}, [name]), text('td', directory ? 'directory' : entry.type === 'blob' ? 'file' : entry.type),
+      text('td', Number.isFinite(entry.size) ? String(entry.size) : ''),
+    ])
+  })
+  return h('table', { classList: 'workspace-git-entries-table' }, [
+    h('thead', {}, [h('tr', {}, ['Name', 'Type', 'Size'].map(label => text('th', label, { scope: 'col' })))]),
+    h('tbody', {}, rows),
+  ])
 }
 
 function preview(file, { readme = false, renderMarkdown } = {}) {
   const section = h('section', { classList: 'workspace-git-preview' })
-  if (readme) section.append(text('h3', file.path))
+  if (readme) section.append(text('h3', file.path.replace(/\.md$/i, '')))
   if (rawPath.test(file.rawUrl || '')) {
     const raw = link('Download raw file', file.rawUrl)
     raw.download = ''
@@ -52,8 +57,11 @@ function preview(file, { readme = false, renderMarkdown } = {}) {
   }[file.state]
   if (message) section.append(text('p', message))
   if ((file.state === 'text' || file.state === 'truncated') && typeof file.text === 'string') {
-    if (renderMarkdown && file.state === 'text') renderMarkdown(section, file)
-    else section.append(h('pre', {}, [text('code', file.text)]))
+    if (renderMarkdown && file.state === 'text') {
+      const readmeBody = h('div')
+      renderMarkdown(readmeBody, file)
+      section.append(readmeBody)
+    } else section.append(h('pre', {}, [text('code', file.text)]))
   }
   return section
 }
@@ -174,13 +182,13 @@ function render(data, request, href, navigate) {
   const heading = h('header', { classList: 'workspace-item-header' }, [text('h2', repository.name)])
   body.append(heading)
   if (revision.commit) {
-    const label = revision.ref || 'Commit'
+    const label = revision.ref?.replace(/^refs\/(heads|tags)\//, '') || 'Commit'
     const pinnedView = request.kind === 'compare'
       ? url('compare', { path: data.path, base: data.base.commit, head: revision.commit })
       : url(request.kind, { path: data.path, rev: revision.commit, offset: data.offset })
     const permalink = link(revision.commit.slice(0, 12), pinnedView)
     permalink.setAttribute('aria-label', 'Permalink at commit ' + revision.commit)
-    body.append(h('p', {}, [text('span', label + ' '), permalink]))
+    body.append(h('p', { classList: 'workspace-revision-summary' }, [text('code', label), ' ', permalink]))
   }
   const menu = h('nav', { classList: 'workspace-git-controls' }, [
     link('Latest commit in view', pinnedHref('commit')),
@@ -200,10 +208,11 @@ function render(data, request, href, navigate) {
       } catch { cloneDetails.open = true; result.textContent = 'Select the URL to copy it.' }
     })
     heading.append(copy)
-    body.append(cloneDetails, result)
+    body.append(result)
+    body.append(cloneDetails)
   }
   if (renderRevision(body, data, request, url, navigate)) return body
-  body.append(breadcrumbs(data.path, pinnedHref))
+  if (request.kind !== 'overview') body.append(breadcrumbs(data.path, pinnedHref))
   if (request.kind === 'blob') {
     const copy = text('button', 'Copy path', { type: 'button' })
     copy.addEventListener('click', async () => {
@@ -217,7 +226,33 @@ function render(data, request, href, navigate) {
     body.append(h('div', { classList: 'workspace-item-header' }, [copy, raw].filter(Boolean)), file)
   }
   else {
+    if (request.kind === 'overview') {
+      body.append(h('div', { classList: 'workspace-item-header' }, [
+        text('h3', 'Files'), link('View tree', pinnedHref('tree')),
+      ]))
+    }
     body.append(listing(data, pinnedHref))
+    if (request.kind === 'overview') {
+      const recent = h('section', { classList: 'workspace-recent-commits' }, [
+        h('div', { classList: 'workspace-item-header' }, [
+          text('h3', 'Recent commits'), link('All commits', pinnedHref('commits')),
+        ]),
+      ])
+      const revisionInput = h('input', { placeholder: 'branch, tag, or commit', required: true })
+      revisionInput.setAttribute('aria-label', 'Revision')
+      const picker = h('form', { classList: 'workspace-revision-picker' }, [
+        text('span', 'Revision'), revisionInput, text('button', 'View revision', { type: 'submit' }),
+      ])
+      picker.addEventListener('submit', event => {
+        event.preventDefault()
+        const rev = revisionInput.value.trim()
+        if (rev) navigate(url('overview', { rev }))
+      })
+      const cloneDetails = body.querySelector('details')
+      body.append(recent,
+        h('details', {}, [text('summary', 'Repository details'), text('code', repository.id)]),
+        cloneDetails, picker, link('Branches and tags', url('refs')))
+    }
     if (data.truncated) body.append(text('p', 'Only the first entries are shown.'))
     if (data.readme) body.append(preview(data.readme, {
       readme: true,
@@ -344,6 +379,14 @@ export function createWorkspaceGitView({
       if (!active()) return
       content.replaceChildren(render(data, request, href, navigate))
       onRevision?.(data.revision.commit)
+      if (request.kind === 'overview' && data.revision.commit) {
+        const recent = content.querySelector('.workspace-recent-commits')
+        void readGit({ repo: data.repository.id, kind: 'commits', rev: data.revision.commit }, { signal })
+          .then(({ commits }) => {
+            if (!active() || !recent?.isConnected || !commits?.length) return
+            recent.append(commitList(commits.slice(0, 5), rev => href({ repo: data.repository.id, kind: 'commit', rev })))
+          }).catch(() => {})
+      }
       loaded = true
       status.textContent = ''
     } catch (error) {

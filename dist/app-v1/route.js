@@ -14,7 +14,7 @@ import { FeedStore } from './feed_store.js'
 import { FeedOrchestrator } from './feed_orchestrator.js'
 import { parseWorkspaceGitRoute, readWorkspaceSelection, workspaceGitHref } from './client/runtime/workspace-git.js'
 import { createWorkspaceGitView, createWorkspaceSyncView } from './client/ui/workspace-git.js'
-import { createWorkspaceShell } from './client/ui/workspace-shell.js'
+import { createWorkspaceShell, workspaceIcon } from './client/ui/workspace-shell.js'
 
 export const createRouter = ({ root, navigation, scroll, feeds, render: renderer,
   compose, profileHeader = buildProfileHeader, settings, importKey, application = null, queries = null, transportControls = false, mediaSource = globalThis.location?.origin }) => {
@@ -191,9 +191,10 @@ const route = async () => {
       const sync = src === 'workspace/sync'
       const request = parseWorkspaceGitRoute(src)
       const overview = request ? workspaceGitHref({ repo: request.repo, kind: 'overview' }) : '#workspace/'
-      const feedLink = h('a', { href: '#' }, ['Feed'])
-      const repositoryLink = h('a', { href: overview }, ['Repository'])
-      const syncLink = h('a', { href: '#workspace/sync' }, ['Sync'])
+      const feedLink = h('a', { href: '#' }, [workspaceIcon('dynamic_feed'), 'Feed'])
+      const repositoryLink = h('a', { href: overview }, [workspaceIcon('folder_data'), 'Repository'])
+      const syncLabel = h('span', ['Sync'])
+      const syncLink = h('a', { href: '#workspace/sync' }, [workspaceIcon('sync'), syncLabel])
       if (workspaceSocial) {
         if (src !== 'settings') feedLink.setAttribute('aria-current', 'page')
       } else if (sync) syncLink.setAttribute('aria-current', 'page')
@@ -223,14 +224,15 @@ const route = async () => {
       workspaceShell.primary.replaceChildren(feedLink, repositoryLink, repositoryViews, syncLink,
         h('details', {}, [h('summary', {}, ['Open by ID']), form]))
       workspaceShell.layout.classList.toggle('workspace-social', workspaceSocial)
-      workspaceShell.watchSync(syncLink)
+      workspaceShell.watchSync(syncLabel)
       void workspaceShell.refreshIdentity()
       workspaceShell.search.value = src.startsWith('?') ? src.slice(1) : ''
       workspaceShell.setTitle(sync ? 'Sync' : gitRoute ? 'Repository' : src === 'settings' ? 'Settings'
         : src.startsWith('?') ? 'Search' : src === 'compose' ? 'New post' : src ? 'Profile' : 'Feed')
       workspaceShell.actions.replaceChildren()
       if (src === '' || src.startsWith('?') || src.length === 44) {
-        const refresh = h('button', { type: 'button' }, ['Refresh feed'])
+        const refresh = h('button', { type: 'button', title: 'Refresh feed', classList: 'workspace-refresh-feed' }, [workspaceIcon('refresh')])
+        refresh.setAttribute('aria-label', 'Refresh feed')
         refresh.addEventListener('click', async () => {
           refresh.disabled = true
           try { await refreshFeed() } finally { refresh.disabled = false }

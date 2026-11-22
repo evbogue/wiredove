@@ -5,18 +5,28 @@ import { promptKeypair } from '../../identify.js'
 import { notificationsButton } from '../../notifications.js'
 import { subscribeQueueStatus } from '../../network_queue.js'
 
+export function workspaceIcon(name) {
+  const icon = h('span', { classList: 'material-symbols-outlined' }, [name])
+  icon.setAttribute('aria-hidden', 'true')
+  return icon
+}
+
 export function createWorkspaceShell(scroller, application) {
   const primary = h('div', { classList: 'workspace-sidebar-views' })
   const footer = h('div', { classList: 'workspace-sidebar-footer' })
-  const sidebar = h('nav', { classList: 'workspace-sidebar' }, [primary, footer])
+  const brandName = scroller.ownerDocument.location?.hostname === 'bot.anproto.com' ? 'ANBot' : 'Wiredove'
+  const desktopBrand = h('a', { href: '#', classList: 'workspace-brand' }, [brandName])
+  const sidebar = h('nav', { classList: 'workspace-sidebar' }, [desktopBrand, primary, footer])
   sidebar.setAttribute('aria-label', 'Workspace navigation')
   const slot = h('aside', { classList: 'workspace-sidebar-slot' }, [sidebar])
   const drawer = h('dialog', { classList: 'workspace-drawer' })
   drawer.setAttribute('aria-label', 'Workspace navigation drawer')
-  const drawerButton = h('button', { type: 'button', classList: 'workspace-menu' }, ['Menu'])
+  const drawerButton = h('button', { type: 'button', classList: 'workspace-menu' }, [workspaceIcon('menu')])
+  drawerButton.setAttribute('aria-label', 'Menu')
   drawerButton.setAttribute('aria-expanded', 'false')
   drawerButton.setAttribute('aria-haspopup', 'dialog')
-  const close = h('button', { type: 'button' }, ['Close menu'])
+  const close = h('button', { type: 'button', classList: 'workspace-close-menu' }, [workspaceIcon('close')])
+  close.setAttribute('aria-label', 'Close menu')
   close.addEventListener('click', () => drawer.close())
   drawer.append(close)
   drawerButton.addEventListener('click', () => {
@@ -35,20 +45,28 @@ export function createWorkspaceShell(scroller, application) {
 
   const title = h('h1')
   const actions = h('div', { classList: 'workspace-context-actions' })
-  const header = h('header', { classList: 'workspace-context' }, [drawerButton, title, actions])
-  const content = h('div', { classList: 'workspace-content' }, [header])
+  const header = h('header', { classList: 'workspace-context' }, [title, actions])
+  const mobileBar = h('div', { classList: 'workspace-mobile-bar' }, [
+    drawerButton, h('a', { href: '#', classList: 'workspace-brand' }, [brandName]),
+  ])
+  const content = h('div', { classList: 'workspace-content' }, [mobileBar, header])
   const layout = h('div', { classList: 'workspace-layout' }, [slot, content, drawer])
   scroller.before(layout)
   content.append(scroller)
   const ResizeObserver = scroller.ownerDocument.defaultView.ResizeObserver
   const resize = ResizeObserver && new ResizeObserver(() => {
-    if (drawer.open && !drawerButton.getClientRects().length) drawer.close()
+    const mobile = drawerButton.getClientRects().length > 0
+    if (drawer.open && !mobile) drawer.close()
+    if (mobile && identity.parentNode !== mobileBar) mobileBar.append(identity)
+    if (!mobile && identity.parentNode !== footer) footer.prepend(identity)
   })
   resize?.observe(layout)
 
   const search = h('input', { type: 'search', placeholder: 'Search', autocomplete: 'off' })
   search.setAttribute('aria-label', 'Search Wiredove')
-  const searchForm = h('form', { classList: 'workspace-search' }, [search, h('button', { type: 'submit' }, ['Search'])])
+  const submitSearch = h('button', { type: 'submit' }, [workspaceIcon('search')])
+  submitSearch.setAttribute('aria-label', 'Search')
+  const searchForm = h('form', { classList: 'workspace-search' }, [search, submitSearch])
   searchForm.addEventListener('submit', event => {
     event.preventDefault()
     if (drawer.open) drawer.close()
@@ -60,9 +78,9 @@ export function createWorkspaceShell(scroller, application) {
     if (drawer.open) drawer.close()
     void openComposer(application)
   })
-  sidebar.prepend(newPost, searchForm)
+  header.append(searchForm, newPost)
 
-  const identity = h('div')
+  const identity = h('div', { classList: 'workspace-identity' })
   const social = h('button', { type: 'button' }, ['Social view'])
   social.addEventListener('click', () => { void application?.navigation.setWorkspace(false) })
   footer.append(identity, h('a', { href: '#settings' }, ['Settings']))
@@ -75,11 +93,15 @@ export function createWorkspaceShell(scroller, application) {
     if (!application) return
     const key = await apds.pubkey()
     newPost.hidden = !await canCompose(application)
-    const control = key ? h('a', { href: '#' + key }, ['Your profile'])
+    const label = key ? 'Your profile' : 'Posting identity'
+    const content = [workspaceIcon(key ? 'person' : 'person_add'),
+      h('span', { classList: 'workspace-identity-label' }, [label])]
+    const control = key ? h('a', { href: '#' + key }, content)
       : h('button', { type: 'button', onclick: () => {
         if (drawer.open) drawer.close()
         promptKeypair(undefined, application)
-      } }, ['Create or import identity'])
+      } }, content)
+    control.setAttribute('aria-label', key ? label : 'Create or import identity')
     identity.replaceChildren(control)
   }
 
