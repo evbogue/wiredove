@@ -9,9 +9,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
-import { pendingPost, publishPost, readFeed, retryPost } from './social'
+import { hostedPreview as hosted, pendingPost, publishPost, readFeed, retryPost } from './social'
 
-const hosted = import.meta.env.VITE_WIREDOVE_HOSTED === '1'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
 function PostCard({ post }) {

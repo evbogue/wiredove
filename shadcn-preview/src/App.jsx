@@ -1,34 +1,73 @@
-import { useEffect } from 'react'
-import { Bird, FolderGit2, MessagesSquare, Settings2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Bird, FolderGit2, MessagesSquare, UserRound } from 'lucide-react'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Sidebar, SidebarContent, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { Label } from '@/components/ui/label'
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
 import { useHash, usePreference } from './hooks/use-preview-state'
+import { readPublicIdentity } from './social'
 import { Repository } from './Workspace'
 
-function Settings({ name, setName, theme, setTheme }) {
+function Profile({ name, setName, theme, setTheme, inSidebar = false }) {
+  const [open, setOpen] = useState(false)
+  const [identity, setIdentity] = useState(null)
+  const displayName = name.trim()
+
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    readPublicIdentity().then(key => {
+      if (active) setIdentity({ key })
+    }).catch(() => {
+      if (active) setIdentity({ error: true })
+    })
+    return () => { active = false }
+  }, [open])
+
+  const label = (
+    <>
+      <Avatar size="sm">
+        <AvatarFallback>{displayName ? Array.from(displayName).slice(0, 2).join('').toUpperCase() : <UserRound className="size-3.5" />}</AvatarFallback>
+      </Avatar>
+      <span className={inSidebar ? 'truncate' : 'hidden truncate sm:inline'}>{displayName || 'Profile'}</span>
+    </>
+  )
+
+  function changeOpen(value) {
+    setIdentity(null)
+    setOpen(value)
+  }
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label="Settings" className="max-sm:px-2">
-          <Settings2 /><span className="hidden sm:inline">Settings</span>
-        </Button>
+        {inSidebar
+          ? <SidebarMenuButton size="lg" aria-label="Profile">{label}</SidebarMenuButton>
+          : <Button variant="ghost" aria-label="Profile" className="min-w-0 max-w-full px-1 sm:px-2">{label}</Button>}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Preferences for this preview browser.</DialogDescription>
+          <DialogTitle>Profile</DialogTitle>
+          <DialogDescription>Your social identity and preferences for this preview browser.</DialogDescription>
         </DialogHeader>
         <Field>
           <FieldLabel htmlFor="display-name">Display name for new posts</FieldLabel>
           <Input id="display-name" value={name} maxLength={80} onChange={event => setName(event.target.value)} />
         </Field>
+        <div className="space-y-1 text-sm">
+          <p className="font-medium">Public identity key</p>
+          <div role="status">
+            {identity?.key
+              ? <code className="select-all break-all">{identity.key}</code>
+              : <p className="text-muted-foreground">{!identity ? 'Loading identity…' : identity.error ? 'Identity is unavailable.' : 'Your first post creates your preview identity.'}</p>}
+          </div>
+        </div>
         <Field orientation="horizontal">
           <Switch id="dark-mode" checked={theme === 'dark'} onCheckedChange={value => setTheme(value ? 'dark' : 'light')} />
           <FieldLabel htmlFor="dark-mode">Dark mode</FieldLabel>
@@ -38,66 +77,70 @@ function Settings({ name, setName, theme, setTheme }) {
   )
 }
 
-function WorkspaceSidebar({ repository, chooseWorkspace }) {
+function WorkspaceSidebar({ repository, profile }) {
   const { setOpenMobile } = useSidebar()
-  function navigate() {
-    chooseWorkspace()
-    setOpenMobile(false)
-  }
+  const closeMobile = () => setOpenMobile(false)
   return (
-    <Sidebar>
-      <SidebarHeader><h1 className="flex items-center gap-2 px-2 py-1 text-base font-semibold"><Bird className="size-4" /> Wiredove</h1></SidebarHeader>
+    <Sidebar className="top-12 h-[calc(100svh-3rem)]">
+      <SidebarHeader><h2 className="px-2 py-1 text-sm font-semibold">Workspace</h2></SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#feed" onClick={navigate}><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/" onClick={navigate}><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
+            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#feed" onClick={closeMobile}><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
+            <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/" onClick={closeMobile}><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="border-t">
+        <SidebarMenu>
+          <SidebarMenuItem><Profile {...profile} inSidebar /></SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   )
 }
 
 export default function App() {
   const hash = useHash()
-  const [preferredMode, setMode] = usePreference('view', 'social')
+  const [mode, setMode] = usePreference('view', hash.startsWith('workspace/') ? 'workspace' : 'social')
   const [name, setName] = usePreference('name', '')
   const [theme, setTheme] = usePreference('theme', 'light')
   const repository = hash.startsWith('workspace/')
-  const mode = repository ? 'workspace' : preferredMode
   const workspace = mode === 'workspace'
+  const profile = { name, setName, theme, setTheme }
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark') }, [theme])
-
-  function changeMode(value) {
-    if (!value) return
-    setMode(value)
-    if (value === 'social' && repository) location.hash = 'feed'
-  }
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        {workspace && <WorkspaceSidebar repository={repository} chooseWorkspace={() => setMode('workspace')} />}
-        <SidebarInset className="min-w-0">
-          <header className="flex flex-wrap items-center gap-2 border-b bg-background px-4 py-3 sm:px-6">
+      <SidebarProvider className="flex-col">
+        <header className="sticky top-0 z-20 grid h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 border-b bg-background px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-1">
             {workspace && <SidebarTrigger className="md:hidden" />}
-            {!workspace && <h1 className="mr-auto flex items-center gap-2 text-base font-semibold"><Bird className="size-4" /> Wiredove</h1>}
-            <ToggleGroup type="single" variant="outline" value={mode} onValueChange={changeMode} aria-label="Wiredove views" className={workspace ? 'mr-auto' : undefined}>
-              <ToggleGroupItem value="social">Social</ToggleGroupItem>
-              <ToggleGroupItem value="workspace">Workspace</ToggleGroupItem>
-            </ToggleGroup>
-            <Settings name={name} setName={setName} theme={theme} setTheme={setTheme} />
-          </header>
-          <section aria-label="Social feed" hidden={repository} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
-            <Feed name={name} />
-          </section>
-          {repository && (
-            <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-5xl p-4 sm:p-6">
-              <Repository hash={hash} />
+            <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+              <Bird className="size-4 shrink-0" />
+              <span className={workspace ? 'max-sm:sr-only' : undefined}>Wiredove</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="workspace-view" checked={workspace} onCheckedChange={checked => setMode(checked ? 'workspace' : 'social')} />
+            <Label htmlFor="workspace-view">Workspace</Label>
+          </div>
+          {!workspace && <div className="flex min-w-0 justify-end"><Profile {...profile} /></div>}
+        </header>
+        <div className="flex min-h-[calc(100svh-3rem)] w-full">
+          {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
+          <SidebarInset className="min-w-0">
+            <section aria-label="Social feed" hidden={repository} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
+              <Feed name={name} />
             </section>
-          )}
-        </SidebarInset>
+            {repository && (
+              <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-5xl space-y-4 p-4 sm:p-6">
+                {!workspace && <Button asChild variant="outline" size="sm"><a href="#feed"><MessagesSquare /> Feed</a></Button>}
+                <Repository hash={hash} />
+              </section>
+            )}
+          </SidebarInset>
+        </div>
       </SidebarProvider>
     </TooltipProvider>
   )

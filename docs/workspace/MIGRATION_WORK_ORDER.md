@@ -35,7 +35,9 @@ The [shadcn/ui preview](../../shadcn-preview/README.md) is a parallel local
 entry point for evaluating a shared component system. It covers a verified
 plain-text feed, signed preview posting and retry, repository files, and
 browser settings. Chromium smoke checks exercised the disposable local
-archive and fixture Git responses at desktop and mobile widths.
+archive and fixture Git responses at desktop and mobile widths. The preview’s
+header switch preserves the current URL and content. Its profile control is in
+the Social header and the Workspace sidebar footer.
 
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar

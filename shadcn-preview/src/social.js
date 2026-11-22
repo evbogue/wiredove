@@ -54,12 +54,27 @@ export async function readFeed(hosted, signal) {
 
 const newestFirst = (a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id)
 
+export const hostedPreview = import.meta.env.VITE_WIREDOVE_HOSTED === '1'
+let storage
+function openIdentity(hosted) {
+  storage ||= (async () => {
+    const { apds } = await import(/* @vite-ignore */ apdsURL)
+    await apds.start(databaseName(hosted))
+    return apds
+  })().catch(error => { storage = null; throw error })
+  return storage
+}
+
+export async function readPublicIdentity() {
+  const apds = await openIdentity(hostedPreview)
+  return apds.pubkey()
+}
+
 let writer
 async function openWriter(hosted) {
   writer ||= (async () => {
     const database = databaseName(hosted)
-    const { apds } = await import(/* @vite-ignore */ apdsURL)
-    await apds.start(database)
+    const apds = await openIdentity(hosted)
     const store = createBrowserStore(database + ':application')
     const session = createArtifactSession({ protocol: apds, store, endpoint, anbotSocial: hosted })
     await session.recover()
