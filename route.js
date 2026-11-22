@@ -1,4 +1,3 @@
-import { actionButton } from './client/ui/action-button.js'
 import { validHash } from './vendor/andfs/andfs.js'
 import { createHashMediaView } from './client/ui/hash-media.js'
 import { apds } from 'apds'
@@ -205,7 +204,7 @@ const route = async () => {
         autocapitalize: 'none', spellcheck: false })
       const form = h('form', {}, [
         h('label', {}, ['Repository ID', input]),
-        actionButton('Open repository', 'folder_open', { type: 'submit' }),
+        h('button', { type: 'submit' }, ['Open repository']),
       ])
       input.addEventListener('input', () => input.setCustomValidity(''))
       form.addEventListener('submit', event => {
@@ -232,7 +231,8 @@ const route = async () => {
         : src.startsWith('?') ? 'Search' : src === 'compose' ? 'New post' : src ? 'Profile' : 'Feed')
       workspaceShell.actions.replaceChildren()
       if (src === '' || src.startsWith('?') || src.length === 44) {
-        const refresh = actionButton('Refresh feed', 'refresh', { iconOnly: true })
+        const refresh = h('button', { type: 'button', title: 'Refresh feed', classList: 'workspace-refresh-feed' }, [workspaceIcon('refresh')])
+        refresh.setAttribute('aria-label', 'Refresh feed')
         refresh.addEventListener('click', async () => {
           refresh.disabled = true
           try { await refreshFeed() } finally { refresh.disabled = false }
@@ -285,7 +285,7 @@ const route = async () => {
           } catch {
             if (!isActive()) return
             status.textContent = 'The published repository is unavailable.'
-            const retry = actionButton('Retry', 'refresh')
+            const retry = h('button', { type: 'button' }, ['Retry'])
             retry.addEventListener('click', () => { void route() })
             main.append(retry)
           }
@@ -405,12 +405,12 @@ const route = async () => {
       if (workspaceShell && isActive()) {
         workspaceShell.setTitle('Conversation')
         const back = h('a', { href: '#' }, ['Back to feed'])
-        const copy = actionButton('Copy link', 'content_copy')
+        const copy = h('button', { type: 'button' }, ['Copy link'])
         copy.addEventListener('click', async () => {
           try {
             await root.ownerDocument.defaultView.navigator.clipboard.writeText(root.ownerDocument.URL)
-            copy.lastChild.data = 'Link copied'
-          } catch { copy.lastChild.data = 'Copy the URL from the address bar' }
+            copy.textContent = 'Link copied'
+          } catch { copy.textContent = 'Copy the URL from the address bar' }
         })
         workspaceShell.actions.replaceChildren(back, copy)
       }

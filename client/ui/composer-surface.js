@@ -1,5 +1,3 @@
-import { actionButton } from './action-button.js';
-
 // UI only: frames supply identity, attachments, drafts and publication.
 export function iconButton(label, icon, onClick) {
   // Font faces live in the document so icons also work inside embed shadow roots.
@@ -9,7 +7,16 @@ export function iconButton(label, icon, onClick) {
     font.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&family=Source+Sans+3';
     document.head.append(font);
   }
-  const button = actionButton(label, icon, { iconOnly: true, classList: 'composer-icon' });
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'composer-icon';
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  const glyph = document.createElement('span');
+  glyph.className = 'material-symbols-outlined';
+  glyph.setAttribute('aria-hidden', 'true');
+  glyph.textContent = icon;
+  button.append(glyph);
   button.addEventListener('click', onClick);
   return button;
 }
@@ -44,13 +51,15 @@ export function createComposerSurface({ textarea, identity, context, onPreview, 
   tools.setAttribute('aria-label', 'Attachments');
   const actions = document.createElement('div');
   actions.className = 'composer-submit-actions';
-  const previewButton = actionButton('Preview', 'visibility');
+  const previewButton = document.createElement('button');
+  previewButton.type = 'button';
+  previewButton.textContent = 'Preview';
   let previewing = false;
   previewButton.addEventListener('click', async () => {
     previewing = !previewing;
     textarea.hidden = previewing;
     preview.hidden = !previewing;
-    previewButton.lastChild.data = previewing ? 'Back to editing' : 'Preview';
+    previewButton.textContent = previewing ? 'Back to editing' : 'Preview';
     previewButton.setAttribute('aria-pressed', String(previewing));
     if (previewing) {
       try { await onPreview?.(preview); }
@@ -58,9 +67,10 @@ export function createComposerSurface({ textarea, identity, context, onPreview, 
     }
     else textarea.focus();
   });
-  const publishSymbol = publishLabel === 'Save changes' ? 'check' : publishLabel === 'Reply' ? 'reply' : 'send';
-  const publish = actionButton(publishLabel, publishSymbol, { primary: true, classList: 'composer-publish' });
-  const publishText = publish.lastChild;
+  const publish = document.createElement('button');
+  publish.type = 'button';
+  publish.className = 'composer-publish';
+  publish.textContent = publishLabel;
   publish.addEventListener('click', event => onPublish?.(event));
   actions.append(previewButton, publish);
   footer.append(tools, actions);
@@ -74,5 +84,5 @@ export function createComposerSurface({ textarea, identity, context, onPreview, 
       event.preventDefault(); publish.click();
     }
   });
-  return { root, header, body, textarea, preview, attachments, tools, publish, publishText, status };
+  return { root, header, body, textarea, preview, attachments, tools, publish, status };
 }

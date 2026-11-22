@@ -178,25 +178,6 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await page.getByRole('link',{name:'Home',exact:true}).click();
     await page.locator('.route-panel[data-route-key="__home__"]').waitFor();
     await page.setViewportSize({ width: 390, height: 780 });
-    const buttonStyle = async locator => {
-      await locator.waitFor()
-      return locator.evaluate(button => ({
-        height: Math.round(button.getBoundingClientRect().height),
-        background: getComputedStyle(button).backgroundColor,
-        color: getComputedStyle(button).color,
-        border: getComputedStyle(button).borderTopColor,
-        icon: button.querySelector('[aria-hidden="true"]')?.textContent,
-        iconColor: getComputedStyle(button.querySelector('[aria-hidden="true"]')).color,
-      }))
-    }
-    const newPost = page.getByRole('button', { name: 'New post', exact: true })
-    const socialNewPost = await buttonStyle(newPost)
-    assert.equal(socialNewPost.height, 44)
-    assert.equal(socialNewPost.icon, 'edit_square')
-    assert.equal(socialNewPost.iconColor, socialNewPost.color)
-    assert.equal(socialNewPost.background, 'rgba(0, 0, 0, 0)')
-    assert.notEqual(socialNewPost.border, 'rgba(0, 0, 0, 0)')
-    assert.equal((await buttonStyle(page.getByRole('button', { name: 'Refresh feed' }))).height, 44)
     await page.getByRole('searchbox').fill('workspace-back');
     const socialPanel = page.locator('.route-panel[data-route-key="?workspace-back"]');
     await socialPanel.waitFor();
@@ -206,8 +187,6 @@ window.apps=await Promise.all(['one','two'].map(make));window.ready=true;
     await workspace.press('Enter');
     const sidebar = page.getByRole('navigation', { name: 'Workspace navigation' });
     const openMenu = () => page.getByRole('button', { name: 'Menu', exact: true }).click();
-    assert.deepEqual(await buttonStyle(newPost), socialNewPost)
-    assert.equal((await buttonStyle(page.getByRole('button', { name: 'Refresh feed' }))).height, 44)
     await openMenu();
     await sidebar.getByRole('link', { name: 'Feed', exact: true }).waitFor();
     assert.equal(await sidebar.getByRole('link', { name: 'Feed', exact: true }).getAttribute('aria-current'), 'page');

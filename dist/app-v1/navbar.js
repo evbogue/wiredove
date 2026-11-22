@@ -1,4 +1,3 @@
-import { actionButton, actionIcon, newPostButton } from './client/ui/action-button.js'
 import { h as element } from 'https://esm.sh/gh/evbogue/apds@78abedd/lib/h.js'
 import { promptKeypair } from './identify.js'
 import { profileAvatarLink } from './profile.js'
@@ -33,6 +32,14 @@ export const openComposer = async application => {
   }
   application.root.appendChild(await composer(undefined, { application }))
 }
+
+const composeButton = application => h('button', {
+  type: 'button',
+  title: 'Compose',
+  'aria-label': 'Compose',
+  classList: 'nav-icon material-symbols-outlined',
+  onclick: () => openComposer(application),
+}, ['edit_square'])
 
 export const navbar = async (application) => {
   const selectLayout = workspace => event => {
@@ -173,17 +180,18 @@ export const navbar = async (application) => {
     h('a', {href: '#', classList: 'nav-icon', title: 'Home', 'aria-label': 'Home'}, [
       h('img', {src: new URL('./dovepurple_sm.png', import.meta.url).href, classList: 'avatar_small', alt: ''})
     ]),
-    ...(await canCompose(application) ? [newPostButton(() => openComposer(application))] : []),
+    ...(await canCompose(application) ? [composeButton(application)] : []),
   ])
 
   // Feed refresh lives behind a navbar icon instead of a feed toolbar row. The
   // icon only appears on query-backed feed routes (home, author, search); the
   // scope note lives in the tooltip rather than a status line.
-  const refreshFeed = actionButton('Refresh feed', 'refresh', {
-    classList: 'nav-icon',
-    iconOnly: true,
+  const refreshFeed = h('button', {
+    type: 'button',
+    classList: 'nav-icon material-symbols-outlined',
     title: 'Refresh feed — local cache and selected archive',
-  })
+    'aria-label': 'Refresh feed',
+  }, ['refresh'])
   refreshFeed.hidden = true
   let feedRefreshing = false
   refreshFeed.addEventListener('click', async () => {
@@ -209,9 +217,9 @@ export const navbar = async (application) => {
     publishWrap,
     searchInput,
     refreshFeed,
-    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'nav-icon nav-source', title: 'Source on GitHub', 'aria-label': 'Source on GitHub'}, [actionIcon('folder_data')]),
+    h('a', {href: 'https://github.com/evbogue/wiredove', classList: 'nav-icon nav-source material-symbols-outlined', title: 'Source on GitHub', 'aria-label': 'Source on GitHub'}, ['folder_data']),
     ...(application.session?.policy?.capabilities?.notifications === false ? [] : [notificationsButton()]),
-    h('a', {href: '#settings', classList: 'nav-icon', title: 'Settings', 'aria-label': 'Settings'}, [actionIcon('settings')]),
+    h('a', {href: '#settings', classList: 'nav-icon material-symbols-outlined', title: 'Settings', 'aria-label': 'Settings'}, ['settings']),
     span,
   ])
 
@@ -219,7 +227,7 @@ export const navbar = async (application) => {
   syncSearch()
 
   if (!await apds.keypair()) {
-    span.appendChild(actionButton('Create or import identity', 'person_add', { iconOnly: true, onclick: () => promptKeypair(undefined, application) }))
+    span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair(undefined, application) }, ['person_add']))
   } else {
     span.appendChild(await profileAvatarLink(await apds.pubkey(), { className: 'nav-icon' }))
   }
@@ -227,7 +235,7 @@ export const navbar = async (application) => {
   application.cleanup.push(() => clearTimeout(clearTimer))
   renderPublishState()
   if (application.session?.artifacts) {
-    const retry = actionButton('Retry pending publication', 'refresh', { classList: 'navbar-retry' })
+    const retry = h('button', { type: 'button' }, ['Retry pending publication'])
     retry.hidden = !(await application.session.artifacts.pending()).length
     retry.onclick = async () => {
       retry.disabled = true
