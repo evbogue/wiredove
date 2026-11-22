@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v44-workspace-layout'
+const CACHE_VERSION = 'v45-workspace-wide'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
