@@ -31,7 +31,8 @@ the live startup module and service worker matched the release. The prior
 Wiredove service unit is saved at
 `/root/deploy-backups/wiredove-anbot-startup.zvXwFn/wiredove-anbot.service`.
 
-Workspace opens the shared Wiredove feed. Its neutral desktop sidebar
+The Social / Workspace toggle is a browser preference. Both layouts use
+the same feed and post URLs. The neutral Workspace sidebar
 stays available while reading posts, searching, opening conversations,
 composing, or browsing Git. Repository opens the node's publication
 directly, with Files, History, and Branches and tags available in that view.

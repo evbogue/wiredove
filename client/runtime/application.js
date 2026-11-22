@@ -10,20 +10,37 @@ import { buildProfileHeader } from '../../profile_header.js'
 
 // UI ownership only. The caller still owns the APDS/transport session.
 export const createApplication = async ({ root, navigation: hostNavigation, scroll, session = null }) => {
-  const workspaceFeed = 'workspace/feed/'
-  const inWorkspace = route => route === 'sync' || route.startsWith('workspace/')
+  const isGitRoute = route => route === 'sync' || route.startsWith('workspace/')
+  const preference = 'wiredove-workspace-layout'
+  const viewListeners = new Set()
+  let workspace = false
+  let lastSocial = ''
+  try { workspace = root.ownerDocument.defaultView.localStorage.getItem(preference) === 'workspace' } catch {}
+  const saveWorkspace = value => {
+    workspace = value
+    try { root.ownerDocument.defaultView.localStorage.setItem(preference, value ? 'workspace' : 'social') } catch {}
+  }
   const navigation = {
-    get: () => {
+    get() {
       const route = hostNavigation.get()
-      return route.startsWith(workspaceFeed) ? route.slice(workspaceFeed.length) : route
+      if (!isGitRoute(route)) lastSocial = route
+      return route
     },
-    getViewRoute: () => hostNavigation.get(),
+    isWorkspace: () => workspace || isGitRoute(hostNavigation.get()),
     navigate(route, options) {
-      const target = inWorkspace(hostNavigation.get()) && !inWorkspace(route) && !options?.standalone
-        ? workspaceFeed + route : route
-      return hostNavigation.navigate(target, options)
+      if (isGitRoute(hostNavigation.get()) && !isGitRoute(route)) saveWorkspace(true)
+      return hostNavigation.navigate(route, options)
     },
-    subscribe(listener) { return hostNavigation.subscribe(listener) },
+    async setWorkspace(value) {
+      saveWorkspace(value)
+      if (!value && isGitRoute(hostNavigation.get())) return hostNavigation.navigate(lastSocial)
+      await Promise.all([...viewListeners].map(listener => listener(hostNavigation.get())))
+    },
+    subscribe(listener) {
+      viewListeners.add(listener)
+      const unsubscribe = hostNavigation.subscribe(listener)
+      return () => { viewListeners.delete(listener); unsubscribe() }
+    },
   }
   const application = { root, navigation, scroll, session, cleanup: [] }
   application.queries = createFeedQueries({ protocol: apds, refresh: () => session?.refresh?.(),
@@ -49,7 +66,7 @@ export const createApplication = async ({ root, navigation: hostNavigation, scro
     const route = href.startsWith('#') ? href.slice(1) : session?.policy && href.startsWith(canonical) ? href.slice(canonical.length) : null
     if (route === null) return
     event.preventDefault()
-    void navigation.navigate(route, { standalone: anchor.hasAttribute('data-social-view') })
+    void navigation.navigate(route)
   }
   root.addEventListener('click', onClick)
   let destroyed = false

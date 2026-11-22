@@ -39,17 +39,15 @@ const composeButton = async (application) => {
 }
 
 export const navbar = async (application) => {
-  const socialLink = h('a', { href: '#' }, ['Social'])
-  socialLink.setAttribute('data-social-view', '')
-  const workspaceLink = h('a', { href: '#workspace/feed/' }, ['Workspace'])
+  const selectLayout = workspace => event => {
+    event.preventDefault()
+    void application.navigation.setWorkspace(workspace)
+  }
+  const socialLink = h('a', { href: '#', onclick: selectLayout(false) }, ['Social'])
+  const workspaceLink = h('a', { href: '#', onclick: selectLayout(true) }, ['Workspace'])
   const views = h('div', { classList: 'navbar-views' }, [socialLink, workspaceLink])
   const syncViews = () => {
-    const route = application.navigation.getViewRoute?.() ?? application.navigation.get()
-    const inWorkspace = route === 'sync' || route.startsWith('workspace/')
-    if (inWorkspace) workspaceLink.setAttribute('href', '#' + route)
-    else if (route !== 'compose' && !route.startsWith('reply=') && !route.startsWith('share=')) {
-      socialLink.setAttribute('href', '#' + route)
-    }
+    const inWorkspace = application.navigation.isWorkspace()
     const active = inWorkspace ? workspaceLink : socialLink
     const inactive = inWorkspace ? socialLink : workspaceLink
     active.setAttribute('aria-current', 'page')

@@ -179,9 +179,9 @@ const route = async () => {
   activatePanel(panelKey, panel)
 
   try {
-    const viewRoute = navigation.getViewRoute?.() ?? current
-    const workspaceSocial = viewRoute.startsWith('workspace/feed/')
-    const workspace = workspaceSocial || src.startsWith('workspace/')
+    const gitRoute = src.startsWith('workspace/')
+    const workspace = gitRoute || navigation.isWorkspace?.()
+    const workspaceSocial = workspace && !gitRoute
     if (!workspace && workspaceLayout) {
       workspaceLayout.replaceWith(scroller)
       workspaceLayout = null
@@ -190,10 +190,10 @@ const route = async () => {
       const sync = src === 'workspace/sync'
       const request = parseWorkspaceGitRoute(src)
       const overview = request ? workspaceGitHref({ repo: request.repo, kind: 'overview' }) : '#workspace/'
-      const feedLink = h('a', { href: '#workspace/feed/' }, ['Feed'])
+      const feedLink = h('a', { href: '#' }, ['Feed'])
       const repositoryLink = h('a', { href: overview }, ['Repository'])
       const syncLink = h('a', { href: '#workspace/sync' }, ['Sync'])
-      const settingsLink = h('a', { href: '#workspace/feed/settings' }, ['Settings'])
+      const settingsLink = h('a', { href: '#settings' }, ['Settings'])
       if (workspaceSocial) {
         (src === 'settings' ? settingsLink : feedLink).setAttribute('aria-current', 'page')
       } else if (sync) syncLink.setAttribute('aria-current', 'page')
@@ -219,7 +219,7 @@ const route = async () => {
 
       const repositoryViews = h('div', { classList: 'workspace-sidebar-views' })
       const sidebar = h('nav', { classList: 'workspace-sidebar' }, [
-        h('a', { href: '#workspace/feed/compose', classList: 'workspace-new-post' }, ['New post']),
+        h('a', { href: '#compose', classList: 'workspace-new-post' }, ['New post']),
         feedLink, repositoryLink, repositoryViews, syncLink, settingsLink,
         h('details', {}, [h('summary', {}, ['Open by ID']), form]),
       ])
