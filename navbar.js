@@ -1,6 +1,6 @@
 import { h as element } from 'h'
 import { promptKeypair } from './identify.js'
-import { imageSpan } from './profile.js'
+import { profileAvatarLink } from './profile.js'
 import { apds } from 'apds'
 import { composer } from './composer.js'
 import { notificationsButton } from "./notifications.js"
@@ -229,9 +229,7 @@ export const navbar = async (application) => {
   if (!await apds.keypair()) {
     span.appendChild(h('button', { type: 'button', classList: 'nav-icon material-symbols-outlined', title: 'Create or import identity', 'aria-label': 'Create or import identity', onclick: () => promptKeypair(undefined, application) }, ['person_add']))
   } else {
-    const avatar = await imageSpan()
-    avatar.alt = ''
-    span.appendChild(h('a', {href: '#' + await apds.pubkey(), classList: 'nav-icon', title: 'Your profile', 'aria-label': 'Your profile'}, [avatar]))
+    span.appendChild(await profileAvatarLink(await apds.pubkey(), { className: 'nav-icon' }))
   }
 
   application.cleanup.push(() => clearTimeout(clearTimer))

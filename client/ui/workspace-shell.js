@@ -2,7 +2,7 @@ import { h } from 'h'
 import { apds } from 'apds'
 import { canCompose, openComposer } from '../../navbar.js'
 import { promptKeypair } from '../../identify.js'
-import { imageSpan } from '../../profile.js'
+import { profileAvatarLink } from '../../profile.js'
 import { notificationsButton } from '../../notifications.js'
 import { subscribeQueueStatus } from '../../network_queue.js'
 
@@ -97,17 +97,15 @@ export function createWorkspaceShell(scroller, application) {
     if (!application) return
     const key = await apds.pubkey()
     newPost.hidden = !await canCompose(application)
-    const label = key ? 'Your profile' : 'Posting identity'
-    const image = key ? await imageSpan() : workspaceIcon('person_add')
-    if (key) image.alt = ''
-    const content = [image,
-      h('span', { classList: 'workspace-identity-label' }, [label])]
-    const control = key ? h('a', { href: '#' + key }, content)
-      : h('button', { type: 'button', onclick: () => {
-        if (drawer.open) drawer.close()
-        promptKeypair(undefined, application)
-      } }, content)
-    control.setAttribute('aria-label', key ? label : 'Create or import identity')
+    if (key) {
+      identity.replaceChildren(await profileAvatarLink(key, { label: true }))
+      return
+    }
+    const control = h('button', { type: 'button', onclick: () => {
+      if (drawer.open) drawer.close()
+      promptKeypair(undefined, application)
+    } }, [workspaceIcon('person_add'), h('span', { classList: 'workspace-identity-label' }, ['Posting identity'])])
+    control.setAttribute('aria-label', 'Create or import identity')
     identity.replaceChildren(control)
   }
 

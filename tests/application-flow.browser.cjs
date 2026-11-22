@@ -262,6 +262,35 @@ const root = path.resolve(__dirname, '..');
     await page.screenshot({path:path.join(root,`test-results/application-flow-${page===website?'website':'embed'}-${width}-${colorScheme}.png`),fullPage:true});
   }
   await require('./profile-update.browser.cjs')({website,embed,source,photo});
+  await website.setViewportSize({width:1200,height:950});
+  const avatar = await website.evaluate(async photoURL => {
+    const {apds} = await import('apds');
+    const {verifiedImageSource} = await import('/client/ui/image-source.js');
+    const previous = await apds.get('image');
+    const expected = await verifiedImageSource(photoURL);
+    await apds.put('image',photoURL);
+    await app.identityChanged();
+    return {previous, expected};
+  }, source+'/media/'+photo.andfs);
+  const socialAvatar = website.getByRole('navigation',{name:'Main navigation'})
+    .getByRole('link',{name:'Your profile'}).locator('img.avatar_small');
+  await socialAvatar.waitFor();
+  const expectedAvatar = await socialAvatar.getAttribute('src');
+  assert.ok(avatar.expected?.startsWith('data:image/png'));
+  assert.equal(expectedAvatar,avatar.expected);
+  await website.getByRole('link',{name:'Workspace',exact:true}).click();
+  const workspaceAvatar = website.getByRole('navigation',{name:'Workspace navigation'})
+    .getByRole('link',{name:'Your profile'}).locator('img.avatar_small');
+  await workspaceAvatar.waitFor();
+  assert.equal(await workspaceAvatar.getAttribute('src'),expectedAvatar);
+  await website.getByText('Workspace options',{exact:true}).click();
+  await website.getByRole('button',{name:'Social view',exact:true}).click();
+  await website.evaluate(async previous => {
+    const {apds} = await import('apds');
+    if(previous) await apds.put('image',previous);
+    else await apds.rm('image');
+    await app.identityChanged();
+  },avatar.previous ?? null);
   await require('./identity-import.browser.cjs')({website,embed,source});
   assert.deepEqual(errors,[]);
   console.log('Real website ↔ separate-origin embed: identity/profile, signed post, second-author thread/reply, reload, durable draft and exact outbox retry passed');

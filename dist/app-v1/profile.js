@@ -57,6 +57,15 @@ export const imageSpan = async () => {
   return avatarImg
 }
 
+export const profileAvatarLink = async (pubkey, { className, label = false } = {}) => {
+  const avatar = await imageSpan()
+  avatar.alt = ''
+  const link = h('a', { href: '#' + pubkey, classList: className || '', title: 'Your profile' }, [avatar])
+  link.setAttribute('aria-label', 'Your profile')
+  if (label) link.append(h('span', { classList: 'workspace-identity-label' }, ['Your profile']))
+  return link
+}
+
 export const avatarSpan = async () => {
   const avatarImg = await apds.visual(await apds.pubkey())
 

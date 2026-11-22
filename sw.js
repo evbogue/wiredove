@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v49-anbot-identity-footer'
+const CACHE_VERSION = 'v50-shared-profile-avatar'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -43,6 +43,7 @@ const APP_SHELL_ASSETS = [
   '/client/ui/workspace-git.js',
   '/client/ui/workspace-shell.js',
   '/navbar.js',
+  '/profile.js',
   '/route.js',
   '/composer.js',
   '/render.js',
