@@ -1,13 +1,27 @@
 # Work order for the Wiredove UI migration
 
-**Status: merged to master and verified locally · 22 November 2026**
+**Status: Wiredove live at bot.anproto.com · 22 November 2026**
 
 Merge `6a1358b` passed `npm run check`, `npm test` (46 tests),
 `npm run test:media` (15 tests), `npm run test:server` (20 tests), and
 `WIREDOVE_TEST_RUNTIME=node npm run test:browser`. The browser suite
-covered local website and separate-origin embed flows. The staged host
-cutover and rollback, live Timeline pin acceptance, and second-node Git
-publication checks remain open.
+covered local website and separate-origin embed flows.
+
+Production now routes `bot.anproto.com` to Wiredove `2c05a88` on loopback
+port 8792. Headless ANBot `c654921` keeps port 8787 and the existing data
+directory. The gateway forwards Git, gossip, and media routes, and the TLS
+proxy preserves the site's hash redirects. Public assets, Git overview and
+raw reads, legacy Git redirects, peer poll and heads, and Git ref discovery
+passed. The other Wiredove and evbogue.com homepages responded after the switch.
+
+Rollback files are under
+`/root/deploy-backups/anbot-workspace-final.MIqHoe` on the release host.
+Restore the saved ANBot systemd drop-in, proxy code and hostname mapping,
+reload systemd, restart ANBot and the proxy, and disable `wiredove-anbot`.
+The prior running ANBot revision was `6565792`. Keep the existing data
+directories during rollback. The local returning-browser rehearsal covered
+identity and saved drafts. Production returning-browser acceptance for
+pending sends, historical media and warm-cache rollback remains open.
 
 Wiredove becomes the only source of human-facing UI for the stack. Social
 keeps the existing Wiredove experience. Workspace absorbs the Git browser
