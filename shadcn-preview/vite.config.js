@@ -71,7 +71,10 @@ export default defineConfig(({ mode }) => {
       .map(path => [path, { target: backend, changeOrigin: true }]),
   )
 
-  if (!feedBackend) proxy['^/blobs/[A-Za-z0-9_-]{43}$'] = { target: backend, changeOrigin: true }
+  if (!feedBackend) {
+    proxy['/api/media'] = { target: backend, changeOrigin: true }
+    proxy['^/blobs/[A-Za-z0-9_-]{43}$'] = { target: backend, changeOrigin: true }
+  }
   if (shareBackend) proxy['/api/share'] = { target: shareBackend, changeOrigin: true }
 
   return {

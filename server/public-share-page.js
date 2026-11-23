@@ -13,13 +13,17 @@ const appIcon = icon(['M5 12h14', 'm12 5 7 7-7 7'])
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char])
+const altText = value => String(value ?? '').replace(/&(?:amp|quot|lt|gt|#(?:39|38|91|92|93));/g, entity => ({
+  '&amp;': '&', '&quot;': '"', '&lt;': '<', '&gt;': '>', '&#39;': "'", '&#38;': '&',
+  '&#91;': '[', '&#92;': '\\', '&#93;': ']',
+})[entity])
 const nameOf = post => (typeof post.parsed?.name === 'string' && post.parsed.name.trim()) || post.author.slice(0, 12)
 const clip = (value, max) => Array.from(value.trim().replace(/\s+/g, ' ')).slice(0, max).join('')
 
 function textFrom(blocks) {
   return blocks.flatMap(block => [
     ...(block.units || []).map(unit => unit.text || ''),
-    ...(block.images || []).map(image => image.alt || ''),
+    ...(block.images || []).map(image => altText(image.alt)),
     block.code || '',
     ...(block.children ? [textFrom(block.children)] : []),
   ]).join(' ')
@@ -29,7 +33,7 @@ function markdownHTML(blocks, webID, imagePaths) {
   return blocks.map(block => {
     if (block.images) return block.images.map(image => {
       const path = imagePaths.get(image.src)
-      return path ? '<img src="' + escape(path) + '" alt="' + escape(image.alt) + '" loading="lazy">' : escape(image.alt)
+      return path ? '<img src="' + escape(path) + '" alt="' + escape(altText(image.alt)) + '" loading="lazy">' : escape(altText(image.alt))
     }).join(' ')
     if (block.tag === 'hr') return '<hr>'
     if (block.code !== undefined) return '<pre><code>' + escape(block.code) + '</code></pre>'
@@ -70,7 +74,7 @@ export function renderSharePage({ canonicalOrigin, canonical, id, post, profile,
   const title = clip(name, 100) + ' on Wiredove'
   const description = clip(textFrom(parseMessageBody((post || profile).parsed?.body)), 200) || title
   const image = canonicalOrigin + (previewImage?.path || '/wiredove-share-bird.png')
-  const imageAlt = previewImage?.alt || 'Wiredove'
+  const imageAlt = altText(previewImage?.alt) || 'Wiredove'
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

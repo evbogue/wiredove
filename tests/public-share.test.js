@@ -22,7 +22,7 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
   const key = await an.gen()
   const parent = await protocol.compose(key, 'Parent post', { name: 'Author <name>' })
   const image = 'B'.repeat(43)
-  const reply = await protocol.compose(key, '[Link](https://example.org) <script>alert(0)</script>\n\n![Verified photo](/#' + image + ')\n\n![Unavailable photo](/#' + 'C'.repeat(43) + ')', { reply: parent.id })
+  const reply = await protocol.compose(key, '[Link](https://example.org) <script>alert(0)</script>\n\n![Verified &#91;photo&#93; &#38; caption](/#' + image + ')\n\n![Unavailable photo](/#' + 'C'.repeat(43) + ')', { reply: parent.id })
   for (const record of [parent, reply]) {
     const response = await archive.handleRequest(new Request(origin + '/api/application', { method: 'POST', body: JSON.stringify(record) }))
     assert.equal(response.status, 200)
@@ -51,7 +51,7 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
   assert.match(response.headers.get('content-security-policy'), /default-src 'none'/)
   assert(html.includes('<meta property="og:url" content="' + origin + '/' + pathID + '">'))
   assert(html.includes('<meta property="og:image" content="' + origin + '/media/' + image + '">'))
-  assert(html.includes('<img src="/media/' + image + '" alt="Verified photo" loading="lazy">'))
+  assert(html.includes('<img src="/media/' + image + '" alt="Verified [photo] &amp; caption" loading="lazy">'))
   assert(html.includes('Unavailable photo'))
   assert(!html.includes('/media/' + 'C'.repeat(43)))
   assert(html.includes('href="https://example.org/"'))

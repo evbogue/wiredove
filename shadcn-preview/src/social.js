@@ -1,3 +1,6 @@
+import { createAndFSMediaClient } from '../../client/andfs.js'
+import { createAndFS } from '../../vendor/andfs/andfs.js'
+import { memoryStore } from '../../vendor/andfs/stores.js'
 import { saveIdentityBackupFile, validateIdentityBackup } from '../../client/core/identity-backup.js'
 import { createArtifactSession } from '../../client/runtime/artifact-session.js'
 import { createBrowserStore } from '../../client/runtime/browser-store.js'
@@ -145,7 +148,33 @@ export async function pendingPost(hosted) {
   return { postId: edit || reply || null }
 }
 
-export async function publishPost(hosted, body, name, metadata = {}, editAuthor) {
+const uploadedPhotos = new WeakMap()
+
+async function photoMarkdown(photos, keypair) {
+  const author = keypair.slice(0, 44)
+  const images = []
+  for (const { file, alt } of photos) {
+    let saved = uploadedPhotos.get(file)
+    if (saved?.author !== author) {
+      try {
+        const uploader = createAndFSMediaClient({
+          files: createAndFS({ store: memoryStore() }),
+          signPayload: payload => protocol.signPayload(payload, keypair),
+        })
+        const { media_url } = await uploader.upload(file)
+        saved = { author, url: media_url }
+        uploadedPhotos.set(file, saved)
+      } catch (error) {
+        throw new Error(`Could not upload ${file.name}. ${error.message}`)
+      }
+    }
+    const label = alt.trim().replace(/[&\\[\]]/g, char => '&#' + char.charCodeAt(0) + ';')
+    images.push(`![${label}](${saved.url})`)
+  }
+  return images.join('\n')
+}
+
+export async function publishPost(hosted, body, name, metadata = {}, editAuthor, photos = []) {
   return navigator.locks.request(databaseName(hosted), async () => {
     const { apds, session, store } = await openWriter(hosted)
     const author = await apds.pubkey()
@@ -154,6 +183,11 @@ export async function publishPost(hosted, body, name, metadata = {}, editAuthor)
     if (author && await store.get('identity-needs-pull') === author) {
       await session.pull()
       await store.delete('identity-needs-pull')
+    }
+    if (photos.length) {
+      if ((await store.get('outbox'))?.length) throw Error('Retry the pending publication before uploading photos.')
+      const images = await photoMarkdown(photos, await apds.keypair())
+      body = [body, images].filter(Boolean).join('\n\n')
     }
     return session.publish(body, { ...metadata, ...(name ? { name } : {}) })
   })
