@@ -28,7 +28,8 @@ body { margin: 0; background: var(--background); color: var(--foreground); }
 .bar-brand { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; }
 .bar-brand svg { width: 1rem; height: 1rem; }
 @media (min-width: 40rem) { .bar > div { padding-inline: 1.5rem; } }
-.button { padding: 0.35rem 0.7rem; border-radius: 0.5rem; background: var(--button); color: var(--button-text); font-weight: 600; text-decoration: none; }
+.button { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 0.5rem; background: var(--button); color: var(--button-text); text-decoration: none; }
+.button svg { width: 1rem; height: 1rem; }
 main { width: min(100%, 42rem); margin-inline: auto; padding: 1rem; display: grid; gap: 1rem; }
 .card { min-width: 0; padding: 0.75rem; border-radius: 0.875rem; background: var(--card); border: 1px solid var(--border); font-size: 0.875rem; }
 .card-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }

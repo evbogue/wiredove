@@ -57,6 +57,8 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
   assert(!html.includes('<script>'))
   assert(html.includes('class="bar-brand"'))
   assert(html.includes('M16 7h.01'))
+  assert(html.includes('aria-label="App" title="App"'))
+  assert(html.includes('M5 12h14'))
   assert(!html.includes('/dove_sm.png'))
   assert(html.includes('#' + reply.id))
   assert.equal((await request('/' + pathID, 'HEAD')).body, null)

@@ -7,9 +7,9 @@ export function confirmSharedEntry(location, document) {
   const panel = document.createElement('main')
   panel.className = 'share-entry'
   const title = document.createElement('h1')
-  title.textContent = 'Open in Wiredove'
+  title.textContent = 'App'
   const description = document.createElement('p')
-  description.textContent = 'The app stores posts in this browser and connects to your Wiredove node or peers to sync. You can browse without creating an identity.'
+  description.textContent = 'The app stores posts in this browser and connects to your node or peers to sync. You can browse without creating an identity.'
   const open = document.createElement('button')
   open.textContent = 'Enable sync and open'
   const setup = document.createElement('button')

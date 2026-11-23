@@ -4,8 +4,12 @@ import { human } from '../client/ui/format.js'
 import { parseMessageBody } from '../client/ui/body.js'
 import { safeLinkURL } from '../client/ui/image-source.js'
 
-const bird = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${birdPaths.map(d => `<path d="${d}"/>`).join('')}</svg>`
+const icon = paths => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths.map(d => `<path d="${d}"/>`).join('')}</svg>`
+const bird = icon(birdPaths)
+// Lucide ArrowRight uses the same stroke settings as the bird.
+const appIcon = icon(['M5 12h14', 'm12 5 7 7-7 7'])
+
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char])
@@ -76,7 +80,7 @@ export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, po
 <meta property="og:image:alt" content="${escape(imageAlt)}"><meta name="twitter:card" content="${previewImage ? 'summary_large_image' : 'summary'}">
 </head><body>
 <header class="bar"><div><span class="bar-brand" role="img" aria-label="Wiredove">${bird}</span>
-<a class="button" href="${escape(app)}">Open in Wiredove</a></div></header>
+<a class="button" href="${escape(app)}" aria-label="App" title="App">${appIcon}</a></div></header>
 <main>
 ${post ? `${parent ? '<section aria-label="Parent message"><h2>Parent message</h2>' + card(parent, webID) + '</section>' : ''}${card(post, webID)}`
       : `<section class="card profile"><h1>${escape(name)}</h1><p class="key">${escape(id)}</p>
