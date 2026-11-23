@@ -44,9 +44,6 @@ export async function readFeed(hosted, signal) {
           || !post.parsed.body.trim() || String(post.parsed.type || '').startsWith('git-')) continue
       posts.set(post.id, post)
     }
-    if (posts.size > 50) {
-      for (const post of [...posts.values()].sort(newestFirst).slice(50)) posts.delete(post.id)
-    }
     if (!more) return [...posts.values()].sort(newestFirst)
     cursor = next
   }
@@ -88,11 +85,13 @@ export async function pendingPost(hosted) {
   return Boolean((await store.get('outbox'))?.length)
 }
 
-export async function publishPost(hosted, body, name) {
+export async function publishPost(hosted, body, name, metadata = {}, editAuthor) {
   return navigator.locks.request(databaseName(hosted), async () => {
     const { apds, session } = await openWriter(hosted)
-    if (!await apds.pubkey()) await apds.put('keypair', await apds.generate())
-    return session.publish(body, name ? { name } : {})
+    const author = await apds.pubkey()
+    if (metadata.edit && (!author || author !== editAuthor)) throw new Error('Only the original author can edit this message.')
+    if (!author) await apds.put('keypair', await apds.generate())
+    return session.publish(body, { ...metadata, ...(name ? { name } : {}) })
   })
 }
 

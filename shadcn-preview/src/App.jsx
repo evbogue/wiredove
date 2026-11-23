@@ -132,7 +132,7 @@ export default function App() {
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
-              <Feed name={name} />
+              <Feed hash={hash} name={name} />
             </section>
             {repository && (
               <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-5xl space-y-4 p-4 sm:p-6">

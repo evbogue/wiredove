@@ -1,36 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessagesSquare, RefreshCw } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, pendingPost, publishPost, readFeed, retryPost } from './social'
+import { hostedPreview as hosted, pendingPost, publishPost, readFeed, readPublicIdentity, retryPost } from './social'
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+import { authorHref, authorName, indexMessages, messageHref, socialRoute } from './messages'
+import { PostCard } from './PostCard'
 
-function PostCard({ post }) {
-  const name = typeof post.parsed.name === 'string' ? post.parsed.name.trim() : ''
-  const author = name || post.author.slice(0, 12)
-  return (
-    <Card className="min-w-0 gap-4">
-      <CardHeader className="flex items-center gap-3">
-        <Avatar><AvatarFallback>{Array.from(author).slice(0, 2).join('').toUpperCase()}</AvatarFallback></Avatar>
-        <div className="min-w-0">
-          <CardTitle className="break-all">{author}</CardTitle>
-          <CardDescription><time dateTime={new Date(post.timestamp).toISOString()}>{dateFormat.format(post.timestamp)}</time></CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent className="whitespace-pre-wrap [overflow-wrap:anywhere]">{post.parsed.body}</CardContent>
-    </Card>
-  )
-}
-
-export function Feed({ name }) {
+export function Feed({ hash, name }) {
   const [draft, setDraft] = usePreference('draft', '')
   const [posts, setPosts] = useState([])
   const [busy, setBusy] = useState(null)
@@ -39,6 +21,55 @@ export function Feed({ name }) {
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(-1)
+  const [identity, setIdentity] = useState(null)
+  const [composition, setComposition] = useState(null)
+  const [actionBody, setActionBody] = useState('')
+  const [policy, setPolicy] = usePreference('message-moderation', '{}')
+  const textarea = useRef(null)
+  const moderation = JSON.parse(policy)
+  const messages = useMemo(() => indexMessages(posts), [posts])
+  const route = socialRoute(hash)
+  const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
+  const authorPosts = route?.kind === 'author' ? messages.posts.filter(post => post.author === route.id) : []
+  const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
+  const body = composition ? actionBody : draft
+
+  useEffect(() => {
+    let active = true
+    readPublicIdentity().then(value => { if (active) setIdentity(value) }).catch(() => {})
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    if (composition) textarea.current?.focus()
+  }, [composition])
+
+  function beginComposition(kind, post, value) {
+    if (busy || pending !== false) return
+    setActionBody(value)
+    setComposition({ kind, post })
+    setNotice(null)
+  }
+
+  function toggleModeration(kind, key) {
+    const values = new Set(moderation[kind])
+    if (values.has(key)) values.delete(key)
+    else values.add(key)
+    setPolicy(JSON.stringify({ ...moderation, [kind]: [...values] }))
+  }
+
+  function blocked(author) {
+    return moderation.blocked?.includes(author)
+  }
+
+  function renderPost(post) {
+    return <PostCard key={post.id} post={post} own={post.author === identity}
+      versions={messages.edits.get(post.id) || []}
+      replyCount={(messages.replies.get(post.id) || []).filter(reply => !blocked(reply.author)).length}
+      hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
+      blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
+      composeDisabled={Boolean(busy) || pending !== false} />
+  }
 
   useEffect(() => {
     let active = true
@@ -66,12 +97,21 @@ export function Feed({ name }) {
 
   async function submit(event, retry = false) {
     event?.preventDefault()
-    if (busy || (!retry && (!draft.trim() || pending !== false))) return
+    if (busy || (!retry && (!body.trim() || pending !== false))) return
     setBusy(retry ? 'retry' : 'publish')
     setNotice(null)
     try {
-      const result = retry ? await retryPost(hosted) : await publishPost(hosted, draft.trim(), name.trim())
-      if (!retry) setDraft('')
+      const post = composition?.post
+      const editing = composition?.kind === 'edit'
+      const metadata = editing ? { edit: post.id } : post ? { reply: post.id, replyto: post.author } : {}
+      const result = retry
+        ? await retryPost(hosted)
+        : await publishPost(hosted, body.trim(), name.trim(), metadata, editing ? post.author : undefined)
+      if (!retry) {
+        if (composition) setComposition(null)
+        else setDraft('')
+        setIdentity(result.signature.slice(0, 44))
+      }
       const waiting = result?.relayed === false
       setPending(waiting)
       setNotice(waiting
@@ -88,20 +128,22 @@ export function Feed({ name }) {
   const loading = loaded !== attempt
   return (
     <div className="space-y-5">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">New post</CardTitle>
-          <CardDescription>Posts use a separate preview identity.</CardDescription>
-        </CardHeader>
+      <Card className="py-4">
         <CardContent>
           <form className="space-y-3" onSubmit={submit}>
             <Field>
-              <FieldLabel htmlFor="post-body">Message</FieldLabel>
-              <Textarea id="post-body" value={draft} onChange={event => setDraft(event.target.value)}
-                placeholder="Write a post…" rows={4} maxLength={16000} disabled={busy === 'publish'} />
+              <FieldLabel htmlFor="post-body" className={composition ? undefined : 'sr-only'}>
+                {composition?.kind === 'edit' ? 'Edit message' : composition ? 'Reply to ' + authorName(composition.post) : 'Message'}
+              </FieldLabel>
+              <Textarea id="post-body" ref={textarea} value={body}
+                onChange={event => (composition ? setActionBody : setDraft)(event.target.value)}
+                placeholder="Write a post…" rows={3} maxLength={16000} disabled={busy === 'publish'} />
             </Field>
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" disabled={!draft.trim() || Boolean(busy) || pending !== false}>{busy === 'publish' ? 'Publishing…' : 'Publish'}</Button>
+              <Button type="submit" disabled={!body.trim() || Boolean(busy) || pending !== false}>
+                {busy === 'publish' ? 'Publishing…' : composition?.kind === 'edit' ? 'Save edit' : composition ? 'Send reply' : 'Publish'}
+              </Button>
+              {composition && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={() => setComposition(null)}>Cancel</Button>}
               {pending && <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => submit(null, true)}>Retry delivery</Button>}
             </div>
             {notice && <Alert variant={notice.error ? 'destructive' : 'default'}><AlertDescription>{notice.text}</AlertDescription></Alert>}
@@ -109,24 +151,55 @@ export function Feed({ name }) {
         </CardContent>
       </Card>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold">Feed</h2>
-          <Badge variant="secondary">{hosted ? 'Hosted feed' : 'Node archive'}</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          {route && <Button asChild variant="outline" size="sm"><a href="#feed">Back to feed</a></Button>}
+          <h2 className="break-all font-semibold">{route?.kind === 'message' ? 'Thread' : route ? currentAuthor || 'Author' : 'Feed'}</h2>
         </div>
         <Button variant="outline" size="sm" disabled={loading} onClick={() => setAttempt(n => n + 1)}><RefreshCw /> Refresh</Button>
       </div>
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && <Alert variant="destructive"><AlertDescription>{feedError}</AlertDescription></Alert>}
-      {!loading && !feedError && posts.length === 0 && (
+      {!route && moderation.blocked?.length > 0 && (
+        <details className="text-sm">
+          <summary>Blocked authors</summary>
+          <ul className="mt-2 space-y-1">
+            {moderation.blocked.map(key => (
+              <li key={key}><Button asChild variant="link" size="sm">
+                <a href={authorHref(key)}>{authorName(messages.posts.find(post => post.author === key) || { author: key, parsed: {} })}</a>
+              </Button></li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {route?.kind === 'message' && target && (
+        <>
+          {renderPost(target)}
+          {(target.parsed.replyHash || target.parsed.reply) && (
+            <Button asChild variant="outline" size="sm">
+              <a href={messageHref(target.parsed.replyHash || target.parsed.reply)}>Parent message</a>
+            </Button>
+          )}
+          {(messages.replies.get(target.id) || []).filter(post => !blocked(post.author)).slice().reverse().map(renderPost)}
+        </>
+      )}
+      {route?.kind === 'author' && route.id && (
+        <>
+          <p className="break-all text-sm text-muted-foreground">{route.id}</p>
+          {blocked(route.id)
+            ? <Button variant="outline" onClick={() => toggleModeration('blocked', route.id)}>Unblock author</Button>
+            : authorPosts.slice(0, 50).map(renderPost)}
+        </>
+      )}
+      {!route && messages.posts.filter(post => !blocked(post.author)).slice(0, 50).map(renderPost)}
+      {!loading && !feedError && (route ? (route.kind === 'message' ? !target : !authorPosts.length) : !messages.posts.length) && (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon"><MessagesSquare /></EmptyMedia>
-            <EmptyTitle>No posts yet</EmptyTitle>
-            <EmptyDescription>Publish a post to start this feed.</EmptyDescription>
+            <EmptyTitle>{route ? 'Nothing found' : 'No posts yet'}</EmptyTitle>
+            <EmptyDescription>{route ? 'This record is unavailable from the current feed source.' : 'Publish a post to start this feed.'}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
-      {posts.map(post => <PostCard key={post.id} post={post} />)}
     </div>
   )
 }

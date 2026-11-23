@@ -38,7 +38,9 @@ browser settings. Chromium smoke checks exercised the disposable local
 archive and fixture Git responses at desktop and mobile widths. The preview’s
 header switch preserves the current URL and content. Its profile control is in
 the Social header and the Workspace sidebar footer. On narrow screens the
-preview sidebar is visible above the content.
+preview sidebar is visible above the content. Both layouts share compact
+message actions, direct reply threads, permalinks, text edits, and
+preview-local moderation.
 
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar
