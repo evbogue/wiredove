@@ -316,10 +316,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       {!remotePreviewFeed && !route && renderComposer()}
       {!remotePreviewFeed && !inlineStatus && renderDeliveryStatus()}
       {route ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm"><a href="#feed">Back to feed</a></Button>
-          <h2 className="break-all font-semibold">{route.kind === 'message' ? 'Thread' : route.kind === 'author' ? currentAuthor || 'Author' : 'Lookup'}</h2>
-        </div>
+        <h2 className="break-all font-semibold">{route.kind === 'message' ? 'Thread' : route.kind === 'author' ? currentAuthor || 'Author' : 'Lookup'}</h2>
       ) : <h2 className="sr-only">Feed</h2>}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && (

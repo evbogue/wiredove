@@ -1,6 +1,6 @@
 import { birdPaths } from '../../client/ui/wiredove-bird.js'
 import { useEffect, useState } from 'react'
-import { createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, X } from 'lucide-react'
+import { ArrowLeft, createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
+import { socialTarget } from './messages'
 import { useHash, usePreference } from './hooks/use-preview-state'
 import { readPublicIdentity } from './social'
 import { Profile } from './Profile'
@@ -67,6 +68,11 @@ export default function App() {
             <Button asChild variant="ghost" size="icon" className="size-10">
               <a href="#feed" aria-label="Home" title="Home"><Bird aria-hidden="true" /></a>
             </Button>
+            {socialTarget(hash) && (
+              <Button asChild variant="ghost" size="icon" className="size-10">
+                <a href="#feed" aria-label="Back to feed" title="Back to feed"><ArrowLeft aria-hidden="true" /></a>
+              </Button>
+            )}
             {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
           </div>
           <div className="flex min-w-0 items-center gap-2">

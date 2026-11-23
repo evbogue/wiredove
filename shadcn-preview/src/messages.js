@@ -3,13 +3,21 @@ import { isMessageHash } from '../../client/protocol.js'
 export const socialHref = id => '#' + id
 export const replyParentId = post => [post.parsed.replyHash, post.parsed.reply].find(isMessageHash)
 
-export function socialRoute(hash, messages, authors, identity) {
+export function socialTarget(hash) {
   // Recognize links from earlier preview builds as well as Wiredove's bare IDs.
   const [, legacy, value] = /^(author|message|post)\/(.*)$/.exec(hash) || []
   let id
   try { id = decodeURIComponent(legacy ? value : hash) }
-  catch { return legacy ? { kind: 'unknown', id: null } : null }
-  if (!isMessageHash(id)) return legacy ? { kind: 'unknown', id: null } : null
+  catch { return legacy ? { id: null } : null }
+  if (!isMessageHash(id)) return legacy ? { id: null } : null
+  return { id, legacy }
+}
+
+export function socialRoute(hash, messages, authors, identity) {
+  const target = socialTarget(hash)
+  if (!target) return null
+  const { id, legacy } = target
+  if (!id) return { kind: 'unknown', id: null }
   if (legacy === 'author') return { kind: 'author', id }
   if (legacy || messages.byId.has(id)) return { kind: 'message', id }
   if (id === identity || authors.has(id)) return { kind: 'author', id }
