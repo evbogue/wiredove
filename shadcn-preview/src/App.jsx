@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bird, FolderGit2, MessagesSquare, UserRound } from 'lucide-react'
+import { Bird, FolderGit2, MessagesSquare, PanelsTopLeft, UserRound } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -115,18 +115,21 @@ export default function App() {
   return (
     <TooltipProvider>
       <SidebarProvider className="flex-col">
-        <header className="sticky top-0 z-20 grid h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 border-b bg-sidebar px-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-1">
-            <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-              <Bird className="size-4 shrink-0" />
-              <span>Wiredove</span>
-            </h1>
+        <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-2 border-b bg-sidebar px-3 sm:px-6">
+          <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+            <Bird className="size-4 shrink-0" />
+            <span>Wiredove</span>
+          </h1>
+          <div className="flex min-w-0 items-center gap-2">
+            {!workspace && <Profile {...profile} />}
+            <div className="flex shrink-0 items-center gap-1.5" title="Workspace view">
+              <Label htmlFor="workspace-view" className="cursor-pointer">
+                <PanelsTopLeft aria-hidden="true" className="size-4" />
+                <span className="sr-only">Workspace</span>
+              </Label>
+              <Switch id="workspace-view" checked={workspace} onCheckedChange={checked => setMode(checked ? 'workspace' : 'social')} />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Switch id="workspace-view" checked={workspace} onCheckedChange={checked => setMode(checked ? 'workspace' : 'social')} />
-            <Label htmlFor="workspace-view">Workspace</Label>
-          </div>
-          {!workspace && <div className="flex min-w-0 justify-end"><Profile {...profile} /></div>}
         </header>
         <div className="flex min-h-[calc(100svh-3rem)] w-full flex-col md:flex-row">
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
