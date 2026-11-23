@@ -115,7 +115,7 @@ export default function App() {
   return (
     <TooltipProvider>
       <SidebarProvider className="flex-col">
-        <header className="sticky top-0 z-20 grid h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 border-b bg-background px-3 sm:px-6">
+        <header className="sticky top-0 z-20 grid h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 border-b bg-background px-3 sm:px-6 dark:bg-sidebar">
           <div className="flex min-w-0 items-center gap-1">
             <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
               <Bird className="size-4 shrink-0" />
