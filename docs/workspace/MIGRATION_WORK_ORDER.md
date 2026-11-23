@@ -48,7 +48,8 @@ Browser refresh resumes from the last verified cursor and deduplicates by
 message ID. Hosted feed review keeps publishing disabled. Preview post and
 edit-history bodies use the shared Markdown renderer for text and links.
 Local publishing confirms success with a short toast and keeps pending
-delivery visible beside the composer across reload.
+delivery visible beside the composer across reload. Reply cards link to an
+inline parent preview in both layouts, and respect hidden or muted content.
 
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar

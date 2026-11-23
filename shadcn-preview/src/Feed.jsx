@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
 import { hostedPreview as hosted, pendingPost, publishPost, readFeed, remotePreviewFeed, retryPost } from './social'
 
-import { authorName, indexMessages, socialHref, socialRoute } from './messages'
+import { authorName, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { PostCard } from './PostCard'
 
 export function Feed({ hash, name, identity, onIdentityChange }) {
@@ -58,7 +58,17 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   }
 
   function renderPost(post) {
-    return <PostCard key={post.id} post={post} own={post.author === identity}
+    const parentId = replyParentId(post)
+    const parent = messages.byId.get(parentId)
+    const parentHidden = parent && (blocked(parent.author) || moderation.muted?.includes(parent.author)
+      || moderation.hidden?.includes(parentId))
+    const replyContext = parentId && {
+      id: parentId,
+      author: parent && !parentHidden ? authorName(parent) : null,
+      body: parent && !parentHidden ? (messages.edits.get(parentId)?.[0] || parent).parsed.body : null,
+      hidden: parentHidden,
+    }
+    return <PostCard key={post.id} post={post} replyContext={replyContext} own={post.author === identity}
       versions={messages.edits.get(post.id) || []}
       replyCount={(messages.replies.get(post.id) || []).filter(reply => !blocked(reply.author)).length}
       hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
@@ -185,11 +195,6 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       {route?.kind === 'message' && target && (
         <>
           {renderPost(target)}
-          {(target.parsed.replyHash || target.parsed.reply) && (
-            <Button asChild variant="outline" size="sm">
-              <a href={socialHref(target.parsed.replyHash || target.parsed.reply)}>Parent message</a>
-            </Button>
-          )}
           {(messages.replies.get(target.id) || []).filter(post => !blocked(post.author)).slice().reverse().map(renderPost)}
         </>
       )}

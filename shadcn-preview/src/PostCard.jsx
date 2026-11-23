@@ -1,6 +1,6 @@
 import { human } from '../../client/ui/format.js'
 import { useState } from 'react'
-import { Ellipsis, Link2, MessageSquare } from 'lucide-react'
+import { CornerDownRight, Ellipsis, Link2, MessageSquare } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,7 +14,24 @@ import { PostBody } from './PostBody'
 const actionClass = 'text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export function PostCard({ post, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
+function ReplyContext({ context }) {
+  const label = context.author ? 'Replying to ' + context.author : 'Replying to a message'
+  const excerpt = context.body?.replace(/\s+/g, ' ').trim().slice(0, 160)
+  return (
+    <Button asChild variant="ghost" size="sm"
+      className="mb-2 flex h-auto w-full justify-start gap-2 rounded-md border-s-2 border-s-border bg-muted/50 px-2 py-1.5 text-start text-muted-foreground">
+      <a href={socialHref(context.id)} aria-label={context.author ? 'Open parent message by ' + context.author : 'Open parent message'}>
+        <CornerDownRight aria-hidden="true" data-icon="inline-start" />
+        <span className="min-w-0">
+          <span className="block truncate">{label}</span>
+          <span className="block truncate font-normal">{excerpt || (context.hidden ? 'Message hidden' : 'Message unavailable')}</span>
+        </span>
+      </a>
+    </Button>
+  )
+}
+
+export function PostCard({ post, replyContext, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
   const [copyStatus, setCopyStatus] = useState('')
   const author = authorName(post)
@@ -50,7 +67,10 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
       <CardContent>
         {concealed
           ? (blocked ? 'Author blocked.' : muted ? 'Author muted.' : 'Message hidden.')
-          : <PostBody body={latest.parsed.body} />}
+          : <>
+              {replyContext && <ReplyContext context={replyContext} />}
+              <PostBody body={latest.parsed.body} />
+            </>}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (

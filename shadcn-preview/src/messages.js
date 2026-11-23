@@ -1,6 +1,7 @@
 import { isMessageHash } from '../../client/protocol.js'
 
 export const socialHref = id => '#' + id
+export const replyParentId = post => [post.parsed.replyHash, post.parsed.reply].find(isMessageHash)
 
 export function socialRoute(hash, messages, authors, identity) {
   // Recognize links from earlier preview builds as well as Wiredove's bare IDs.
@@ -36,8 +37,8 @@ export function indexMessages(records) {
     if (original && original.author === post.author && post.timestamp >= original.timestamp) {
       add(edits, original.id, post)
     }
-    const parent = post.parsed.replyHash || post.parsed.reply
-    if (!post.parsed.edit && isMessageHash(parent)) add(replies, parent, post)
+    const parent = replyParentId(post)
+    if (!post.parsed.edit && parent) add(replies, parent, post)
   }
   return { posts, byId, byAuthor, edits, replies }
 }
