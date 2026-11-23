@@ -150,6 +150,9 @@ export async function publishPost(hosted, body, name, metadata = {}, editAuthor)
 export async function retryPost(hosted) {
   return navigator.locks.request(databaseName(hosted), async () => {
     const { session } = await openWriter(hosted)
-    await session.retry()
+    const [record] = await session.retry()
+    if (!record) return null
+    const { edit } = await yaml.parse(record.content)
+    return { ...record, target: edit || record.id }
   })
 }

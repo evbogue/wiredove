@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessagesSquare, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -69,7 +70,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
     if (remotePreviewFeed) return
     let active = true
     pendingPost(hosted).then(value => { if (active) setPending(value) }).catch(error => {
-      if (active) setNotice({ error: true, text: error.message })
+      if (active) setNotice(error.message)
     })
     return () => { active = false }
   }, [])
@@ -110,12 +111,17 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       }
       const waiting = result?.relayed === false
       setPending(waiting)
-      setNotice(waiting
-        ? { error: true, text: 'Post saved locally. Retry delivery to publish the signed post. ' + result.error }
-        : { error: false, text: 'Post published.' })
       setAttempt(n => n + 1)
+      if (result && !waiting) {
+        const target = result.target || (editing ? post.id : result.id)
+        toast.success('Published', {
+          action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
+        })
+      }
     } catch (error) {
-      setNotice({ error: true, text: error.message })
+      setNotice(error.message)
+      const waiting = await pendingPost(hosted).catch(() => null)
+      if (waiting !== null) setPending(waiting)
     } finally {
       setBusy(null)
     }
@@ -140,9 +146,18 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
                 {busy === 'publish' ? 'Publishing…' : composition?.kind === 'edit' ? 'Save edit' : composition ? 'Send reply' : 'Publish'}
               </Button>
               {composition && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={() => setComposition(null)}>Cancel</Button>}
-              {pending && <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => submit(null, true)}>Retry delivery</Button>}
             </div>
-            {notice && <Alert variant={notice.error ? 'destructive' : 'default'}><AlertDescription>{notice.text}</AlertDescription></Alert>}
+            {pending && (
+              <Alert role="status">
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                  <span>Saved on this device. Delivery pending.</span>
+                  <Button type="button" size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => submit(null, true)}>
+                    {busy === 'retry' ? 'Retrying…' : 'Retry delivery'}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            {notice && <Alert variant="destructive"><AlertDescription>{notice}</AlertDescription></Alert>}
           </form>
         </CardContent>
       </Card>}

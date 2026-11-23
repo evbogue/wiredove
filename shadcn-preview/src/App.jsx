@@ -3,6 +3,7 @@ import { Bird, FolderGit2, MessagesSquare, PanelsTopLeft, X } from 'lucide-react
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
@@ -93,6 +94,7 @@ export default function App() {
           </SidebarInset>
         </div>
       </SidebarProvider>
+      <Toaster theme={theme} position="bottom-center" visibleToasts={1} duration={4000} />
     </TooltipProvider>
   )
 }
