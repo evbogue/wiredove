@@ -7,7 +7,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, pendingPost, publishPost, readFeed, retryPost } from './social'
+import { hostedPreview as hosted, pendingPost, publishPost, readFeed, remotePreviewFeed, retryPost } from './social'
 
 import { authorName, indexMessages, socialHref, socialRoute } from './messages'
 import { PostCard } from './PostCard'
@@ -25,6 +25,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const [actionBody, setActionBody] = useState('')
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
   const textarea = useRef(null)
+  const feedCheckpoint = useRef(null)
   const moderation = JSON.parse(policy)
   const messages = useMemo(() => indexMessages(feed.posts), [feed.posts])
   const route = socialRoute(hash, messages, feed.authors, identity)
@@ -38,7 +39,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   }, [composition])
 
   function beginComposition(kind, post, value) {
-    if (busy || pending !== false) return
+    if (remotePreviewFeed || busy || pending !== false) return
     setActionBody(value)
     setComposition({ kind, post })
     setNotice(null)
@@ -61,10 +62,11 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       replyCount={(messages.replies.get(post.id) || []).filter(reply => !blocked(reply.author)).length}
       hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
       blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
-      composeDisabled={Boolean(busy) || pending !== false} />
+      composeDisabled={Boolean(busy) || pending !== false} readOnly={remotePreviewFeed} />
   }
 
   useEffect(() => {
+    if (remotePreviewFeed) return
     let active = true
     pendingPost(hosted).then(value => { if (active) setPending(value) }).catch(error => {
       if (active) setNotice({ error: true, text: error.message })
@@ -75,8 +77,9 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   useEffect(() => {
     const controller = new AbortController()
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
-    readFeed(hosted, signal).then(value => {
+    readFeed(hosted, signal, feedCheckpoint.current).then(value => {
       if (!controller.signal.aborted) {
+        feedCheckpoint.current = value
         setFeed(value)
         setFeedError('')
       }
@@ -90,7 +93,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
 
   async function submit(event, retry = false) {
     event?.preventDefault()
-    if (busy || (!retry && (!body.trim() || pending !== false))) return
+    if (remotePreviewFeed || busy || (!retry && (!body.trim() || pending !== false))) return
     setBusy(retry ? 'retry' : 'publish')
     setNotice(null)
     try {
@@ -121,7 +124,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const loading = loaded !== attempt
   return (
     <div className="space-y-5">
-      <Card className="py-4">
+      {!remotePreviewFeed && <Card className="py-4">
         <CardContent>
           <form className="space-y-3" onSubmit={submit}>
             <Field>
@@ -142,7 +145,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
             {notice && <Alert variant={notice.error ? 'destructive' : 'default'}><AlertDescription>{notice.text}</AlertDescription></Alert>}
           </form>
         </CardContent>
-      </Card>
+      </Card>}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {route && <Button asChild variant="outline" size="sm"><a href="#feed">Back to feed</a></Button>}
@@ -189,7 +192,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           <EmptyHeader>
             <EmptyMedia variant="icon"><MessagesSquare /></EmptyMedia>
             <EmptyTitle>{route?.kind === 'author' ? 'No posts by this author yet' : route ? 'Nothing found' : 'No posts yet'}</EmptyTitle>
-            {route?.kind !== 'author' && <EmptyDescription>{route ? 'This ID was not found in the current feed source.' : 'Publish a post to start this feed.'}</EmptyDescription>}
+            {route?.kind !== 'author' && <EmptyDescription>{route ? 'This ID was not found in the current feed source.' : remotePreviewFeed ? 'This feed has no posts yet.' : 'Publish a post to start this feed.'}</EmptyDescription>}
           </EmptyHeader>
         </Empty>
       )}

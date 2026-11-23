@@ -16,39 +16,44 @@ async function readJSON(url, signal) {
   return response.json()
 }
 
-export async function readFeed(hosted, signal) {
-  const posts = new Map()
-  const authors = new Set()
-  let cursor = 0
+export const remotePreviewFeed = import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED
+
+export async function readFeed(hosted, signal, previous) {
+  const polls = hosted || remotePreviewFeed
+  const posts = new Map(previous?.posts.map(post => [post.id, post]))
+  const authors = new Set(previous?.authors)
+  const path = remotePreviewFeed ? '/api/preview-feed' : hosted ? '/gossip/poll' : '/api/application'
+  let cursor = previous?.cursor ?? 0
   while (true) {
-    const url = hosted ? new URL('/gossip/poll', endpoint) : new URL(endpoint)
-    url.searchParams.set(hosted ? 'since' : 'after', cursor)
+    const url = new URL(path, endpoint)
+    url.searchParams.set(polls ? 'since' : 'after', cursor)
     const page = await readJSON(url, signal)
-    const pairs = hosted ? page.messages : null
-    if (hosted && (!Array.isArray(pairs) || pairs.length % 2 || pairs.length > 512)) {
+    const pairs = polls ? page.messages : null
+    if (polls && (!Array.isArray(pairs) || pairs.length % 2 || pairs.length > 512)) {
       throw new Error('Invalid hosted feed page')
     }
-    const records = hosted
+    const records = polls
       ? pairs.filter((_, index) => index % 2 === 0).map((signature, index) => ({ signature, content: pairs[index * 2 + 1] }))
       : page.records
-    const next = hosted ? page.nextSince : page.cursor
-    const more = hosted ? records.length > 0 : page.more
+    const next = polls ? page.nextSince : page.cursor
+    const more = polls ? records.length > 0 : page.more
     if (!Array.isArray(records) || !Number.isSafeInteger(next) || next < cursor || (more && next === cursor)) {
       throw new Error('Invalid archive cursor')
     }
     for (const record of records) {
       if (!record || typeof record !== 'object') continue
       const { id, signature, content } = record
-      if (!hosted && typeof id !== 'string') continue
+      if (!polls && typeof id !== 'string') continue
       signal.throwIfAborted()
       const post = await protocol.verify(signature, content, { maxBytes: 2 * 1024 * 1024 }).catch(() => null)
-      if (!post || (!hosted && post.id !== id)) continue
+      if (!post || (!polls && post.id !== id)) continue
+      if (posts.has(post.id)) continue
       authors.add(post.author)
       if (typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()
           || String(post.parsed.type || '').startsWith('git-')) continue
       posts.set(post.id, post)
     }
-    if (!more) return { posts: [...posts.values()].sort(newestFirst), authors }
+    if (!more) return { posts: [...posts.values()].sort(newestFirst), authors, cursor: next }
     cursor = next
   }
 }

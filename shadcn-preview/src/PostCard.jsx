@@ -1,3 +1,4 @@
+import { human } from '../../client/ui/format.js'
 import { useState } from 'react'
 import { Ellipsis, Link2, MessageSquare } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -12,7 +13,7 @@ import { authorName, socialHref } from './messages'
 const actionClass = 'text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export function PostCard({ post, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled }) {
+export function PostCard({ post, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
   const [copyStatus, setCopyStatus] = useState('')
   const author = authorName(post)
@@ -39,7 +40,7 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
           <CardTitle className="break-all"><a className="hover:underline focus-visible:underline" href={socialHref(post.author)}>{author}</a></CardTitle>
           <CardDescription>
             <a href={socialHref(post.id)} className="hover:underline focus-visible:underline">
-              <time dateTime={new Date(post.timestamp).toISOString()}>{dateFormat.format(post.timestamp)}</time>
+              <time dateTime={new Date(post.timestamp).toISOString()} title={dateFormat.format(post.timestamp)}>{human(post.timestamp)}</time>
             </a>
             {versions.length > 0 && ' · Edited'}
           </CardDescription>
@@ -51,7 +52,7 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (
           <>
-            <Button variant="ghost" size="sm" className={actionClass} disabled={composeDisabled} onClick={() => onCompose('reply', post, '')}><MessageSquare /> Reply</Button>
+            {!readOnly && <Button variant="ghost" size="sm" className={actionClass} disabled={composeDisabled} onClick={() => onCompose('reply', post, '')}><MessageSquare /> Reply</Button>}
             <Button asChild variant="ghost" size="sm" className={actionClass}>
               <a href={socialHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
             </Button>
@@ -61,7 +62,7 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" className={actionClass + ' ml-auto'} aria-label="More message actions"><Ellipsis /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {own && !concealed && <DropdownMenuItem disabled={composeDisabled} onSelect={() => onCompose('edit', post, latest.parsed.body)}>Edit</DropdownMenuItem>}
+            {own && !concealed && !readOnly && <DropdownMenuItem disabled={composeDisabled} onSelect={() => onCompose('edit', post, latest.parsed.body)}>Edit</DropdownMenuItem>}
             {!concealed && versions.length > 0 && <DropdownMenuItem onSelect={() => setDialog('history')}>Edit history</DropdownMenuItem>}
             {!concealed && <DropdownMenuItem onSelect={() => setDialog('raw')}>View signed data</DropdownMenuItem>}
             {!concealed && <DropdownMenuSeparator />}
@@ -89,7 +90,7 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
             <ol className="max-h-[60vh] space-y-4 overflow-auto">
               {[...versions, post].map(version => (
                 <li key={version.id} className="border-b pb-3">
-                  <p className="text-sm text-muted-foreground">{dateFormat.format(version.timestamp)}{version === post && ' · Original'}</p>
+                  <p className="text-sm text-muted-foreground"><time dateTime={new Date(version.timestamp).toISOString()} title={dateFormat.format(version.timestamp)}>{human(version.timestamp)}</time>{version === post && ' · Original'}</p>
                   <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{version.parsed.body}</p>
                 </li>
               ))}
