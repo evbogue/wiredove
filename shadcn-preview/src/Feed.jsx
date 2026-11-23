@@ -12,7 +12,7 @@ import { usePreference } from './hooks/use-preview-state'
 import { hostedPreview as hosted, pendingPost, publishPost, readConfirmedReply, readFeed, remotePreviewFeed, retryPost } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
-import { PhotoAttachments, PhotoPicker } from './PhotoAttachments'
+import { MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostCard } from './PostCard'
 import { ShareLink } from './ShareLink'
 
@@ -20,10 +20,10 @@ const feedPollInterval = 10000
 
 export function Feed({ hash, name, identity, onIdentityChange }) {
   const [draft, setDraft] = usePreference('draft', '')
-  const [draftPhotos, setDraftPhotos] = useState([])
-  const [actionPhotos, setActionPhotos] = useState([])
-  const draftPhotoInput = useRef(null)
-  const actionPhotoInput = useRef(null)
+  const [draftAttachments, setDraftAttachments] = useState([])
+  const [actionAttachments, setActionAttachments] = useState([])
+  const draftMediaInput = useRef(null)
+  const actionMediaInput = useRef(null)
   const [feed, setFeed] = useState(() => ({ posts: [], authors: new Set() }))
   const [busy, setBusy] = useState(null)
   const [pending, setPending] = useState(null)
@@ -94,7 +94,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       // Mount the field during the tap so mobile browsers can open the keyboard.
       flushSync(() => {
         setActionBody(value)
-        setActionPhotos([])
+        setActionAttachments([])
         setComposition({ kind, post })
         setNotice(null)
       })
@@ -104,7 +104,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   }
 
   function cancelComposition() {
-    setActionPhotos([])
+    setActionAttachments([])
     setComposition(null)
     setNotice(null)
     replyTrigger.current?.focus({ preventScroll: true })
@@ -213,8 +213,8 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   async function submit(event, context = null, retry = false) {
     event?.preventDefault()
     const body = context ? actionBody : draft
-    const photos = context ? actionPhotos : draftPhotos
-    if (remotePreviewFeed || busy || (!retry && ((!body.trim() && !photos.length) || pending !== false))) return
+    const attachments = context ? actionAttachments : draftAttachments
+    if (remotePreviewFeed || busy || (!retry && ((!body.trim() && !attachments.length) || pending !== false))) return
     setBusy(retry ? 'retry' : context ? 'inline' : 'post')
     setNotice(null)
     try {
@@ -223,14 +223,14 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       const metadata = editing ? { edit: post.id } : post ? { reply: post.id, replyto: post.author } : {}
       const result = retry
         ? await retryPost(hosted)
-        : await publishPost(hosted, body.trim(), name.trim(), metadata, editing ? post.author : undefined, photos)
+        : await publishPost(hosted, body.trim(), name.trim(), metadata, editing ? post.author : undefined, attachments)
       if (!retry) {
         if (context) {
           setComposition(null)
-          setActionPhotos([])
+          setActionAttachments([])
         } else {
           setDraft('')
-          setDraftPhotos([])
+          setDraftAttachments([])
         }
         onIdentityChange(result.signature.slice(0, 44))
       }
@@ -261,9 +261,9 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
     const body = context ? actionBody : draft
     const fieldId = context ? 'action-body' : 'post-body'
     const editing = context?.kind === 'edit'
-    const photos = context ? actionPhotos : draftPhotos
-    const setPhotos = context ? setActionPhotos : setDraftPhotos
-    const photoInput = context ? actionPhotoInput : draftPhotoInput
+    const attachments = context ? actionAttachments : draftAttachments
+    const setAttachments = context ? setActionAttachments : setDraftAttachments
+    const mediaInput = context ? actionMediaInput : draftMediaInput
     const sending = busy === (context ? 'inline' : 'post')
     const action = editing ? 'Save edit' : context ? 'Send reply' : 'Publish'
     return (
@@ -278,10 +278,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
                 onChange={event => (context ? setActionBody : setDraft)(event.target.value)}
                 placeholder={context ? (editing ? 'Edit your message…' : 'Write a reply…') : 'Write a post…'} rows={3} maxLength={16000} disabled={sending} />
             </Field>
-            {!editing && <PhotoAttachments key={context?.post.id || 'draft'} photos={photos} onChange={setPhotos} input={photoInput} disabled={Boolean(busy)} />}
+            {!editing && <MediaAttachments key={context?.post.id || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={Boolean(busy)} />}
             <div className="flex flex-wrap items-center gap-2">
-              {!editing && <PhotoPicker input={photoInput} disabled={Boolean(busy)} />}
-              <Button type="submit" disabled={(!body.trim() && !photos.length) || Boolean(busy) || pending !== false}>
+              {!editing && <MediaPicker input={mediaInput} disabled={Boolean(busy)} />}
+              <Button type="submit" disabled={(!body.trim() && !attachments.length) || Boolean(busy) || pending !== false}>
                 {sending ? 'Publishing…' : action}
               </Button>
               {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Cancel</Button>}

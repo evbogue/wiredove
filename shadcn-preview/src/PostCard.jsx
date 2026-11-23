@@ -45,7 +45,7 @@ export function PostCard({ post, replyContext, selected, versions, replyCount, b
       <CardContent>
         {concealed
           ? (blocked ? 'Author blocked.' : muted ? 'Author muted.' : 'Message hidden.')
-          : <PostBody body={latest.parsed.body} />}
+          : <PostBody body={latest.parsed.body} attachment={post.parsed} />}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (

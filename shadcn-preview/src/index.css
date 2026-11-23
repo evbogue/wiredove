@@ -171,5 +171,8 @@
     :not(pre) > code { @apply rounded bg-muted px-1; }
     :is(th, td) { @apply border border-border px-2 py-1; }
     hr { @apply border-border; }
+    audio { @apply block w-full max-w-sm; }
+    .media-post { @apply space-y-1; }
+    .media-status:empty { display: none; }
   }
 }

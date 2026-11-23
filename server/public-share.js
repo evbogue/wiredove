@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
-import { andfsImageMetadata } from '../client/andfs.js'
+import { andfsImageMetadata, isAndFSAudio } from '../client/andfs.js'
 import { parseMessageBody } from '../client/ui/body.js'
 import { createProtocol } from '../client/protocol.js'
 import { an } from '../vendor/anproto/an.js'
@@ -73,7 +73,7 @@ export async function createPublicShare({ origin, appOrigin, upstream, dataDir, 
           const author = webID(post.author)
           const current = profiles.get(author)
           if (!current || post.timestamp > current.timestamp) profiles.set(author, post)
-          if (typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) continue
+          if ((typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) && !isAndFSAudio(post.parsed)) continue
           if (typeof post.parsed.edit === 'string') {
             const key = post.parsed.edit + ':' + post.author
             if (!edits.has(key) || post.timestamp > edits.get(key).timestamp) edits.set(key, post)
@@ -120,20 +120,23 @@ export async function createPublicShare({ origin, appOrigin, upstream, dataDir, 
     return blocks.flatMap(block => block.images || imageReferences(block.children || []))
   }
 
+  async function localMediaPath(id, accepts) {
+    if (!readMedia) return null
+    const path = '/media/' + id
+    try {
+      const media = await readMedia(new Request(canonicalOrigin + path, { method: 'HEAD' }))
+      return media?.ok && accepts(media.headers.get('Content-Type') || '') ? path : null
+    } catch {
+      return null
+    }
+  }
+
   async function resolveImages(blocks, paths) {
     await Promise.all(imageReferences(blocks).map(async image => {
-      if (!readMedia || paths.has(image.src)) return
+      if (paths.has(image.src)) return
       const reference = andfsImageMetadata(image.src, canonicalOrigin)
       if (!reference) return
-      const path = '/media/' + reference.andfs
-      const available = (async () => {
-        try {
-          const media = await readMedia(new Request(canonicalOrigin + path, { method: 'HEAD' }))
-          return media?.ok && /^image\/(png|jpeg|webp|gif)$/.test(media.headers.get('Content-Type') || '') ? path : null
-        } catch {
-          return null
-        }
-      })()
+      const available = localMediaPath(reference.andfs, mime => /^image\/(png|jpeg|webp|gif)$/.test(mime))
       paths.set(image.src, available)
       await available
     }))
@@ -184,7 +187,12 @@ export async function createPublicShare({ origin, appOrigin, upstream, dataDir, 
     const displayedParent = present(parent)
     const displayedItems = items && items.map(present)
     const paths = new Map()
-    const bodies = [displayed?.parsed.body, displayedParent?.parsed.body, ...(displayedItems || []).map(item => item.parsed.body)]
+    const cards = [displayed, displayedParent, ...(displayedItems || [])].filter(Boolean)
+    const bodies = cards.map(item => item.parsed.body)
+    const audioPaths = new Map(await Promise.all(cards.filter(item => isAndFSAudio(item.parsed)).map(async item => {
+      const { andfs, mime } = item.parsed
+      return [item.id, await localMediaPath(andfs, contentType => contentType === mime)]
+    })))
     if (!displayed) bodies.push(profile.parsed.bio)
     await Promise.all(bodies.map(body => resolveImages(parseMessageBody(body), paths)))
     const imagePaths = new Map(await Promise.all([...paths].map(async ([src, path]) => [src, await path])))
@@ -192,12 +200,12 @@ export async function createPublicShare({ origin, appOrigin, upstream, dataDir, 
     const previewImage = firstImage && { path: imagePaths.get(firstImage.src), alt: firstImage.alt }
     const html = renderSharePage({ canonicalOrigin, canonical,
       id: signedID(id), post: displayed, profile, parent: displayedParent, items: displayedItems,
-      webID, appHref, previewImage, imagePaths })
+      webID, appHref, previewImage, imagePaths, audioPaths })
     return new Response(request.method === 'HEAD' ? null : html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
-        'Content-Security-Policy': "default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        'Content-Security-Policy': "default-src 'none'; style-src 'self'; img-src 'self'; media-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
         'Referrer-Policy': 'no-referrer',
         'X-Content-Type-Options': 'nosniff',
       },

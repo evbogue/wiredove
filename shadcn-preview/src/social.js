@@ -1,4 +1,4 @@
-import { createAndFSMediaClient } from '../../client/andfs.js'
+import { createAndFSMediaClient, isAndFSAudio } from '../../client/andfs.js'
 import { createAndFS } from '../../vendor/andfs/andfs.js'
 import { memoryStore } from '../../vendor/andfs/stores.js'
 import { saveIdentityBackupFile, validateIdentityBackup } from '../../client/core/identity-backup.js'
@@ -52,7 +52,7 @@ export async function readFeed(hosted, signal, previous) {
       if (!post || (!polls && post.id !== id)) continue
       if (posts.has(post.id)) continue
       authors.add(post.author)
-      if (typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()
+      if (((typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) && !isAndFSAudio(post.parsed))
           || String(post.parsed.type || '').startsWith('git-')) continue
       posts.set(post.id, post)
     }
@@ -148,33 +148,37 @@ export async function pendingPost(hosted) {
   return { postId: edit || reply || null }
 }
 
-const uploadedPhotos = new WeakMap()
+const uploadedMedia = new WeakMap()
 
-async function photoMarkdown(photos, keypair) {
+async function uploadAttachments(attachments, keypair) {
   const author = keypair.slice(0, 44)
   const images = []
-  for (const { file, alt } of photos) {
-    let saved = uploadedPhotos.get(file)
+  let audio
+  for (const { file, alt } of attachments) {
+    let saved = uploadedMedia.get(file)
     if (saved?.author !== author) {
       try {
         const uploader = createAndFSMediaClient({
           files: createAndFS({ store: memoryStore() }),
           signPayload: payload => protocol.signPayload(payload, keypair),
         })
-        const { media_url } = await uploader.upload(file)
-        saved = { author, url: media_url }
-        uploadedPhotos.set(file, saved)
+        saved = { author, media: await uploader.upload(file) }
+        uploadedMedia.set(file, saved)
       } catch (error) {
         throw new Error(`Could not upload ${file.name}. ${error.message}`)
       }
     }
+    if (saved.media.type === 'audio') {
+      audio = saved.media
+      continue
+    }
     const label = alt.trim().replace(/[&\\[\]]/g, char => '&#' + char.charCodeAt(0) + ';')
-    images.push(`![${label}](${saved.url})`)
+    images.push(`![${label}](${saved.media.media_url})`)
   }
-  return images.join('\n')
+  return { images: images.join('\n'), audio }
 }
 
-export async function publishPost(hosted, body, name, metadata = {}, editAuthor, photos = []) {
+export async function publishPost(hosted, body, name, metadata = {}, editAuthor, attachments = []) {
   return navigator.locks.request(databaseName(hosted), async () => {
     const { apds, session, store } = await openWriter(hosted)
     const author = await apds.pubkey()
@@ -184,10 +188,11 @@ export async function publishPost(hosted, body, name, metadata = {}, editAuthor,
       await session.pull()
       await store.delete('identity-needs-pull')
     }
-    if (photos.length) {
-      if ((await store.get('outbox'))?.length) throw Error('Retry the pending publication before uploading photos.')
-      const images = await photoMarkdown(photos, await apds.keypair())
-      body = [body, images].filter(Boolean).join('\n\n')
+    if (attachments.length) {
+      if ((await store.get('outbox'))?.length) throw Error('Retry the pending publication before uploading media.')
+      const { images, audio } = await uploadAttachments(attachments, await apds.keypair())
+      body = [body, images, audio?.media_url].filter(Boolean).join('\n\n')
+      if (audio) metadata = { ...metadata, ...audio }
     }
     return session.publish(body, { ...metadata, ...(name ? { name } : {}) })
   })
