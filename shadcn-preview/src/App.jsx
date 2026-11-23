@@ -60,19 +60,21 @@ export default function App() {
       <SidebarProvider className="flex-col">
         <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-2 border-b bg-sidebar px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-1.5">
-            {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
             <Button asChild variant="ghost" size="icon" className="size-10">
               <a href="#feed" aria-label="Home" title="Home"><Bird aria-hidden="true" /></a>
             </Button>
+            {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
           </div>
           <div className="flex min-w-0 items-center gap-2">
-            {!workspace && <Profile {...profile} />}
             <div className="flex shrink-0 items-center gap-1.5" title="Workspace view">
               <Label htmlFor="workspace-view" className="cursor-pointer">
                 <PanelsTopLeft aria-hidden="true" className="size-4" />
                 <span className="sr-only">Workspace</span>
               </Label>
               <Switch id="workspace-view" checked={workspace} onCheckedChange={checked => setMode(checked ? 'workspace' : 'social')} />
+            </div>
+            <div className="flex w-10 shrink-0 justify-end sm:w-28">
+              {!workspace && <Profile {...profile} />}
             </div>
           </div>
         </header>
