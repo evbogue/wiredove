@@ -2,7 +2,7 @@ import { publicPathID, reservePublicShare } from '../../client/share-link.js'
 import { useEffect, useState } from 'react'
 import { Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { socialHref } from './messages'
@@ -47,12 +47,11 @@ export function ShareLink({ id, label = 'Share', className, variant = 'ghost' })
   return (
     <Dialog open={open} onOpenChange={value => { setOpen(value); setResult(null); setStatus('') }}>
       <DialogTrigger asChild><Button variant={variant} size="sm" className={className}><Link2 /> {label}</Button></DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader><DialogTitle>{label === 'Share' ? 'Share message' : label}</DialogTitle>
-          <DialogDescription>{shareOrigin ? 'A public link anyone can open.' : 'A link to this item in the local preview.'}</DialogDescription>
         </DialogHeader>
         <Field>
-          <FieldLabel>Share link
+          <FieldLabel>{shareOrigin ? 'Share link' : 'Local link'}
             <Input readOnly value={link || ''} onFocus={event => event.target.select()} />
           </FieldLabel>
           <Button onClick={copy} disabled={!link}>Copy link</Button>

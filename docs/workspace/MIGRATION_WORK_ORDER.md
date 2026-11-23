@@ -44,8 +44,8 @@ preview-local moderation. Profile can generate a signing identity, download a
 Wiredove backup, and validate and restore it within the preview database.
 Social profile and message links now share the bare Wiredove hash format.
 The preview can read the hosted Wiredove poll through a GET-only proxy.
-Browser refresh resumes from the last verified cursor and deduplicates by
-message ID. Hosted feed review keeps publishing disabled. Preview post and
+The browser polls automatically while the tab is visible, resumes from
+the last verified cursor, and deduplicates by message ID. Hosted feed review keeps publishing disabled. Preview post and
 edit-history bodies use the shared Markdown renderer for text and links.
 Local publishing confirms success with a short toast and keeps pending
 delivery visible beside the composer across reload. Reply cards link to their

@@ -53,7 +53,10 @@ export async function readFeed(hosted, signal, previous) {
           || String(post.parsed.type || '').startsWith('git-')) continue
       posts.set(post.id, post)
     }
-    if (!more) return { posts: [...posts.values()].sort(newestFirst), authors, cursor: next }
+    if (!more) {
+      if (previous?.cursor === next) return previous
+      return { posts: [...posts.values()].sort(newestFirst), authors, cursor: next }
+    }
     cursor = next
   }
 }

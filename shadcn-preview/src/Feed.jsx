@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { MessagesSquare, RefreshCw } from 'lucide-react'
+import { MessagesSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,8 @@ import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref
 import { PostCard } from './PostCard'
 import { ShareLink } from './ShareLink'
 
+const feedPollInterval = 10000
+
 export function Feed({ hash, name, identity, onIdentityChange }) {
   const [draft, setDraft] = usePreference('draft', '')
   const [feed, setFeed] = useState(() => ({ posts: [], authors: new Set() }))
@@ -25,7 +27,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const [sentReplies, setSentReplies] = useState([])
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
-  const [loaded, setLoaded] = useState(-1)
+  const [loaded, setLoaded] = useState(false)
   const [composition, setComposition] = useState(null)
   const [actionBody, setActionBody] = useState('')
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
@@ -43,7 +45,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const route = socialRoute(hash, messages, feed.authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
   const parentId = target && replyParentId(target)
-  const selectedReplyId = loaded !== -1 && parentId ? target.id : null
+  const selectedReplyId = loaded && parentId ? target.id : null
   const parent = parentId && parentId !== target.id ? messages.byId.get(parentId) : null
   const threadRows = target ? collectThreadRows(target, parent, expandedBranches, visibleReplies) : []
   const threadIds = new Set(threadRows.map(row => row.post.id))
@@ -163,19 +165,42 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
-    readFeed(hosted, signal, feedCheckpoint.current).then(value => {
-      if (!controller.signal.aborted) {
-        feedCheckpoint.current = value
-        setFeed(value)
-        setFeedError('')
+    let timer
+    let running = false
+
+    async function refresh() {
+      if (controller.signal.aborted || document.hidden || running) return
+      running = true
+      try {
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
+        const value = await readFeed(hosted, signal, feedCheckpoint.current)
+        if (!controller.signal.aborted) {
+          feedCheckpoint.current = value
+          setFeed(value)
+          setFeedError('')
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) setFeedError(error.message)
+      } finally {
+        running = false
+        if (!controller.signal.aborted) {
+          setLoaded(true)
+          if (!document.hidden) timer = setTimeout(refresh, feedPollInterval)
+        }
       }
-    }).catch(error => {
-      if (!controller.signal.aborted) setFeedError(error.message)
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoaded(attempt)
-    })
-    return () => controller.abort()
+    }
+
+    function handleVisibility() {
+      clearTimeout(timer)
+      if (!document.hidden) void refresh()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    void refresh()
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [attempt])
 
   async function submit(event, context = null, retry = false) {
@@ -267,20 +292,26 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
     )
   }
 
-  const loading = loaded !== attempt
+  const loading = !loaded
   return (
     <div className="space-y-5">
       {!remotePreviewFeed && !route && renderComposer()}
       {!remotePreviewFeed && !inlineStatus && renderDeliveryStatus()}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {route ? (
         <div className="flex flex-wrap items-center gap-2">
-          {route && <Button asChild variant="outline" size="sm"><a href="#feed">Back to feed</a></Button>}
-          <h2 className="break-all font-semibold">{route?.kind === 'message' ? 'Thread' : route?.kind === 'author' ? currentAuthor || 'Author' : route ? 'Lookup' : 'Feed'}</h2>
+          <Button asChild variant="outline" size="sm"><a href="#feed">Back to feed</a></Button>
+          <h2 className="break-all font-semibold">{route.kind === 'message' ? 'Thread' : route.kind === 'author' ? currentAuthor || 'Author' : 'Lookup'}</h2>
         </div>
-        <Button variant="outline" size="sm" disabled={loading} onClick={() => setAttempt(n => n + 1)}><RefreshCw /> Refresh</Button>
-      </div>
+      ) : <h2 className="sr-only">Feed</h2>}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
-      {feedError && <Alert variant="destructive"><AlertDescription>{feedError}</AlertDescription></Alert>}
+      {feedError && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            {feedError}
+            <Button variant="outline" size="sm" onClick={() => setAttempt(n => n + 1)}>Retry feed</Button>
+          </AlertDescription>
+        </Alert>
+      )}
       {!route && moderation.blocked?.length > 0 && (
         <details className="text-sm">
           <summary>Blocked authors</summary>
@@ -338,7 +369,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           <EmptyHeader>
             <EmptyMedia variant="icon"><MessagesSquare /></EmptyMedia>
             <EmptyTitle>{route?.kind === 'author' ? 'No posts by this author yet' : route ? 'Nothing found' : 'No posts yet'}</EmptyTitle>
-            {route?.kind !== 'author' && <EmptyDescription>{route ? 'This ID was not found in the current feed source.' : remotePreviewFeed ? 'This feed has no posts yet.' : 'Publish a post to start this feed.'}</EmptyDescription>}
+            {route && route.kind !== 'author' && <EmptyDescription>This ID was not found in the current feed source.</EmptyDescription>}
           </EmptyHeader>
         </Empty>
       )}

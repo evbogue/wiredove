@@ -3,7 +3,7 @@ import { UserRound } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { SidebarMenuButton } from '@/components/ui/sidebar'
@@ -61,10 +61,9 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
           ? <SidebarMenuButton size="lg" aria-label="Profile">{label}</SidebarMenuButton>
           : <Button variant="ghost" aria-label="Profile" className="min-w-0 max-w-full px-1 sm:px-2">{label}</Button>}
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={!busy}>
+      <DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto" showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Profile</DialogTitle>
-          <DialogDescription>Manage the signing identity and settings for this Wiredove preview.</DialogDescription>
         </DialogHeader>
         <Field>
           <FieldLabel htmlFor="display-name">Display name for new posts</FieldLabel>
