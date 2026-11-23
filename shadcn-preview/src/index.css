@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/source-sans-3";
 @import "../../client/ui/share-palette.css";
+@import "../../client/ui/image-gallery.css";
 
 @custom-variant dark (&:is(.dark *));
 

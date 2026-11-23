@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
+import { andfsImageMetadata } from '../client/andfs.js'
 import { parseMessageBody } from '../client/ui/body.js'
 import { createProtocol } from '../client/protocol.js'
 import { an } from '../vendor/anproto/an.js'
@@ -113,26 +114,27 @@ export async function createPublicShare({ origin, upstream, dataDir, readRecords
     return result
   }
 
-  async function selectImage(post) {
-    if (!post || !readMedia) return null
-    const blocks = parseMessageBody(post.parsed.body)
-    const images = []
-    while (blocks.length && images.length < 4) {
-      const block = blocks.shift()
-      if (block.children) blocks.unshift(...block.children)
-      if (block.images) images.push(...block.images.slice(0, 4 - images.length))
-    }
-    for (const image of images) {
-      // Only check signed AndFS references on this server, never remote image URLs.
-      const reference = /^(?:\/#|\/media\/)([A-Za-z0-9_-]{43})$/.exec(image.src)
-      if (!reference) continue
-      const path = '/media/' + reference[1]
-      const media = await readMedia(new Request(canonicalOrigin + path, { method: 'HEAD' }))
-      if (media?.ok && /^image\/(png|jpeg|webp|gif)$/.test(media.headers.get('Content-Type') || '')) {
-        return { path, alt: image.alt }
-      }
-    }
-    return null
+  function imageReferences(blocks) {
+    return blocks.flatMap(block => block.images || imageReferences(block.children || []))
+  }
+
+  async function resolveImages(blocks, paths) {
+    await Promise.all(imageReferences(blocks).map(async image => {
+      if (!readMedia || paths.has(image.src)) return
+      const reference = andfsImageMetadata(image.src, canonicalOrigin)
+      if (!reference) return
+      const path = '/media/' + reference.andfs
+      const available = (async () => {
+        try {
+          const media = await readMedia(new Request(canonicalOrigin + path, { method: 'HEAD' }))
+          return media?.ok && /^image\/(png|jpeg|webp|gif)$/.test(media.headers.get('Content-Type') || '') ? path : null
+        } catch {
+          return null
+        }
+      })()
+      paths.set(image.src, available)
+      await available
+    }))
   }
 
   return async function handleShare(request) {
@@ -177,9 +179,18 @@ export async function createPublicShare({ origin, upstream, dataDir, readRecords
       return edit ? { ...item, parsed: { ...item.parsed, body: edit.parsed.body } } : item
     }
     const displayed = present(post)
+    const displayedParent = present(parent)
+    const displayedItems = items && items.map(present)
+    const paths = new Map()
+    const bodies = [displayed?.parsed.body, displayedParent?.parsed.body, ...(displayedItems || []).map(item => item.parsed.body)]
+    if (!displayed) bodies.push(profile.parsed.bio)
+    await Promise.all(bodies.map(body => resolveImages(parseMessageBody(body), paths)))
+    const imagePaths = new Map(await Promise.all([...paths].map(async ([src, path]) => [src, await path])))
+    const firstImage = displayed && imageReferences(parseMessageBody(displayed.parsed.body)).find(image => imagePaths.get(image.src))
+    const previewImage = firstImage && { path: imagePaths.get(firstImage.src), alt: firstImage.alt }
     const html = renderSharePage({ canonicalOrigin, canonical, returnPath: '/' + token,
-      id: signedID(id), post: displayed, profile, parent: present(parent), items: items && items.map(present),
-      webID, previewImage: await selectImage(displayed) })
+      id: signedID(id), post: displayed, profile, parent: displayedParent, items: displayedItems,
+      webID, previewImage, imagePaths })
     return new Response(request.method === 'HEAD' ? null : html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',

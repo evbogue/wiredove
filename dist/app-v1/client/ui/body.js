@@ -118,9 +118,22 @@ function renderBlocks(target, blocks, options, doc) {
         }
         continue;
       }
-      target.append(createImageGallery({ ...options, document: doc, images: block.images.map(image => ({ ...image,
+      const images = block.images.map(image => ({ ...image,
         src: decodeEntities(doc, image.src || ''), alt: decodeEntities(doc, image.alt || ''),
-        title: decodeEntities(doc, image.title || ''), link: decodeEntities(doc, image.link || '') })) }));
+        title: decodeEntities(doc, image.title || ''), link: decodeEntities(doc, image.link || '') }));
+      let group = [];
+      const appendGallery = () => {
+        if (group.length) target.append(createImageGallery({ ...options, document: doc, images: group }));
+        group = [];
+      };
+      for (const image of images) {
+        if (!options.acceptMarkdownImage || options.acceptMarkdownImage(image.src)) group.push(image);
+        else {
+          appendGallery();
+          target.append(doc.createTextNode(image.alt));
+        }
+      }
+      appendGallery();
       continue;
     }
     const node = doc.createElement(block.tag);

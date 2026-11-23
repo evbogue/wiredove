@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -9,9 +10,30 @@ function readOnlyFeedProxy(origin) {
   function install(server) {
     server.middlewares.use(async (request, response, next) => {
       const url = new URL(request.url, 'http://localhost')
-      if (url.pathname !== '/api/preview-feed') return next()
+      const blob = /^\/blobs\/[A-Za-z0-9_-]{43}$/.test(url.pathname)
+      if (!blob && url.pathname !== '/api/preview-feed') return next()
       if (request.method !== 'GET') {
         response.writeHead(405, { Allow: 'GET' }).end()
+        return
+      }
+      if (blob) {
+        try {
+          const result = await fetch(new URL(url.pathname, origin), {
+            redirect: 'error', signal: AbortSignal.timeout(12000),
+          })
+          if (!result.ok || !result.body) {
+            await result.body?.cancel()
+            response.writeHead(result.status === 404 ? 404 : 502).end()
+            return
+          }
+          response.writeHead(200, { 'Content-Type': 'application/octet-stream' })
+          const stream = Readable.fromWeb(result.body)
+          response.once('close', () => stream.destroy())
+          stream.on('error', () => response.destroy())
+          stream.pipe(response)
+        } catch {
+          response.writeHead(502).end()
+        }
         return
       }
       const cursor = url.searchParams.get('since') ?? '0'
@@ -49,6 +71,7 @@ export default defineConfig(({ mode }) => {
       .map(path => [path, { target: backend, changeOrigin: true }]),
   )
 
+  if (!feedBackend) proxy['^/blobs/[A-Za-z0-9_-]{43}$'] = { target: backend, changeOrigin: true }
   if (shareBackend) proxy['/api/share'] = { target: shareBackend, changeOrigin: true }
 
   return {

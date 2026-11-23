@@ -17,7 +17,7 @@ export const safeLinkURL = value => {
 };
 export const resolveImageSource = async (item, resolveImage, signal, retry = false, mediaOptions = {}) => {
   if (signal?.aborted) return null;
-  if (andfsImageMetadata(item.src)) {
+  if (andfsImageMetadata(item.src, mediaOptions.baseURL)) {
     const verified = await verifiedImageSource(item.src, mediaOptions);
     return signal?.aborted ? null : verified;
   }
@@ -38,13 +38,13 @@ export function imageMime(bytes) {
   throw new Error('Unsupported image bytes');
 }
 export async function readImageFile(reference, options = {}) {
-  const meta = andfsImageMetadata(reference);
+  const meta = andfsImageMetadata(reference, options.baseURL);
   if (!meta) throw new Error('No verified original photo is available');
   const bytes = await readAndFSMedia(meta, options);
   return new File([bytes], 'original-photo', { type: imageMime(bytes) });
 }
 export async function verifiedImageSource(reference, options = {}) {
-  if (!andfsImageMetadata(reference)) return null;
+  if (!andfsImageMetadata(reference, options.baseURL)) return null;
   const key = JSON.stringify([reference, options.baseURL || null]);
   if (!cache.has(key)) {
     const result = readImageFile(reference, options).then(file => new Promise((resolve,reject) => {

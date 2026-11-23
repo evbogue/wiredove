@@ -25,9 +25,12 @@ function textFrom(blocks) {
   ]).join(' ')
 }
 
-function markdownHTML(blocks, webID) {
+function markdownHTML(blocks, webID, imagePaths) {
   return blocks.map(block => {
-    if (block.images) return block.images.map(image => escape(image.alt)).join(' ')
+    if (block.images) return block.images.map(image => {
+      const path = imagePaths.get(image.src)
+      return path ? '<img src="' + escape(path) + '" alt="' + escape(image.alt) + '" loading="lazy">' : escape(image.alt)
+    }).join(' ')
     if (block.tag === 'hr') return '<hr>'
     if (block.code !== undefined) return '<pre><code>' + escape(block.code) + '</code></pre>'
     const inline = (block.units || []).map(unit => {
@@ -45,13 +48,13 @@ function markdownHTML(blocks, webID) {
       }
       return text
     }).join('')
-    const children = block.children ? markdownHTML(block.children, webID) : ''
+    const children = block.children ? markdownHTML(block.children, webID, imagePaths) : ''
     const start = block.tag === 'ol' && Number.isSafeInteger(block.start) ? ' start="' + block.start + '"' : ''
     return '<' + block.tag + start + '>' + inline + children + '</' + block.tag + '>'
   }).join('')
 }
 
-function card(post, webID) {
+function card(post, webID, imagePaths) {
   const author = nameOf(post)
   const initials = Array.from(author).slice(0, 2).join('').toUpperCase()
   const date = new Date(post.timestamp)
@@ -59,10 +62,10 @@ function card(post, webID) {
     <a class="avatar" href="/${webID(post.author)}" aria-label="${escape(author)}">${escape(initials)}</a>
     <div><a class="author" href="/${webID(post.author)}">${escape(author)}</a>
     <a class="date" href="/${webID(post.id)}"><time datetime="${date.toISOString()}" title="${date.toISOString()}">${human(post.timestamp)}</time></a></div>
-  </header><div class="body">${markdownHTML(parseMessageBody(post.parsed.body), webID)}</div></article>`
+  </header><div class="body">${markdownHTML(parseMessageBody(post.parsed.body), webID, imagePaths)}</div></article>`
 }
 
-export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, post, profile, parent, items, webID, previewImage }) {
+export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, post, profile, parent, items, webID, previewImage, imagePaths }) {
   const name = nameOf(post || profile)
   const title = clip(name, 100) + ' on Wiredove'
   const description = clip(textFrom(parseMessageBody((post || profile).parsed?.body)), 200) || title
@@ -82,9 +85,9 @@ export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, po
 <header class="bar"><div><span class="bar-brand" role="img" aria-label="Wiredove">${bird}</span>
 <a class="button" href="${escape(app)}" aria-label="App" title="App">${appIcon}</a></div></header>
 <main>
-${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID) + '</section>' : ''}${card(post, webID)}`
+${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID, imagePaths) + '</section>' : ''}${card(post, webID, imagePaths)}`
       : `<section class="card profile"><h1>${escape(name)}</h1><p class="key">${escape(id)}</p>
-      ${typeof profile.parsed.bio === 'string' ? '<div class="body">' + markdownHTML(parseMessageBody(profile.parsed.bio), webID) + '</div>' : ''}
-      </section>${items.map(item => card(item, webID)).join('')}`}
+      ${typeof profile.parsed.bio === 'string' ? '<div class="body">' + markdownHTML(parseMessageBody(profile.parsed.bio), webID, imagePaths) + '</div>' : ''}
+      </section>${items.map(item => card(item, webID, imagePaths)).join('')}`}
 </main></body></html>`
 }

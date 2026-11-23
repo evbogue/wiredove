@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
+import { andfsImageMetadata } from '../../client/andfs.js'
 import { isMessageHash } from '../../client/protocol.js'
 import { appendFormattedText } from '../../client/ui/body.js'
 
@@ -15,7 +16,8 @@ export function PostBody({ body }) {
     appendFormattedText(fragment, body, {
       resolveLink: resolvePostLink,
       hashtags: false,
-      resolveMarkdownImage: () => '',
+      acceptMarkdownImage: src => Boolean(andfsImageMetadata(src)),
+      showUnavailableAlt: true,
     })
     target.replaceChildren(fragment)
   }, [body])

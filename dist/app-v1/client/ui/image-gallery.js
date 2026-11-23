@@ -53,6 +53,9 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       symbol.className = 'material-symbols-outlined image-gallery-symbol';
       symbol.setAttribute('aria-hidden', 'true');
       status.append(symbol);
+      const fallback = this.ownerDocument.createElement('span');
+      fallback.textContent = this._options.showUnavailableAlt ? item.alt : '';
+      fallback.hidden = true;
       const retry = this.ownerDocument.createElement('button');
       retry.type = 'button';
       retry.className = 'image-gallery-retry';
@@ -69,6 +72,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       const showStatus = (label, busy = false) => {
         cell.classList.add('image-pending');
         status.hidden = false;
+        fallback.hidden = busy || !fallback.textContent;
         status.setAttribute('aria-label', label);
         symbol.textContent = busy ? 'progress_activity' : 'image';
         symbol.classList.toggle('image-gallery-spinning', busy);
@@ -86,6 +90,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       image.addEventListener('load', () => {
         if (!this.isConnected) return;
         status.hidden = true;
+        fallback.hidden = true;
         cell.classList.remove('image-pending');
         symbol.classList.remove('image-gallery-spinning');
         tile.setAttribute('aria-label', openLabel); tile.title = openLabel;
@@ -131,7 +136,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         this._stopViewer = (this._options.onOpen || openImageGallery)(request);
       });
       tile.append(image, status);
-      cell.append(tile, retry);
+      cell.append(tile, fallback, retry);
       this.append(cell);
     });
     if (this.isConnected) this.observe();
@@ -160,10 +165,10 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
   }
 }
 
-export function createImageGallery({ images, resolveImage, onOpen, mediaOptions, document: doc = globalThis.document }) {
+export function createImageGallery({ images, resolveImage, onOpen, mediaOptions, showUnavailableAlt, document: doc = globalThis.document }) {
   const registry = doc.defaultView.customElements;
   if (!registry.get('wiredove-image-gallery')) registry.define('wiredove-image-gallery', WiredoveImageGallery);
   const gallery = doc.createElement('wiredove-image-gallery');
-  gallery.options = { images, resolveImage, onOpen, mediaOptions };
+  gallery.options = { images, resolveImage, onOpen, mediaOptions, showUnavailableAlt };
   return gallery;
 }

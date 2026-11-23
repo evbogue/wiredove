@@ -51,3 +51,4 @@ h1 { font-size: 1.125rem; }
 .body blockquote { border-inline-start: 2px solid var(--border); padding-inline-start: 0.75rem; }
 .body :is(th, td) { border: 1px solid var(--border); padding: 0.25rem 0.5rem; }
 .profile .body { margin-top: 0.5rem; }
+.body img { display: block; max-width: 100%; height: auto; border-radius: 0.5rem; }
