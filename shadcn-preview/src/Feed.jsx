@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
 import { hostedPreview as hosted, pendingPost, publishPost, readConfirmedReply, readFeed, remotePreviewFeed, retryPost } from './social'
 
-import { authorName, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
+import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { PostCard } from './PostCard'
 
 export function Feed({ hash, name, identity, onIdentityChange }) {
@@ -20,6 +20,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const [busy, setBusy] = useState(null)
   const [pending, setPending] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [expandedBranches, setExpandedBranches] = useState(() => new Set())
   const [sentReplies, setSentReplies] = useState([])
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -43,19 +44,21 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const parentId = target && replyParentId(target)
   const selectedReplyId = loaded !== -1 && parentId ? target.id : null
   const parent = parentId && parentId !== target.id ? messages.byId.get(parentId) : null
-  const threadReplies = target ? visibleReplies(target).filter(reply => reply.id !== parent?.id).reverse() : []
+  const threadRows = target ? collectThreadRows(target, parent, expandedBranches, visibleReplies) : []
+  const threadIds = new Set(threadRows.map(row => row.post.id))
   const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const latestReply = sentReplies.at(-1)
   const feedPosts = route ? [] : messages.posts.filter(post => !blocked(post.author)).slice(0, 50)
   const profilePosts = authorPosts.slice(0, 50)
-  const visiblePosts = target ? [target, parent, ...threadReplies] : route?.kind === 'author' ? profilePosts : feedPosts
+  const visiblePosts = target ? [target, parent, ...threadRows.map(row => row.post)] : route?.kind === 'author' ? profilePosts : feedPosts
   const visibleIds = new Set(visiblePosts.filter(post => post && !blocked(post.author)).map(post => post.id))
   const placedInline = new Set()
   const repliesByParent = new Map()
   for (const reply of sentReplies) {
     const parentId = replyParentId(reply)
-    if (!visibleIds.has(parentId) || blocked(reply.author) || (target && visibleIds.has(reply.id))) continue
+    if (!visibleIds.has(parentId) || blocked(reply.author)
+        || (target && (visibleIds.has(reply.id) || threadIds.has(parentId)))) continue
     const replies = repliesByParent.get(parentId) || []
     replies.push(messages.byId.get(reply.id))
     repliesByParent.set(parentId, replies)
@@ -112,6 +115,15 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
     return (messages.replies.get(post.id) || []).filter(reply => reply.id !== post.id && !blocked(reply.author))
   }
 
+  function toggleBranch(id) {
+    setExpandedBranches(previous => {
+      const next = new Set(previous)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   function renderPost(post, { showParent = true, selected = false } = {}) {
     const id = showParent && replyParentId(post)
     const parentPost = messages.byId.get(id)
@@ -123,6 +135,8 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
         <PostCard post={post} replyContext={replyContext} selected={selected} own={post.author === identity}
           versions={messages.edits.get(post.id) || []}
           replyCount={visibleReplies(post).length}
+          branchExpanded={expandedBranches.has(post.id)}
+          onToggleBranch={threadIds.has(post.id) ? () => toggleBranch(post.id) : undefined}
           hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
           blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
           composeDisabled={Boolean(busy) || pending !== false} readOnly={remotePreviewFeed} />
@@ -186,7 +200,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       setAttempt(n => n + 1)
       if (result && !waiting) {
         const reply = await readConfirmedReply(result).catch(() => null)
-        if (reply) setSentReplies(previous => previous.some(post => post.id === reply.id) ? previous : [...previous, reply])
+        if (reply) {
+          setSentReplies(previous => previous.some(post => post.id === reply.id) ? previous : [...previous, reply])
+          setExpandedBranches(previous => new Set(previous).add(replyParentId(reply)))
+        }
         const target = result.target || (editing ? post.id : result.id)
         toast.success('Published', {
           action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
@@ -292,11 +309,12 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
               {renderPost(target, { showParent: false, selected: true })}
             </section>
           ) : renderPost(target, { showParent: false })}
-          {threadReplies.length > 0 && (
-            <ol aria-label="Direct replies" className="ms-1 space-y-3 border-s border-input ps-2 sm:ms-2 sm:ps-3">
-              {threadReplies.map(post => (
-                <li key={post.id} ref={post.id === latestReply?.id ? sentReply : null} className="scroll-mt-14">
-                  {renderPost(post, { showParent: false })}
+          {threadRows.length > 0 && (
+            <ol aria-label="Thread replies" className="ms-1 space-y-3 border-s border-input ps-2 sm:ms-2 sm:ps-3">
+              {threadRows.map(({ post, depth }) => (
+                <li key={post.id} ref={post.id === latestReply?.id ? sentReply : null}
+                  className={'scroll-mt-14 ' + (depth > 2 ? 'ms-2 md:ms-8' : depth === 2 ? 'ms-2 md:ms-4' : '')}>
+                  {renderPost(post, { showParent: depth > 1 })}
                 </li>
               ))}
             </ol>

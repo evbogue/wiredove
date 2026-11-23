@@ -42,3 +42,19 @@ export function indexMessages(records) {
   }
   return { posts, byId, byAuthor, edits, replies }
 }
+
+export function collectThreadRows(root, parent, expanded, repliesFor) {
+  const seen = new Set([root.id, parent?.id])
+  const stack = repliesFor(root).map(post => ({ post, depth: 1 }))
+  const rows = []
+  while (stack.length) {
+    const row = stack.pop()
+    if (seen.has(row.post.id)) continue
+    seen.add(row.post.id)
+    rows.push(row)
+    if (expanded.has(row.post.id)) {
+      for (const post of repliesFor(row.post)) stack.push({ post, depth: row.depth + 1 })
+    }
+  }
+  return rows
+}

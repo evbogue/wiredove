@@ -1,6 +1,6 @@
 import { human } from '../../client/ui/format.js'
 import { useState } from 'react'
-import { Ellipsis, Link2, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight, Ellipsis, Link2, MessageSquare } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,7 +14,7 @@ import { PostBody } from './PostBody'
 const actionClass = 'text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export function PostCard({ post, replyContext, selected, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
+export function PostCard({ post, replyContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
   const [copyStatus, setCopyStatus] = useState('')
   const author = authorName(post)
@@ -62,9 +62,16 @@ export function PostCard({ post, replyContext, selected, versions, replyCount, o
         {!concealed && (
           <>
             {!readOnly && <Button variant="ghost" size="sm" className={actionClass} disabled={composeDisabled} onClick={event => onCompose('reply', post, '', event)}><MessageSquare /> Reply</Button>}
-            <Button asChild variant="ghost" size="sm" className={actionClass}>
-              <a href={socialHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
-            </Button>
+            {replyCount > 0 && onToggleBranch ? (
+              <Button variant="ghost" size="sm" className={actionClass} aria-expanded={branchExpanded} onClick={onToggleBranch}>
+                {branchExpanded ? <ChevronDown /> : <ChevronRight />}
+                {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+              </Button>
+            ) : (
+              <Button asChild variant="ghost" size="sm" className={actionClass}>
+                <a href={socialHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
+              </Button>
+            )}
             <Button variant="ghost" size="sm" className={actionClass} onClick={() => { setCopyStatus(''); setDialog('share') }}><Link2 /> Share</Button>
           </>
         )}

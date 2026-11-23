@@ -25,9 +25,10 @@ reply, layout switches, reload, and missing or blocked parents.
   when the parent is available. Give the selected reply more prominence than
   its context. Bring the selected reply into view below the sticky header
   when opening its permalink. Place its direct replies underneath it.
-- Use the reply count to open deeper branches. Keep mobile cards wide enough
-  to read by limiting the indentation. The existing direct reply count
-  remains available on each message.
+- Use the reply count to expand or collapse deeper branches in place.
+  Use the timestamp for a reply’s permalink. Cap indentation after the
+  second level on phones and the third on desktop. Confirming a new reply
+  opens its branch so the message is visible immediately.
 - Keep the bare `#<id>` URL on the selected message when showing its parent.
   Reloading or switching between Social and Workspace should retain the
   same selection. Open one inline reply composer directly below the chosen
@@ -63,7 +64,8 @@ if the local fixture is unavailable.
 - [ ] Reply opens and focuses the field beneath the tapped card. Cancel
   returns focus to Reply and leaves the feed draft intact.
 - [ ] At phone width, the thread line and shallow indent leave the cards
-  readable. The reply count opens a deeper branch.
+  readable. The reply count expands and collapses a deeper branch without
+  changing the selected message URL.
 - [ ] Hidden, muted, blocked, or missing parents keep the selected reply
   readable and do not reveal the parent’s body.
 - [ ] Ev reviews and signs off on item 5 before work moves to item 6,
