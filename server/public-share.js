@@ -188,7 +188,7 @@ export async function createPublicShare({ origin, upstream, dataDir, readRecords
     const imagePaths = new Map(await Promise.all([...paths].map(async ([src, path]) => [src, await path])))
     const firstImage = displayed && imageReferences(parseMessageBody(displayed.parsed.body)).find(image => imagePaths.get(image.src))
     const previewImage = firstImage && { path: imagePaths.get(firstImage.src), alt: firstImage.alt }
-    const html = renderSharePage({ canonicalOrigin, canonical, returnPath: '/' + token,
+    const html = renderSharePage({ canonicalOrigin, canonical,
       id: signedID(id), post: displayed, profile, parent: displayedParent, items: displayedItems,
       webID, previewImage, imagePaths })
     return new Response(request.method === 'HEAD' ? null : html, {

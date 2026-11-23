@@ -14,6 +14,7 @@ const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char])
 const nameOf = post => (typeof post.parsed?.name === 'string' && post.parsed.name.trim()) || post.author.slice(0, 12)
+const appHref = id => '/?enter=shared#' + id
 const clip = (value, max) => Array.from(value.trim().replace(/\s+/g, ' ')).slice(0, max).join('')
 
 function textFrom(blocks) {
@@ -61,17 +62,16 @@ function card(post, webID, imagePaths) {
   return `<article class="card"><header class="card-header">
     <a class="avatar" href="/${webID(post.author)}" aria-label="${escape(author)}">${escape(initials)}</a>
     <div><a class="author" href="/${webID(post.author)}">${escape(author)}</a>
-    <a class="date" href="/${webID(post.id)}"><time datetime="${date.toISOString()}" title="${date.toISOString()}">${human(post.timestamp)}</time></a></div>
+    <a class="date" href="${escape(appHref(post.id))}"><time datetime="${date.toISOString()}" title="${date.toISOString()}">${human(post.timestamp)}</time></a></div>
   </header><div class="body">${markdownHTML(parseMessageBody(post.parsed.body), webID, imagePaths)}</div></article>`
 }
 
-export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, post, profile, parent, items, webID, previewImage, imagePaths }) {
+export function renderSharePage({ canonicalOrigin, canonical, id, post, profile, parent, items, webID, previewImage, imagePaths }) {
   const name = nameOf(post || profile)
   const title = clip(name, 100) + ' on Wiredove'
   const description = clip(textFrom(parseMessageBody((post || profile).parsed?.body)), 200) || title
   const image = canonicalOrigin + (previewImage?.path || '/wiredove-share-bird.png')
   const imageAlt = previewImage?.alt || 'Wiredove'
-  const app = '/?enter=shared&back=' + encodeURIComponent(returnPath) + '#' + id
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,7 +83,7 @@ export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, po
 <meta property="og:image:alt" content="${escape(imageAlt)}"><meta name="twitter:card" content="${previewImage ? 'summary_large_image' : 'summary'}">
 </head><body>
 <header class="bar"><div><span class="bar-brand" role="img" aria-label="Wiredove">${bird}</span>
-<a class="button" href="${escape(app)}" aria-label="App" title="App">${appIcon}</a></div></header>
+<a class="button" href="${escape(appHref(id))}" aria-label="App" title="App">${appIcon}</a></div></header>
 <main>
 ${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID, imagePaths) + '</section>' : ''}${card(post, webID, imagePaths)}`
       : `<section class="card profile"><h1>${escape(name)}</h1><p class="key">${escape(id)}</p>

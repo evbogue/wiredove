@@ -18,15 +18,14 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v52-public-share-entry'
+const CACHE_VERSION = 'v53-direct-app-entry'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
-  '/app.js?v=52',
-  '/client/runtime/share-entry.js',
+  '/app.js?v=53',
   '/client/runtime/mount.js',
   '/client/runtime/default-session.js',
   '/client/runtime/artifact-session.js',

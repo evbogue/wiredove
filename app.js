@@ -1,7 +1,10 @@
-import { confirmSharedEntry } from './client/runtime/share-entry.js'
-
-const sharedEntry = new URL(location.href).searchParams.get('enter') === 'shared'
-const setupIdentity = await confirmSharedEntry(location, document)
+const entryURL = new URL(location.href)
+const sharedEntry = entryURL.searchParams.get('enter') === 'shared'
+if (sharedEntry) {
+  entryURL.searchParams.delete('enter')
+  entryURL.searchParams.delete('back')
+  history.replaceState(null, '', entryURL)
+}
 let initialRecords = []
 if (sharedEntry && /^#[A-Za-z0-9+/]{43}=$/.test(location.hash)) {
   const id = location.hash.slice(1, -1).replace(/\+/g, '-').replace(/\//g, '_')
@@ -18,13 +21,6 @@ const hosted = location.hostname === 'bot.anproto.com'
 await startWebsiteApplication({
   services: { ...(hosted ? anbotWebsiteServices : {}), initialRecords },
   network: !hosted,
-  onMounted: setupIdentity ? async application => {
-    const { apds } = await import('apds')
-    if (!await apds.pubkey()) {
-      const { promptKeypair } = await import('./identify.js')
-      promptKeypair(undefined, application)
-    }
-  } : undefined,
 })
 
 if ('serviceWorker' in navigator) {

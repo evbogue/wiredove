@@ -151,8 +151,9 @@ alias and extends the new prefix by one character at a time on collision.
 
 Public pages work with JavaScript disabled. They use a locally available
 signed AndFS image for the preview when eligible and use the same Lucide
-bird as the prototype otherwise. The app begins local sync only after the reader chooses to enter
-from the public page. The consent screen offers optional identity setup.
+bird as the prototype otherwise. The App button opens the shared post or profile
+and starts local sync. Each post timestamp also opens its post in the app.
+Readers can create an identity from the app.
 
 The shadcn preview can use the same public share server by starting Vite
 with `WIREDOVE_PREVIEW_SHARE_BACKEND` set to that server's origin.
