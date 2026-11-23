@@ -130,7 +130,10 @@ async function openWriter(hosted) {
 }
 
 export async function pendingPost(hosted) {
-  return Boolean((await identityStore(hosted).get('outbox'))?.length)
+  const [record] = await identityStore(hosted).get('outbox') || []
+  if (!record) return false
+  const { edit, reply } = await yaml.parse(record.content)
+  return { postId: edit || reply || null }
 }
 
 export async function publishPost(hosted, body, name, metadata = {}, editAuthor) {

@@ -61,7 +61,7 @@ export function PostCard({ post, replyContext, selected, versions, replyCount, o
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (
           <>
-            {!readOnly && <Button variant="ghost" size="sm" className={actionClass} disabled={composeDisabled} onClick={() => onCompose('reply', post, '')}><MessageSquare /> Reply</Button>}
+            {!readOnly && <Button variant="ghost" size="sm" className={actionClass} disabled={composeDisabled} onClick={event => onCompose('reply', post, '', event)}><MessageSquare /> Reply</Button>}
             <Button asChild variant="ghost" size="sm" className={actionClass}>
               <a href={socialHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
             </Button>

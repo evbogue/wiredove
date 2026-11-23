@@ -30,7 +30,10 @@ reply, layout switches, reload, and missing or blocked parents.
   remains available on each message.
 - Keep the bare `#<id>` URL on the selected message when showing its parent.
   Reloading or switching between Social and Workspace should retain the
-  same selection. Respect browser-local Hide, Mute, and Block on parent
+  same selection. Open one inline reply composer directly below the chosen
+  card. Keep the feed’s new-post draft separate and put a pending reply’s
+  retry control beside its target when that target is visible. Respect
+  browser-local Hide, Mute, and Block on parent
   context, and use a placeholder when parent content is unavailable.
 
 ## Implementation
@@ -55,6 +58,8 @@ if the local fixture is unavailable.
   children in that order. With a long parent, opening the permalink or
   reloading lands on the selected reply. Switching layouts preserves the URL
   and keeps focus on the view switch.
+- [ ] Reply opens and focuses the field beneath the tapped card. Cancel
+  returns focus to Reply and leaves the feed draft intact.
 - [ ] At phone width, the thread line and shallow indent leave the cards
   readable. The reply count opens a deeper branch.
 - [ ] Hidden, muted, blocked, or missing parents keep the selected reply
