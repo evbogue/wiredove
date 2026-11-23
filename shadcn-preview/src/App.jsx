@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Bird, FolderGit2, MessagesSquare, PanelsTopLeft, UserRound } from 'lucide-react'
+import { Bird, FolderGit2, MessagesSquare, PanelsTopLeft, UserRound, X } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, useSidebar } from '@/components/ui/sidebar'
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
@@ -78,18 +78,19 @@ function Profile({ name, setName, theme, setTheme, inSidebar = false }) {
 }
 
 function WorkspaceSidebar({ repository, profile }) {
-  const { isMobile } = useSidebar()
+  const { setOpenMobile } = useSidebar()
+  const closeDrawer = () => setOpenMobile(false)
   return (
-    <Sidebar
-      collapsible={isMobile ? 'none' : 'offcanvas'}
-      className={isMobile ? 'h-auto w-full border-b' : 'top-12 h-[calc(100svh-3rem)]'}
-    >
-      <SidebarHeader className="hidden md:flex"><h2 className="px-2 py-1 text-sm font-semibold">Workspace</h2></SidebarHeader>
+    <Sidebar side="left" className="top-12 h-[calc(100svh-3rem)]">
+      <SidebarHeader className="flex-row items-center justify-between">
+        <h2 className="px-2 py-1 text-sm font-semibold">Workspace</h2>
+        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Close Workspace navigation" onClick={closeDrawer}><X /></Button>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarMenu className="max-md:grid max-md:grid-cols-2">
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#feed"><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/"><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
+          <SidebarMenu>
+            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#feed" onClick={closeDrawer}><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
+            <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/" onClick={closeDrawer}><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
@@ -116,10 +117,13 @@ export default function App() {
     <TooltipProvider>
       <SidebarProvider className="flex-col">
         <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-2 border-b bg-sidebar px-3 sm:px-6">
-          <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-            <Bird className="size-4 shrink-0" />
-            <span>Wiredove</span>
-          </h1>
+          <div className="flex min-w-0 items-center gap-1.5">
+            {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
+            <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+              <Bird className="size-4 shrink-0" />
+              <span>Wiredove</span>
+            </h1>
+          </div>
           <div className="flex min-w-0 items-center gap-2">
             {!workspace && <Profile {...profile} />}
             <div className="flex shrink-0 items-center gap-1.5" title="Workspace view">
@@ -131,7 +135,7 @@ export default function App() {
             </div>
           </div>
         </header>
-        <div className="flex min-h-[calc(100svh-3rem)] w-full flex-col md:flex-row">
+        <div className="flex min-h-[calc(100svh-3rem)] w-full">
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
