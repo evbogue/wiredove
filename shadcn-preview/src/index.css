@@ -130,13 +130,20 @@
 }
 
 @layer components {
+  .thread-replies {
+    --thread-gutter: 0.625rem;
+    padding-inline-start: var(--thread-gutter);
+  }
+
   .thread-branch {
-    @apply relative ms-2 md:ms-4;
+    position: relative;
+    margin-inline-start: var(--thread-gutter);
   }
 
   .thread-branch::before,
   .thread-branch-deep::after {
-    @apply pointer-events-none absolute -start-1 -top-3 bottom-0 border-s border-input;
+    @apply pointer-events-none absolute -top-3 bottom-0 border-s border-input;
+    inset-inline-start: calc(-1 * var(--thread-gutter));
   }
 
   .thread-branch::before {
@@ -144,8 +151,9 @@
   }
 
   @variant md {
-    .thread-branch-deep { @apply ms-8; }
-    .thread-branch-deep::before { @apply -start-5; }
+    .thread-replies { --thread-gutter: 1rem; }
+    .thread-branch-deep { margin-inline-start: calc(2 * var(--thread-gutter)); }
+    .thread-branch-deep::before { inset-inline-start: calc(-2 * var(--thread-gutter)); }
     .thread-branch-deep::after { content: ""; }
   }
 
