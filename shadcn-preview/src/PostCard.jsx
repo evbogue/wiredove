@@ -20,24 +20,26 @@ export function PostCard({ post, replyContext, selected, versions, replyCount, b
   const concealed = blocked || muted || hidden
   return (
     <Card size="sm" className={selected ? "min-w-0 gap-2 ring-muted-foreground/40" : "min-w-0 gap-2"}>
-      <CardHeader className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon" aria-label={`Profile for ${author}`}>
+      <CardHeader className="flex items-start gap-3">
+        <Button asChild variant="ghost" size="icon" className="shrink-0" aria-label={`Profile for ${author}`}>
           <a href={socialHref(post.author)}><Avatar><AvatarFallback>{Array.from(author).slice(0, 2).join('').toUpperCase()}</AvatarFallback></Avatar></a>
         </Button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <CardTitle className="break-all"><a className="hover:underline focus-visible:underline" href={socialHref(post.author)}>{author}</a></CardTitle>
-          <CardDescription>
-            <a href={socialHref(post.id)} className="hover:underline focus-visible:underline">
-              <time dateTime={new Date(post.timestamp).toISOString()} title={dateFormat.format(post.timestamp)}>{human(post.timestamp)}</time>
-            </a>
-            {versions.length > 0 && ' · Edited'}
+          <CardDescription className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 whitespace-nowrap">
+              <a href={socialHref(post.id)} className="hover:underline focus-visible:underline">
+                <time dateTime={new Date(post.timestamp).toISOString()} title={dateFormat.format(post.timestamp)}>{human(post.timestamp)}</time>
+              </a>
+              {versions.length > 0 && ' · Edited'}
+            </span>
+            {!concealed && replyContext && (
+              <a className="min-w-0 truncate underline-offset-2 hover:underline focus-visible:underline"
+                href={socialHref(replyContext.id)}>
+                {replyContext.author ? 'Replying to ' + replyContext.author : 'Replying to a message'}
+              </a>
+            )}
           </CardDescription>
-          {!concealed && replyContext && (
-            <a className="block truncate text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:underline"
-              href={socialHref(replyContext.id)}>
-              {replyContext.author ? 'Replying to ' + replyContext.author : 'Replying to a message'}
-            </a>
-          )}
         </div>
       </CardHeader>
       <CardContent>
