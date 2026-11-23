@@ -31,6 +31,9 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const messages = useMemo(() => indexMessages(feed.posts), [feed.posts])
   const route = socialRoute(hash, messages, feed.authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
+  const parentId = target && replyParentId(target)
+  const parent = parentId && parentId !== target.id ? messages.byId.get(parentId) : null
+  const threadReplies = target ? visibleReplies(target).filter(reply => reply.id !== parent?.id).reverse() : []
   const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const body = composition ? actionBody : draft
@@ -57,20 +60,19 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
     return moderation.blocked?.includes(author)
   }
 
-  function renderPost(post) {
-    const parentId = replyParentId(post)
-    const parent = messages.byId.get(parentId)
-    const parentHidden = parent && (blocked(parent.author) || moderation.muted?.includes(parent.author)
-      || moderation.hidden?.includes(parentId))
-    const replyContext = parentId && {
-      id: parentId,
-      author: parent && !parentHidden ? authorName(parent) : null,
-      body: parent && !parentHidden ? (messages.edits.get(parentId)?.[0] || parent).parsed.body : null,
-      hidden: parentHidden,
-    }
-    return <PostCard key={post.id} post={post} replyContext={replyContext} own={post.author === identity}
+  function visibleReplies(post) {
+    return (messages.replies.get(post.id) || []).filter(reply => reply.id !== post.id && !blocked(reply.author))
+  }
+
+  function renderPost(post, { showParent = true, selected = false } = {}) {
+    const id = showParent && replyParentId(post)
+    const parentPost = messages.byId.get(id)
+    const parentHidden = parentPost && (blocked(parentPost.author) || moderation.muted?.includes(parentPost.author)
+      || moderation.hidden?.includes(id))
+    const replyContext = id && { id, author: parentPost && !parentHidden ? authorName(parentPost) : null }
+    return <PostCard key={post.id} post={post} replyContext={replyContext} selected={selected} own={post.author === identity}
       versions={messages.edits.get(post.id) || []}
-      replyCount={(messages.replies.get(post.id) || []).filter(reply => !blocked(reply.author)).length}
+      replyCount={visibleReplies(post).length}
       hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
       blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
       composeDisabled={Boolean(busy) || pending !== false} readOnly={remotePreviewFeed} />
@@ -194,8 +196,22 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       )}
       {route?.kind === 'message' && target && (
         <>
-          {renderPost(target)}
-          {(messages.replies.get(target.id) || []).filter(post => !blocked(post.author)).slice().reverse().map(renderPost)}
+          {parentId && (
+            <section aria-label="Parent message" className="space-y-2">
+              <h3 className="text-xs font-medium text-muted-foreground">Parent message</h3>
+              {parent && !blocked(parent.author)
+                ? renderPost(parent, { showParent: false })
+                : <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                    <a href={socialHref(parentId)}>{parent ? 'Parent author blocked' : 'Parent message unavailable'}</a>
+                  </Button>}
+            </section>
+          )}
+          {renderPost(target, { showParent: false, selected: Boolean(parentId) })}
+          {threadReplies.length > 0 && (
+            <ol aria-label="Direct replies" className="ms-1 space-y-3 border-s border-input ps-2 sm:ms-2 sm:ps-3">
+              {threadReplies.map(post => <li key={post.id}>{renderPost(post, { showParent: false })}</li>)}
+            </ol>
+          )}
         </>
       )}
       {route?.kind === 'author' && route.id && (
@@ -203,10 +219,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           <p className="break-all text-sm text-muted-foreground">{route.id}</p>
           {blocked(route.id)
             ? <Button variant="outline" onClick={() => toggleModeration('blocked', route.id)}>Unblock author</Button>
-            : authorPosts.slice(0, 50).map(renderPost)}
+            : authorPosts.slice(0, 50).map(post => renderPost(post))}
         </>
       )}
-      {!route && messages.posts.filter(post => !blocked(post.author)).slice(0, 50).map(renderPost)}
+      {!route && messages.posts.filter(post => !blocked(post.author)).slice(0, 50).map(post => renderPost(post))}
       {!loading && !feedError && (route ? (route.kind === 'message' ? !target : !authorPosts.length) : !messages.posts.length) && (
         <Empty className="border">
           <EmptyHeader>

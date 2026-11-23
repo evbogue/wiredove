@@ -1,6 +1,6 @@
 import { human } from '../../client/ui/format.js'
 import { useState } from 'react'
-import { CornerDownRight, Ellipsis, Link2, MessageSquare } from 'lucide-react'
+import { Ellipsis, Link2, MessageSquare } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,24 +14,7 @@ import { PostBody } from './PostBody'
 const actionClass = 'text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-function ReplyContext({ context }) {
-  const label = context.author ? 'Replying to ' + context.author : 'Replying to a message'
-  const excerpt = context.body?.replace(/\s+/g, ' ').trim().slice(0, 160)
-  return (
-    <Button asChild variant="ghost" size="sm"
-      className="mb-2 flex h-auto w-full justify-start gap-2 rounded-md border-s-2 border-s-border bg-muted/50 px-2 py-1.5 text-start text-muted-foreground">
-      <a href={socialHref(context.id)} aria-label={context.author ? 'Open parent message by ' + context.author : 'Open parent message'}>
-        <CornerDownRight aria-hidden="true" data-icon="inline-start" />
-        <span className="min-w-0">
-          <span className="block truncate">{label}</span>
-          <span className="block truncate font-normal">{excerpt || (context.hidden ? 'Message hidden' : 'Message unavailable')}</span>
-        </span>
-      </a>
-    </Button>
-  )
-}
-
-export function PostCard({ post, replyContext, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
+export function PostCard({ post, replyContext, selected, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
   const [copyStatus, setCopyStatus] = useState('')
   const author = authorName(post)
@@ -49,7 +32,7 @@ export function PostCard({ post, replyContext, versions, replyCount, own, hidden
   }
 
   return (
-    <Card size="sm" className="min-w-0 gap-2">
+    <Card size="sm" className={selected ? "min-w-0 gap-2 ring-muted-foreground/40" : "min-w-0 gap-2"}>
       <CardHeader className="flex items-center gap-3">
         <Button asChild variant="ghost" size="icon" aria-label={`Profile for ${author}`}>
           <a href={socialHref(post.author)}><Avatar><AvatarFallback>{Array.from(author).slice(0, 2).join('').toUpperCase()}</AvatarFallback></Avatar></a>
@@ -62,15 +45,18 @@ export function PostCard({ post, replyContext, versions, replyCount, own, hidden
             </a>
             {versions.length > 0 && ' · Edited'}
           </CardDescription>
+          {!concealed && replyContext && (
+            <a className="block truncate text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:underline"
+              href={socialHref(replyContext.id)}>
+              {replyContext.author ? 'Replying to ' + replyContext.author : 'Replying to a message'}
+            </a>
+          )}
         </div>
       </CardHeader>
       <CardContent>
         {concealed
           ? (blocked ? 'Author blocked.' : muted ? 'Author muted.' : 'Message hidden.')
-          : <>
-              {replyContext && <ReplyContext context={replyContext} />}
-              <PostBody body={latest.parsed.body} />
-            </>}
+          : <PostBody body={latest.parsed.body} />}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (
