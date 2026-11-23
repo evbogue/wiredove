@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v50-shared-profile-avatar'
+const CACHE_VERSION = 'v51-shared-identity-backup'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
@@ -50,6 +50,8 @@ const APP_SHELL_ASSETS = [
   '/ntfy.js',
   '/post_notifications.js',
   '/client/protocol.js',
+  '/identity_backup.js',
+  '/client/core/identity-backup.js',
   '/client/relay.js',
   '/client/ui/message-layout.js',
   '/client/ui/message-view.js',

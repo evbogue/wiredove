@@ -7,12 +7,12 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, pendingPost, publishPost, readFeed, readPublicIdentity, retryPost } from './social'
+import { hostedPreview as hosted, pendingPost, publishPost, readFeed, retryPost } from './social'
 
 import { authorHref, authorName, indexMessages, messageHref, socialRoute } from './messages'
 import { PostCard } from './PostCard'
 
-export function Feed({ hash, name }) {
+export function Feed({ hash, name, identity, onIdentityChange }) {
   const [draft, setDraft] = usePreference('draft', '')
   const [posts, setPosts] = useState([])
   const [busy, setBusy] = useState(null)
@@ -21,7 +21,6 @@ export function Feed({ hash, name }) {
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(-1)
-  const [identity, setIdentity] = useState(null)
   const [composition, setComposition] = useState(null)
   const [actionBody, setActionBody] = useState('')
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
@@ -33,12 +32,6 @@ export function Feed({ hash, name }) {
   const authorPosts = route?.kind === 'author' ? messages.posts.filter(post => post.author === route.id) : []
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const body = composition ? actionBody : draft
-
-  useEffect(() => {
-    let active = true
-    readPublicIdentity().then(value => { if (active) setIdentity(value) }).catch(() => {})
-    return () => { active = false }
-  }, [])
 
   useEffect(() => {
     if (composition) textarea.current?.focus()
@@ -110,7 +103,7 @@ export function Feed({ hash, name }) {
       if (!retry) {
         if (composition) setComposition(null)
         else setDraft('')
-        setIdentity(result.signature.slice(0, 44))
+        onIdentityChange(result.signature.slice(0, 44))
       }
       const waiting = result?.relayed === false
       setPending(waiting)

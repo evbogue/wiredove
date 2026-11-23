@@ -40,7 +40,8 @@ header switch preserves the current URL and content. Its profile control is in
 the Social header and the Workspace sidebar footer. On narrow screens the
 preview sidebar opens from the left with a header toggle. Both layouts share compact
 message actions, direct reply threads, permalinks, text edits, and
-preview-local moderation.
+preview-local moderation. Profile can generate a signing identity, download a
+Wiredove backup, and validate and restore it within the preview database.
 
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar

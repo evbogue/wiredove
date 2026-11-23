@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Bird, FolderGit2, MessagesSquare, PanelsTopLeft, UserRound, X } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Bird, FolderGit2, MessagesSquare, PanelsTopLeft, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
@@ -12,70 +8,8 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
 import { useHash, usePreference } from './hooks/use-preview-state'
 import { readPublicIdentity } from './social'
+import { Profile } from './Profile'
 import { Repository } from './Workspace'
-
-function Profile({ name, setName, theme, setTheme, inSidebar = false }) {
-  const [open, setOpen] = useState(false)
-  const [identity, setIdentity] = useState(null)
-  const displayName = name.trim()
-
-  useEffect(() => {
-    if (!open) return
-    let active = true
-    readPublicIdentity().then(key => {
-      if (active) setIdentity({ key })
-    }).catch(() => {
-      if (active) setIdentity({ error: true })
-    })
-    return () => { active = false }
-  }, [open])
-
-  const label = (
-    <>
-      <Avatar size="sm">
-        <AvatarFallback>{displayName ? Array.from(displayName).slice(0, 2).join('').toUpperCase() : <UserRound className="size-3.5" />}</AvatarFallback>
-      </Avatar>
-      <span className={inSidebar ? 'truncate' : 'hidden truncate sm:inline'}>{displayName || 'Profile'}</span>
-    </>
-  )
-
-  function changeOpen(value) {
-    setIdentity(null)
-    setOpen(value)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger asChild>
-        {inSidebar
-          ? <SidebarMenuButton size="lg" aria-label="Profile">{label}</SidebarMenuButton>
-          : <Button variant="ghost" aria-label="Profile" className="min-w-0 max-w-full px-1 sm:px-2">{label}</Button>}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Profile</DialogTitle>
-          <DialogDescription>Your social identity and preferences for this preview browser.</DialogDescription>
-        </DialogHeader>
-        <Field>
-          <FieldLabel htmlFor="display-name">Display name for new posts</FieldLabel>
-          <Input id="display-name" value={name} maxLength={80} onChange={event => setName(event.target.value)} />
-        </Field>
-        <div className="space-y-1 text-sm">
-          <p className="font-medium">Public identity key</p>
-          <div role="status">
-            {identity?.key
-              ? <code className="select-all break-all">{identity.key}</code>
-              : <p className="text-muted-foreground">{!identity ? 'Loading identity…' : identity.error ? 'Identity is unavailable.' : 'Your first post creates your preview identity.'}</p>}
-          </div>
-        </div>
-        <Field orientation="horizontal">
-          <Switch id="dark-mode" checked={theme === 'dark'} onCheckedChange={value => setTheme(value ? 'dark' : 'light')} />
-          <FieldLabel htmlFor="dark-mode">Dark mode</FieldLabel>
-        </Field>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 function WorkspaceSidebar({ repository, profile }) {
   const { setOpenMobile } = useSidebar()
@@ -96,7 +30,7 @@ function WorkspaceSidebar({ repository, profile }) {
       </SidebarContent>
       <SidebarFooter className="border-t">
         <SidebarMenu>
-          <SidebarMenuItem><Profile {...profile} inSidebar /></SidebarMenuItem>
+          <SidebarMenuItem><Profile {...profile} inSidebar onNavigate={closeDrawer} /></SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
@@ -110,7 +44,15 @@ export default function App() {
   const [theme, setTheme] = usePreference('theme', 'light')
   const repository = hash.startsWith('workspace/')
   const workspace = mode === 'workspace'
-  const profile = { name, setName, theme, setTheme }
+  const [identity, setIdentity] = useState(undefined)
+  const [identityError, setIdentityError] = useState(false)
+  useEffect(() => {
+    let active = true
+    readPublicIdentity().then(key => { if (active) setIdentity(key || null) })
+      .catch(() => { if (active) setIdentityError(true) })
+    return () => { active = false }
+  }, [])
+  const profile = { name, setName, theme, setTheme, identity, identityError, setIdentity }
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark') }, [theme])
 
   return (
@@ -139,7 +81,7 @@ export default function App() {
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
-              <Feed hash={hash} name={name} />
+              <Feed hash={hash} name={name} identity={identity} onIdentityChange={setIdentity} />
             </section>
             {repository && (
               <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-5xl space-y-4 p-4 sm:p-6">

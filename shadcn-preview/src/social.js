@@ -1,3 +1,4 @@
+import { saveIdentityBackupFile, validateIdentityBackup } from '../../client/core/identity-backup.js'
 import { createArtifactSession } from '../../client/runtime/artifact-session.js'
 import { createBrowserStore } from '../../client/runtime/browser-store.js'
 import { createProtocol } from '../../client/protocol.js'
@@ -67,30 +68,73 @@ export async function readPublicIdentity() {
   return apds.pubkey()
 }
 
+function identityStore(hosted) {
+  return createBrowserStore(databaseName(hosted) + ':application')
+}
+
+async function ensureIdentity(apds) {
+  if (!await apds.pubkey()) await apds.put('keypair', await apds.generate())
+  return apds.pubkey()
+}
+
+export async function createPreviewIdentity() {
+  return navigator.locks.request(databaseName(hostedPreview), async () => {
+    const apds = await openIdentity(hostedPreview)
+    return ensureIdentity(apds)
+  })
+}
+
+export async function importPreviewIdentity(file, expectedKey) {
+  if (file.size > 16 * 1024) throw new Error('Choose a Wiredove identity backup file.')
+  let keypair
+  try { keypair = await validateIdentityBackup(await file.text()) }
+  catch { throw new Error('This file is not a valid Wiredove identity backup.') }
+  return navigator.locks.request(databaseName(hostedPreview), async () => {
+    const apds = await openIdentity(hostedPreview)
+    const current = await apds.pubkey() || null
+    if (current !== expectedKey) throw new Error('The identity changed. Reopen Profile and try again.')
+    if (keypair === await apds.keypair()) return current
+    const store = identityStore(hostedPreview)
+    if ((await store.get('outbox'))?.length) throw new Error('Retry pending delivery before importing another identity.')
+    await store.set('identity-needs-pull', keypair.slice(0, 44))
+    await apds.put('keypair', keypair)
+    return apds.pubkey()
+  })
+}
+
+export async function downloadPreviewIdentity() {
+  const apds = await openIdentity(hostedPreview)
+  const keypair = await apds.keypair()
+  if (!keypair) throw new Error('Create or import an identity first.')
+  saveIdentityBackupFile(keypair)
+}
+
 let writer
 async function openWriter(hosted) {
   writer ||= (async () => {
-    const database = databaseName(hosted)
     const apds = await openIdentity(hosted)
-    const store = createBrowserStore(database + ':application')
+    const store = identityStore(hosted)
     const session = createArtifactSession({ protocol: apds, store, endpoint, anbotSocial: hosted })
     await session.recover()
-    return { apds, session }
+    return { apds, session, store }
   })().catch(error => { writer = null; throw error })
   return writer
 }
 
 export async function pendingPost(hosted) {
-  const store = createBrowserStore(databaseName(hosted) + ':application')
-  return Boolean((await store.get('outbox'))?.length)
+  return Boolean((await identityStore(hosted).get('outbox'))?.length)
 }
 
 export async function publishPost(hosted, body, name, metadata = {}, editAuthor) {
   return navigator.locks.request(databaseName(hosted), async () => {
-    const { apds, session } = await openWriter(hosted)
+    const { apds, session, store } = await openWriter(hosted)
     const author = await apds.pubkey()
     if (metadata.edit && (!author || author !== editAuthor)) throw new Error('Only the original author can edit this message.')
-    if (!author) await apds.put('keypair', await apds.generate())
+    if (!author) await ensureIdentity(apds)
+    if (author && await store.get('identity-needs-pull') === author) {
+      await session.pull()
+      await store.delete('identity-needs-pull')
+    }
     return session.publish(body, { ...metadata, ...(name ? { name } : {}) })
   })
 }
