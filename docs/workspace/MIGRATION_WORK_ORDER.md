@@ -45,7 +45,8 @@ Wiredove backup, and validate and restore it within the preview database.
 Social profile and message links now share the bare Wiredove hash format.
 The preview can read the hosted Wiredove poll through a GET-only proxy.
 Browser refresh resumes from the last verified cursor and deduplicates by
-message ID. Hosted feed review keeps publishing disabled.
+message ID. Hosted feed review keeps publishing disabled. Preview post and
+edit-history bodies use the shared Markdown renderer for text and links.
 
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar

@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { authorName, socialHref } from './messages'
+import { PostBody } from './PostBody'
 
 const actionClass = 'text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -46,8 +47,10 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-        {blocked ? 'Author blocked.' : muted ? 'Author muted.' : hidden ? 'Message hidden.' : latest.parsed.body}
+      <CardContent>
+        {concealed
+          ? (blocked ? 'Author blocked.' : muted ? 'Author muted.' : 'Message hidden.')
+          : <PostBody body={latest.parsed.body} />}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (
@@ -91,7 +94,7 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
               {[...versions, post].map(version => (
                 <li key={version.id} className="border-b pb-3">
                   <p className="text-sm text-muted-foreground"><time dateTime={new Date(version.timestamp).toISOString()} title={dateFormat.format(version.timestamp)}>{human(version.timestamp)}</time>{version === post && ' · Original'}</p>
-                  <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{version.parsed.body}</p>
+                  <PostBody body={version.parsed.body} />
                 </li>
               ))}
             </ol>

@@ -128,3 +128,19 @@
     @apply font-sans;
     }
 }
+
+@layer components {
+  .preview-post-body {
+    > * + * { @apply mt-2; }
+    p { @apply whitespace-pre-wrap; }
+    a { @apply underline underline-offset-2; }
+    :is(h1, h2, h3, h4, h5, h6) { @apply font-semibold; }
+    ul { @apply list-disc ps-5; }
+    ol { @apply list-decimal ps-5; }
+    blockquote { @apply border-s-2 ps-3 text-muted-foreground; }
+    pre { @apply overflow-x-auto rounded-md bg-muted p-2; }
+    :not(pre) > code { @apply rounded bg-muted px-1; }
+    :is(th, td) { @apply border border-border px-2 py-1; }
+    hr { @apply border-border; }
+  }
+}
