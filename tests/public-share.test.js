@@ -78,4 +78,12 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
   assert(profileHTML.includes('/wiredove-share-bird.png'))
   const records = await (await request('/api/public-record?id=' + pathID)).json()
   assert.deepEqual(records.records.map(record => record.id), [reply.id, parent.id])
+
+  const appOrigin = 'http://127.0.0.1:5176'
+  share = await createPublicShare({ ...options, appOrigin })
+  const prototypeHTML = await (await request('/' + pathID)).text()
+  assert(prototypeHTML.includes('href="' + appOrigin + '/#' + reply.id + '" aria-label="App"'))
+  assert(prototypeHTML.includes('class="date" href="' + appOrigin + '/#' + parent.id + '"'))
+  const prototypeProfile = await (await request(new URL(profile.url).pathname)).text()
+  assert(prototypeProfile.includes('href="' + appOrigin + '/#' + reply.author + '" aria-label="App"'))
 })

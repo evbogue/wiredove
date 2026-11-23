@@ -156,4 +156,8 @@ and starts local sync. Each post timestamp also opens its post in the app.
 Readers can create an identity from the app.
 
 The shadcn preview can use the same public share server by starting Vite
-with `WIREDOVE_PREVIEW_SHARE_BACKEND` set to that server's origin.
+with `WIREDOVE_PREVIEW_SHARE_BACKEND` set to that server's origin. Set
+`WIREDOVE_PUBLIC_SHARE_APP_ORIGIN` on the share server to the prototype's
+origin to send App and timestamp links to its hash routes. Configure the
+prototype to read the same archive as the share server. Loopback HTTP is
+supported for local review.

@@ -155,6 +155,7 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
     maxMediaBytes: Number(env.MEDIA_MAX_BYTES || 32 * 1024 * 1024),
     quotaBytes: Number(env.MEDIA_QUOTA_BYTES || 1024 * 1024 * 1024) })
   const publicShare = await createPublicShare({ origin: env.WIREDOVE_PUBLIC_SHARE_ORIGIN,
+    appOrigin: env.WIREDOVE_PUBLIC_SHARE_APP_ORIGIN,
     upstream: env.WIREDOVE_PUBLIC_SHARE_FEED_ORIGIN, dataDir: resolve(dataDir, 'public-share'),
     readRecords: application.readRecords, readMedia: media.handleRequest })
   await fs.mkdir(blobDir, { recursive: true })

@@ -14,7 +14,6 @@ const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char])
 const nameOf = post => (typeof post.parsed?.name === 'string' && post.parsed.name.trim()) || post.author.slice(0, 12)
-const appHref = id => '/?enter=shared#' + id
 const clip = (value, max) => Array.from(value.trim().replace(/\s+/g, ' ')).slice(0, max).join('')
 
 function textFrom(blocks) {
@@ -55,7 +54,7 @@ function markdownHTML(blocks, webID, imagePaths) {
   }).join('')
 }
 
-function card(post, webID, imagePaths) {
+function card(post, webID, imagePaths, appHref) {
   const author = nameOf(post)
   const initials = Array.from(author).slice(0, 2).join('').toUpperCase()
   const date = new Date(post.timestamp)
@@ -66,7 +65,7 @@ function card(post, webID, imagePaths) {
   </header><div class="body">${markdownHTML(parseMessageBody(post.parsed.body), webID, imagePaths)}</div></article>`
 }
 
-export function renderSharePage({ canonicalOrigin, canonical, id, post, profile, parent, items, webID, previewImage, imagePaths }) {
+export function renderSharePage({ canonicalOrigin, canonical, id, post, profile, parent, items, webID, appHref, previewImage, imagePaths }) {
   const name = nameOf(post || profile)
   const title = clip(name, 100) + ' on Wiredove'
   const description = clip(textFrom(parseMessageBody((post || profile).parsed?.body)), 200) || title
@@ -85,9 +84,9 @@ export function renderSharePage({ canonicalOrigin, canonical, id, post, profile,
 <header class="bar"><div><span class="bar-brand" role="img" aria-label="Wiredove">${bird}</span>
 <a class="button" href="${escape(appHref(id))}" aria-label="App" title="App">${appIcon}</a></div></header>
 <main>
-${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID, imagePaths) + '</section>' : ''}${card(post, webID, imagePaths)}`
+${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID, imagePaths, appHref) + '</section>' : ''}${card(post, webID, imagePaths, appHref)}`
       : `<section class="card profile"><h1>${escape(name)}</h1><p class="key">${escape(id)}</p>
       ${typeof profile.parsed.bio === 'string' ? '<div class="body">' + markdownHTML(parseMessageBody(profile.parsed.bio), webID, imagePaths) + '</div>' : ''}
-      </section>${items.map(item => card(item, webID, imagePaths)).join('')}`}
+      </section>${items.map(item => card(item, webID, imagePaths, appHref)).join('')}`}
 </main></body></html>`
 }

@@ -21,9 +21,11 @@ function publicOrigin(value) {
   return url.origin
 }
 
-export async function createPublicShare({ origin, upstream, dataDir, readRecords, readMedia }) {
+export async function createPublicShare({ origin, appOrigin, upstream, dataDir, readRecords, readMedia }) {
   if (!origin) return null
   const canonicalOrigin = publicOrigin(origin)
+  const appURL = appOrigin && publicOrigin(appOrigin)
+  const appHref = id => appURL ? appURL + "/#" + id : "/?enter=shared#" + id
   const upstreamOrigin = upstream && publicOrigin(upstream)
   await fs.mkdir(dataDir, { recursive: true })
   const aliasFile = join(dataDir, 'aliases.json')
@@ -190,7 +192,7 @@ export async function createPublicShare({ origin, upstream, dataDir, readRecords
     const previewImage = firstImage && { path: imagePaths.get(firstImage.src), alt: firstImage.alt }
     const html = renderSharePage({ canonicalOrigin, canonical,
       id: signedID(id), post: displayed, profile, parent: displayedParent, items: displayedItems,
-      webID, previewImage, imagePaths })
+      webID, appHref, previewImage, imagePaths })
     return new Response(request.method === 'HEAD' ? null : html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
