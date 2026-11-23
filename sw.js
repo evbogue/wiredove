@@ -18,13 +18,15 @@ self.addEventListener('activate', (event) => {
   })())
 })
 
-const CACHE_VERSION = 'v51-shared-identity-backup'
+const CACHE_VERSION = 'v52-public-share-entry'
 const APP_SHELL_CACHE = `wiredove-app-shell-${CACHE_VERSION}`
 const APP_SHELL_ASSETS = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/app.js?v=52',
+  '/client/runtime/share-entry.js',
   '/client/runtime/mount.js',
   '/client/runtime/default-session.js',
   '/client/runtime/artifact-session.js',
@@ -73,6 +75,7 @@ const isCacheableRequest = (request) => {
   if (!request || request.method !== 'GET') { return false }
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) { return false }
+  if (/^\/[A-Za-z0-9_-]{8,43}$/.test(url.pathname) || url.pathname === '/api/public-record') return false
   if (url.pathname.startsWith('/git/') || url.pathname.startsWith('/api/git/')) return false
   return true
 }

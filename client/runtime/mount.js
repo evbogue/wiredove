@@ -14,7 +14,7 @@ const stylesheet = new URL('../application.css', import.meta.url).href
 
 // Both frames use the same default services; advanced internal callers may
 // supply an already acquired compatible session lease.
-export const mountApplication = async (host, { session, navigation, initialRoute = '', layout = 'embedded', ...services } = {}) => {
+export const mountApplication = async (host, { session, navigation, initialRoute = '', layout = 'embedded', onMounted, ...services } = {}) => {
   if (!host || mounted.has(host) || (host.shadowRoot && !owned.has(host))) throw new Error('Wiredove requires an unused mount element')
   mounted.add(host)
   try { session ||= await acquireDefaultSession(services) }
@@ -51,6 +51,7 @@ export const mountApplication = async (host, { session, navigation, initialRoute
     app.cleanup.push(() => viewer.dispose())
     if (session.subscribeRenderer) app.cleanup.push(session.subscribeRenderer(app.render))
     app.draftScope = host.id || layout
+    await onMounted?.(app)
     await app.start()
     if (session.artifacts?.error) app.feeds.status('Backend unavailable. Showing locally verified content. ' + session.artifacts.error, { sticky: true })
     if (session.artifacts) {

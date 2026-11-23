@@ -1,3 +1,4 @@
+import { reservePublicShare } from './client/share-link.js'
 import { validHash } from './vendor/andfs/andfs.js'
 import { createHashMediaView } from './client/ui/hash-media.js'
 import { apds } from 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js'
@@ -408,7 +409,8 @@ const route = async () => {
         const copy = h('button', { type: 'button' }, ['Copy link'])
         copy.addEventListener('click', async () => {
           try {
-            await root.ownerDocument.defaultView.navigator.clipboard.writeText(root.ownerDocument.URL)
+            const link = await reservePublicShare(src).catch(() => null)
+            await root.ownerDocument.defaultView.navigator.clipboard.writeText(link || root.ownerDocument.URL)
             copy.textContent = 'Link copied'
           } catch { copy.textContent = 'Copy the URL from the address bar' }
         })

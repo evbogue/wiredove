@@ -13,7 +13,7 @@ let manager
 let artifacts
 // The pinned APDS module is a singleton: all mounts in this module graph share
 // one explicitly selected identity/database/backend. Conflicts are rejected.
-export const acquireDefaultSession = async ({ database = 'wiredovedbversion1', backendURL = sourceOrigin, mediaURL = sourceOrigin, canonicalURL = sourceOrigin + '/', capabilities = {}, owner = null, legacyDatabase = null, legacyImageURL = null, legacyMediaURL = null, anbotSocial = false } = {}) => {
+export const acquireDefaultSession = async ({ database = 'wiredovedbversion1', backendURL = sourceOrigin, mediaURL = sourceOrigin, canonicalURL = sourceOrigin + '/', capabilities = {}, owner = null, legacyDatabase = null, legacyImageURL = null, legacyMediaURL = null, anbotSocial = false, initialRecords = [] } = {}) => {
   const httpURL = value => {
     const url = new URL(value)
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw Error('Expected an HTTP(S) service URL')
@@ -35,6 +35,7 @@ export const acquireDefaultSession = async ({ database = 'wiredovedbversion1', b
         pauseQueue()
         artifacts.start()
         await artifacts.recover()
+        for (const record of initialRecords) await artifacts.ingest(record).catch(() => {})
         // Let the hosted UI render while ANBot replays the archive.
         const initialPull = artifacts.pull().catch(() => {})
         if (!anbotSocial) await initialPull

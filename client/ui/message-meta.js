@@ -19,6 +19,7 @@ export function createMessageMeta({
   permalink.className = 'material-symbols-outlined';
   permalink.href = controls.permalinkHref || '#' + (post.signature || post.id || '');
   permalink.textContent = 'Share';
+  if (controls.onShare) permalink.addEventListener('click', controls.onShare);
   meta.append(permalink, ' ');
   if (controls.rawToggle) meta.append(controls.rawToggle, ' ');
   if (controls.timestamp) meta.append(controls.timestamp);

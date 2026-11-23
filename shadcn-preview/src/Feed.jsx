@@ -13,6 +13,7 @@ import { hostedPreview as hosted, pendingPost, publishPost, readConfirmedReply, 
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { PostCard } from './PostCard'
+import { ShareLink } from './ShareLink'
 
 export function Feed({ hash, name, identity, onIdentityChange }) {
   const [draft, setDraft] = usePreference('draft', '')
@@ -323,7 +324,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       )}
       {route?.kind === 'author' && route.id && (
         <>
-          <p className="break-all text-sm text-muted-foreground">{route.id}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="min-w-0 break-all text-sm text-muted-foreground">{route.id}</p>
+            {!blocked(route.id) && <ShareLink id={route.id} label="Share profile" variant="outline" />}
+          </div>
           {blocked(route.id)
             ? <Button variant="outline" onClick={() => toggleModeration('blocked', route.id)}>Unblock author</Button>
             : profilePosts.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}

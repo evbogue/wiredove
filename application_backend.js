@@ -13,15 +13,18 @@ export const createApplicationBackend = async ({ dataDir = './data/application' 
   catch (error) { if (error.code !== 'ENOENT') throw error; records = [] }
   const headers = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', 'content-type': 'application/json', 'cache-control': 'no-store' }
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers })
-  return { async handleRequest(request) {
+  const readRecords = after => {
+    const page = records.slice(after, after + 100)
+    return { records: page, cursor: after + page.length, more: after + page.length < records.length }
+  }
+  return { readRecords, async handleRequest(request) {
     const url = new URL(request.url)
     if (url.pathname !== '/api/application') return null
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
     try {
       if (request.method === 'GET') {
         const after = Math.max(0, Number(url.searchParams.get('after')) || 0)
-        const page = records.slice(after, after + 100)
-        return json({ records: page, cursor: after + page.length, more: after + page.length < records.length, scope: 'backend-archive' })
+        return json({ ...readRecords(after), scope: 'backend-archive' })
       }
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
       if (Number(request.headers.get('content-length')) > 2 * 1024 * 1024) return json({ error: 'Artifact too large' }, 413)

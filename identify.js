@@ -9,7 +9,8 @@ const openIdentitySetup = (application) => {
   const document = application ? scopeDocument(application.root) : globalThis.document
   const existing = document.getElementById('identity-setup')
   if (existing) { existing.showModal(); return }
-  const dialog = h('dialog', { id: 'identity-setup', classList: 'identity-dialog', 'aria-labelledby': 'identity-title' })
+  const dialog = h('dialog', { id: 'identity-setup', classList: 'identity-dialog' })
+  dialog.setAttribute('aria-labelledby', 'identity-title')
   const step = h('p', { classList: 'profile-help' }, ['Step 1 of 3'])
   const title = h('h2', { id: 'identity-title' }, ['Create your identity'])
   const explanation = h('p', ['Your identity is stored in this browser. You can back it up and import it on another device.'])

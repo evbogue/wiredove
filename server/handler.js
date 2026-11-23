@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { createNotificationsService } from '../notifications_server.js'
 import { createAndFsMediaService } from '../andfs_media_server.js'
 import { createApplicationBackend } from '../application_backend.js'
+import { createPublicShare } from './public-share.js'
 import { createStaticHandler } from './static.js'
 
 const workspaceGitRead = /^\/api\/git\/[A-Za-z0-9_-]+\/(overview|tree|blob|refs|commits|commit|diff|compare)$/
@@ -153,6 +154,9 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
   const media = await createAndFsMediaService({ dataDir: mediaDir,
     maxMediaBytes: Number(env.MEDIA_MAX_BYTES || 32 * 1024 * 1024),
     quotaBytes: Number(env.MEDIA_QUOTA_BYTES || 1024 * 1024 * 1024) })
+  const publicShare = await createPublicShare({ origin: env.WIREDOVE_PUBLIC_SHARE_ORIGIN,
+    upstream: env.WIREDOVE_PUBLIC_SHARE_FEED_ORIGIN, dataDir: resolve(dataDir, 'public-share'),
+    readRecords: application.readRecords, readMedia: media.handleRequest })
   await fs.mkdir(blobDir, { recursive: true })
   const privatePaths = [dataDir, applicationDir, blobDir, mediaDir, configFile]
   // A configured data directory may itself be a symlink within the checkout.
@@ -197,6 +201,8 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
         return response
       }
     }
+    const share = await publicShare?.(request)
+    if (share) return share
     const response = await staticFiles(request)
     if (pathname.startsWith('/dist/app-v1/') || pathname === '/app-embed.js' || pathname.startsWith('/client/') || pathname.startsWith('/vendor/') || ['/embed.js', '/style.css'].includes(pathname)) response.headers.set('access-control-allow-origin', '*')
     return response

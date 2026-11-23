@@ -1,3 +1,4 @@
+import { reservePublicShare } from './client/share-link.js'
 import { renderProfileUpdate } from './client/ui/profile-update.js';
 import { createMessageControls } from './client/ui/message-controls.js'
 import { attachmentDisplayBody } from './client/andfs.js'
@@ -196,6 +197,18 @@ const buildMetaCluster = ({ author, hash, blob, opened, contentBlob, ts }) => {
     post: { id: hash, author, signature: blob },
     controls: {
       permalinkHref,
+      onShare: async event => {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+        const view = root.ownerDocument.defaultView
+        if (new URL(permalinkHref).origin !== view.location.origin) return
+        event.preventDefault()
+        const url = await reservePublicShare(hash).catch(() => null)
+        if (url) {
+          try { await view.navigator.clipboard.writeText(url); return }
+          catch { view.location.assign(url); return }
+        }
+        view.location.assign(permalinkHref)
+      },
       qr: createQRControl({ blob, destination: permalinkHref, target: qrTarget, loadQRious: ensureQRious, document }),
       rawToggle,
       timestamp: ts,

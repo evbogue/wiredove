@@ -132,3 +132,27 @@ checks. Wiredove rollback unit/data/config are retained under
 `/root/deploy-backups/wiredove-closeout-d80b0b9/`. Restore the saved unit to select
 `0086c74`, reload systemd and restart Wiredove; both releases use the same data.
 Do not restore old data over later publications.
+
+
+## Enable public share pages
+
+Set `WIREDOVE_PUBLIC_SHARE_ORIGIN` to the public HTTPS origin that owns
+the links. Loopback HTTP works for local review. Share pages read the local
+verified application archive by default. If the release serves posts from
+an ANBot archive, set `WIREDOVE_PUBLIC_SHARE_FEED_ORIGIN` to the trusted
+origin that serves its `/gossip/poll` endpoint. Choose a source that contains
+only records intended for public sharing.
+
+Carry `DATA_DIR/public-share/aliases.json` forward with the data directory.
+The server uses a single writer for its archive and alias file. Back up the
+alias file during releases so old links retain their destinations. The full
+43-character URL-safe ID is canonical. Share reserves an eight-character
+alias and extends the new prefix by one character at a time on collision.
+
+Public pages work with JavaScript disabled. They use a locally available
+signed AndFS image for the preview when eligible and use the Wiredove logo
+otherwise. The app begins local sync only after the reader chooses to enter
+from the public page. The consent screen offers optional identity setup.
+
+The shadcn preview can use the same public share server by starting Vite
+with `WIREDOVE_PREVIEW_SHARE_BACKEND` set to that server's origin.

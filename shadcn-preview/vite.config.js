@@ -43,14 +43,20 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'WIREDOVE_PREVIEW_')
   const backend = env.WIREDOVE_PREVIEW_BACKEND || 'http://127.0.0.1:8000'
   const feedBackend = env.WIREDOVE_PREVIEW_FEED_BACKEND
+  const shareBackend = env.WIREDOVE_PREVIEW_SHARE_BACKEND
   const proxy = Object.fromEntries(
     ['/api/application', '/api/git', '/sync/status', '/gossip/poll', '/posts', '/wiredove/image', '/git/']
       .map(path => [path, { target: backend, changeOrigin: true }]),
   )
 
+  if (shareBackend) proxy['/api/share'] = { target: shareBackend, changeOrigin: true }
+
   return {
     plugins: [react(), tailwindcss(), feedBackend && readOnlyFeedProxy(feedBackend)],
-    define: { 'import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED': JSON.stringify(Boolean(feedBackend)) },
+    define: {
+      'import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED': JSON.stringify(Boolean(feedBackend)),
+      'import.meta.env.WIREDOVE_PREVIEW_SHARE_ORIGIN': JSON.stringify(shareBackend ? new URL(shareBackend).origin : null),
+    },
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     server: {
       fs: { allow: ['.', '../client', '../vendor'].map(path => fileURLToPath(new URL(path, import.meta.url))) },

@@ -16,7 +16,7 @@ export const anbotWebsiteServices = {
 }
 
 let started = false
-export const startWebsiteApplication = async ({ services = {}, network = true } = {}) => {
+export const startWebsiteApplication = async ({ services = {}, network = true, onMounted } = {}) => {
   if (started) throw new Error('The website application is already started')
   started = true
   let lease
@@ -28,7 +28,7 @@ export const startWebsiteApplication = async ({ services = {}, network = true } 
     if (network) { await connect(); await startSync(send); resumeQueue() }
     const host = document.createElement('main')
     document.body.append(host)
-    application = await mountApplication(host, { session: lease, layout: 'page',
+    application = await mountApplication(host, { session: lease, layout: 'page', onMounted,
       navigation: createWindowNavigation(window) })
     application.cleanup.push(async () => { pauseQueue(); if (network) stopSync(); await disconnect() })
     application.cleanup.push(() => { started = false })

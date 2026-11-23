@@ -1,36 +1,23 @@
 import { human } from '../../client/ui/format.js'
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Ellipsis, Link2, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight, Ellipsis, MessageSquare } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { authorName, socialHref } from './messages'
 import { PostBody } from './PostBody'
+import { ShareLink } from './ShareLink'
 
 const actionClass = 'max-sm:px-1.5 text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
 export function PostCard({ post, replyContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
-  const [copyStatus, setCopyStatus] = useState('')
   const author = authorName(post)
   const latest = versions[0] || post
   const concealed = blocked || muted || hidden
-  const permalink = new URL(socialHref(post.id), location.href).href
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(permalink)
-      setCopyStatus('Link copied.')
-    } catch {
-      setCopyStatus('Select the link to copy it manually.')
-    }
-  }
-
   return (
     <Card size="sm" className={selected ? "min-w-0 gap-2 ring-muted-foreground/40" : "min-w-0 gap-2"}>
       <CardHeader className="flex items-center gap-3">
@@ -72,7 +59,7 @@ export function PostCard({ post, replyContext, selected, versions, replyCount, b
                 <a href={socialHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
               </Button>
             )}
-            <Button variant="ghost" size="sm" className={actionClass} onClick={() => { setCopyStatus(''); setDialog('share') }}><Link2 /> Share</Button>
+            <ShareLink id={post.id} className={actionClass} />
           </>
         )}
         <DropdownMenu>
@@ -91,17 +78,9 @@ export function PostCard({ post, replyContext, selected, versions, replyCount, b
       <Dialog open={dialog !== null} onOpenChange={open => { if (!open) setDialog(null) }}>
         <DialogContent className="min-w-0">
           <DialogHeader>
-            <DialogTitle>{{ share: 'Share message', history: 'Edit history', raw: 'Signed message data' }[dialog]}</DialogTitle>
-            <DialogDescription>{{ share: 'Link to this message in the preview.', history: 'Signed versions from the original author.', raw: 'The original signed record.' }[dialog]}</DialogDescription>
+            <DialogTitle>{{ history: 'Edit history', raw: 'Signed message data' }[dialog]}</DialogTitle>
+            <DialogDescription>{{ history: 'Signed versions from the original author.', raw: 'The original signed record.' }[dialog]}</DialogDescription>
           </DialogHeader>
-          {dialog === 'share' && (
-            <Field>
-              <FieldLabel htmlFor={`link-${post.id}`}>Message link</FieldLabel>
-              <Input id={`link-${post.id}`} readOnly value={permalink} onFocus={event => event.target.select()} />
-              <Button onClick={copy}>Copy link</Button>
-              <p role="status">{copyStatus}</p>
-            </Field>
-          )}
           {dialog === 'history' && (
             <ol className="max-h-[60vh] space-y-4 overflow-auto">
               {[...versions, post].map(version => (

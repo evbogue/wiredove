@@ -97,7 +97,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial =
     return { ...record, saved: true, relayed: true }
   }
   return {
-    pending, flush,
+    pending, flush, ingest,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) },
     get error() { return lastError },
     async publish(body, metadata = {}) {

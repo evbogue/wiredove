@@ -54,6 +54,12 @@ selected reply and group direct children with a shallow thread line. The
 [reply and thread work order](REPLY_THREAD_WORK_ORDER.md) records item 5
 implementation and the remaining review.
 
+Share review can opt into public HTML post and profile pages with permanent
+short aliases. The local review uses a read-only hosted feed and tests the
+same-post app handoff after sync consent. Deployment configuration and
+alias backups are documented in
+[Runtime operations](../RUNTIME_OPERATIONS.md#enable-public-share-pages).
+
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar
 stays available while reading posts, searching, opening conversations,

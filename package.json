@@ -10,7 +10,7 @@
     "build:embed": "node scripts/build-app-embed.js",
     "start": "node serve-node.js",
     "start:deno": "deno run --allow-net --allow-read --allow-write --allow-env serve.js",
-    "test:server": "node --test tests/server.test.js tests/andfs-media.test.js tests/application-artifacts.test.js tests/recovery.test.js",
+    "test:server": "node --test tests/server.test.js tests/public-share.test.js tests/andfs-media.test.js tests/application-artifacts.test.js tests/recovery.test.js",
     "check:node": "node --check serve-node.js && node --check server/handler.js && node --check server/node-http.js && node --check server/static.js && npm run build:embed && node scripts/check-ui-boundaries.js && node --check scripts/monitor-posts.js",
     "test:media:deno": "deno test --allow-read --allow-write tests/andfs-media.test.js client/client_test.js tests/monitor-posts.test.js client/runtime/publishing-session_test.js tests/application-artifacts.test.js",
     "check:deno": "deno check --frozen serve.js scripts/monitor-posts.js",
