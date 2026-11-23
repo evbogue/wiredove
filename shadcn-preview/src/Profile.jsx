@@ -8,7 +8,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { SidebarMenuButton } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
-import { authorHref } from './messages'
+import { socialHref } from './messages'
 import { createPreviewIdentity, downloadPreviewIdentity, importPreviewIdentity } from './social'
 
 export function Profile({ name, setName, theme, setTheme, identity, identityError, setIdentity, onNavigate, inSidebar = false }) {
@@ -82,7 +82,7 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
               {identity ? (
                 <>
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => run(downloadPreviewIdentity, 'Backup download started.')}>Download backup</Button>
-                  <Button asChild variant="ghost" size="sm"><a href={authorHref(identity)} onClick={() => { changeOpen(false); onNavigate?.() }}>View posts</a></Button>
+                  <Button asChild variant="ghost" size="sm"><a href={socialHref(identity)} onClick={() => { changeOpen(false); onNavigate?.() }}>View posts</a></Button>
                 </>
               ) : (
                 <Button size="sm" disabled={busy || importing} onClick={() => run(async () => {

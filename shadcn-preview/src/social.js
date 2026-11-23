@@ -18,6 +18,7 @@ async function readJSON(url, signal) {
 
 export async function readFeed(hosted, signal) {
   const posts = new Map()
+  const authors = new Set()
   let cursor = 0
   while (true) {
     const url = hosted ? new URL('/gossip/poll', endpoint) : new URL(endpoint)
@@ -41,11 +42,13 @@ export async function readFeed(hosted, signal) {
       if (!hosted && typeof id !== 'string') continue
       signal.throwIfAborted()
       const post = await protocol.verify(signature, content, { maxBytes: 2 * 1024 * 1024 }).catch(() => null)
-      if (!post || (!hosted && post.id !== id) || typeof post.parsed?.body !== 'string'
-          || !post.parsed.body.trim() || String(post.parsed.type || '').startsWith('git-')) continue
+      if (!post || (!hosted && post.id !== id)) continue
+      authors.add(post.author)
+      if (typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()
+          || String(post.parsed.type || '').startsWith('git-')) continue
       posts.set(post.id, post)
     }
-    if (!more) return [...posts.values()].sort(newestFirst)
+    if (!more) return { posts: [...posts.values()].sort(newestFirst), authors }
     cursor = next
   }
 }

@@ -42,6 +42,7 @@ preview sidebar opens from the left with a header toggle. Both layouts share com
 message actions, direct reply threads, permalinks, text edits, and
 preview-local moderation. Profile can generate a signing identity, download a
 Wiredove backup, and validate and restore it within the preview database.
+Social profile and message links now share the bare Wiredove hash format.
 
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar

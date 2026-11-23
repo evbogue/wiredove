@@ -9,12 +9,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
 import { hostedPreview as hosted, pendingPost, publishPost, readFeed, retryPost } from './social'
 
-import { authorHref, authorName, indexMessages, messageHref, socialRoute } from './messages'
+import { authorName, indexMessages, socialHref, socialRoute } from './messages'
 import { PostCard } from './PostCard'
 
 export function Feed({ hash, name, identity, onIdentityChange }) {
   const [draft, setDraft] = usePreference('draft', '')
-  const [posts, setPosts] = useState([])
+  const [feed, setFeed] = useState(() => ({ posts: [], authors: new Set() }))
   const [busy, setBusy] = useState(null)
   const [pending, setPending] = useState(null)
   const [notice, setNotice] = useState(null)
@@ -26,10 +26,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
   const textarea = useRef(null)
   const moderation = JSON.parse(policy)
-  const messages = useMemo(() => indexMessages(posts), [posts])
-  const route = socialRoute(hash)
+  const messages = useMemo(() => indexMessages(feed.posts), [feed.posts])
+  const route = socialRoute(hash, messages, feed.authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
-  const authorPosts = route?.kind === 'author' ? messages.posts.filter(post => post.author === route.id) : []
+  const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const body = composition ? actionBody : draft
 
@@ -77,7 +77,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
     readFeed(hosted, signal).then(value => {
       if (!controller.signal.aborted) {
-        setPosts(value)
+        setFeed(value)
         setFeedError('')
       }
     }).catch(error => {
@@ -146,7 +146,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {route && <Button asChild variant="outline" size="sm"><a href="#feed">Back to feed</a></Button>}
-          <h2 className="break-all font-semibold">{route?.kind === 'message' ? 'Thread' : route ? currentAuthor || 'Author' : 'Feed'}</h2>
+          <h2 className="break-all font-semibold">{route?.kind === 'message' ? 'Thread' : route?.kind === 'author' ? currentAuthor || 'Author' : route ? 'Lookup' : 'Feed'}</h2>
         </div>
         <Button variant="outline" size="sm" disabled={loading} onClick={() => setAttempt(n => n + 1)}><RefreshCw /> Refresh</Button>
       </div>
@@ -158,7 +158,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           <ul className="mt-2 space-y-1">
             {moderation.blocked.map(key => (
               <li key={key}><Button asChild variant="link" size="sm">
-                <a href={authorHref(key)}>{authorName(messages.posts.find(post => post.author === key) || { author: key, parsed: {} })}</a>
+                <a href={socialHref(key)}>{authorName(messages.byAuthor.get(key)?.[0] || { author: key, parsed: {} })}</a>
               </Button></li>
             ))}
           </ul>
@@ -169,7 +169,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           {renderPost(target)}
           {(target.parsed.replyHash || target.parsed.reply) && (
             <Button asChild variant="outline" size="sm">
-              <a href={messageHref(target.parsed.replyHash || target.parsed.reply)}>Parent message</a>
+              <a href={socialHref(target.parsed.replyHash || target.parsed.reply)}>Parent message</a>
             </Button>
           )}
           {(messages.replies.get(target.id) || []).filter(post => !blocked(post.author)).slice().reverse().map(renderPost)}
@@ -188,8 +188,8 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon"><MessagesSquare /></EmptyMedia>
-            <EmptyTitle>{route ? 'Nothing found' : 'No posts yet'}</EmptyTitle>
-            <EmptyDescription>{route ? 'This record is unavailable from the current feed source.' : 'Publish a post to start this feed.'}</EmptyDescription>
+            <EmptyTitle>{route?.kind === 'author' ? 'No posts by this author yet' : route ? 'Nothing found' : 'No posts yet'}</EmptyTitle>
+            {route?.kind !== 'author' && <EmptyDescription>{route ? 'This ID was not found in the current feed source.' : 'Publish a post to start this feed.'}</EmptyDescription>}
           </EmptyHeader>
         </Empty>
       )}

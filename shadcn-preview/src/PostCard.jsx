@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { authorHref, authorName, messageHref } from './messages'
+import { authorName, socialHref } from './messages'
 
 const actionClass = 'text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -18,7 +18,7 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
   const author = authorName(post)
   const latest = versions[0] || post
   const concealed = blocked || muted || hidden
-  const permalink = new URL(messageHref(post.id), location.href).href
+  const permalink = new URL(socialHref(post.id), location.href).href
 
   async function copy() {
     try {
@@ -33,12 +33,12 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
     <Card size="sm" className="min-w-0 gap-2">
       <CardHeader className="flex items-center gap-3">
         <Button asChild variant="ghost" size="icon" aria-label={`Profile for ${author}`}>
-          <a href={authorHref(post.author)}><Avatar><AvatarFallback>{Array.from(author).slice(0, 2).join('').toUpperCase()}</AvatarFallback></Avatar></a>
+          <a href={socialHref(post.author)}><Avatar><AvatarFallback>{Array.from(author).slice(0, 2).join('').toUpperCase()}</AvatarFallback></Avatar></a>
         </Button>
         <div className="min-w-0">
-          <CardTitle className="break-all"><a className="hover:underline focus-visible:underline" href={authorHref(post.author)}>{author}</a></CardTitle>
+          <CardTitle className="break-all"><a className="hover:underline focus-visible:underline" href={socialHref(post.author)}>{author}</a></CardTitle>
           <CardDescription>
-            <a href={messageHref(post.id)} className="hover:underline focus-visible:underline">
+            <a href={socialHref(post.id)} className="hover:underline focus-visible:underline">
               <time dateTime={new Date(post.timestamp).toISOString()}>{dateFormat.format(post.timestamp)}</time>
             </a>
             {versions.length > 0 && ' · Edited'}
@@ -53,7 +53,7 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
           <>
             <Button variant="ghost" size="sm" className={actionClass} disabled={composeDisabled} onClick={() => onCompose('reply', post, '')}><MessageSquare /> Reply</Button>
             <Button asChild variant="ghost" size="sm" className={actionClass}>
-              <a href={messageHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
+              <a href={socialHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
             </Button>
             <Button variant="ghost" size="sm" className={actionClass} onClick={() => { setCopyStatus(''); setDialog('share') }}><Link2 /> Share</Button>
           </>
