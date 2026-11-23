@@ -26,17 +26,26 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const [actionBody, setActionBody] = useState('')
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
   const textarea = useRef(null)
+  const selectedReply = useRef(null)
   const feedCheckpoint = useRef(null)
   const moderation = JSON.parse(policy)
   const messages = useMemo(() => indexMessages(feed.posts), [feed.posts])
   const route = socialRoute(hash, messages, feed.authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
   const parentId = target && replyParentId(target)
+  const selectedReplyId = loaded !== -1 && parentId ? target.id : null
   const parent = parentId && parentId !== target.id ? messages.byId.get(parentId) : null
   const threadReplies = target ? visibleReplies(target).filter(reply => reply.id !== parent?.id).reverse() : []
   const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const body = composition ? actionBody : draft
+
+  useEffect(() => {
+    if (!selectedReplyId) return
+    const reply = selectedReply.current
+    reply?.focus({ preventScroll: true })
+    reply?.scrollIntoView({ block: 'start' })
+  }, [selectedReplyId])
 
   useEffect(() => {
     if (composition) textarea.current?.focus()
@@ -206,7 +215,11 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
                   </Button>}
             </section>
           )}
-          {renderPost(target, { showParent: false, selected: Boolean(parentId) })}
+          {parentId ? (
+            <section ref={selectedReply} aria-label="Selected reply" tabIndex={-1} className="scroll-mt-14 focus:outline-none">
+              {renderPost(target, { showParent: false, selected: true })}
+            </section>
+          ) : renderPost(target, { showParent: false })}
           {threadReplies.length > 0 && (
             <ol aria-label="Direct replies" className="ms-1 space-y-3 border-s border-input ps-2 sm:ms-2 sm:ps-3">
               {threadReplies.map(post => <li key={post.id}>{renderPost(post, { showParent: false })}</li>)}

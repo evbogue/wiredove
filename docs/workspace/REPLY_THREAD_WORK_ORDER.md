@@ -23,7 +23,8 @@ reply, layout switches, reload, and missing or blocked parents.
   establish the relationship.
 - On a reply permalink, show the actual parent card above the selected reply
   when the parent is available. Give the selected reply more prominence than
-  its context. Place the selected reply’s direct replies underneath it.
+  its context. Bring the selected reply into view below the sticky header
+  when opening its permalink. Place its direct replies underneath it.
 - Use the reply count to open deeper branches. Keep mobile cards wide enough
   to read by limiting the indentation. The existing direct reply count
   remains available on each message.
@@ -51,7 +52,9 @@ if the local fixture is unavailable.
 - [ ] In the feed, the reply indicator identifies and opens the parent.
 - [ ] A top-level permalink displays its direct replies as a connected group.
 - [ ] A reply permalink displays its parent, selected reply, and direct
-  children in that order. Reloading and switching layouts preserve the URL.
+  children in that order. With a long parent, opening the permalink or
+  reloading lands on the selected reply. Switching layouts preserves the URL
+  and keeps focus on the view switch.
 - [ ] At phone width, the thread line and shallow indent leave the cards
   readable. The reply count opens a deeper branch.
 - [ ] Hidden, muted, blocked, or missing parents keep the selected reply
