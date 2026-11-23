@@ -313,7 +313,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
             <ol aria-label="Thread replies" className="ms-1 space-y-3 border-s border-input ps-2 sm:ms-2 sm:ps-3">
               {threadRows.map(({ post, depth }) => (
                 <li key={post.id} ref={post.id === latestReply?.id ? sentReply : null}
-                  className={'scroll-mt-14 ' + (depth > 2 ? 'ms-2 md:ms-8' : depth === 2 ? 'ms-2 md:ms-4' : '')}>
+                  className={'scroll-mt-14 ' + (depth > 2 ? 'thread-branch thread-branch-deep' : depth === 2 ? 'thread-branch' : '')}>
                   {renderPost(post, { showParent: depth > 1 })}
                 </li>
               ))}

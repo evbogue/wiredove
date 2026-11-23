@@ -130,6 +130,25 @@
 }
 
 @layer components {
+  .thread-branch {
+    @apply relative ms-2 md:ms-4;
+  }
+
+  .thread-branch::before,
+  .thread-branch-deep::after {
+    @apply pointer-events-none absolute -start-1 -top-3 bottom-0 border-s border-input;
+  }
+
+  .thread-branch::before {
+    content: "";
+  }
+
+  @variant md {
+    .thread-branch-deep { @apply ms-8; }
+    .thread-branch-deep::before { @apply -start-5; }
+    .thread-branch-deep::after { content: ""; }
+  }
+
   .preview-post-body {
     > * + * { @apply mt-2; }
     p { @apply whitespace-pre-wrap; }

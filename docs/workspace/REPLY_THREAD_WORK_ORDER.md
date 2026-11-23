@@ -26,7 +26,8 @@ reply, layout switches, reload, and missing or blocked parents.
   its context. Bring the selected reply into view below the sticky header
   when opening its permalink. Place its direct replies underneath it.
 - Use the reply count to expand or collapse deeper branches in place.
-  Use the timestamp for a reply’s permalink. Cap indentation after the
+  Mark each expanded branch with a left-side line. Use the timestamp for
+  a reply’s permalink. Cap indentation after the
   second level on phones and the third on desktop. Confirming a new reply
   opens its branch so the message is visible immediately.
 - Keep the bare `#<id>` URL on the selected message when showing its parent.
