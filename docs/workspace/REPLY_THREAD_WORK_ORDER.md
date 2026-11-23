@@ -32,7 +32,9 @@ reply, layout switches, reload, and missing or blocked parents.
   Reloading or switching between Social and Workspace should retain the
   same selection. Open one inline reply composer directly below the chosen
   card. Keep the feed’s new-post draft separate and put a pending reply’s
-  retry control beside its target when that target is visible. Respect
+  retry control beside its target when that target is visible. Confirmed
+  replies appear below their target in the current view, even while archive
+  refresh is pending. Respect
   browser-local Hide, Mute, and Block on parent
   context, and use a placeholder when parent content is unavailable.
 

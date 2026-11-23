@@ -58,6 +58,12 @@ export async function readFeed(hosted, signal, previous) {
   }
 }
 
+export async function readConfirmedReply(record) {
+  const post = await protocol.verify(record.signature, record.content)
+  if (post.id !== record.id) throw new Error('Publication ID does not match its signature.')
+  return !post.parsed.edit && post.parsed.reply ? post : null
+}
+
 const newestFirst = (a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id)
 
 export const hostedPreview = import.meta.env.VITE_WIREDOVE_HOSTED === '1'

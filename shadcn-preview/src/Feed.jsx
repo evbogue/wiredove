@@ -9,7 +9,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, pendingPost, publishPost, readFeed, remotePreviewFeed, retryPost } from './social'
+import { hostedPreview as hosted, pendingPost, publishPost, readConfirmedReply, readFeed, remotePreviewFeed, retryPost } from './social'
 
 import { authorName, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { PostCard } from './PostCard'
@@ -20,6 +20,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const [busy, setBusy] = useState(null)
   const [pending, setPending] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [sentReplies, setSentReplies] = useState([])
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(-1)
@@ -29,9 +30,14 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const actionField = useRef(null)
   const replyTrigger = useRef(null)
   const selectedReply = useRef(null)
+  const sentReply = useRef(null)
   const feedCheckpoint = useRef(null)
   const moderation = JSON.parse(policy)
-  const messages = useMemo(() => indexMessages(feed.posts), [feed.posts])
+  const messages = useMemo(() => {
+    const archived = new Set(feed.posts.map(post => post.id))
+    const confirmed = sentReplies.filter(post => !archived.has(post.id)).reverse()
+    return indexMessages([...confirmed, ...feed.posts])
+  }, [feed.posts, sentReplies])
   const route = socialRoute(hash, messages, feed.authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
   const parentId = target && replyParentId(target)
@@ -40,11 +46,24 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const threadReplies = target ? visibleReplies(target).filter(reply => reply.id !== parent?.id).reverse() : []
   const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
+  const latestReply = sentReplies.at(-1)
   const feedPosts = route ? [] : messages.posts.filter(post => !blocked(post.author)).slice(0, 50)
-  const visiblePosts = target ? [target, parent, ...threadReplies] : route?.kind === 'author'
-    ? authorPosts.slice(0, 50) : feedPosts
+  const profilePosts = authorPosts.slice(0, 50)
+  const visiblePosts = target ? [target, parent, ...threadReplies] : route?.kind === 'author' ? profilePosts : feedPosts
+  const visibleIds = new Set(visiblePosts.filter(post => post && !blocked(post.author)).map(post => post.id))
+  const placedInline = new Set()
+  const repliesByParent = new Map()
+  for (const reply of sentReplies) {
+    const parentId = replyParentId(reply)
+    if (!visibleIds.has(parentId) || blocked(reply.author) || (target && visibleIds.has(reply.id))) continue
+    const replies = repliesByParent.get(parentId) || []
+    replies.push(messages.byId.get(reply.id))
+    repliesByParent.set(parentId, replies)
+    placedInline.add(reply.id)
+    visibleIds.add(reply.id)
+  }
   const statusTarget = pending?.postId || notice?.postId
-  const inlineStatus = statusTarget && visiblePosts.some(post => post?.id === statusTarget && !blocked(post.author))
+  const inlineStatus = statusTarget && visibleIds.has(statusTarget)
 
   useEffect(() => {
     if (!selectedReplyId) return
@@ -52,6 +71,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
     reply?.focus({ preventScroll: true })
     reply?.scrollIntoView({ block: 'start' })
   }, [selectedReplyId])
+
+  useEffect(() => {
+    if (latestReply) sentReply.current?.scrollIntoView({ block: 'nearest' })
+  }, [latestReply])
 
   function beginComposition(kind, post, value, event) {
     if (remotePreviewFeed || busy || pending !== false) return
@@ -105,6 +128,11 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           composeDisabled={Boolean(busy) || pending !== false} readOnly={remotePreviewFeed} />
         {!remotePreviewFeed && composition?.post.id === post.id && renderComposer(composition)}
         {inlineStatus && post.id === statusTarget && <div className="mt-2 space-y-2">{renderDeliveryStatus()}</div>}
+        {repliesByParent.get(post.id)?.map(reply => (
+          <div key={reply.id} ref={reply.id === latestReply?.id ? sentReply : null} className="mt-2 scroll-mt-14">
+            {renderPost(reply)}
+          </div>
+        ))}
       </Fragment>
     )
   }
@@ -157,6 +185,8 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       setPending(waiting ? { postId: post?.id || null } : false)
       setAttempt(n => n + 1)
       if (result && !waiting) {
+        const reply = await readConfirmedReply(result).catch(() => null)
+        if (reply) setSentReplies(previous => previous.some(post => post.id === reply.id) ? previous : [...previous, reply])
         const target = result.target || (editing ? post.id : result.id)
         toast.success('Published', {
           action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
@@ -264,7 +294,11 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           ) : renderPost(target, { showParent: false })}
           {threadReplies.length > 0 && (
             <ol aria-label="Direct replies" className="ms-1 space-y-3 border-s border-input ps-2 sm:ms-2 sm:ps-3">
-              {threadReplies.map(post => <li key={post.id}>{renderPost(post, { showParent: false })}</li>)}
+              {threadReplies.map(post => (
+                <li key={post.id} ref={post.id === latestReply?.id ? sentReply : null} className="scroll-mt-14">
+                  {renderPost(post, { showParent: false })}
+                </li>
+              ))}
             </ol>
           )}
         </>
@@ -274,10 +308,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           <p className="break-all text-sm text-muted-foreground">{route.id}</p>
           {blocked(route.id)
             ? <Button variant="outline" onClick={() => toggleModeration('blocked', route.id)}>Unblock author</Button>
-            : authorPosts.slice(0, 50).map(post => renderPost(post))}
+            : profilePosts.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
         </>
       )}
-      {!route && feedPosts.map(post => renderPost(post))}
+      {!route && feedPosts.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
       {!loading && !feedError && (route ? (route.kind === 'message' ? !target : !authorPosts.length) : !messages.posts.length) && (
         <Empty className="border">
           <EmptyHeader>
