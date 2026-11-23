@@ -9,6 +9,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { authorHref, authorName, messageHref } from './messages'
 
+const actionClass = 'text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
 export function PostCard({ post, versions, replyCount, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled }) {
@@ -47,18 +48,18 @@ export function PostCard({ post, versions, replyCount, own, hidden, muted, block
       <CardContent className="whitespace-pre-wrap [overflow-wrap:anywhere]">
         {blocked ? 'Author blocked.' : muted ? 'Author muted.' : hidden ? 'Message hidden.' : latest.parsed.body}
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-0.5 px-2 py-0.5">
+      <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (
           <>
-            <Button variant="ghost" size="sm" disabled={composeDisabled} onClick={() => onCompose('reply', post, '')}><MessageSquare /> Reply</Button>
-            <Button asChild variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className={actionClass} disabled={composeDisabled} onClick={() => onCompose('reply', post, '')}><MessageSquare /> Reply</Button>
+            <Button asChild variant="ghost" size="sm" className={actionClass}>
               <a href={messageHref(post.id)}>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</a>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => { setCopyStatus(''); setDialog('share') }}><Link2 /> Share</Button>
+            <Button variant="ghost" size="sm" className={actionClass} onClick={() => { setCopyStatus(''); setDialog('share') }}><Link2 /> Share</Button>
           </>
         )}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="More message actions"><Ellipsis /></Button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" className={actionClass + ' ml-auto'} aria-label="More message actions"><Ellipsis /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {own && !concealed && <DropdownMenuItem disabled={composeDisabled} onSelect={() => onCompose('edit', post, latest.parsed.body)}>Edit</DropdownMenuItem>}
             {!concealed && versions.length > 0 && <DropdownMenuItem onSelect={() => setDialog('history')}>Edit history</DropdownMenuItem>}

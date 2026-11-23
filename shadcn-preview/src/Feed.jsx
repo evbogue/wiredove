@@ -135,7 +135,7 @@ export function Feed({ hash, name }) {
               <FieldLabel htmlFor="post-body" className={composition ? undefined : 'sr-only'}>
                 {composition?.kind === 'edit' ? 'Edit message' : composition ? 'Reply to ' + authorName(composition.post) : 'Message'}
               </FieldLabel>
-              <Textarea id="post-body" ref={textarea} value={body}
+              <Textarea id="post-body" className="bg-muted dark:bg-muted" ref={textarea} value={body}
                 onChange={event => (composition ? setActionBody : setDraft)(event.target.value)}
                 placeholder="Write a post…" rows={3} maxLength={16000} disabled={busy === 'publish'} />
             </Field>
