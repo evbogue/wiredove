@@ -150,8 +150,8 @@ alias file during releases so old links retain their destinations. The full
 alias and extends the new prefix by one character at a time on collision.
 
 Public pages work with JavaScript disabled. They use a locally available
-signed AndFS image for the preview when eligible and use the Wiredove logo
-otherwise. The app begins local sync only after the reader chooses to enter
+signed AndFS image for the preview when eligible and use the same Lucide
+bird as the prototype otherwise. The app begins local sync only after the reader chooses to enter
 from the public page. The consent screen offers optional identity setup.
 
 The shadcn preview can use the same public share server by starting Vite

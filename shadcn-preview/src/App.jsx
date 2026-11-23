@@ -1,5 +1,6 @@
+import { birdPaths } from '../../client/ui/wiredove-bird.js'
 import { useEffect, useState } from 'react'
-import { Bird, FolderGit2, MessagesSquare, PanelsTopLeft, X } from 'lucide-react'
+import { createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
@@ -11,6 +12,8 @@ import { useHash, usePreference } from './hooks/use-preview-state'
 import { readPublicIdentity } from './social'
 import { Profile } from './Profile'
 import { Repository } from './Workspace'
+
+const Bird = createLucideIcon('Bird', birdPaths.map(d => ['path', { d, key: d }]))
 
 function WorkspaceSidebar({ repository, profile }) {
   const { setOpenMobile } = useSidebar()

@@ -1,0 +1,20 @@
+:root {
+  --wiredove-light-background: #f4f3f0;
+  --wiredove-light-foreground: #302f2c;
+  --wiredove-light-card: #fffdf9;
+  --wiredove-light-muted: #efede8;
+  --wiredove-light-muted-foreground: #66635d;
+  --wiredove-light-border: #dedbd4;
+  --wiredove-light-sidebar: #eae8e3;
+  --wiredove-light-primary: #34332e;
+  --wiredove-light-primary-foreground: #faf8f4;
+  --wiredove-dark-background: #222220;
+  --wiredove-dark-foreground: #dcdad5;
+  --wiredove-dark-card: #2b2b29;
+  --wiredove-dark-muted: #30302e;
+  --wiredove-dark-muted-foreground: #aaa8a3;
+  --wiredove-dark-border: #393936;
+  --wiredove-dark-sidebar: #191918;
+  --wiredove-dark-primary: #d3d0c9;
+  --wiredove-dark-primary-foreground: #20201f;
+}

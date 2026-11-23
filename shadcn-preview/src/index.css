@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/source-sans-3";
+@import "../../client/ui/share-palette.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -49,22 +50,22 @@
 }
 
 :root {
-    --background: #f4f3f0;
-    --foreground: #302f2c;
-    --card: #fffdf9;
+    --background: var(--wiredove-light-background);
+    --foreground: var(--wiredove-light-foreground);
+    --card: var(--wiredove-light-card);
     --card-foreground: var(--foreground);
     --popover: var(--card);
     --popover-foreground: var(--foreground);
-    --primary: #34332e;
-    --primary-foreground: #faf8f4;
+    --primary: var(--wiredove-light-primary);
+    --primary-foreground: var(--wiredove-light-primary-foreground);
     --secondary: #ebe9e4;
     --secondary-foreground: var(--foreground);
-    --muted: #efede8;
-    --muted-foreground: #66635d;
+    --muted: var(--wiredove-light-muted);
+    --muted-foreground: var(--wiredove-light-muted-foreground);
     --accent: #e7e4de;
     --accent-foreground: var(--foreground);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: #dedbd4;
+    --border: var(--wiredove-light-border);
     --input: #d4d0c8;
     --ring: #78746c;
     --chart-1: oklch(0.87 0 0);
@@ -73,7 +74,7 @@
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
-    --sidebar: #eae8e3;
+    --sidebar: var(--wiredove-light-sidebar);
     --sidebar-foreground: var(--foreground);
     --sidebar-primary: var(--primary);
     --sidebar-primary-foreground: var(--primary-foreground);
@@ -84,22 +85,22 @@
 }
 
 .dark {
-    --background: #222220;
-    --foreground: #dcdad5;
-    --card: #2b2b29;
+    --background: var(--wiredove-dark-background);
+    --foreground: var(--wiredove-dark-foreground);
+    --card: var(--wiredove-dark-card);
     --card-foreground: var(--foreground);
     --popover: #2e2e2c;
     --popover-foreground: var(--foreground);
-    --primary: #d3d0c9;
-    --primary-foreground: #20201f;
+    --primary: var(--wiredove-dark-primary);
+    --primary-foreground: var(--wiredove-dark-primary-foreground);
     --secondary: #30302e;
     --secondary-foreground: var(--foreground);
-    --muted: #30302e;
-    --muted-foreground: #aaa8a3;
+    --muted: var(--wiredove-dark-muted);
+    --muted-foreground: var(--wiredove-dark-muted-foreground);
     --accent: #373735;
     --accent-foreground: var(--foreground);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: #393936;
+    --border: var(--wiredove-dark-border);
     --input: #494843;
     --ring: #929087;
     --chart-1: oklch(0.87 0 0);
@@ -107,7 +108,7 @@
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --sidebar: #191918;
+    --sidebar: var(--wiredove-dark-sidebar);
     --sidebar-foreground: var(--foreground);
     --sidebar-primary: var(--primary);
     --sidebar-primary-foreground: var(--primary-foreground);

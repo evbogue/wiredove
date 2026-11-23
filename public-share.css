@@ -1,3 +1,5 @@
+@import url("/client/ui/share-palette.css");
+
 @font-face {
   font-family: "Source Sans 3";
   src: url("/vendor/source-sans-3/source-sans-3-latin-wght-normal.woff2") format("woff2");
@@ -7,23 +9,25 @@
 
 :root {
   color-scheme: light dark;
-  --background: light-dark(#f4f3f0, #222220);
-  --foreground: light-dark(#302f2c, #dcdad5);
-  --card: light-dark(#fffdf9, #2b2b29);
-  --muted: light-dark(#efede8, #30302e);
-  --muted-foreground: light-dark(#66635d, #aaa8a3);
-  --border: light-dark(#dedbd4, #393936);
-  --bar: light-dark(#eae8e3, #191918);
-  --button: light-dark(#34332e, #d3d0c9);
-  --button-text: light-dark(#faf8f4, #20201f);
+  --background: light-dark(var(--wiredove-light-background), var(--wiredove-dark-background));
+  --foreground: light-dark(var(--wiredove-light-foreground), var(--wiredove-dark-foreground));
+  --card: light-dark(var(--wiredove-light-card), var(--wiredove-dark-card));
+  --muted: light-dark(var(--wiredove-light-muted), var(--wiredove-dark-muted));
+  --muted-foreground: light-dark(var(--wiredove-light-muted-foreground), var(--wiredove-dark-muted-foreground));
+  --border: light-dark(var(--wiredove-light-border), var(--wiredove-dark-border));
+  --bar: light-dark(var(--wiredove-light-sidebar), var(--wiredove-dark-sidebar));
+  --button: light-dark(var(--wiredove-light-primary), var(--wiredove-dark-primary));
+  --button-text: light-dark(var(--wiredove-light-primary-foreground), var(--wiredove-dark-primary-foreground));
   font-family: "Source Sans 3", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--background); color: var(--foreground); }
 .bar { border-bottom: 1px solid var(--border); background: var(--bar); }
-.bar > div { display: flex; min-height: 3rem; align-items: center; justify-content: space-between; padding: 0.25rem 1rem; }
-.bar img { vertical-align: middle; object-fit: contain; }
+.bar > div { display: flex; min-height: 3rem; align-items: center; justify-content: space-between; padding: 0.25rem 0.75rem; }
+.bar-brand { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; }
+.bar-brand svg { width: 1rem; height: 1rem; }
+@media (min-width: 40rem) { .bar > div { padding-inline: 1.5rem; } }
 .button { padding: 0.35rem 0.7rem; border-radius: 0.5rem; background: var(--button); color: var(--button-text); font-weight: 600; text-decoration: none; }
 main { width: min(100%, 42rem); margin-inline: auto; padding: 1rem; display: grid; gap: 1rem; }
 .card { min-width: 0; padding: 0.75rem; border-radius: 0.875rem; background: var(--card); border: 1px solid var(--border); font-size: 0.875rem; }

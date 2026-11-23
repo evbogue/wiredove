@@ -1,8 +1,11 @@
 import { isMessageHash } from '../client/protocol.js'
+import { birdPaths } from '../client/ui/wiredove-bird.js'
 import { human } from '../client/ui/format.js'
 import { parseMessageBody } from '../client/ui/body.js'
 import { safeLinkURL } from '../client/ui/image-source.js'
 
+const bird = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${birdPaths.map(d => `<path d="${d}"/>`).join('')}</svg>`
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char])
@@ -59,7 +62,7 @@ export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, po
   const name = nameOf(post || profile)
   const title = clip(name, 100) + ' on Wiredove'
   const description = clip(textFrom(parseMessageBody((post || profile).parsed?.body)), 200) || title
-  const image = canonicalOrigin + (previewImage?.path || '/dove512x512.png')
+  const image = canonicalOrigin + (previewImage?.path || '/wiredove-share-bird.png')
   const imageAlt = previewImage?.alt || 'Wiredove'
   const app = '/?enter=shared&back=' + encodeURIComponent(returnPath) + '#' + id
   return `<!doctype html>
@@ -72,7 +75,7 @@ export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, po
 <meta property="og:url" content="${escape(canonical)}"><meta property="og:image" content="${image}">
 <meta property="og:image:alt" content="${escape(imageAlt)}"><meta name="twitter:card" content="${previewImage ? 'summary_large_image' : 'summary'}">
 </head><body>
-<header class="bar"><div><img src="/dove_sm.png" width="28" height="28" alt="Wiredove">
+<header class="bar"><div><span class="bar-brand" role="img" aria-label="Wiredove">${bird}</span>
 <a class="button" href="${escape(app)}">Open in Wiredove</a></div></header>
 <main>
 ${post ? `${parent ? '<section aria-label="Parent message"><h2>Parent message</h2>' + card(parent, webID) + '</section>' : ''}${card(post, webID)}`
