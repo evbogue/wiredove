@@ -61,10 +61,9 @@ export default function App() {
         <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-2 border-b bg-sidebar px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-1.5">
             {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
-            <h1 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-              <Bird className="size-4 shrink-0" />
-              <span>Wiredove</span>
-            </h1>
+            <Button asChild variant="ghost" size="icon" className="size-10">
+              <a href="#feed" aria-label="Home" title="Home"><Bird aria-hidden="true" /></a>
+            </Button>
           </div>
           <div className="flex min-w-0 items-center gap-2">
             {!workspace && <Profile {...profile} />}
