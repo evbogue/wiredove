@@ -296,8 +296,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       {route?.kind === 'message' && target && (
         <>
           {parentId && (
-            <section aria-label="Parent message" className="space-y-2">
-              <h3 className="text-xs font-medium text-muted-foreground">Parent message</h3>
+            <section aria-label="Parent message">
               {parent && !blocked(parent.author)
                 ? renderPost(parent, { showParent: false })
                 : <Button asChild variant="ghost" size="sm" className="text-muted-foreground">

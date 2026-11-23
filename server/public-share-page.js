@@ -82,7 +82,7 @@ export function renderSharePage({ canonicalOrigin, canonical, returnPath, id, po
 <header class="bar"><div><span class="bar-brand" role="img" aria-label="Wiredove">${bird}</span>
 <a class="button" href="${escape(app)}" aria-label="App" title="App">${appIcon}</a></div></header>
 <main>
-${post ? `${parent ? '<section aria-label="Parent message"><h2>Parent message</h2>' + card(parent, webID) + '</section>' : ''}${card(post, webID)}`
+${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID) + '</section>' : ''}${card(post, webID)}`
       : `<section class="card profile"><h1>${escape(name)}</h1><p class="key">${escape(id)}</p>
       ${typeof profile.parsed.bio === 'string' ? '<div class="body">' + markdownHTML(parseMessageBody(profile.parsed.bio), webID) + '</div>' : ''}
       </section>${items.map(item => card(item, webID)).join('')}`}

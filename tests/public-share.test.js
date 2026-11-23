@@ -53,6 +53,7 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
   assert(html.includes('<meta property="og:image" content="' + origin + '/media/' + image + '">'))
   assert(html.includes('href="https://example.org/"'))
   assert(html.includes('Parent post'))
+  assert(!html.includes('>Parent message<'))
   assert(html.includes('Author &lt;name&gt;'))
   assert(!html.includes('<script>'))
   assert(html.includes('class="bar-brand"'))
