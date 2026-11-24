@@ -70,6 +70,7 @@ export default defineConfig(({ mode }) => {
     ['/api/application', '/api/git', '/sync/status', '/gossip/poll', '/posts', '/wiredove/image', '/git/']
       .map(path => [path, { target: backend, changeOrigin: true }]),
   )
+  proxy['^/media/[A-Za-z0-9_-]{43}$'] = { target: feedBackend || backend, changeOrigin: true }
 
   if (!feedBackend) {
     proxy['/api/media'] = { target: backend, changeOrigin: true }
