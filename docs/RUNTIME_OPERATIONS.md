@@ -161,3 +161,21 @@ with `WIREDOVE_PREVIEW_SHARE_BACKEND` set to that server's origin. Set
 origin to send App and timestamp links to its hash routes. Configure the
 prototype to read the same archive as the share server. Loopback HTTP is
 supported for local review.
+
+## Standalone shadcn preview
+
+Build the preview from the pinned Wiredove release with
+`WIREDOVE_PREVIEW_SHARE_BACKEND=https://shadcn.anproto.com` and run
+`node serve-preview-node.js` from that release with production Node
+dependencies installed. Set `DATA_DIR` to a dedicated writable directory
+and set `WIREDOVE_PUBLIC_SHARE_ORIGIN` and
+`WIREDOVE_PUBLIC_SHARE_APP_ORIGIN` to `https://shadcn.anproto.com`.
+The application archive and media use this preview's storage. The browser
+can also replicate from its configured peers. An optional
+`WORKSPACE_GIT_UPSTREAM` supplies read-only Workspace Git views.
+
+On evbogue.com, `shadcn-wiredove.service` serves the preview on loopback
+port 8793. The reverse proxy handles public HTTPS. On update, install the
+new source and build under `/opt/shadcn-wiredove-releases/`, then point
+the unit at that release while retaining `/var/lib/shadcn-wiredove`.
+For rollback, restore the previous unit and restart the preview service.
