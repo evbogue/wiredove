@@ -60,6 +60,13 @@ same-post app handoff after sync consent. Deployment configuration and
 alias backups are documented in
 [Runtime operations](../RUNTIME_OPERATIONS.md#enable-public-share-pages).
 
+On 24 November 2026, Chrome verified a PNG post and WAV and WebM replies
+against a disposable local archive. The image loaded and both players
+advanced in the feed and on the public share pages. Interrupting the WebM
+upload left the signed reply and its attachment manifest in browser
+storage. After reload, Retry delivery submitted the original signed bytes
+once and the archive contained one record with that ID.
+
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar
 stays available while reading posts, searching, opening conversations,

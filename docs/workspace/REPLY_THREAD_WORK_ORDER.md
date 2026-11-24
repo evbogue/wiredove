@@ -1,6 +1,6 @@
 # Work order for reply and thread layout
 
-**Status** · Implemented in the preview, awaiting Ev’s review · 22 November 2026
+**Status** · Browser checklist passed, awaiting Ev’s sign-off · 24 November 2026
 
 Revise item 5 of the shadcn preview walkthrough so readers can see which
 message a reply answers in the feed and on a message route. Item 4,
@@ -10,7 +10,9 @@ The preview can already publish replies to the local archive, open direct
 replies by count, and preserve the selected message when switching layouts.
 The compact reply link and connected message route replace the inset parent
 excerpt. Chromium checks at 320px and 1280px covered two siblings, a nested
-reply, layout switches, reload, and missing or blocked parents.
+reply, layout switches, reload, and missing or blocked parents. A 24 November
+Chrome run against a disposable local archive verified all six behavior
+checks below at 320px.
 
 ## Feed and message routes
 
@@ -57,18 +59,18 @@ a disposable archive. The publishing review was served at port 5174 during
 this session. Seed a top-level post, two direct replies, and one nested reply
 if the local fixture is unavailable.
 
-- [ ] In the feed, the reply indicator identifies and opens the parent.
-- [ ] A top-level permalink displays its direct replies as a connected group.
-- [ ] A reply permalink displays its parent, selected reply, and direct
+- [x] In the feed, the reply indicator identifies and opens the parent.
+- [x] A top-level permalink displays its direct replies as a connected group.
+- [x] A reply permalink displays its parent, selected reply, and direct
   children in that order. With a long parent, opening the permalink or
   reloading lands on the selected reply. Switching layouts preserves the URL
   and keeps focus on the view switch.
-- [ ] Reply opens and focuses the field beneath the tapped card. Cancel
+- [x] Reply opens and focuses the field beneath the tapped card. Cancel
   returns focus to Reply and leaves the feed draft intact.
-- [ ] At phone width, the thread line and shallow indent leave the cards
+- [x] At phone width, the thread line and shallow indent leave the cards
   readable. The reply count expands and collapses a deeper branch without
   changing the selected message URL.
-- [ ] Hidden, muted, blocked, or missing parents keep the selected reply
+- [x] Hidden, muted, blocked, or missing parents keep the selected reply
   readable and do not reveal the parent’s body.
 - [ ] Ev reviews and signs off on item 5 before work moves to item 6,
   sharing and author links.
