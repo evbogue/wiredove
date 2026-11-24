@@ -1,7 +1,7 @@
 import { human } from '../../client/ui/format.js'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Ellipsis, MessageSquare } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -13,16 +13,16 @@ import { ShareLink } from './ShareLink'
 const actionClass = 'max-sm:px-1.5 text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export function PostCard({ post, replyContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
+export function PostCard({ post, profile, replyContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
-  const author = authorName(post)
+  const author = profile?.name?.value || authorName(post)
   const latest = versions[0] || post
   const concealed = blocked || muted || hidden
   return (
     <Card size="sm" className={selected ? "min-w-0 gap-2 ring-muted-foreground/40" : "min-w-0 gap-2"}>
       <CardHeader className="flex items-start gap-3">
         <Button asChild variant="ghost" size="icon" className="shrink-0" aria-label={`Profile for ${author}`}>
-          <a href={socialHref(post.author)}><Avatar><AvatarFallback>{Array.from(author).slice(0, 2).join('').toUpperCase()}</AvatarFallback></Avatar></a>
+          <a href={socialHref(post.author)}><AuthorAvatar name={author} image={concealed ? undefined : profile?.image?.value ?? post.parsed.image} /></a>
         </Button>
         <div className="min-w-0 flex-1">
           <CardTitle className="break-all"><a className="hover:underline focus-visible:underline" href={socialHref(post.author)}>{author}</a></CardTitle>

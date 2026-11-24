@@ -43,6 +43,10 @@ message actions, direct reply threads, permalinks, text edits, and
 preview-local moderation. Profile can generate a signing identity, download a
 Wiredove backup, and validate and restore it within the preview database.
 Social profile and message links now share the bare Wiredove hash format.
+The pubkey view shows the latest verified profile photo, name, bio and links
+above the author's posts. Verified profile-only records can populate the view
+before an author has posted. Feed and profile avatars load when visible and
+use the preview's verified AndFS and historical APDS image readers.
 The preview can read the hosted Wiredove poll through a GET-only proxy.
 The browser polls automatically while the tab is visible, resumes from
 the last verified cursor, and deduplicates by message ID. Hosted feed review keeps publishing disabled. Preview post and

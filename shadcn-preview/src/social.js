@@ -6,6 +6,7 @@ import { createBrowserStore } from '../../client/runtime/browser-store.js'
 import { createProtocol } from '../../client/protocol.js'
 import { an } from '../../vendor/anproto/an.js'
 import { yaml } from '../../vendor/apds/yaml.js'
+import { mergeAuthorProfile } from './author-profiles'
 
 const databaseName = hosted => 'wiredove-shadcn-preview-' + (hosted ? 'hosted' : 'archive')
 export const protocol = createProtocol({ an, yaml })
@@ -20,10 +21,12 @@ async function readJSON(url, signal) {
 
 export const remotePreviewFeed = import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED
 
+// A new checkpoint replays verified history to index profile-only updates.
+const checkpointKey = 'checkpoint-with-profiles'
 const feedCache = createBrowserStore(databaseName(remotePreviewFeed || import.meta.env.VITE_WIREDOVE_HOSTED === '1') + ':feed')
 
 export async function readStoredFeed() {
-  return feedCache.get('checkpoint')
+  return await feedCache.get(checkpointKey) || await feedCache.get('checkpoint')
 }
 
 export function isFeedPost(parsed) {
@@ -32,9 +35,11 @@ export function isFeedPost(parsed) {
 }
 
 export async function readFeed(hosted, signal, previous) {
+  if (!previous?.profiles) previous = undefined
   const polls = hosted || remotePreviewFeed
   const posts = new Map(previous?.posts.map(post => [post.id, post]))
   const authors = new Set(previous?.authors)
+  const profiles = new Map(previous?.profiles)
   const path = remotePreviewFeed ? '/api/preview-feed' : hosted ? '/gossip/poll' : '/api/application'
   let cursor = previous?.cursor ?? 0
   while (true) {
@@ -62,13 +67,14 @@ export async function readFeed(hosted, signal, previous) {
       if (!post || (!polls && post.id !== id)) continue
       if (posts.has(post.id)) continue
       authors.add(post.author)
+      mergeAuthorProfile(profiles, post)
       if (!isFeedPost(post.parsed)) continue
       posts.set(post.id, post)
     }
     if (!more) {
       if (previous?.cursor === next) return previous
-      const snapshot = { posts: [...posts.values()].sort(newestFirst), authors, cursor: next }
-      await feedCache.set('checkpoint', snapshot).catch(() => {})
+      const snapshot = { posts: [...posts.values()].sort(newestFirst), authors, profiles, cursor: next }
+      await feedCache.set(checkpointKey, snapshot).catch(() => {})
       return snapshot
     }
     cursor = next

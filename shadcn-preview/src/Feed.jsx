@@ -15,7 +15,8 @@ import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, readFeed
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostCard } from './PostCard'
-import { ShareLink } from './ShareLink'
+import { AuthorProfile } from './AuthorProfile'
+import { mergeAuthorProfile } from './author-profiles'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
 import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady, requestHash, startPeerSync, subscribePeerPosts, subscribePeerRequest } from './peer-sync'
 
@@ -69,6 +70,13 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
     return indexMessages([...local, ...confirmed, ...synchronized])
   }, [feed.posts, localPost, peerPosts, sentReplies])
   const authors = useMemo(() => new Set([...feed.authors, ...peerPosts.map(post => post.author)]), [feed.authors, peerPosts])
+  const profiles = useMemo(() => {
+    const merged = new Map(feed.profiles)
+    if (!feed.profiles) for (const post of feed.posts) mergeAuthorProfile(merged, post)
+    for (const post of peerPosts) mergeAuthorProfile(merged, post)
+    if (localPost) mergeAuthorProfile(merged, localPost)
+    return merged
+  }, [feed.profiles, feed.posts, peerPosts, localPost])
   const route = socialRoute(hash, messages, authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
   const parentId = target && replyParentId(target)
@@ -77,7 +85,10 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
   const threadRows = target ? collectThreadRows(target, parent, expandedBranches, visibleReplies) : []
   const threadIds = new Set(threadRows.map(row => row.post.id))
   const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
-  const missingId = route?.id && (route.kind === 'author' ? !authorPosts.length : !target) ? route.id : null
+  const profile = route?.kind === 'author' ? profiles.get(route.id) : null
+  const missingId = route?.id && (route.kind === 'author'
+    ? !blocked(route.id) && route.id !== identity && !authors.has(route.id) && !authorPosts.length
+    : !target) ? route.id : null
   const missingParent = parentId && !parent && !moderation.hidden?.includes(parentId) ? parentId : null
 
   useEffect(() => {
@@ -100,7 +111,6 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
     void requestHash(missingId, { retry: true }).catch(() => setLookup({ id: missingId, state: 'error' }))
   }
 
-  const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const latestReply = sentReplies.at(-1)
   const pagedView = !route ? 'feed' : route.kind === 'author' ? 'author:' + route.id : null
   const pageablePosts = !route ? (recentReady ? messages.posts.filter(post => !blocked(post.author)) : [])
@@ -191,7 +201,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
     const replyContext = id && { id, author: parentPost && !parentHidden ? authorName(parentPost) : null }
     return (
       <Fragment key={post.id}>
-        <PostCard post={post} replyContext={replyContext} selected={selected} own={post.author === identity}
+        <PostCard post={post} profile={profiles.get(post.author)} replyContext={replyContext} selected={selected} own={post.author === identity}
           versions={messages.edits.get(post.id) || []}
           replyCount={visibleReplies(post).length}
           branchExpanded={expandedBranches.has(post.id)}
@@ -387,9 +397,12 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
       )}
       {!remotePreviewFeed && !route && renderComposer()}
       {!remotePreviewFeed && !inlineStatus && renderDeliveryStatus()}
-      {route ? (
-        <h2 className="break-all font-semibold">{route.kind === 'message' ? 'Thread' : route.kind === 'author' ? currentAuthor || 'Author' : 'Lookup'}</h2>
-      ) : <h2 className="sr-only">Feed</h2>}
+      {route?.kind === 'author'
+        ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)}
+            name={profile?.name?.value || (route.id === identity && name.trim()) ||
+              (authorPosts[0] ? authorName(authorPosts[0]) : route.id.slice(0, 12))}
+            onUnblock={() => toggleModeration('blocked', route.id)} />
+        : <h2 className={route ? 'font-semibold' : 'sr-only'}>{route?.kind === 'message' ? 'Thread' : route ? 'Lookup' : 'Feed'}</h2>}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && (
         <Alert variant="destructive">
@@ -439,18 +452,8 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
           )}
         </>
       )}
-      {route?.kind === 'author' && route.id && (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="min-w-0 break-all text-sm text-muted-foreground">{route.id}</p>
-            {!blocked(route.id) && <ShareLink id={route.id} label="Share profile" variant="outline" />}
-          </div>
-          {blocked(route.id)
-            ? <Button variant="outline" onClick={() => toggleModeration('blocked', route.id)}>Unblock author</Button>
-            : visiblePage.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
-        </>
-      )}
-      {!route && visiblePage.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
+      {(!route || (route.kind === 'author' && !blocked(route.id))) &&
+        visiblePage.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
       {hasMore && (
         <div ref={sentinel} className="flex justify-center">
           <Button variant="outline" onClick={loadMore}>Load more posts</Button>
@@ -471,7 +474,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
           {!online && <Button variant="link" asChild><a href="#peers">Open Peers</a></Button>}
         </Empty>
       )}
-      {!missingId && !loading && !feedError && (route ? (route.kind === 'message' ? !target : !authorPosts.length) : !messages.posts.length) && (
+      {!missingId && !loading && !feedError && (route ? (route.kind === 'message' ? !target : !blocked(route.id) && !authorPosts.length) : !messages.posts.length) && (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon"><MessagesSquare /></EmptyMedia>
