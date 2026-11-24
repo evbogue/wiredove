@@ -52,7 +52,7 @@ delivery visible beside the composer across reload. Reply cards link to their
 parent from the feed. Message routes show the immediate parent above the
 selected reply and group direct children with a shallow thread line. The
 [reply and thread work order](REPLY_THREAD_WORK_ORDER.md) records item 5
-implementation and the remaining review.
+implementation and acceptance.
 
 Share review can opt into public HTML post and profile pages with permanent
 short aliases. The local review uses a read-only hosted feed and tests the

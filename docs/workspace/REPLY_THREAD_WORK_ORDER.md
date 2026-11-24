@@ -1,10 +1,11 @@
 # Work order for reply and thread layout
 
-**Status** · Browser checklist passed, awaiting Ev’s sign-off · 24 November 2026
+**Status** · Complete · 24 November 2026
 
 Revise item 5 of the shadcn preview walkthrough so readers can see which
 message a reply answers in the feed and on a message route. Item 4,
-composer and publishing, has been accepted. Item 5 is awaiting review.
+composer and publishing, has been accepted. Item 5 was closed after Ev delegated acceptance and all six browser checks
+passed on rerun.
 
 The preview can already publish replies to the local archive, open direct
 replies by count, and preserve the selected message when switching layouts.
@@ -72,5 +73,4 @@ if the local fixture is unavailable.
   changing the selected message URL.
 - [x] Hidden, muted, blocked, or missing parents keep the selected reply
   readable and do not reveal the parent’s body.
-- [ ] Ev reviews and signs off on item 5 before work moves to item 6,
-  sharing and author links.
+- [x] Item 5 accepted after the delegated browser review on 24 November 2026.
