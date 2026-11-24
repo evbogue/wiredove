@@ -64,7 +64,7 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
           ? <SidebarMenuButton size="lg" aria-label="Profile">{label}</SidebarMenuButton>
           : <Button variant="ghost" aria-label="Profile" className="min-w-0 max-w-full px-1 sm:px-2">{label}</Button>}
       </DialogTrigger>
-      <DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto" showCloseButton={!busy}>
+      <DialogContent aria-describedby={undefined} showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Profile</DialogTitle>
         </DialogHeader>
