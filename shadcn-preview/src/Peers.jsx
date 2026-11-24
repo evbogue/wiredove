@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { getRelayStatus, makeWs, stopWs } from '../../websocket.js'
-import { getPeers, hasRoom, makeRoom, setPeerEnabled, stopRoom } from '../../gossip.js'
-import { resumeQueue } from '../../network_queue.js'
+import { chan, getPeers, hasRoom, makeRoom, setPeerEnabled, stopRoom } from '../../gossip.js'
+import { getQueueStatusSnapshot, resumeQueue } from '../../network_queue.js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { attachMediaRoom, setMediaRelay } from './peer-media'
 import { preparePeerStorage } from './peer-apds'
 import { usePreference } from './hooks/use-preview-state'
+
+let detachMediaRoom
 
 const defaultRelay = 'wss://pub.wiredove.net/'
 
@@ -22,7 +25,7 @@ function relayAddress(value) {
 }
 
 function connectionSnapshot() {
-  return { room: hasRoom(), peers: getPeers() }
+  return { room: hasRoom(), peers: getPeers(), queue: getQueueStatusSnapshot() }
 }
 
 export default function Peers() {
@@ -60,6 +63,7 @@ export default function Peers() {
     resumeQueue()
     try {
       await makeWs(url, { waitForReady: false, catchUp: true })
+      setMediaRelay(url, true)
     } catch (issue) {
       stopWs(url)
       throw issue
@@ -78,7 +82,12 @@ export default function Peers() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Peers</h1>
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold">Peers</h1>
+        <p className="text-sm text-muted-foreground">
+          {snapshot.queue.total} queued · {snapshot.queue.high} high · {snapshot.queue.normal} normal · {snapshot.queue.low} low
+        </p>
+      </div>
       <Card>
         <CardHeader><CardTitle>WebSocket relays</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -95,7 +104,11 @@ export default function Peers() {
                     </div>
                   </div>
                   <Button size="sm" variant="outline" disabled={pending}
-                    onClick={() => change(() => state.enabled ? stopWs(url) : connect(url))}>
+                    onClick={() => change(() => {
+                      if (!state.enabled) return connect(url)
+                      setMediaRelay(url, false)
+                      stopWs(url)
+                    })}>
                     {state.enabled ? 'Disconnect' : 'Connect'}
                   </Button>
                 </li>
@@ -120,10 +133,15 @@ export default function Peers() {
               {snapshot.room ? `${snapshot.peers.length} connected` : 'Room disconnected'}
             </p>
             <Button size="sm" variant="outline" disabled={pending} onClick={() => change(async () => {
-              if (snapshot.room) return stopRoom()
+              if (snapshot.room) {
+                detachMediaRoom?.()
+                return stopRoom()
+              }
               await preparePeerStorage()
               resumeQueue()
               await makeRoom('wiredovev1')
+              detachMediaRoom?.()
+              detachMediaRoom = attachMediaRoom(chan, () => getPeers().filter(peer => peer.enabled).map(peer => peer.id))
             })}>{snapshot.room ? 'Leave room' : 'Join room'}</Button>
           </div>
           {snapshot.peers.length > 0 && (

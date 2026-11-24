@@ -1,7 +1,7 @@
-import { hostedPreview, openIdentity } from './social'
+import { startPeerSync } from './peer-sync'
 
 export let apds
 
 export async function preparePeerStorage() {
-  apds = await openIdentity(hostedPreview)
+  apds = await startPeerSync()
 }

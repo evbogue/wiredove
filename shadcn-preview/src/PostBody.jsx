@@ -1,7 +1,10 @@
 import { useLayoutEffect, useRef } from 'react'
+import { renderLegacyMedia } from '../../client/ui/legacy-media.js'
 import { disposeMedia, renderAndFSMedia } from '../../client/ui/media-render.js'
 import { andfsImageMetadata, andfsSource, attachmentDisplayBody, DEFAULT_MEDIA_MIME, isAndFSPlayableMedia } from '../../client/andfs.js'
 import { isMessageHash } from '../../client/protocol.js'
+import { fetchPeerMedia } from './peer-media'
+import { resolvePeerImage } from './peer-sync'
 import { previewMediaStore } from './social'
 import { appendFormattedText } from '../../client/ui/body.js'
 import { mediaMime } from '../../client/ui/hash-media.js'
@@ -73,13 +76,15 @@ export function PostBody({ body, attachment }) {
     appendFormattedText(fragment, playable ? attachmentDisplayBody({ ...playable, body }) : body, {
       resolveLink: resolvePostLink,
       hashtags: false,
-      acceptMarkdownImage: src => Boolean(andfsImageMetadata(src) || localBlobURL(src)),
+      acceptMarkdownImage: src => Boolean(andfsImageMetadata(src) || localBlobURL(src) || isMessageHash(src)),
+      resolveImage: resolvePeerImage,
       showUnavailableAlt: true,
-      mediaOptions: { store: previewMediaStore, resolveLocalBlob: localBlobURL },
+      mediaOptions: { store: previewMediaStore, fetchImpl: fetchPeerMedia, resolveLocalBlob: localBlobURL },
     })
     target.replaceChildren(fragment)
+    if (!playable) renderLegacyMedia(attachment, target)
     if (playable) {
-      renderAndFSMedia(playable, target, { store: previewMediaStore })
+      renderAndFSMedia(playable, target, { store: previewMediaStore, fetchImpl: fetchPeerMedia })
       if (playable.type === 'video') {
         const link = target.ownerDocument.createElement('a')
         try { link.href = `${andfsSource(playable, location.origin)}/media/${playable.andfs}` }

@@ -8,7 +8,7 @@ import { an } from '../../vendor/anproto/an.js'
 import { yaml } from '../../vendor/apds/yaml.js'
 
 const databaseName = hosted => 'wiredove-shadcn-preview-' + (hosted ? 'hosted' : 'archive')
-const protocol = createProtocol({ an, yaml })
+export const protocol = createProtocol({ an, yaml })
 const endpoint = new URL('/api/application', location.origin)
 const apdsURL = 'https://esm.sh/gh/evbogue/apds@4934fac/apds.js'
 

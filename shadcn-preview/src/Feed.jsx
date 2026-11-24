@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { MessagesSquare } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,6 +15,8 @@ import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostCard } from './PostCard'
 import { ShareLink } from './ShareLink'
+import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
+import { announcePeerPost, mirrorArchive, peerPostsSnapshot, requestHash, startPeerSync, subscribePeerPosts, subscribePeerRequest } from './peer-sync'
 
 const feedPollInterval = 10000
 
@@ -42,15 +44,30 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const selectedReply = useRef(null)
   const sentReply = useRef(null)
   const feedCheckpoint = useRef(null)
+  const peerPosts = useSyncExternalStore(subscribePeerPosts, peerPostsSnapshot)
+  const [lookup, setLookup] = useState(null)
+  const [online, setOnline] = useState(false)
+
+  useEffect(() => {
+    void startPeerSync().catch(() => {})
+    const update = ({ wsReady, gossipReady }) => setOnline(wsReady || gossipReady)
+    update(getQueueStatusSnapshot())
+    return subscribeQueueStatus(update)
+  }, [])
   const moderation = JSON.parse(policy)
   const messages = useMemo(() => {
     const archived = new Set(feed.posts.map(post => post.id))
+    const synchronized = [...feed.posts, ...peerPosts.filter(post => !archived.has(post.id))
+      .filter(post => typeof post.parsed.body === 'string' || post.parsed.andfs)]
+      .sort((a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id))
+    synchronized.forEach(post => archived.add(post.id))
     const confirmed = sentReplies.filter(post => !archived.has(post.id)).reverse()
     const local = localPost && !archived.has(localPost.id) && !confirmed.some(post => post.id === localPost.id)
       ? [localPost] : []
-    return indexMessages([...local, ...confirmed, ...feed.posts])
-  }, [feed.posts, localPost, sentReplies])
-  const route = socialRoute(hash, messages, feed.authors, identity)
+    return indexMessages([...local, ...confirmed, ...synchronized])
+  }, [feed.posts, localPost, peerPosts, sentReplies])
+  const authors = useMemo(() => new Set([...feed.authors, ...peerPosts.map(post => post.author)]), [feed.authors, peerPosts])
+  const route = socialRoute(hash, messages, authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
   const parentId = target && replyParentId(target)
   const selectedReplyId = loaded && parentId ? target.id : null
@@ -58,6 +75,29 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const threadRows = target ? collectThreadRows(target, parent, expandedBranches, visibleReplies) : []
   const threadIds = new Set(threadRows.map(row => row.post.id))
   const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
+  const missingId = route?.id && (route.kind === 'author' ? !authorPosts.length : !target) ? route.id : null
+  const missingParent = parentId && !parent && !moderation.hidden?.includes(parentId) ? parentId : null
+
+  useEffect(() => {
+    if (!missingId) return
+    let sent = false
+    const stop = subscribePeerRequest(missingId, ({ state }) => {
+      if (state === 'requested' || state === 'queued') sent = true
+      setLookup({ id: missingId, state: state === 'idle' && sent ? 'timeout' : state })
+    })
+    void requestHash(missingId).catch(() => setLookup({ id: missingId, state: 'error' }))
+    return stop
+  }, [missingId])
+
+  useEffect(() => {
+    if (missingParent) void requestHash(missingParent).catch(() => {})
+  }, [missingParent])
+
+  function retryLookup() {
+    setLookup({ id: missingId, state: 'queued' })
+    void requestHash(missingId, { retry: true }).catch(() => setLookup({ id: missingId, state: 'error' }))
+  }
+
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const latestReply = sentReplies.at(-1)
   const feedPosts = route ? [] : messages.posts.filter(post => !blocked(post.author)).slice(0, 50)
@@ -189,6 +229,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           if (cached && !controller.signal.aborted) {
             feedCheckpoint.current = cached
             setFeed(cached)
+            void mirrorArchive(cached.posts)
             setLoaded(true)
           }
         }
@@ -196,6 +237,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
         if (!controller.signal.aborted) {
           feedCheckpoint.current = value
           setFeed(value)
+          void mirrorArchive(value.posts)
           setFeedError('')
         }
       } catch (error) {
@@ -258,9 +300,12 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           setExpandedBranches(previous => new Set(previous).add(replyParentId(reply)))
         }
         const target = result.target || (editing ? post.id : result.id)
-        if (!waiting) toast.success('Published', {
-          action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
-        })
+        if (!waiting) {
+          if (online) announcePeerPost(result)
+          toast.success('Published', {
+            action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
+          })
+        }
       }
     } catch (error) {
       setNotice({ message: error.message, postId: context?.post.id || pending?.postId })
@@ -393,7 +438,22 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
         </>
       )}
       {!route && feedPosts.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
-      {!loading && !feedError && (route ? (route.kind === 'message' ? !target : !authorPosts.length) : !messages.posts.length) && (
+      {missingId && (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><MessagesSquare /></EmptyMedia>
+            <EmptyTitle>Looking up {route.kind === 'author' ? 'profile' : 'record'}</EmptyTitle>
+            <EmptyDescription role="status">
+              {lookup?.id === missingId && lookup.state === 'timeout' ? 'No peer answered this request.' :
+                lookup?.id === missingId && lookup.state === 'error' ? 'Peer lookup is unavailable.' :
+                  !online ? 'Waiting for a peer connection.' : 'Requesting from peers…'}
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button variant="outline" onClick={retryLookup}>Retry lookup</Button>
+          {!online && <Button variant="link" asChild><a href="#peers">Open Peers</a></Button>}
+        </Empty>
+      )}
+      {!missingId && !loading && !feedError && (route ? (route.kind === 'message' ? !target : !authorPosts.length) : !messages.posts.length) && (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon"><MessagesSquare /></EmptyMedia>

@@ -75,12 +75,17 @@ export default defineConfig(({ mode }) => {
   if (!feedBackend) {
     proxy['/api/media'] = { target: backend, changeOrigin: true }
     proxy['^/blobs/[A-Za-z0-9_-]{43}$'] = { target: backend, changeOrigin: true }
+    proxy['^/blobs/anblob(?::|%3[Aa])v1(?::|%3[Aa])(?:raw|chunked)(?::|%3[Aa])sha256(?::|%3[Aa])[A-Za-z0-9_-]{43}$'] = {
+      target: backend,
+      changeOrigin: true,
+      bypass: request => ['GET', 'HEAD'].includes(request.method) ? undefined : false,
+    }
   }
   if (shareBackend) proxy['/api/share'] = { target: shareBackend, changeOrigin: true }
 
   const transportFiles = [
     'websocket.js', 'gossip.js', 'network_queue.js', 'moderation.js',
-    'adaptive_concurrency.js', 'perf.js', 'trystero-torrent.min.js',
+    'adaptive_concurrency.js', 'perf.js', 'trystero-torrent.min.js', 'anproto_blob.js',
   ]
 
   return {

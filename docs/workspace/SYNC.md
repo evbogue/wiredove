@@ -23,6 +23,28 @@ enable and disable each relay, and shows connection and poll status. It also
 controls the Trystero room and lets users pause individual peers. These
 transport controls belong to the website session.
 
+## shadcn preview peer replication
+
+The preview shares the Wiredove queue across Social and Workspace. Opening
+an uncached post requests its signature and the content hash named by that
+signature. The preview verifies the pair before indexing it and retains
+verified records for offline use. The open record and parent use high
+priority, visible legacy APDS images use normal priority, and author
+backfill follows up to 32 previous links at low priority. The Peers page
+shows the pending counts. Archive polling continues to discover records
+independently of peer availability.
+
+AndFS playback checks the browser cache, the recorded HTTP source,
+enabled relay HTTP endpoints, and compatible Trystero peers. Received
+manifests and chunks retain the original AndFS hashes. Existing historical
+anblob records use their HTTP reader.
+
+Local acceptance on 24 November 2026 opened a post and parent through a
+disposable APDS WebSocket with polling blocked. Two Chrome contexts using a
+local tracker fixture established Trystero data channels and transferred a
+signed post and its AndFS image with HTTP block access blocked. Both cases
+reopened after disconnecting and blocking archive reads.
+
 ## Migration boundary
 
 Keep one Wiredove application session for both views, with shared identity,
