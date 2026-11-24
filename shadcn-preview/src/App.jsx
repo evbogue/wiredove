@@ -61,6 +61,10 @@ export default function App() {
     return () => { active = false }
   }, [])
   const profile = { name, setName, theme, setTheme, identity, identityError, setIdentity }
+  useEffect(() => {
+    void import('./peer-connections').then(({ startDefaultPeers }) => startDefaultPeers())
+      .catch(error => console.warn('Default peer connections could not be loaded', error))
+  }, [])
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark') }, [theme])
 
   return (

@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react'
-import { getRelayStatus, makeWs, stopWs } from '../../websocket.js'
-import { chan, getPeers, hasRoom, makeRoom, setPeerEnabled, stopRoom } from '../../gossip.js'
-import { getQueueStatusSnapshot, resumeQueue } from '../../network_queue.js'
+import { getRelayStatus } from '../../websocket.js'
+import { getPeers, hasRoom, setPeerEnabled } from '../../gossip.js'
+import { getQueueStatusSnapshot } from '../../network_queue.js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { attachMediaRoom, setMediaRelay } from './peer-media'
-import { preparePeerStorage } from './peer-apds'
+import { defaultRelay, setRelayEnabled, setRoomEnabled } from './peer-connections'
 import { usePreference } from './hooks/use-preview-state'
-
-let detachMediaRoom
-
-const defaultRelay = 'wss://pub.wiredove.net/'
 
 function relayAddress(value) {
   const address = value.trim()
@@ -58,18 +53,6 @@ export default function Peers() {
     }
   }
 
-  async function connect(url) {
-    await preparePeerStorage()
-    resumeQueue()
-    try {
-      await makeWs(url, { waitForReady: false, catchUp: true })
-      setMediaRelay(url, true)
-    } catch (issue) {
-      stopWs(url)
-      throw issue
-    }
-  }
-
   function addRelay(event) {
     event.preventDefault()
     void change(() => {
@@ -104,11 +87,7 @@ export default function Peers() {
                     </div>
                   </div>
                   <Button size="sm" variant="outline" disabled={pending}
-                    onClick={() => change(() => {
-                      if (!state.enabled) return connect(url)
-                      setMediaRelay(url, false)
-                      stopWs(url)
-                    })}>
+                    onClick={() => change(() => setRelayEnabled(url, !state.enabled))}>
                     {state.enabled ? 'Disconnect' : 'Connect'}
                   </Button>
                 </li>
@@ -132,17 +111,10 @@ export default function Peers() {
             <p className="text-sm text-muted-foreground">
               {snapshot.room ? `${snapshot.peers.length} connected` : 'Room disconnected'}
             </p>
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => change(async () => {
-              if (snapshot.room) {
-                detachMediaRoom?.()
-                return stopRoom()
-              }
-              await preparePeerStorage()
-              resumeQueue()
-              await makeRoom('wiredovev1')
-              detachMediaRoom?.()
-              detachMediaRoom = attachMediaRoom(chan, () => getPeers().filter(peer => peer.enabled).map(peer => peer.id))
-            })}>{snapshot.room ? 'Leave room' : 'Join room'}</Button>
+            <Button size="sm" variant="outline" disabled={pending}
+              onClick={() => change(() => setRoomEnabled(!snapshot.room))}>
+              {snapshot.room ? 'Leave room' : 'Join room'}
+            </Button>
           </div>
           {snapshot.peers.length > 0 && (
             <ul className="divide-y divide-border">
