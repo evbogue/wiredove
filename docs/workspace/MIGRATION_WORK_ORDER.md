@@ -54,10 +54,14 @@ selected reply and group direct children with a shallow thread line. The
 [reply and thread work order](REPLY_THREAD_WORK_ORDER.md) records item 5
 implementation and acceptance.
 
-Share review can opt into public HTML post and profile pages with permanent
-short aliases. The local review uses a read-only hosted feed and tests the
-same-post app handoff after sync consent. Deployment configuration and
-alias backups are documented in
+Walkthrough item 6, sharing and author links, passed on 24 November 2026.
+Chrome at 320px and 1280px verified that author names and avatars open the
+matching profile and timestamps open the matching post. Post and profile
+share dialogs issued stable short aliases for the corresponding public HTML
+pages. On those pages, **App** returned a fresh browser context to the same
+post or profile in the shadcn preview. The preview resolved both through its
+automatic feed refresh against a disposable local archive. Deployment
+configuration and alias backups are documented in
 [Runtime operations](../RUNTIME_OPERATIONS.md#enable-public-share-pages).
 
 On 24 November 2026, Chrome verified a PNG post and WAV and WebM replies
