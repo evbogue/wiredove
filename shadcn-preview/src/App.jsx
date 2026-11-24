@@ -30,7 +30,7 @@ function WorkspaceSidebar({ repository, profile }) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#feed" onClick={closeDrawer}><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
+            <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#" onClick={closeDrawer}><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
             <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/" onClick={closeDrawer}><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
@@ -69,11 +69,11 @@ export default function App() {
         <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-2 border-b bg-sidebar px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-1.5">
             <Button asChild variant="ghost" size="icon" className="size-10">
-              <a href="#feed" aria-label="Home" title="Home"><Bird aria-hidden="true" /></a>
+              <a href="#" aria-label="Home" title="Home"><Bird aria-hidden="true" /></a>
             </Button>
             {(socialTarget(hash) || peers) && (
               <Button asChild variant="ghost" size="icon" className="size-10">
-                <a href="#feed" aria-label="Back to feed" title="Back to feed"><ArrowLeft aria-hidden="true" /></a>
+                <a href="#" aria-label="Back to feed" title="Back to feed"><ArrowLeft aria-hidden="true" /></a>
               </Button>
             )}
             {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
@@ -107,7 +107,7 @@ export default function App() {
             )}
             {repository && (
               <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-5xl space-y-4 p-4 sm:p-6">
-                {!workspace && <Button asChild variant="outline" size="sm"><a href="#feed"><MessagesSquare /> Feed</a></Button>}
+                {!workspace && <Button asChild variant="outline" size="sm"><a href="#"><MessagesSquare /> Feed</a></Button>}
                 <Repository hash={hash} />
               </section>
             )}

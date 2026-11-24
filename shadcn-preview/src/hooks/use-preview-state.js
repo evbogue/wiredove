@@ -10,7 +10,11 @@ export function usePreference(key, fallback) {
 export function useHash() {
   const [hash, setHash] = useState(() => location.hash.slice(1))
   useEffect(() => {
-    const update = () => setHash(location.hash.slice(1))
+    const update = () => {
+      if (location.hash === '#feed') history.replaceState(history.state, '', '#')
+      setHash(location.hash.slice(1))
+    }
+    if (location.hash === '#feed') update()
     window.addEventListener('hashchange', update)
     return () => window.removeEventListener('hashchange', update)
   }, [])
