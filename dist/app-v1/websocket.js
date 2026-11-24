@@ -100,6 +100,7 @@ const handleIncoming = async (msg, state) => {
     }
     return
   }
+  if (state?.acceptBlob && !await state.acceptBlob(msg)) return
   const author = msg.substring(0, 44)
   if (await isBlockedAuthor(author) || state?.abort.signal.aborted) { return }
   await deliverToRenderers('shouldWe', msg)
@@ -147,7 +148,7 @@ const pollHttp = async state => {
     if (signal.aborted) return
     state.polling = 'Active'
     state.history.lastPollAt = Date.now()
-    if (state.catchUp && polled.messages.length >= 200 && polled.nextSince > state.history.lastSince) delay = 0
+    if (state.catchUp && polled.messages.length >= 200 && polled.nextSince > state.history.lastSince) delay = state.catchUpDelay
     state.history.lastSince = Math.max(state.history.lastSince, polled.nextSince)
   } catch (error) {
     if (!signal.aborted) {
@@ -232,13 +233,13 @@ registerNetworkSenders({
   hasWs
 })
 
-export const makeWs = async (pub, { waitForReady = true, catchUp = false, primary = false, readOnly = false, waitForInitialPoll = false } = {}) => {
+export const makeWs = async (pub, { waitForReady = true, catchUp = false, catchUpDelay = 0, primary = false, readOnly = false, waitForInitialPoll = false, beforePoll, acceptBlob } = {}) => {
   if (connections.has(pub)) return waitForReady ? wsReady : undefined
   if (!readOnly && (primary || !primaryRelay)) primaryRelay = pub
   if (!pollHistory.has(pub)) pollHistory.set(pub, { lastSince: 0, lastPollAt: null })
   const state = {
     delayMs: 1000, timer: null, socket: null, abort: new AbortController(),
-    baseUrl: toHttpBase(pub), catchUp, readOnly, history: pollHistory.get(pub), polling: 'Waiting', pollTimer: null,
+    baseUrl: toHttpBase(pub), catchUp, catchUpDelay, readOnly, acceptBlob, history: pollHistory.get(pub), polling: 'Waiting', pollTimer: null,
   }
   connections.set(pub, state)
   const active = () => connections.get(pub) === state
@@ -306,7 +307,7 @@ export const makeWs = async (pub, { waitForReady = true, catchUp = false, primar
     stopWs(pub)
     throw error
   }
-  const initialPoll = pollHttp(state)
+  const initialPoll = beforePoll ? beforePoll.then(() => pollHttp(state)) : pollHttp(state)
   if (waitForInitialPoll) await initialPoll
   return waitForReady && !httpOnly ? wsReady : undefined
 }

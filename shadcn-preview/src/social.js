@@ -26,6 +26,11 @@ export async function readStoredFeed() {
   return feedCache.get('checkpoint')
 }
 
+export function isFeedPost(parsed) {
+  return !String(parsed?.type || '').startsWith('git-')
+    && ((typeof parsed?.body === 'string' && Boolean(parsed.body.trim())) || isAndFSPlayableMedia(parsed))
+}
+
 export async function readFeed(hosted, signal, previous) {
   const polls = hosted || remotePreviewFeed
   const posts = new Map(previous?.posts.map(post => [post.id, post]))
@@ -57,8 +62,7 @@ export async function readFeed(hosted, signal, previous) {
       if (!post || (!polls && post.id !== id)) continue
       if (posts.has(post.id)) continue
       authors.add(post.author)
-      if (((typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) && !isAndFSPlayableMedia(post.parsed))
-          || String(post.parsed.type || '').startsWith('git-')) continue
+      if (!isFeedPost(post.parsed)) continue
       posts.set(post.id, post)
     }
     if (!more) {

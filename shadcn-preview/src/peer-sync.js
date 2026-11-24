@@ -3,11 +3,19 @@ import { subscribeRenderer } from '../../client/runtime/render-delivery.js'
 import { isMessageHash } from '../../client/protocol.js'
 import { createBrowserStore } from '../../client/runtime/browser-store.js'
 import { an } from '../../vendor/anproto/an.js'
-import { hostedPreview, openIdentity, protocol, remotePreviewFeed } from './social'
+import { hostedPreview, isFeedPost, openIdentity, protocol, remotePreviewFeed } from './social'
 
 const maxRecordBytes = 2 * 1024 * 1024
 const maxPending = 1800
 const historyDepth = 32
+const day = 24 * 60 * 60 * 1000
+const recentLimit = 50
+const legacyImage = /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);base64,/i
+const wantedImages = new Map()
+let recentReady = false
+let publishedRecentReady = false
+let recentFloor = 0
+let priming
 const cache = createBrowserStore('wiredove-shadcn-peer-records-' + (hostedPreview ? 'hosted' : 'archive'))
 const posts = new Map()
 const listeners = new Set()
@@ -24,8 +32,9 @@ function changed() {
   setTimeout(() => {
     publishQueued = false
     snapshot = [...posts.values()].sort((a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id))
+    publishedRecentReady = recentReady
     listeners.forEach(listener => listener())
-  }, 0)
+  }, 250)
 }
 
 export function subscribePeerPosts(listener) {
@@ -35,6 +44,66 @@ export function subscribePeerPosts(listener) {
 
 export function peerPostsSnapshot() {
   return snapshot
+}
+
+export const recentPeerFeedReady = () => publishedRecentReady
+
+export function primePeerFeed(relay) {
+  priming ||= (async () => {
+    if (!relay) return
+    const signal = AbortSignal.timeout(4500)
+    const origin = relay.replace(/^ws/, 'http')
+    const now = Date.now()
+    const checked = new Set()
+    const recentTimestamps = []
+    for (const windowDays of [7, 30]) {
+      let since = now - day * windowDays
+      for (let page = 0; page < 6; page++) {
+        const request = new URL('/gossip/poll', origin)
+        request.searchParams.set('since', since)
+        request.searchParams.set('limit', '200')
+        const response = await fetch(request, { signal, cache: 'no-store' })
+        if (!response.ok) return
+        const { messages, nextSince } = await response.json()
+        if (!Array.isArray(messages) || messages.length > 200 || !Number.isSafeInteger(nextSince)) return
+        const records = []
+        for (let index = 0; index + 1 < messages.length; index++) {
+          const signature = messages[index]
+          const proof = await protocol.open(signature).catch(() => null)
+          if (!proof || blocked(proof.author)) continue
+          const content = messages[index + 1]
+          const post = await protocol.verify(signature, content, { maxBytes: maxRecordBytes }).catch(() => null)
+          if (!post?.parsed || typeof post.parsed !== 'object') continue
+          index++
+          if (checked.has(post.id)) continue
+          checked.add(post.id)
+          records.push(post)
+          if (!post.parsed.edit && isFeedPost(post.parsed)) {
+            recentTimestamps.push(post.timestamp)
+          }
+        }
+        for (const post of records) {
+          if (!posts.has(post.id)) posts.set(post.id, post)
+          void cache.set(post.id, { signature: post.signature, content: post.content }).catch(() => {})
+        }
+        void mirrorArchive(records)
+        if (messages.length < 200 || nextSince <= since) break
+        since = nextSince
+      }
+      if (recentTimestamps.length >= recentLimit) break
+    }
+    recentFloor = recentTimestamps.sort((a, b) => b - a)[recentLimit - 1] || 0
+  })().catch(() => {}).finally(() => {
+    recentReady = true
+    changed()
+  })
+  return priming
+}
+
+export async function acceptPeerBlob(blob) {
+  if (typeof blob !== 'string') return false
+  if (!/^data:(?:image|audio|video)\//i.test(blob)) return true
+  return (wantedImages.get(await an.hash(blob)) || 0) > Date.now()
 }
 
 function remember(map, key, value) {
@@ -67,7 +136,7 @@ async function accept(apds, signature, proof, { cached, retry = false } = {}) {
       lookup.body = proof.contentHash
       lookupListeners.get(target)?.forEach(listener => listener(proof.contentHash))
     }
-    queueSend(proof.contentHash, { priority: request?.priority || 'normal', retry })
+    queueSend(proof.contentHash, { priority: request?.priority || (proof.timestamp < recentFloor ? 'low' : 'normal'), retry })
     return
   }
   const post = await protocol.verify(signature, content, { maxBytes: maxRecordBytes }).catch(() => null)
@@ -105,7 +174,10 @@ async function received(apds, blob) {
   }
   const proof = await protocol.open(blob).catch(() => null)
   if (proof) await accept(apds, blob, proof)
-  if (/^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);base64,/i.test(blob)) completeHashRequest(id)
+  if (legacyImage.test(blob)) {
+    wantedImages.delete(id)
+    completeHashRequest(id)
+  }
 }
 
 export function startPeerSync() {
@@ -171,8 +243,9 @@ export function subscribePeerRequest(id, listener) {
 export async function resolvePeerImage(id, { retry } = {}) {
   const apds = await startPeerSync()
   const value = await apds.get(id)
-  if (typeof value === 'string' && /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);base64,/i.test(value)
+  if (typeof value === 'string' && legacyImage.test(value)
       && await an.hash(value) === id) return value
+  remember(wantedImages, id, Date.now() + 60000)
   queueSend(id, { priority: 'normal', retry })
   return null
 }

@@ -38,7 +38,7 @@ registerNetworkSenders({
   hasGossip: () => enabledPeers(chan).length > 0,
 })
 
-export const makeRoom = async (pubkey) => {
+export const makeRoom = async (pubkey, { acceptBlob } = {}) => {
   if (pubkey && pubkey.length === 44 && await isBlockedAuthor(pubkey)) {
     return roomReady
   }
@@ -62,7 +62,7 @@ export const makeRoom = async (pubkey) => {
     }) 
 
     onBlob(async (blob, id) => {
-      if (!canSync(room, id)) return
+      if (!canSync(room, id) || (acceptBlob && !await acceptBlob(blob))) return
       console.log(`Received: ${blob}`)
       noteReceived(blob)
       const author = blob.substring(0, 44)

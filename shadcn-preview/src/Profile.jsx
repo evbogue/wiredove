@@ -8,11 +8,13 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { SidebarMenuButton } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
+import { requestPreviewReset } from './reset-preview'
 import { socialHref } from './messages'
 import { createPreviewIdentity, downloadPreviewIdentity, importPreviewIdentity } from './social'
 
 export function Profile({ name, setName, theme, setTheme, identity, identityError, setIdentity, onNavigate, inSidebar = false }) {
   const [open, setOpen] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
   const [importing, setImporting] = useState(false)
   const [file, setFile] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -28,6 +30,7 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
   function changeOpen(value) {
     if (busy) return
     cancelImport()
+    setConfirmReset(false)
     setNotice(null)
     setOpen(value)
   }
@@ -113,6 +116,15 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
             </div>
           </form>
         )}
+        {confirmReset ? (
+          <div className="space-y-2 rounded-md border p-3 text-sm">
+            <p>This clears the preview’s identity, drafts, pending posts, preferences, and cached posts and media on this browser. Download your identity backup first if you want to keep it. Posts already shared stay available on the server and peers.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="destructive" size="sm" onClick={() => run(requestPreviewReset, 'Resetting local data…')}>Delete local data</Button>
+              <Button variant="outline" size="sm" onClick={() => setConfirmReset(false)}>Cancel</Button>
+            </div>
+          </div>
+        ) : <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirmReset(true)}>Reset local data</Button>}
         {notice && <Alert role={notice.error ? 'alert' : 'status'} variant={notice.error ? 'destructive' : 'default'}><AlertDescription>{notice.message}</AlertDescription></Alert>}
         <Field orientation="horizontal">
           <Switch id="dark-mode" checked={theme === 'dark'} onCheckedChange={value => setTheme(value ? 'dark' : 'light')} />

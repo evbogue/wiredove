@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
+import { IndexedDBBlobStore } from '../../anproto_blob.js'
 import { renderLegacyMedia } from '../../client/ui/legacy-media.js'
 import { disposeMedia, renderAndFSMedia } from '../../client/ui/media-render.js'
 import { andfsImageMetadata, andfsSource, attachmentDisplayBody, DEFAULT_MEDIA_MIME, isAndFSPlayableMedia } from '../../client/andfs.js'
@@ -8,6 +9,9 @@ import { resolvePeerImage } from './peer-sync'
 import { previewMediaStore } from './social'
 import { appendFormattedText } from '../../client/ui/body.js'
 import { mediaMime } from '../../client/ui/hash-media.js'
+
+let legacyStore
+const mediaOptions = { store: previewMediaStore, fetchImpl: fetchPeerMedia, rootMargin: '0px' }
 
 function resolvePostLink(href) {
   if (/^\/media\/[A-Za-z0-9_-]{43}$/.test(href)) return href
@@ -29,7 +33,7 @@ async function renderLocalBlob(target, url, signal) {
   const status = target.ownerDocument.createElement('span')
   status.setAttribute('role', 'status')
   status.textContent = 'Loading local media…'
-  target.append(status)
+  target.replaceChildren(status)
   try {
     const response = await fetch(url, { signal })
     let mime = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase()
@@ -70,8 +74,16 @@ export function PostBody({ body, attachment }) {
     if (localBlob && !playable) {
       const controller = new AbortController()
       target.replaceChildren()
-      void renderLocalBlob(target, localBlob, controller.signal)
-      return () => controller.abort()
+      const observer = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(entries => {
+        if (!entries.some(entry => entry.isIntersecting)) return
+        observer.disconnect()
+        void renderLocalBlob(target, localBlob, controller.signal)
+      })
+      // Keep a measurable box for a post that consists solely of a blob URL.
+      target.textContent = 'Local media'
+      if (observer) observer.observe(target)
+      else void renderLocalBlob(target, localBlob, controller.signal)
+      return () => { observer?.disconnect(); controller.abort() }
     }
     appendFormattedText(fragment, playable ? attachmentDisplayBody({ ...playable, body }) : body, {
       resolveLink: resolvePostLink,
@@ -79,12 +91,15 @@ export function PostBody({ body, attachment }) {
       acceptMarkdownImage: src => Boolean(andfsImageMetadata(src) || localBlobURL(src) || isMessageHash(src)),
       resolveImage: resolvePeerImage,
       showUnavailableAlt: true,
-      mediaOptions: { store: previewMediaStore, fetchImpl: fetchPeerMedia, resolveLocalBlob: localBlobURL },
+      mediaOptions: { ...mediaOptions, resolveLocalBlob: localBlobURL },
     })
     target.replaceChildren(fragment)
-    if (!playable) renderLegacyMedia(attachment, target)
+    if (!playable && attachment?.blob && ['audio', 'video'].includes(attachment.type)) {
+      legacyStore ||= new IndexedDBBlobStore('wiredove-shadcn-legacy-media')
+      renderLegacyMedia(attachment, target, { store: legacyStore, rootMargin: '0px' })
+    }
     if (playable) {
-      renderAndFSMedia(playable, target, { store: previewMediaStore, fetchImpl: fetchPeerMedia })
+      renderAndFSMedia(playable, target, mediaOptions)
       if (playable.type === 'video') {
         const link = target.ownerDocument.createElement('a')
         try { link.href = `${andfsSource(playable, location.origin)}/media/${playable.andfs}` }

@@ -83,7 +83,7 @@ export const renderAndFSMedia = (yaml, container, options = {}) => {
   else {
     observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) void load();
-    }, { rootMargin: '300px' });
+    }, { rootMargin: options.rootMargin ?? '300px' });
     observer.observe(wrap);
   }
   return true;

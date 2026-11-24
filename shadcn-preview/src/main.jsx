@@ -1,5 +1,8 @@
 import { createRoot } from 'react-dom/client'
-import App from './App'
+import { ResetPreview } from './ResetPreview'
+import { resetRequested } from './reset-preview'
 import './index.css'
 
-createRoot(document.getElementById('root')).render(<App />)
+const root = createRoot(document.getElementById('root'))
+if (resetRequested()) root.render(<ResetPreview />)
+else void import('./App').then(({ default: App }) => root.render(<App />))

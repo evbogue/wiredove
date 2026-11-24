@@ -21,7 +21,7 @@ export const resolveImageSource = async (item, resolveImage, signal, retry = fal
     const verified = await verifiedImageSource(item.src, mediaOptions);
     return signal?.aborted ? null : verified;
   }
-  const direct = safeImageURL(item.src);
+  const direct = safeImageURL(item.src) || mediaOptions.resolveLocalBlob?.(item.src);
   if (direct) return direct;
   if (!isLegacyImage(item.src) || !resolveImage) return null;
   const result = await resolveImage(item.src, { signal, retry });

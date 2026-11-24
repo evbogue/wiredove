@@ -32,12 +32,12 @@
   "client/ui/format.js": "242f297116e9f6379ca59261fc4115acd7329cb337d30bdde1e4a7e1df46658a",
   "client/ui/hash-media.js": "aac7768bb37f82ec4abfacccf17a7c074b9a7906476c83f6b292b77b57ecaa22",
   "client/ui/image-gallery.css": "adfd5bff1760504f6c6ca608f4200acf36f4c22919f6b2cf41747b3a8c4feb3f",
-  "client/ui/image-gallery.js": "5a3651dfbbf033db63c4db9c227acbb388cbbb255d1090502ef8da335ae1bc56",
+  "client/ui/image-gallery.js": "b3e12df5f98f47658ca1e1c5865bbdf60a29223f7ecb42226310fde23244daa7",
   "client/ui/image-popover.js": "f40e331f1f2f38f224a5de363b1f5f19052c9c10f4261cd801fea7000dda8b89",
-  "client/ui/image-source.js": "4098aa302e59df94121af2f972b264b8396edc070a30ab6ad82c89dc64f1779f",
+  "client/ui/image-source.js": "c1b9d0c8567e10b72b358fdd44e0ebf1685036cd45cb52e594248f248d9c907d",
   "client/ui/image-upload.js": "68482b5a7fcad657bbb42a19697b7c3c921762e31d63732ad96ff8b4b5f944de",
-  "client/ui/legacy-media.js": "a7913bb5b3510a6ef3bb42243a64adfcc7e26056432ac1c8c5023816c0db0072",
-  "client/ui/media-render.js": "4ba68203cc6eab5cec927c160d0d777b981792cc8ff35e69f23d17f8af28ebbd",
+  "client/ui/legacy-media.js": "d6628705667f48220ba9baaa480f07b40505a4a640fbdc8166fea7becf197e27",
+  "client/ui/media-render.js": "56d1c677d9546eaa0fe17df363744dde76d6cc8c23e6fa8df5a141751ac9a4a6",
   "client/ui/media.js": "41560e361373c744b1ed47b43463b2c4dff4ec1c6467f30005e83399057e911f",
   "client/ui/message-controls.js": "8e7f9574dcf5b789519ffb3e59b35b28f65bf8d7b8e0734fcd1e3bbd25aec0da",
   "client/ui/message-layout.js": "7b30ffb5ea05e0bd9a8636ccc32603cf8a8f60d55c908358d6492f873705e2ed",
@@ -100,5 +100,5 @@
   "vendor/material-symbols/outlined-v382.ttf": "69b4db8f8971c5206adb2d3891787c33eee828271fa56209e05ee0e3202729dd",
   "vendor/simple-icons/LICENSE.md": "9046848b63a5c92bff14e4accca80bd987e0623b74adf9226ce5198d312b79d5",
   "vendor/simple-icons/paths.js": "6ec5a132e25a110b6f7ed598545d35f1050af21baca315ca1e91eee38db0bf0d",
-  "websocket.js": "64119d54c5ff421799f19cbec4eb6bd1fa27754b342f0b8340f1afc360fef7cc"
+  "websocket.js": "c612f18401fe83c62691e61d4a8e649e39a88c3cc5e54526a801c8f40329817b"
 }

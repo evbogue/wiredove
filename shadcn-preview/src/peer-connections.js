@@ -1,6 +1,7 @@
 import { chan, getPeers, hasRoom, makeRoom, stopRoom } from '../../gossip.js'
 import { resumeQueue } from '../../network_queue.js'
 import { makeWs, stopWs } from '../../websocket.js'
+import { acceptPeerBlob, primePeerFeed } from './peer-sync'
 import { preparePeerStorage } from './peer-apds'
 import { attachMediaRoom, setMediaRelay } from './peer-media'
 
@@ -20,7 +21,7 @@ function savePreference(key, enabled) {
   catch { /* The connection can still be changed for this tab. */ }
 }
 
-async function updateRelay(url, enabled) {
+async function updateRelay(url, enabled, beforePoll) {
   if (!enabled) {
     setMediaRelay(url, false)
     stopWs(url)
@@ -30,7 +31,7 @@ async function updateRelay(url, enabled) {
   await preparePeerStorage()
   resumeQueue()
   try {
-    await makeWs(url, { waitForReady: false, catchUp: true })
+    await makeWs(url, { waitForReady: false, catchUp: true, catchUpDelay: 750, beforePoll, acceptBlob: acceptPeerBlob })
     setMediaRelay(url, true)
   } catch (error) {
     stopWs(url)
@@ -49,7 +50,7 @@ async function updateRoom(enabled) {
   await preparePeerStorage()
   if (hasRoom()) return
   resumeQueue()
-  await makeRoom('wiredovev1')
+  await makeRoom('wiredovev1', { acceptBlob: acceptPeerBlob })
   try {
     detachMediaRoom = attachMediaRoom(chan, () => getPeers().filter(peer => peer.enabled).map(peer => peer.id))
   } catch (error) {
@@ -59,8 +60,11 @@ async function updateRoom(enabled) {
 }
 
 export function startDefaultPeers() {
-  startup ||= Promise.allSettled([
-    defaultEnabled(relayPreference) ? updateRelay(defaultRelay, true) : undefined,
+  if (startup) return startup
+  const enabled = defaultEnabled(relayPreference)
+  const recent = primePeerFeed(enabled ? defaultRelay : null)
+  startup = Promise.allSettled([
+    enabled ? updateRelay(defaultRelay, true, recent) : recent,
     defaultEnabled(roomPreference) ? updateRoom(true) : undefined,
   ]).then(results => {
     for (const result of results) {

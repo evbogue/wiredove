@@ -152,7 +152,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
     if (!IO) { tiles.forEach(tile => tile._load()); return; }
     this._observer = new IO(entries => entries.forEach(entry => {
       if (entry.isIntersecting) { this._observer.unobserve(entry.target); entry.target._load(); }
-    }), { rootMargin: '200px' });
+    }), { rootMargin: this._options.mediaOptions?.rootMargin ?? '200px' });
     tiles.forEach(tile => this._observer.observe(tile));
   }
   refreshSource(hash, src) {

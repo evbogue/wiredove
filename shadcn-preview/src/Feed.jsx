@@ -10,14 +10,14 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePostPages } from './hooks/use-post-pages'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, pendingPost, publishPost, readFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
+import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, readFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostCard } from './PostCard'
 import { ShareLink } from './ShareLink'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
-import { announcePeerPost, mirrorArchive, peerPostsSnapshot, requestHash, startPeerSync, subscribePeerPosts, subscribePeerRequest } from './peer-sync'
+import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady, requestHash, startPeerSync, subscribePeerPosts, subscribePeerRequest } from './peer-sync'
 
 const feedPollInterval = 10000
 
@@ -46,6 +46,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
   const sentReply = useRef(null)
   const feedCheckpoint = useRef(null)
   const peerPosts = useSyncExternalStore(subscribePeerPosts, peerPostsSnapshot)
+  const recentReady = useSyncExternalStore(subscribePeerPosts, recentPeerFeedReady)
   const [lookup, setLookup] = useState(null)
   const [online, setOnline] = useState(false)
 
@@ -59,7 +60,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
   const messages = useMemo(() => {
     const archived = new Set(feed.posts.map(post => post.id))
     const synchronized = [...feed.posts, ...peerPosts.filter(post => !archived.has(post.id))
-      .filter(post => typeof post.parsed.body === 'string' || post.parsed.andfs)]
+      .filter(post => isFeedPost(post.parsed))]
       .sort((a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id))
     synchronized.forEach(post => archived.add(post.id))
     const confirmed = sentReplies.filter(post => !archived.has(post.id)).reverse()
@@ -102,7 +103,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const latestReply = sentReplies.at(-1)
   const pagedView = !route ? 'feed' : route.kind === 'author' ? 'author:' + route.id : null
-  const pageablePosts = !route ? messages.posts.filter(post => !blocked(post.author))
+  const pageablePosts = !route ? (recentReady ? messages.posts.filter(post => !blocked(post.author)) : [])
     : route.kind === 'author' && !blocked(route.id) ? authorPosts : []
   const localIds = new Set([...sentReplies.map(post => post.id), localPost?.id])
   const { posts: visiblePage, pendingCount, hasMore, sentinel, loadMore, showNewPosts } =
@@ -374,7 +375,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
     )
   }
 
-  const loading = !loaded
+  const loading = !loaded || (!route && !recentReady)
   return (
     <div className="space-y-5">
       {!route && pendingCount > 0 && (

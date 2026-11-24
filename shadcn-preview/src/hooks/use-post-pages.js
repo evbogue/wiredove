@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 const pageSize = 25
+const initialLimit = view => view === 'feed' ? 50 : pageSize
 
 function subscribeScroll(listener) {
   window.addEventListener('scroll', listener, { passive: true })
@@ -13,7 +14,7 @@ export function usePostPages(posts, { view, active, localIds }) {
   const [limits, setLimits] = useState(() => new Map())
   const [acceptedThrough, setAcceptedThrough] = useState(null)
   const sentinel = useRef(null)
-  const limit = limits.get(view) ?? pageSize
+  const limit = limits.get(view) ?? initialLimit(view)
   const newest = posts.reduce((time, post) => Math.max(time, post.timestamp), 0)
   const atTop = useSyncExternalStore(subscribeScroll, isAtTop)
   if (active && view === 'feed' && newest
@@ -29,7 +30,7 @@ export function usePostPages(posts, { view, active, localIds }) {
 
   const loadMore = useCallback(() => {
     setLimits(previous => {
-      if ((previous.get(view) ?? pageSize) !== limit) return previous
+      if ((previous.get(view) ?? initialLimit(view)) !== limit) return previous
       return new Map(previous).set(view, limit + pageSize)
     })
   }, [limit, view])
@@ -41,12 +42,19 @@ export function usePostPages(posts, { view, active, localIds }) {
       observer.disconnect()
       loadMore()
     }, { rootMargin: '0px 0px 1200px' })
-    observer.observe(sentinel.current)
-    return () => observer.disconnect()
+    const observe = () => {
+      if (sentinel.current) observer.observe(sentinel.current)
+    }
+    if (window.scrollY > 10) observe()
+    else window.addEventListener('scroll', observe, { passive: true, once: true })
+    return () => {
+      window.removeEventListener('scroll', observe)
+      observer.disconnect()
+    }
   }, [active, hasMore, loadMore])
 
   function showNewPosts() {
-    setLimits(previous => new Map(previous).set(view, (previous.get(view) ?? pageSize) + pending.length))
+    setLimits(previous => new Map(previous).set(view, (previous.get(view) ?? initialLimit(view)) + pending.length))
     setAcceptedThrough(newest)
     window.scrollTo({ top: 0 })
   }
