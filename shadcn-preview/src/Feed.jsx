@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
+import { usePostPages } from './hooks/use-post-pages'
 import { usePreference } from './hooks/use-preview-state'
 import { hostedPreview as hosted, pendingPost, publishPost, readFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
 
@@ -20,7 +21,7 @@ import { announcePeerPost, mirrorArchive, peerPostsSnapshot, requestHash, startP
 
 const feedPollInterval = 10000
 
-export function Feed({ hash, name, identity, onIdentityChange }) {
+export function Feed({ active, hash, name, identity, onIdentityChange }) {
   const [draft, setDraft] = usePreference('draft', '')
   const [draftAttachments, setDraftAttachments] = useState([])
   const [actionAttachments, setActionAttachments] = useState([])
@@ -100,9 +101,13 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
 
   const currentAuthor = authorPosts[0] && authorName(authorPosts[0])
   const latestReply = sentReplies.at(-1)
-  const feedPosts = route ? [] : messages.posts.filter(post => !blocked(post.author)).slice(0, 50)
-  const profilePosts = authorPosts.slice(0, 50)
-  const visiblePosts = target ? [target, parent, ...threadRows.map(row => row.post)] : route?.kind === 'author' ? profilePosts : feedPosts
+  const pagedView = !route ? 'feed' : route.kind === 'author' ? 'author:' + route.id : null
+  const pageablePosts = !route ? messages.posts.filter(post => !blocked(post.author))
+    : route.kind === 'author' && !blocked(route.id) ? authorPosts : []
+  const localIds = new Set([...sentReplies.map(post => post.id), localPost?.id])
+  const { posts: visiblePage, pendingCount, hasMore, sentinel, loadMore, showNewPosts } =
+    usePostPages(pageablePosts, { view: pagedView, active, localIds })
+  const visiblePosts = target ? [target, parent, ...threadRows.map(row => row.post)] : visiblePage
   const visibleIds = new Set(visiblePosts.filter(post => post && !blocked(post.author)).map(post => post.id))
   const placedInline = new Set()
   const repliesByParent = new Map()
@@ -372,6 +377,13 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const loading = !loaded
   return (
     <div className="space-y-5">
+      {!route && pendingCount > 0 && (
+        <div className="sticky top-12 z-10 flex justify-center py-2">
+          <Button size="sm" onClick={showNewPosts}>
+            Show {pendingCount} new {pendingCount === 1 ? 'post' : 'posts'}
+          </Button>
+        </div>
+      )}
       {!remotePreviewFeed && !route && renderComposer()}
       {!remotePreviewFeed && !inlineStatus && renderDeliveryStatus()}
       {route ? (
@@ -434,10 +446,15 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
           </div>
           {blocked(route.id)
             ? <Button variant="outline" onClick={() => toggleModeration('blocked', route.id)}>Unblock author</Button>
-            : profilePosts.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
+            : visiblePage.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
         </>
       )}
-      {!route && feedPosts.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
+      {!route && visiblePage.filter(post => !placedInline.has(post.id)).map(post => renderPost(post))}
+      {hasMore && (
+        <div ref={sentinel} className="flex justify-center">
+          <Button variant="outline" onClick={loadMore}>Load more posts</Button>
+        </div>
+      )}
       {missingId && (
         <Empty className="border">
           <EmptyHeader>
