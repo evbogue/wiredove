@@ -78,15 +78,25 @@ export default defineConfig(({ mode }) => {
   }
   if (shareBackend) proxy['/api/share'] = { target: shareBackend, changeOrigin: true }
 
+  const transportFiles = [
+    'websocket.js', 'gossip.js', 'network_queue.js', 'moderation.js',
+    'adaptive_concurrency.js', 'perf.js', 'trystero-torrent.min.js',
+  ]
+
   return {
     plugins: [react(), tailwindcss(), feedBackend && readOnlyFeedProxy(feedBackend)],
     define: {
       'import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED': JSON.stringify(Boolean(feedBackend)),
       'import.meta.env.WIREDOVE_PREVIEW_SHARE_ORIGIN': JSON.stringify(shareBackend ? new URL(shareBackend).origin : null),
     },
-    resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        apds: fileURLToPath(new URL('./src/peer-apds.js', import.meta.url)),
+      },
+    },
     server: {
-      fs: { allow: ['.', '../client', '../vendor'].map(path => fileURLToPath(new URL(path, import.meta.url))) },
+      fs: { allow: ['.', '../client', '../vendor', ...transportFiles.map(file => '../' + file)].map(path => fileURLToPath(new URL(path, import.meta.url))) },
       proxy,
     },
     preview: { proxy },

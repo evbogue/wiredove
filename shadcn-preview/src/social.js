@@ -86,7 +86,7 @@ const newestFirst = (a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.
 
 export const hostedPreview = import.meta.env.VITE_WIREDOVE_HOSTED === '1'
 let storage
-function openIdentity(hosted) {
+export function openIdentity(hosted) {
   storage ||= (async () => {
     const { apds } = await import(/* @vite-ignore */ apdsURL)
     await apds.start(databaseName(hosted))
