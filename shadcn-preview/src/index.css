@@ -172,6 +172,7 @@
     :is(th, td) { @apply border border-border px-2 py-1; }
     hr { @apply border-border; }
     audio { @apply block w-full max-w-sm; }
+    video { @apply block max-h-[70vh] w-full rounded-lg bg-black; }
     .media-post { @apply space-y-1; }
     .media-status:empty { display: none; }
   }

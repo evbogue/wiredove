@@ -1,4 +1,4 @@
-import { attachmentDisplayBody, isAndFSAudio } from '../client/andfs.js'
+import { attachmentDisplayBody, isAndFSPlayableMedia } from '../client/andfs.js'
 import { isMessageHash } from '../client/protocol.js'
 import { birdPaths } from '../client/ui/wiredove-bird.js'
 import { human } from '../client/ui/format.js'
@@ -59,16 +59,19 @@ function markdownHTML(blocks, webID, imagePaths) {
   }).join('')
 }
 
-function card(post, webID, imagePaths, appHref, audioPaths) {
+function card(post, webID, imagePaths, appHref, playbackPaths) {
   const author = nameOf(post)
   const initials = Array.from(author).slice(0, 2).join('').toUpperCase()
   const date = new Date(post.timestamp)
-  const audio = isAndFSAudio(post.parsed)
-  const audioName = escape(post.parsed.media_name || 'Audio')
-  const path = audioPaths.get(post.id)
-  const player = path ? `<div class="audio"><span>${audioName}</span><audio controls preload="metadata" src="${escape(path)}" aria-label="${audioName}"></audio></div>`
-    : audio ? `<p>${audioName} (Audio unavailable)</p>` : ''
-  const body = audio ? attachmentDisplayBody(post.parsed) : post.parsed.body
+  const playable = isAndFSPlayableMedia(post.parsed)
+  const tag = post.parsed.type === 'video' ? 'video' : 'audio'
+  const kind = tag === 'video' ? 'Video' : 'Audio'
+  const label = escape(post.parsed.media_name || kind)
+  const path = playbackPaths.get(post.id)
+  const inline = tag === 'video' ? ' playsinline' : ''
+  const player = path ? `<div class="playback"><span>${label}</span><${tag} controls${inline} preload="metadata" src="${escape(path)}" aria-label="${label}"></${tag}></div>`
+    : playable ? `<p>${label} (${kind} unavailable)</p>` : ''
+  const body = playable ? attachmentDisplayBody(post.parsed) : post.parsed.body
   return `<article class="card"><header class="card-header">
     <a class="avatar" href="/${webID(post.author)}" aria-label="${escape(author)}">${escape(initials)}</a>
     <div><a class="author" href="/${webID(post.author)}">${escape(author)}</a>
@@ -76,11 +79,11 @@ function card(post, webID, imagePaths, appHref, audioPaths) {
   </header><div class="body">${markdownHTML(parseMessageBody(body), webID, imagePaths)}${player}</div></article>`
 }
 
-export function renderSharePage({ canonicalOrigin, canonical, id, post, profile, parent, items, webID, appHref, previewImage, imagePaths, audioPaths }) {
+export function renderSharePage({ canonicalOrigin, canonical, id, post, profile, parent, items, webID, appHref, previewImage, imagePaths, playbackPaths }) {
   const name = nameOf(post || profile)
   const title = clip(name, 100) + ' on Wiredove'
   const parsed = (post || profile).parsed
-  const body = isAndFSAudio(parsed) ? attachmentDisplayBody(parsed) : parsed.body
+  const body = isAndFSPlayableMedia(parsed) ? attachmentDisplayBody(parsed) : parsed.body
   const description = clip(textFrom(parseMessageBody(body)), 200) || title
   const image = canonicalOrigin + (previewImage?.path || '/wiredove-share-bird.png')
   const imageAlt = altText(previewImage?.alt) || 'Wiredove'
@@ -97,9 +100,9 @@ export function renderSharePage({ canonicalOrigin, canonical, id, post, profile,
 <header class="bar"><div><span class="bar-brand" role="img" aria-label="Wiredove">${bird}</span>
 <a class="button" href="${escape(appHref(id))}" aria-label="App" title="App">${appIcon}</a></div></header>
 <main>
-${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID, imagePaths, appHref, audioPaths) + '</section>' : ''}${card(post, webID, imagePaths, appHref, audioPaths)}`
+${post ? `${parent ? '<section aria-label="Parent message">' + card(parent, webID, imagePaths, appHref, playbackPaths) + '</section>' : ''}${card(post, webID, imagePaths, appHref, playbackPaths)}`
       : `<section class="card profile"><h1>${escape(name)}</h1><p class="key">${escape(id)}</p>
       ${typeof profile.parsed.bio === 'string' ? '<div class="body">' + markdownHTML(parseMessageBody(profile.parsed.bio), webID, imagePaths) + '</div>' : ''}
-      </section>${items.map(item => card(item, webID, imagePaths, appHref, audioPaths)).join('')}`}
+      </section>${items.map(item => card(item, webID, imagePaths, appHref, playbackPaths)).join('')}`}
 </main></body></html>`
 }

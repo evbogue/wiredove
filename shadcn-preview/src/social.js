@@ -1,4 +1,4 @@
-import { createAndFSMediaClient, isAndFSAudio } from '../../client/andfs.js'
+import { createAndFSMediaClient, isAndFSPlayableMedia } from '../../client/andfs.js'
 import { createAndFS } from '../../vendor/andfs/andfs.js'
 import { memoryStore } from '../../vendor/andfs/stores.js'
 import { saveIdentityBackupFile, validateIdentityBackup } from '../../client/core/identity-backup.js'
@@ -52,7 +52,7 @@ export async function readFeed(hosted, signal, previous) {
       if (!post || (!polls && post.id !== id)) continue
       if (posts.has(post.id)) continue
       authors.add(post.author)
-      if (((typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) && !isAndFSAudio(post.parsed))
+      if (((typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) && !isAndFSPlayableMedia(post.parsed))
           || String(post.parsed.type || '').startsWith('git-')) continue
       posts.set(post.id, post)
     }
@@ -153,7 +153,7 @@ const uploadedMedia = new WeakMap()
 async function uploadAttachments(attachments, keypair) {
   const author = keypair.slice(0, 44)
   const images = []
-  let audio
+  let playable
   for (const { file, alt } of attachments) {
     let saved = uploadedMedia.get(file)
     if (saved?.author !== author) {
@@ -168,14 +168,14 @@ async function uploadAttachments(attachments, keypair) {
         throw new Error(`Could not upload ${file.name}. ${error.message}`)
       }
     }
-    if (saved.media.type === 'audio') {
-      audio = saved.media
+    if (saved.media.type !== 'image') {
+      playable = saved.media
       continue
     }
     const label = alt.trim().replace(/[&\\[\]]/g, char => '&#' + char.charCodeAt(0) + ';')
     images.push(`![${label}](${saved.media.media_url})`)
   }
-  return { images: images.join('\n'), audio }
+  return { images: images.join('\n'), playable }
 }
 
 export async function publishPost(hosted, body, name, metadata = {}, editAuthor, attachments = []) {
@@ -190,9 +190,9 @@ export async function publishPost(hosted, body, name, metadata = {}, editAuthor,
     }
     if (attachments.length) {
       if ((await store.get('outbox'))?.length) throw Error('Retry the pending publication before uploading media.')
-      const { images, audio } = await uploadAttachments(attachments, await apds.keypair())
-      body = [body, images, audio?.media_url].filter(Boolean).join('\n\n')
-      if (audio) metadata = { ...metadata, ...audio }
+      const { images, playable } = await uploadAttachments(attachments, await apds.keypair())
+      body = [body, images, playable?.media_url].filter(Boolean).join('\n\n')
+      if (playable) metadata = { ...metadata, ...playable }
     }
     return session.publish(body, { ...metadata, ...(name ? { name } : {}) })
   })

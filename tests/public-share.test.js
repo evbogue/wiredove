@@ -27,7 +27,11 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
   const audio = await protocol.compose(key, 'Audio caption\n\n/#' + audioID, {
     type: 'audio', mime: 'audio/mpeg', andfs: audioID, media_url: '/#' + audioID, media_name: 'Voice & notes.mp3',
   })
-  for (const record of [parent, reply, audio]) {
+  const videoID = 'E'.repeat(43)
+  const video = await protocol.compose(key, '/#' + videoID, {
+    type: 'video', mime: 'video/mp4', andfs: videoID, media_url: '/#' + videoID, media_name: 'Phone clip.mp4',
+  })
+  for (const record of [parent, reply, audio, video]) {
     const response = await archive.handleRequest(new Request(origin + '/api/application', { method: 'POST', body: JSON.stringify(record) }))
     assert.equal(response.status, 200)
   }
@@ -38,6 +42,9 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
     assert.equal(request.method, 'HEAD')
     if (request.url === origin + '/media/' + audioID) {
       return new Response(null, { headers: { 'Content-Type': 'audio/mpeg' } })
+    }
+    if (request.url === origin + '/media/' + videoID) {
+      return new Response(null, { headers: { 'Content-Type': 'video/mp4' } })
     }
     if (request.url !== origin + '/media/' + image) return new Response(null, { status: 404 })
     return new Response(null, { headers: { 'Content-Type': 'image/png' } })
@@ -92,10 +99,16 @@ test('public shares resolve signed content, reserve collision-safe aliases, and 
   assert(audioHTML.includes('<audio controls preload="metadata" src="/media/' + audioID + '" aria-label="Voice &amp; notes.mp3">'))
   assert(audioHTML.includes('Audio caption'))
   assert(!audioHTML.includes('/#' + audioID))
+  const videoHTML = await (await request('/' + webID(video.id))).text()
+  assert(videoHTML.includes('<video controls playsinline preload="metadata" src="/media/' + videoID + '" aria-label="Phone clip.mp4">'))
+  assert(!videoHTML.includes('/#' + videoID))
   share = await createPublicShare({ ...options, readMedia: undefined })
   const unavailableAudio = await (await request('/' + webID(audio.id))).text()
   assert(unavailableAudio.includes('Voice &amp; notes.mp3 (Audio unavailable)'))
   assert(!unavailableAudio.includes('<audio'))
+  const unavailableVideo = await (await request('/' + webID(video.id))).text()
+  assert(unavailableVideo.includes('Phone clip.mp4 (Video unavailable)'))
+  assert(!unavailableVideo.includes('<video'))
 
   const appOrigin = 'http://127.0.0.1:5176'
   share = await createPublicShare({ ...options, appOrigin })

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { disposeMedia, renderAndFSMedia } from '../../client/ui/media-render.js'
-import { andfsImageMetadata, attachmentDisplayBody, isAndFSAudio } from '../../client/andfs.js'
+import { andfsImageMetadata, attachmentDisplayBody, isAndFSPlayableMedia } from '../../client/andfs.js'
 import { isMessageHash } from '../../client/protocol.js'
 import { appendFormattedText } from '../../client/ui/body.js'
 
@@ -14,15 +14,15 @@ export function PostBody({ body, attachment }) {
   useLayoutEffect(() => {
     const target = container.current
     const fragment = target.ownerDocument.createDocumentFragment()
-    const audio = isAndFSAudio(attachment) ? attachment : null
-    appendFormattedText(fragment, audio ? attachmentDisplayBody({ ...audio, body }) : body, {
+    const playable = isAndFSPlayableMedia(attachment) ? attachment : null
+    appendFormattedText(fragment, playable ? attachmentDisplayBody({ ...playable, body }) : body, {
       resolveLink: resolvePostLink,
       hashtags: false,
       acceptMarkdownImage: src => Boolean(andfsImageMetadata(src)),
       showUnavailableAlt: true,
     })
     target.replaceChildren(fragment)
-    if (audio) renderAndFSMedia(audio, target)
+    if (playable) renderAndFSMedia(playable, target)
     return () => disposeMedia(target)
   }, [body, attachment])
 

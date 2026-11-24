@@ -17,9 +17,9 @@ export const DEFAULT_MEDIA_MIME = new Set([
   "video/webm",
 ]);
 
-export function isAndFSAudio(meta) {
-  return meta?.type === 'audio' && typeof meta.andfs === 'string' && /^[A-Za-z0-9_-]{43}$/.test(meta.andfs)
-    && typeof meta.mime === 'string' && meta.mime.startsWith('audio/') && DEFAULT_MEDIA_MIME.has(meta.mime);
+export function isAndFSPlayableMedia(meta) {
+  return (meta?.type === 'audio' || meta?.type === 'video') && typeof meta.andfs === 'string' && /^[A-Za-z0-9_-]{43}$/.test(meta.andfs)
+    && typeof meta.mime === 'string' && meta.mime.startsWith(meta.type + '/') && DEFAULT_MEDIA_MIME.has(meta.mime);
 }
 
 // Creates the exact signed upload metadata shared with evbogue.com's Timeline.

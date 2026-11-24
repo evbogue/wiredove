@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
-import { andfsImageMetadata, isAndFSAudio } from '../client/andfs.js'
+import { andfsImageMetadata, isAndFSPlayableMedia } from '../client/andfs.js'
 import { parseMessageBody } from '../client/ui/body.js'
 import { createProtocol } from '../client/protocol.js'
 import { an } from '../vendor/anproto/an.js'
@@ -73,7 +73,7 @@ export async function createPublicShare({ origin, appOrigin, upstream, dataDir, 
           const author = webID(post.author)
           const current = profiles.get(author)
           if (!current || post.timestamp > current.timestamp) profiles.set(author, post)
-          if ((typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) && !isAndFSAudio(post.parsed)) continue
+          if ((typeof post.parsed?.body !== 'string' || !post.parsed.body.trim()) && !isAndFSPlayableMedia(post.parsed)) continue
           if (typeof post.parsed.edit === 'string') {
             const key = post.parsed.edit + ':' + post.author
             if (!edits.has(key) || post.timestamp > edits.get(key).timestamp) edits.set(key, post)
@@ -189,7 +189,7 @@ export async function createPublicShare({ origin, appOrigin, upstream, dataDir, 
     const paths = new Map()
     const cards = [displayed, displayedParent, ...(displayedItems || [])].filter(Boolean)
     const bodies = cards.map(item => item.parsed.body)
-    const audioPaths = new Map(await Promise.all(cards.filter(item => isAndFSAudio(item.parsed)).map(async item => {
+    const playbackPaths = new Map(await Promise.all(cards.filter(item => isAndFSPlayableMedia(item.parsed)).map(async item => {
       const { andfs, mime } = item.parsed
       return [item.id, await localMediaPath(andfs, contentType => contentType === mime)]
     })))
@@ -200,7 +200,7 @@ export async function createPublicShare({ origin, appOrigin, upstream, dataDir, 
     const previewImage = firstImage && { path: imagePaths.get(firstImage.src), alt: firstImage.alt }
     const html = renderSharePage({ canonicalOrigin, canonical,
       id: signedID(id), post: displayed, profile, parent: displayedParent, items: displayedItems,
-      webID, appHref, previewImage, imagePaths, audioPaths })
+      webID, appHref, previewImage, imagePaths, playbackPaths })
     return new Response(request.method === 'HEAD' ? null : html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
