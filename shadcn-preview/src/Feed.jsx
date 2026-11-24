@@ -9,7 +9,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, pendingPost, publishPost, readConfirmedReply, readFeed, remotePreviewFeed, retryPost } from './social'
+import { hostedPreview as hosted, pendingPost, publishPost, readFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
@@ -29,6 +29,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const [pending, setPending] = useState(null)
   const [notice, setNotice] = useState(null)
   const [expandedBranches, setExpandedBranches] = useState(() => new Set())
+  const [localPost, setLocalPost] = useState(null)
   const [sentReplies, setSentReplies] = useState([])
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -45,8 +46,10 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   const messages = useMemo(() => {
     const archived = new Set(feed.posts.map(post => post.id))
     const confirmed = sentReplies.filter(post => !archived.has(post.id)).reverse()
-    return indexMessages([...confirmed, ...feed.posts])
-  }, [feed.posts, sentReplies])
+    const local = localPost && !archived.has(localPost.id) && !confirmed.some(post => post.id === localPost.id)
+      ? [localPost] : []
+    return indexMessages([...local, ...confirmed, ...feed.posts])
+  }, [feed.posts, localPost, sentReplies])
   const route = socialRoute(hash, messages, feed.authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
   const parentId = target && replyParentId(target)
@@ -164,6 +167,7 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
   useEffect(() => {
     if (remotePreviewFeed) return
     let active = true
+    readPendingPublication(hosted).then(post => { if (active) setLocalPost(post) }).catch(() => {})
     pendingPost(hosted).then(value => { if (active) setPending(value) }).catch(error => {
       if (active) setNotice({ message: error.message })
     })
@@ -180,6 +184,14 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       running = true
       try {
         const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
+        if (!feedCheckpoint.current) {
+          const cached = await readStoredFeed().catch(() => null)
+          if (cached && !controller.signal.aborted) {
+            feedCheckpoint.current = cached
+            setFeed(cached)
+            setLoaded(true)
+          }
+        }
         const value = await readFeed(hosted, signal, feedCheckpoint.current)
         if (!controller.signal.aborted) {
           feedCheckpoint.current = value
@@ -237,14 +249,16 @@ export function Feed({ hash, name, identity, onIdentityChange }) {
       const waiting = result?.relayed === false
       setPending(waiting ? { postId: post?.id || null } : false)
       setAttempt(n => n + 1)
-      if (result && !waiting) {
-        const reply = await readConfirmedReply(result).catch(() => null)
-        if (reply) {
+      if (result) {
+        const local = await readLocalPost(result).catch(() => null)
+        if (local) setLocalPost(local)
+        if (local && !local.parsed.edit && replyParentId(local)) {
+          const reply = local
           setSentReplies(previous => previous.some(post => post.id === reply.id) ? previous : [...previous, reply])
           setExpandedBranches(previous => new Set(previous).add(replyParentId(reply)))
         }
         const target = result.target || (editing ? post.id : result.id)
-        toast.success('Published', {
+        if (!waiting) toast.success('Published', {
           action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
         })
       }

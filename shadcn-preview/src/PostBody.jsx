@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { disposeMedia, renderAndFSMedia } from '../../client/ui/media-render.js'
 import { andfsImageMetadata, attachmentDisplayBody, isAndFSPlayableMedia } from '../../client/andfs.js'
 import { isMessageHash } from '../../client/protocol.js'
+import { previewMediaStore } from './social'
 import { appendFormattedText } from '../../client/ui/body.js'
 
 function resolvePostLink(href) {
@@ -20,9 +21,10 @@ export function PostBody({ body, attachment }) {
       hashtags: false,
       acceptMarkdownImage: src => Boolean(andfsImageMetadata(src)),
       showUnavailableAlt: true,
+      mediaOptions: { store: previewMediaStore },
     })
     target.replaceChildren(fragment)
-    if (playable) renderAndFSMedia(playable, target)
+    if (playable) renderAndFSMedia(playable, target, { store: previewMediaStore })
     return () => disposeMedia(target)
   }, [body, attachment])
 

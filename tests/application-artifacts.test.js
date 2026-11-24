@@ -33,27 +33,32 @@ test('artifact retry preserves exact bytes across restart, blocks another signat
   const store = { get: key => state.get(key), set: (key, value) => state.set(key, structuredClone(value)) }
   const protocol = { keypair: () => keypair, pubkey: () => keypair.slice(0,44), get: key => blobs.get(key), put: (key,value) => blobs.set(key,value), make: async value => blobs.set(await an.hash(value),value), add: async signature => blobs.set(await an.hash(signature),signature), getHashLog: () => [], getOpenedLog: () => [], createYaml: (metadata,body) => JSON.stringify({ ...metadata, body }) }
   let available = false, failStorage = false
-  const writes = []
+  const writes = [], attempts = []
   const fetchImpl = async (_url, options) => {
     if (options.method === 'POST') {
-      if (!available) return new Response(null,{status:503})
+      assert(available, 'Archive must wait for the attachment transfer')
       const record = JSON.parse(options.body); writes.push(record)
       return Response.json({ id: record.id, saved: true })
     }
     return Response.json({ scope: 'backend-archive', records: received, cursor: received.length, more: false })
   }
-  const create = () => createArtifactSession({ protocol, store: { ...store, set: (...args) => { if (failStorage) throw Error('disk full'); return store.set(...args) } }, endpoint: 'http://local/api/application', fetchImpl })
+  const create = () => createArtifactSession({ protocol, store: { ...store, set: (...args) => { if (failStorage) throw Error('disk full'); return store.set(...args) } }, endpoint: 'http://local/api/application', fetchImpl, beforeDeliver: record => {
+    assert(state.get('outbox')?.[0].id === record.id && blobs.has(record.id))
+    attempts.push(record.id)
+    if (!available) throw Error('Attachment transfer unavailable')
+  } })
   let session = create()
   failStorage = true
   await rejects(() => session.publish('must remain a draft'))
   assert(!state.has('outbox') && !blobs.has('previous'))
   failStorage = false
   const result = await session.publish('exact pending bytes')
-  assert(result.saved && !result.relayed && (await session.pending()).length === 1)
+  assert(result.saved && !result.relayed && !writes.length && (await session.pending()).length === 1)
   await rejects(() => session.publish('must not sign twice'))
   await session.stop(); session = create(); available = true
   await session.retry()
   assert(writes.length === 1 && writes[0].signature === result.signature && writes[0].content === result.content)
+  assert(attempts.length === 2 && attempts.every(id => id === result.id))
   assert(!(await session.pending()).length)
   let changes = 0
   const unsubscribe = session.subscribe(() => { changes++ })

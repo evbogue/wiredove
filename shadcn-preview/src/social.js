@@ -1,6 +1,5 @@
 import { createAndFSMediaClient, isAndFSPlayableMedia } from '../../client/andfs.js'
-import { createAndFS } from '../../vendor/andfs/andfs.js'
-import { memoryStore } from '../../vendor/andfs/stores.js'
+import { apdsAndFS, MAX_MANIFEST } from '../../vendor/andfs/andfs.js'
 import { saveIdentityBackupFile, validateIdentityBackup } from '../../client/core/identity-backup.js'
 import { createArtifactSession } from '../../client/runtime/artifact-session.js'
 import { createBrowserStore } from '../../client/runtime/browser-store.js'
@@ -20,6 +19,12 @@ async function readJSON(url, signal) {
 }
 
 export const remotePreviewFeed = import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED
+
+const feedCache = createBrowserStore(databaseName(remotePreviewFeed || import.meta.env.VITE_WIREDOVE_HOSTED === '1') + ':feed')
+
+export async function readStoredFeed() {
+  return feedCache.get('checkpoint')
+}
 
 export async function readFeed(hosted, signal, previous) {
   const polls = hosted || remotePreviewFeed
@@ -58,16 +63,23 @@ export async function readFeed(hosted, signal, previous) {
     }
     if (!more) {
       if (previous?.cursor === next) return previous
-      return { posts: [...posts.values()].sort(newestFirst), authors, cursor: next }
+      const snapshot = { posts: [...posts.values()].sort(newestFirst), authors, cursor: next }
+      await feedCache.set('checkpoint', snapshot).catch(() => {})
+      return snapshot
     }
     cursor = next
   }
 }
 
-export async function readConfirmedReply(record) {
+export async function readLocalPost(record) {
   const post = await protocol.verify(record.signature, record.content)
   if (post.id !== record.id) throw new Error('Publication ID does not match its signature.')
-  return !post.parsed.edit && post.parsed.reply ? post : null
+  return post
+}
+
+export async function readPendingPublication(hosted) {
+  const [record] = await identityStore(hosted).get('outbox') || []
+  return record ? readLocalPost(record) : null
 }
 
 const newestFirst = (a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id)
@@ -134,7 +146,10 @@ async function openWriter(hosted) {
   writer ||= (async () => {
     const apds = await openIdentity(hosted)
     const store = identityStore(hosted)
-    const session = createArtifactSession({ protocol: apds, store, endpoint, anbotSocial: hosted })
+    const session = createArtifactSession({
+      protocol: apds, store, endpoint, anbotSocial: hosted,
+      beforeDeliver: record => deliverMedia(record, store, apds),
+    })
     await session.recover()
     return { apds, session, store }
   })().catch(error => { writer = null; throw error })
@@ -148,32 +163,73 @@ export async function pendingPost(hosted) {
   return { postId: edit || reply || null }
 }
 
-const uploadedMedia = new WeakMap()
+let localFiles
+function openLocalFiles() {
+  return localFiles ||= openIdentity(hostedPreview).then(apdsAndFS).catch(error => {
+    localFiles = undefined
+    throw error
+  })
+}
 
-async function uploadAttachments(attachments, keypair) {
-  const author = keypair.slice(0, 44)
+export const previewMediaStore = {
+  async get(id) {
+    return (await openLocalFiles()).getBlock(id, { maxBytes: MAX_MANIFEST })
+  },
+  async put(id, bytes) {
+    const files = await openLocalFiles()
+    if (await files.putBlock(bytes) !== id) throw Error('Unexpected AndFS block hash')
+  },
+}
+
+const mediaKey = (author, id) => 'media-upload:' + author + ':' + id
+
+async function deliverMedia(record, store, apds) {
+  const author = record.signature.slice(0, 44)
+  const { body, andfs } = await yaml.parse(record.content)
+  const ids = new Set(Array.from((typeof body === 'string' ? body : '').matchAll(/\/#([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/g), match => match[1]))
+  if (andfs) ids.add(andfs)
+  const jobs = []
+  for (const id of ids) {
+    const key = mediaKey(author, id)
+    const media = await store.get(key)
+    if (media) jobs.push({ key, media })
+  }
+  if (!jobs.length) return
+  const files = await openLocalFiles()
+  const keypair = await apds.keypair()
+  const uploader = createAndFSMediaClient({
+    files, signPayload: payload => protocol.signPayload(payload, keypair),
+    fetchImpl: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(60000) }),
+  })
+  for (const { key, media } of jobs) {
+    const bytes = await files.get(media.andfs)
+    await uploader.upload(new File([bytes], media.media_name, { type: media.mime }))
+    await store.delete(key)
+  }
+}
+
+async function saveAttachments(attachments, store, author) {
+  const files = await openLocalFiles()
   const images = []
   let playable
   for (const { file, alt } of attachments) {
-    let saved = uploadedMedia.get(file)
-    if (saved?.author !== author) {
-      try {
-        const uploader = createAndFSMediaClient({
-          files: createAndFS({ store: memoryStore() }),
-          signPayload: payload => protocol.signPayload(payload, keypair),
-        })
-        saved = { author, media: await uploader.upload(file) }
-        uploadedMedia.set(file, saved)
-      } catch (error) {
-        throw new Error(`Could not upload ${file.name}. ${error.message}`)
+    let media
+    try {
+      const { manifestHash } = await files.add(file)
+      media = {
+        type: file.type.split('/')[0], andfs: manifestHash, mime: file.type,
+        media_name: file.name, media_size: file.size, media_url: '/#' + manifestHash,
       }
+      await store.set(mediaKey(author, manifestHash), media)
+    } catch (error) {
+      throw new Error(`Could not save ${file.name}. ${error.message}`)
     }
-    if (saved.media.type !== 'image') {
-      playable = saved.media
+    if (media.type !== 'image') {
+      playable = media
       continue
     }
     const label = alt.trim().replace(/[&\\[\]]/g, char => '&#' + char.charCodeAt(0) + ';')
-    images.push(`![${label}](${saved.media.media_url})`)
+    images.push(`![${label}](${media.media_url})`)
   }
   return { images: images.join('\n'), playable }
 }
@@ -181,16 +237,16 @@ async function uploadAttachments(attachments, keypair) {
 export async function publishPost(hosted, body, name, metadata = {}, editAuthor, attachments = []) {
   return navigator.locks.request(databaseName(hosted), async () => {
     const { apds, session, store } = await openWriter(hosted)
-    const author = await apds.pubkey()
+    let author = await apds.pubkey()
     if (metadata.edit && (!author || author !== editAuthor)) throw new Error('Only the original author can edit this message.')
-    if (!author) await ensureIdentity(apds)
+    if (!author) author = await ensureIdentity(apds)
     if (author && await store.get('identity-needs-pull') === author) {
       await session.pull()
       await store.delete('identity-needs-pull')
     }
     if (attachments.length) {
       if ((await store.get('outbox'))?.length) throw Error('Retry the pending publication before uploading media.')
-      const { images, playable } = await uploadAttachments(attachments, await apds.keypair())
+      const { images, playable } = await saveAttachments(attachments, store, author)
       body = [body, images, playable?.media_url].filter(Boolean).join('\n\n')
       if (playable) metadata = { ...metadata, ...playable }
     }

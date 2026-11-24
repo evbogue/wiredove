@@ -2,7 +2,7 @@ import { an } from '../../vendor/anproto/an.js'
 
 // Transport and storage contracts contain exact signed artifacts. All untrusted
 // backend records are checked before reaching APDS or a renderer.
-export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial = false, legacyImageURL = null, fetchImpl = fetch, receive = async () => {} }) => {
+export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial = false, legacyImageURL = null, fetchImpl = fetch, receive = async () => {}, beforeDeliver = async () => {} }) => {
   const listeners = new Set()
   const changed = () => { for (const listener of listeners) listener() }
   const missingImages = new Map()
@@ -85,6 +85,7 @@ export const createArtifactSession = ({ protocol, store, endpoint, anbotSocial =
   const pending = async () => await store.get('outbox') || []
   const deliver = async record => {
     await ingest(record)
+    await beforeDeliver(record)
     let destination = endpoint
     if (anbotSocial) {
       const { body } = await protocol.parseYaml(record.content)
