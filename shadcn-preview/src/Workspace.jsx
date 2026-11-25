@@ -237,13 +237,52 @@ function CompareForm({ base = '', head = '', href }) {
   </form>
 }
 
-function Patch({ data }) {
+function Patch({ data, showHeading = true }) {
   return <section className="space-y-2">
-    <h2 className="break-all font-semibold">{data.path}</h2>
+    {showHeading && <h2 className="break-all font-semibold">{data.path}</h2>}
     {data.patch?.truncated && <p className="text-sm text-muted-foreground">Showing the beginning of this diff.</p>}
     {data.patch?.text ? <Source label={'Diff for ' + data.path}>{data.patch.text}</Source>
       : <p>{data.file.binary ? 'Binary file changed.' : 'No text changes.'}</p>}
   </section>
+}
+
+function InlineCommitDiff({ repo, commit, file, href }) {
+  const [patch, setPatch] = useState(null)
+  useEffect(() => {
+    if (file.binary) return
+    const controller = new AbortController()
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)])
+    readWorkspaceGit({ repo, kind: 'diff', path: file.path, rev: commit }, { signal })
+      .then(data => {
+        if (signal.aborted) return
+        setPatch(data.revision.commit === commit && data.path === file.path ? { data } : { error: true })
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setPatch({ error: true })
+      })
+    return () => controller.abort()
+  }, [repo, commit, file.path, file.binary])
+
+  return <div className="space-y-2 border-t p-3">
+    {file.binary ? <p>Binary file changed.</p>
+      : patch?.data ? <Patch data={patch.data} showHeading={false} />
+        : <p role="status" className="text-sm text-muted-foreground">{patch?.error ? 'Diff unavailable.' : 'Loading diff…'}</p>}
+    <RepoLink href={href}>Open file diff</RepoLink>
+  </div>
+}
+
+function CommitFile({ file, repo, commit, href, initiallyOpen }) {
+  const [open, setOpen] = useState(initiallyOpen)
+  return <details open={open} onToggle={event => setOpen(event.currentTarget.open)}
+    className="min-w-0 rounded-md border">
+    <summary className="cursor-pointer break-all px-3 py-2 text-sm font-medium">
+      {file.oldPath ? file.oldPath + ' → ' : ''}{file.path}
+      <span className="ml-2 whitespace-nowrap font-normal text-muted-foreground">
+        {file.status} · {file.binary ? 'Binary' : '+' + file.added + ' −' + file.removed}
+      </span>
+    </summary>
+    {open && <InlineCommitDiff repo={repo} commit={commit} file={file} href={href} />}
+  </details>
 }
 
 function RevisionView({ data, request, href, pinned, commitUrl, onDiscuss }) {
@@ -284,7 +323,12 @@ function RevisionView({ data, request, href, pinned, commitUrl, onDiscuss }) {
             {details.parents.map(parent => <RepoLink key={parent} href={href('commit', { rev: parent })}>Parent {parent.slice(0, 12)}</RepoLink>)}
           </div>
         </section>
-        <section><h2 className="font-semibold">Changed files</h2><ChangedFiles files={files} fileHref={path => pinned('diff', path)} /></section>
+        <section className="space-y-2">
+          <h2 className="font-semibold">Changed files</h2>
+          {files.length ? files.map((file, index) => <CommitFile key={commit + ':' + file.path}
+            file={file} repo={request.repo} commit={commit} href={pinned('diff', file.path)} initiallyOpen={index === 0} />)
+            : <p className="text-sm text-muted-foreground">No changed files.</p>}
+        </section>
       </>
     case 'diff':
       return <>

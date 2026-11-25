@@ -21,6 +21,7 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
   const latest = versions[0] || post
   const git = gitCardType(post.parsed)
   const concealed = blocked || muted || hidden
+  const comparePush = post.gitSummary?.count > 1 && post.gitBase && gitCardLinks(post).comparison
   return (
     <Card size="sm" className={selected ? "min-w-0 gap-2 ring-muted-foreground/40" : "min-w-0 gap-2"}>
       <CardHeader className="flex items-start gap-3">
@@ -73,6 +74,7 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
           <DropdownMenuContent align="end">
             {own && !git && !concealed && !readOnly && <DropdownMenuItem disabled={composeDisabled} onSelect={() => onCompose('edit', post, latest.parsed.body)}>Edit</DropdownMenuItem>}
             {!concealed && versions.length > 0 && <DropdownMenuItem onSelect={() => setDialog('history')}>Edit history</DropdownMenuItem>}
+            {!concealed && comparePush && <DropdownMenuItem asChild><a href={comparePush}>Compare push</a></DropdownMenuItem>}
             {!concealed && <DropdownMenuItem onSelect={() => setDialog('raw')}>View signed data</DropdownMenuItem>}
             {!concealed && <DropdownMenuSeparator />}
             {!blocked && !muted && <DropdownMenuItem onSelect={() => onModerate('hidden', post.id)}>{hidden ? 'Unhide message' : 'Hide message'}</DropdownMenuItem>}
@@ -105,7 +107,7 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
 }
 
 function GitCardBody({ post, repoName }) {
-  const { id, repo, repository, revision, comparison } = gitCardLinks(post)
+  const { id, repo, repository, revision } = gitCardLinks(post)
   const { commit, description } = post.parsed
   const ref = revision ? post.parsed.ref : post.gitRef
   const repoDescription = typeof description === 'string' ? description.trim().split(/\r?\n/, 1)[0] : ''
@@ -119,12 +121,12 @@ function GitCardBody({ post, repoName }) {
       </span>}
     </p>
     {!revision && repoDescription && <p className="line-clamp-1 break-words text-sm">{repoDescription}</p>}
-    {revision && <GitCommitList key={post.id} repo={repo} commit={commit} revision={revision} comparison={comparison}
+    {revision && <GitCommitList key={post.id} repo={repo} commit={commit}
       summary={post.gitSummary} />}
   </div>
 }
 
-function GitCommitList({ repo, commit, revision, comparison, summary }) {
+function GitCommitList({ repo, commit, summary }) {
   const [subject, setSubject] = useState('')
   const signedSubject = summary?.recent.find(item => item.hash === commit)?.subject
   useEffect(() => {
@@ -156,7 +158,6 @@ function GitCommitList({ repo, commit, revision, comparison, summary }) {
         <GitCommitRows repo={repo} commits={remaining} />
       </div>
     </details>}
-    <Button asChild variant="outline" size="sm"><a href={comparison || revision}>View changes</a></Button>
   </>
 }
 
