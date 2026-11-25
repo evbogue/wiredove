@@ -481,12 +481,12 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
         ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)} name={profileName}
             onMessage={!remotePreviewFeed && route.id !== identity
               ? event => beginComposition('message', null, '', event, route.id) : undefined}
-            onEdit={!remotePreviewFeed && ownProfilePage && !editingProfile ? openProfileEditor : undefined}
+            onEdit={!remotePreviewFeed && ownProfilePage ? openProfileEditor : undefined}
+            editor={!remotePreviewFeed && editingProfile ? <EditAuthorProfile key={identity} initial={profileEdit}
+              onSave={saveProfile} onCancel={() => setProfileEdit(null)} /> : null}
             messageDisabled={Boolean(busy) || pending !== false}
             onUnblock={() => toggleModeration('blocked', route.id)} />
         : <h2 className={route ? 'font-semibold' : 'sr-only'}>{route?.kind === 'message' ? 'Thread' : route ? 'Lookup' : 'Feed'}</h2>}
-      {!remotePreviewFeed && editingProfile && <EditAuthorProfile key={identity} initial={profileEdit}
-        onSave={saveProfile} onCancel={() => setProfileEdit(null)} />}
       {!remotePreviewFeed && profileMessage && renderComposer(composition)}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && (

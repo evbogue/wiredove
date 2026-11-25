@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { createProfileEditor } from '../../client/ui/profile-editor.js'
 import { resolveImageSource } from '../../client/ui/image-source.js'
 import { fetchPeerMedia } from './peer-media'
@@ -26,7 +25,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel }) {
       },
     })
     editor.current = widget
-    mount.current.replaceChildren(widget.fields, widget.photo)
+    mount.current.replaceChildren(widget.photo, widget.fields)
     widget.nameInput.focus()
     if (initial.image) {
       void resolveImageSource({ src: initial.image }, resolvePeerImage, controller.signal, false, mediaOptions)
@@ -58,18 +57,14 @@ export function EditAuthorProfile({ initial, onSave, onCancel }) {
   }
 
   return (
-    <Card>
-      <CardContent>
-        <form className="preview-profile-editor space-y-4" onSubmit={save}>
-          <h2 className="font-semibold">Edit profile</h2>
-          <div ref={mount} className="space-y-4" />
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <div className="flex gap-2">
-            <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</Button>
-            <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+    <form className="preview-profile-editor space-y-4" onSubmit={save}>
+      <h1 className="text-2xl font-semibold leading-tight">Edit profile</h1>
+      <div ref={mount} className="space-y-4" />
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</Button>
+        <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
   )
 }
