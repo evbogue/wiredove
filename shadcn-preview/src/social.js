@@ -36,7 +36,7 @@ export function isFeedPost(parsed) {
 }
 
 export async function readFeed(hosted, signal, previous) {
-  if (!previous?.profiles) previous = undefined
+  if (previous?.version !== 2) previous = undefined
   const polls = hosted || remotePreviewFeed
   const posts = new Map(previous?.posts.map(post => [post.id, post]))
   const authors = new Set(previous?.authors)
@@ -74,7 +74,7 @@ export async function readFeed(hosted, signal, previous) {
     }
     if (!more) {
       if (previous?.cursor === next) return previous
-      const snapshot = { posts: [...posts.values()].sort(newestFirst), authors, profiles, cursor: next }
+      const snapshot = { posts: [...posts.values()].sort(newestFirst), authors, profiles, cursor: next, version: 2 }
       await feedCache.set(checkpointKey, snapshot).catch(() => {})
       return snapshot
     }
@@ -232,9 +232,12 @@ const mediaKey = (author, id) => 'media-upload:' + author + ':' + id
 
 async function deliverMedia(record, store, apds) {
   const author = record.signature.slice(0, 44)
-  const { body, andfs } = await yaml.parse(record.content)
+  const { body, andfs, image, image_original: original } = await yaml.parse(record.content)
   const ids = new Set(Array.from((typeof body === 'string' ? body : '').matchAll(/\/#([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/g), match => match[1]))
   if (andfs) ids.add(andfs)
+  for (const reference of [image, original]) {
+    if (typeof reference === 'string' && /^\/#[-_A-Za-z0-9]{43}$/.test(reference)) ids.add(reference.slice(2))
+  }
   const jobs = []
   for (const id of ids) {
     const key = mediaKey(author, id)
@@ -255,6 +258,35 @@ async function deliverMedia(record, store, apds) {
   }
 }
 
+async function stageMedia(file, files, store, author) {
+  const { manifestHash } = await files.add(file)
+  const media = {
+    type: file.type.split('/')[0], andfs: manifestHash, mime: file.type,
+    media_name: file.name, media_size: file.size, media_url: '/#' + manifestHash,
+  }
+  await store.set(mediaKey(author, manifestHash), media)
+  return media
+}
+
+export async function publishProfile(hosted, author, metadata, photo) {
+  return navigator.locks.request(databaseName(hosted), async () => {
+    const { apds, session, store } = await openWriter(hosted)
+    if (!author || await apds.pubkey() !== author) throw Error('This identity cannot edit the profile.')
+    if ((await store.get('outbox'))?.length) throw Error('Retry the pending publication before saving your profile.')
+    if (await store.get('identity-needs-pull') === author) {
+      await session.pull()
+      await store.delete('identity-needs-pull')
+    }
+    if (photo) {
+      const files = await openLocalFiles()
+      const original = await stageMedia(photo.original, files, store, author)
+      const crop = await stageMedia(photo.file, files, store, author)
+      metadata = { ...metadata, image: crop.media_url, image_original: original.media_url, image_crop: photo.crop }
+    }
+    return session.publish('', metadata)
+  })
+}
+
 async function saveAttachments(attachments, store, author) {
   const files = await openLocalFiles()
   const images = []
@@ -262,12 +294,7 @@ async function saveAttachments(attachments, store, author) {
   for (const { file, alt } of attachments) {
     let media
     try {
-      const { manifestHash } = await files.add(file)
-      media = {
-        type: file.type.split('/')[0], andfs: manifestHash, mime: file.type,
-        media_name: file.name, media_size: file.size, media_url: '/#' + manifestHash,
-      }
-      await store.set(mediaKey(author, manifestHash), media)
+      media = await stageMedia(file, files, store, author)
     } catch (error) {
       throw new Error(`Could not save ${file.name}. ${error.message}`)
     }

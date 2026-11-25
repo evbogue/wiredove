@@ -15,5 +15,9 @@ export function mergeAuthorProfile(profiles, { author, id, timestamp, parsed }) 
       [field]: { id, timestamp, value: field === 'links' ? normalizeProfileLinks(value) : value.trim() },
     }
   }
+  if (profile?.image?.id === id) {
+    profile = { ...profile, photoState: parsed.image_original && parsed.image_crop
+      ? { original: parsed.image_original, crop: parsed.image_crop } : null }
+  }
   if (profile) profiles.set(author, profile)
 }

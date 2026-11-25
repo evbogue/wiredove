@@ -10,13 +10,15 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePostPages } from './hooks/use-post-pages'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
+import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostCard } from './PostCard'
 import { gitCardType, gitRepositoryId } from './git-records'
+import { EditAuthorProfile } from './EditAuthorProfile'
 import { AuthorProfile } from './AuthorProfile'
+import { isProfileUpdate } from '../../client/ui/profile-update.js'
 import { isMessageHash } from '../../client/protocol.js'
 import { mergeAuthorProfile } from './author-profiles'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
@@ -24,7 +26,7 @@ import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady
 
 const feedPollInterval = 10000
 
-export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer }) {
+export function Feed({ active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer }) {
   const [draftAttachments, setDraftAttachments] = useState([])
   const [actionAttachments, setActionAttachments] = useState([])
   const draftMediaInput = useRef(null)
@@ -40,6 +42,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProf
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  const [profileEdit, setProfileEdit] = useState(null)
   const [composition, setComposition] = useState(null)
   const [actionBody, setActionBody] = useState('')
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
@@ -70,7 +73,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProf
     const synchronized = [...byId.values()]
       .sort((a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id))
     const confirmed = sentReplies.filter(post => !archived.has(post.id)).reverse()
-    const local = localPost && !archived.has(localPost.id) && !confirmed.some(post => post.id === localPost.id)
+    const local = localPost && isFeedPost(localPost.parsed) && !archived.has(localPost.id) && !confirmed.some(post => post.id === localPost.id)
       ? [localPost] : []
     return indexMessages([...local, ...confirmed, ...synchronized])
   }, [feed.posts, gitPosts, localPost, peerPosts, sentReplies])
@@ -99,6 +102,8 @@ export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProf
   const profile = route?.kind === 'author' ? profiles.get(route.id) : null
   const profileName = profile?.name?.value || (route?.id === identity && name.trim()) ||
     (authorPosts[0] ? authorName(authorPosts[0]) : route?.id?.slice(0, 12))
+  const ownProfilePage = route?.kind === 'author' && route.id === identity && !blocked(route.id)
+  const editingProfile = ownProfilePage && profileEdit?.id === identity
   const profileMessage = route?.kind === 'author' && composition?.recipient === route.id && !blocked(route.id)
   const missingId = route?.id && (route.kind === 'author'
     ? !blocked(route.id) && route.id !== identity && !authors.has(route.id) && !authorPosts.length
@@ -315,6 +320,44 @@ export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProf
     }
   }, [attempt])
 
+  function openProfileEditor() {
+    setProfileEdit({
+      id: identity,
+      name: profile?.name?.value || name.trim(),
+      bio: profile?.bio?.value || '',
+      links: profile?.links?.value || [],
+      image: profile?.image?.value,
+      photoState: profile?.photoState,
+    })
+  }
+
+  async function saveProfile(metadata, photo) {
+    if (!editingProfile || remotePreviewFeed || busy || pending !== false) {
+      throw Error('Profile editing is unavailable.')
+    }
+    setBusy('profile')
+    setNotice(null)
+    try {
+      const { image, photoState } = profileEdit
+      if (!photo && image) {
+        metadata = { ...metadata, image, image_original: photoState?.original || '', image_crop: photoState?.crop || null }
+      }
+      const result = await publishProfile(hosted, profileEdit.id, metadata, photo)
+      const waiting = result.relayed === false
+      setPending(waiting ? { postId: null } : false)
+      onNameChange(metadata.name)
+      setLocalPost(await readLocalPost(result))
+      setProfileEdit(null)
+      setAttempt(n => n + 1)
+      if (!waiting) {
+        if (online) announcePeerPost(result)
+        toast.success('Profile saved')
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function submit(event, context = null, retry = false) {
     event?.preventDefault()
     const body = context ? actionBody : draft
@@ -354,7 +397,8 @@ export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProf
         const target = result.target || (editing ? post.id : result.id)
         if (!waiting) {
           if (online) announcePeerPost(result)
-          toast.success('Published', {
+          if (isProfileUpdate(local?.parsed)) toast.success('Profile saved')
+          else toast.success('Published', {
             action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
           })
         }
@@ -437,9 +481,12 @@ export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProf
         ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)} name={profileName}
             onMessage={!remotePreviewFeed && route.id !== identity
               ? event => beginComposition('message', null, '', event, route.id) : undefined}
+            onEdit={!remotePreviewFeed && ownProfilePage && !editingProfile ? openProfileEditor : undefined}
             messageDisabled={Boolean(busy) || pending !== false}
             onUnblock={() => toggleModeration('blocked', route.id)} />
         : <h2 className={route ? 'font-semibold' : 'sr-only'}>{route?.kind === 'message' ? 'Thread' : route ? 'Lookup' : 'Feed'}</h2>}
+      {!remotePreviewFeed && editingProfile && <EditAuthorProfile key={identity} initial={profileEdit}
+        onSave={saveProfile} onCancel={() => setProfileEdit(null)} />}
       {!remotePreviewFeed && profileMessage && renderComposer(composition)}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && (

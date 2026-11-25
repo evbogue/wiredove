@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { ArrowUpRight, Copy, MessageSquare } from 'lucide-react'
+import { ArrowUpRight, Copy, MessageSquare, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { AuthorAvatar } from './AuthorAvatar'
@@ -7,7 +7,7 @@ import { PostBody } from './PostBody'
 import { shortPublicKey } from './messages'
 import { ShareLink } from './ShareLink'
 
-export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage, messageDisabled }) {
+export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage, onEdit, messageDisabled }) {
   const links = profile?.links?.value || []
   async function copyKey() {
     try {
@@ -33,6 +33,8 @@ export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage
           {blocked
             ? <Button variant="outline" size="sm" onClick={onUnblock}>Unblock author</Button>
             : <div className="flex gap-2">
+                {onEdit && <Button variant="outline" size="icon-sm" aria-label="Edit profile" title="Edit profile"
+                  disabled={messageDisabled} onClick={onEdit}><Pencil /></Button>}
                 {onMessage && <Button variant="outline" size="icon-sm" aria-label="Write public message" title="Write public message"
                   disabled={messageDisabled} onClick={onMessage}><MessageSquare /></Button>}
                 <ShareLink key={id} id={id} label="Share profile" variant="outline" iconOnly />

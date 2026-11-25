@@ -1,0 +1,46 @@
+@reference "./index.css";
+
+.preview-profile-editor .profile-field,
+.preview-profile-editor .profile-fields {
+  @apply grid min-w-0 gap-2;
+}
+
+.preview-profile-editor :is(input:not([type="file"]), textarea) {
+  @apply w-full rounded-md border border-input bg-background px-3 py-1.5 text-foreground;
+}
+
+.preview-profile-editor button:not([data-slot]),
+.photo-crop-dialog button {
+  @apply rounded-md border border-input px-3 py-1 text-sm hover:bg-muted disabled:opacity-50;
+}
+
+.preview-profile-editor .profile-links-editor,
+.preview-profile-editor .profile-link-row {
+  @apply grid min-w-0 gap-2 rounded-md border border-input p-3;
+}
+
+.preview-profile-editor .profile-link-row {
+  @apply my-2 sm:grid-cols-[auto_1fr_1fr];
+}
+
+.preview-profile-editor .profile-link-icon { @apply size-4; }
+.preview-profile-editor .profile-link-controls { @apply flex flex-wrap gap-2 sm:col-span-full; }
+.preview-profile-editor .profile-photo-editor { @apply flex flex-wrap items-center gap-2; }
+.preview-profile-editor .profile-avatar { @apply size-14 rounded-full object-cover; }
+.preview-profile-editor .profile-avatar:not([src]), .preview-profile-editor .profile-avatar[src=""] { display: none; }
+.preview-profile-editor .profile-help { @apply text-sm text-muted-foreground; }
+
+.photo-crop-dialog {
+  @apply m-auto max-h-[calc(100dvh-1.5rem)] w-[min(34rem,calc(100%-1.5rem))] overflow-auto rounded-lg border border-border bg-background p-4 text-foreground;
+}
+
+.photo-crop-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+.photo-crop-dialog h2 { @apply text-lg font-semibold; }
+.photo-crop-dialog .profile-help { @apply text-sm text-muted-foreground; }
+.photo-crop-dialog .photo-crop-stage { @apply mx-auto aspect-square w-full max-w-72 touch-none; }
+.photo-crop-dialog cropper-canvas { width: 100%; height: 100%; }
+.photo-crop-dialog .photo-crop-preview { @apply mx-auto my-2 size-20 rounded-full; }
+.photo-crop-dialog .photo-crop-controls { @apply grid grid-cols-2 gap-3; }
+.photo-crop-dialog input { @apply w-full; }
+.photo-crop-dialog .profile-actions { @apply mt-2 flex flex-wrap gap-2; }
+.photo-crop-dialog .photo-crop-confirm { @apply sticky bottom-0 bg-background py-2; }
