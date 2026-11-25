@@ -9,7 +9,7 @@ import { socialHref } from './messages'
 
 const shareOrigin = import.meta.env.WIREDOVE_PREVIEW_SHARE_ORIGIN
 
-export function ShareLink({ id, label = 'Share', className, variant = 'ghost' }) {
+export function ShareLink({ id, label = 'Share', className, variant = 'ghost', iconOnly = false }) {
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState(null)
   const [status, setStatus] = useState('')
@@ -46,7 +46,8 @@ export function ShareLink({ id, label = 'Share', className, variant = 'ghost' })
 
   return (
     <Dialog open={open} onOpenChange={value => { setOpen(value); setResult(null); setStatus('') }}>
-      <DialogTrigger asChild><Button variant={variant} size="sm" className={className}><Link2 /> {label}</Button></DialogTrigger>
+      <DialogTrigger asChild><Button variant={variant} size={iconOnly ? 'icon-sm' : 'sm'} className={className}
+        aria-label={iconOnly ? label : undefined} title={iconOnly ? label : undefined}><Link2 />{!iconOnly && label}</Button></DialogTrigger>
       <DialogContent aria-describedby={undefined}>
         <DialogHeader><DialogTitle>{label === 'Share' ? 'Share message' : label}</DialogTitle>
         </DialogHeader>

@@ -1,12 +1,21 @@
-import { ArrowUpRight } from 'lucide-react'
+import { toast } from 'sonner'
+import { ArrowUpRight, Copy, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { AuthorAvatar } from './AuthorAvatar'
 import { PostBody } from './PostBody'
 import { ShareLink } from './ShareLink'
 
-export function AuthorProfile({ id, name, profile, blocked, onUnblock }) {
+export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage, messageDisabled }) {
   const links = profile?.links?.value || []
+  async function copyKey() {
+    try {
+      await navigator.clipboard.writeText(id)
+      toast.success('Public key copied')
+    } catch {
+      toast.error('Could not copy the public key')
+    }
+  }
   return (
     <Card>
       <CardContent className="space-y-4">
@@ -15,11 +24,18 @@ export function AuthorProfile({ id, name, profile, blocked, onUnblock }) {
             className="size-16 sm:size-20" fallbackClassName="text-xl" />
           <div className="min-w-0 flex-1 space-y-1">
             <h1 className="break-words text-2xl font-semibold leading-tight">{name}</h1>
-            <code className="block select-all break-all text-xs text-muted-foreground" aria-label="Public key">{id}</code>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <code title={id}>{id.slice(0, 8)}…{id.slice(-5)}</code>
+              <Button variant="ghost" size="icon-xs" aria-label="Copy public key" title="Copy public key" onClick={copyKey}><Copy /></Button>
+            </div>
           </div>
           {blocked
             ? <Button variant="outline" size="sm" onClick={onUnblock}>Unblock author</Button>
-            : <ShareLink key={id} id={id} label="Share profile" variant="outline" />}
+            : <div className="flex gap-2">
+                {onMessage && <Button variant="outline" size="icon-sm" aria-label="Write public message" title="Write public message"
+                  disabled={messageDisabled} onClick={onMessage}><MessageSquare /></Button>}
+                <ShareLink key={id} id={id} label="Share profile" variant="outline" iconOnly />
+              </div>}
         </div>
         {!blocked && profile?.bio?.value && <div className="text-sm"><PostBody body={profile.bio.value} /></div>}
         {!blocked && links.length > 0 && (

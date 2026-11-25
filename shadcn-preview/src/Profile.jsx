@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UserRound } from 'lucide-react'
+import { ArrowUpRight, UserRound } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -66,8 +66,15 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
       </DialogTrigger>
       <DialogContent aria-describedby={undefined} showCloseButton={!busy}>
         <DialogHeader>
-          <DialogTitle>Profile</DialogTitle>
+          <DialogTitle>Profile settings</DialogTitle>
         </DialogHeader>
+        {identity && (
+          <Button asChild variant="outline" size="sm" className="justify-self-start">
+            <a href={socialHref(identity)} onClick={() => { changeOpen(false); onNavigate?.() }}>
+              <ArrowUpRight /> View my profile
+            </a>
+          </Button>
+        )}
         <Field>
           <FieldLabel htmlFor="display-name">Display name for new posts</FieldLabel>
           <Input id="display-name" autoComplete="nickname" value={name} maxLength={80} onChange={event => setName(event.target.value)} />
@@ -82,10 +89,7 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
           {ready && (
             <div className="flex flex-wrap gap-2">
               {identity ? (
-                <>
-                  <Button variant="outline" size="sm" disabled={busy} onClick={() => run(downloadPreviewIdentity, 'Backup download started.')}>Download backup</Button>
-                  <Button asChild variant="ghost" size="sm"><a href={socialHref(identity)} onClick={() => { changeOpen(false); onNavigate?.() }}>View posts</a></Button>
-                </>
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => run(downloadPreviewIdentity, 'Backup download started.')}>Download backup</Button>
               ) : (
                 <Button size="sm" disabled={busy || importing} onClick={() => run(async () => {
                   setIdentity(await createPreviewIdentity())

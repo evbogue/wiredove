@@ -15,7 +15,7 @@ import { ShareLink } from './ShareLink'
 const actionClass = 'max-sm:px-1.5 text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export function PostCard({ post, repoName, profile, replyContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
+export function PostCard({ post, repoName, profile, replyContext, recipientContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
   const author = profile?.name?.value || authorName(post)
   const latest = versions[0] || post
@@ -42,6 +42,10 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
                 href={socialHref(replyContext.id)}>
                 {replyContext.author ? 'Replying to ' + replyContext.author : 'Replying to a message'}
               </a>
+            )}
+            {!concealed && recipientContext && (
+              <a className="min-w-0 truncate underline-offset-2 hover:underline focus-visible:underline"
+                href={socialHref(recipientContext.id)}>To {recipientContext.name}</a>
             )}
           </CardDescription>
         </div>

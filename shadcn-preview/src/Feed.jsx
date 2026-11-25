@@ -17,6 +17,7 @@ import { MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostCard } from './PostCard'
 import { gitCardType, gitRepositoryId } from './git-records'
 import { AuthorProfile } from './AuthorProfile'
+import { isMessageHash } from '../../client/protocol.js'
 import { mergeAuthorProfile } from './author-profiles'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
 import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady, requestHash, startPeerSync, subscribePeerPosts, subscribePeerRequest } from './peer-sync'
@@ -90,6 +91,9 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
   const threadIds = new Set(threadRows.map(row => row.post.id))
   const authorPosts = route?.kind === 'author' ? (messages.byAuthor.get(route.id) || []) : []
   const profile = route?.kind === 'author' ? profiles.get(route.id) : null
+  const profileName = profile?.name?.value || (route?.id === identity && name.trim()) ||
+    (authorPosts[0] ? authorName(authorPosts[0]) : route?.id?.slice(0, 12))
+  const profileMessage = route?.kind === 'author' && composition?.recipient === route.id && !blocked(route.id)
   const missingId = route?.id && (route.kind === 'author'
     ? !blocked(route.id) && route.id !== identity && !authors.has(route.id) && !authorPosts.length
     : !target) ? route.id : null
@@ -150,15 +154,15 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
     if (latestReply) sentReply.current?.scrollIntoView({ block: 'nearest' })
   }, [latestReply])
 
-  function beginComposition(kind, post, value, event) {
+  function beginComposition(kind, post, value, event, recipient) {
     if (remotePreviewFeed || busy || pending !== false) return
     replyTrigger.current = event?.currentTarget || null
-    if (composition?.kind !== kind || composition.post.id !== post.id) {
+    if (composition?.kind !== kind || composition.post?.id !== post?.id || composition.recipient !== recipient) {
       // Mount the field during the tap so mobile browsers can open the keyboard.
       flushSync(() => {
         setActionBody(value)
         setActionAttachments([])
-        setComposition({ kind, post })
+        setComposition({ kind, post, recipient })
         setNotice(null)
       })
     }
@@ -205,9 +209,14 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
     const parentHidden = parentPost && (blocked(parentPost.author) || moderation.muted?.includes(parentPost.author)
       || moderation.hidden?.includes(id))
     const replyContext = id && { id, author: parentPost && !parentHidden ? authorName(parentPost) : null }
+    const recipient = !replyParentId(post) && post.parsed.replyto
+    const recipientContext = isMessageHash(recipient) && !blocked(recipient) && {
+      id: recipient,
+      name: profiles.get(recipient)?.name?.value || recipient.slice(0, 12),
+    }
     return (
       <Fragment key={post.id}>
-        <PostCard post={post} repoName={repoName} profile={profiles.get(post.author)} replyContext={replyContext} selected={selected} own={post.author === identity}
+        <PostCard post={post} repoName={repoName} profile={profiles.get(post.author)} replyContext={replyContext} recipientContext={recipientContext} selected={selected} own={post.author === identity}
           versions={messages.edits.get(post.id) || []}
           replyCount={visibleReplies(post).length}
           branchExpanded={expandedBranches.has(post.id)}
@@ -215,7 +224,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
           hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
           blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
           composeDisabled={Boolean(busy) || pending !== false} readOnly={remotePreviewFeed} />
-        {!remotePreviewFeed && composition?.post.id === post.id && renderComposer(composition)}
+        {!remotePreviewFeed && composition?.post?.id === post.id && renderComposer(composition)}
         {inlineStatus && post.id === statusTarget && <div className="mt-2 space-y-2">{renderDeliveryStatus()}</div>}
         {repliesByParent.get(post.id)?.map(reply => (
           <div key={reply.id} ref={reply.id === latestReply?.id ? sentReply : null} className="mt-2 scroll-mt-14">
@@ -310,7 +319,8 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
     try {
       const post = context?.post
       const editing = context?.kind === 'edit'
-      const metadata = editing ? { edit: post.id } : post ? { reply: post.id, replyto: post.author } : {}
+      const metadata = editing ? { edit: post.id } : post ? { reply: post.id, replyto: post.author }
+        : context?.recipient ? { replyto: context.recipient } : {}
       const result = retry
         ? await retryPost(hosted)
         : await publishPost(hosted, body.trim(), name.trim(), metadata, editing ? post.author : undefined, attachments)
@@ -344,7 +354,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
         }
       }
     } catch (error) {
-      setNotice({ message: error.message, postId: context?.post.id || pending?.postId })
+      setNotice({ message: error.message, postId: context?.post?.id || pending?.postId })
       const waiting = await pendingPost(hosted).catch(() => null)
       if (waiting !== null) setPending(waiting)
     } finally {
@@ -360,20 +370,20 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
     const setAttachments = context ? setActionAttachments : setDraftAttachments
     const mediaInput = context ? actionMediaInput : draftMediaInput
     const sending = busy === (context ? 'inline' : 'post')
-    const action = editing ? 'Save edit' : context ? 'Send reply' : 'Publish'
+    const action = editing ? 'Save edit' : context?.post ? 'Send reply' : 'Publish'
     return (
       <Card className={context ? 'mt-2 py-3' : 'py-4'}>
         <CardContent>
           <form className="space-y-3" onSubmit={event => submit(event, context)}>
             <Field>
               <FieldLabel htmlFor={fieldId} className={context ? undefined : 'sr-only'}>
-                {editing ? 'Edit message' : context ? 'Replying to ' + authorName(context.post) : 'Message'}
+                {editing ? 'Edit message' : context?.recipient ? 'Public message to ' + profileName : context ? 'Replying to ' + authorName(context.post) : 'Message'}
               </FieldLabel>
               <Textarea id={fieldId} className="bg-muted dark:bg-muted" ref={context ? actionField : composer} value={body}
                 onChange={event => (context ? setActionBody : setDraft)(event.target.value)}
-                placeholder={context ? (editing ? 'Edit your message…' : 'Write a reply…') : 'Write a post…'} rows={3} maxLength={16000} disabled={sending} />
+                placeholder={editing ? 'Edit your message…' : context?.post ? 'Write a reply…' : 'Write a post…'} rows={3} maxLength={16000} disabled={sending} />
             </Field>
-            {!editing && <MediaAttachments key={context?.post.id || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={Boolean(busy)} />}
+            {!editing && <MediaAttachments key={context?.post?.id || context?.recipient || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={Boolean(busy)} />}
             <div className="flex flex-wrap items-center gap-2">
               {!editing && <MediaPicker input={mediaInput} disabled={Boolean(busy)} />}
               <Button type="submit" disabled={(!body.trim() && !attachments.length) || Boolean(busy) || pending !== false}>
@@ -418,11 +428,13 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
       {!remotePreviewFeed && !route && renderComposer()}
       {!remotePreviewFeed && !inlineStatus && renderDeliveryStatus()}
       {route?.kind === 'author'
-        ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)}
-            name={profile?.name?.value || (route.id === identity && name.trim()) ||
-              (authorPosts[0] ? authorName(authorPosts[0]) : route.id.slice(0, 12))}
+        ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)} name={profileName}
+            onMessage={!remotePreviewFeed && route.id !== identity
+              ? event => beginComposition('message', null, '', event, route.id) : undefined}
+            messageDisabled={Boolean(busy) || pending !== false}
             onUnblock={() => toggleModeration('blocked', route.id)} />
         : <h2 className={route ? 'font-semibold' : 'sr-only'}>{route?.kind === 'message' ? 'Thread' : route ? 'Lookup' : 'Feed'}</h2>}
+      {!remotePreviewFeed && profileMessage && renderComposer(composition)}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && (
         <Alert variant="destructive">
