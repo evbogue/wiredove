@@ -27,6 +27,7 @@ export function gitCardLinks(post) {
   const repo = id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   return {
     id,
+    repo,
     repository: workspaceGitHref({ repo, kind: 'overview' }),
     revision: parsed.commit && workspaceGitHref({ repo, kind: 'commit', rev: parsed.commit }),
   }

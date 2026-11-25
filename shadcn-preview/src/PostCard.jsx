@@ -1,5 +1,6 @@
 import { human } from '../../client/ui/format.js'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { readWorkspaceGit, workspaceGitHref } from '../../client/runtime/workspace-git.js'
 import { ChevronDown, ChevronRight, Ellipsis, MessageSquare } from 'lucide-react'
 import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
@@ -104,7 +105,7 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
 }
 
 function GitCardBody({ post, type, repoName }) {
-  const { id, repository, revision } = gitCardLinks(post)
+  const { id, repo, repository, revision } = gitCardLinks(post)
   const { commit, ref } = post.parsed
   return <div className="space-y-2">
     <p className="text-sm font-medium text-muted-foreground">{type}</p>
@@ -115,7 +116,45 @@ function GitCardBody({ post, type, repoName }) {
         <span aria-hidden="true">· </span>{ref.slice('refs/heads/'.length)}
       </span>}
     </p>
-    {revision && <a href={revision} title={commit}
-      className="font-mono text-sm underline underline-offset-4">{commit.slice(0, 12)}</a>}
+    {revision && <GitCommitSummary key={post.id} repo={repo} commit={commit} revision={revision}
+      summary={post.gitSummary} />}
   </div>
+}
+
+function GitCommitSummary({ repo, commit, revision, summary }) {
+  const [subject, setSubject] = useState('')
+  const head = summary?.recent.find(item => item.hash === commit)
+  useEffect(() => {
+    if (head) return
+    const controller = new AbortController()
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])
+    readWorkspaceGit({ repo, kind: 'commit', rev: commit }, { signal })
+      .then(data => {
+        if (signal.aborted || data.revision.commit !== commit) return
+        const message = data.details.message
+        if (typeof message === 'string') setSubject(message.trim().split(/\r?\n/, 1)[0].slice(0, 240))
+      })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [repo, commit, head])
+
+  const count = summary?.total || 0
+  const otherCommits = summary?.recent.filter(item => item.hash !== commit) || []
+  return <>
+    <a href={revision} title={commit} className="block break-words text-sm underline underline-offset-4">
+      {head?.subject || subject || commit.slice(0, 12)}
+    </a>
+    {count > 1 && <details className="text-sm">
+      <summary className="cursor-pointer text-muted-foreground">{count} commits</summary>
+      <ul className="mt-2 space-y-1">
+        {otherCommits.map(item => <li key={item.hash}>
+          <a className="break-words underline underline-offset-4" title={item.hash}
+            href={workspaceGitHref({ repo, kind: 'commit', rev: item.hash })}>
+            {item.subject || item.hash.slice(0, 12)}
+          </a>
+        </li>)}
+      </ul>
+      {count > summary.recent.length && <p className="text-muted-foreground">Showing {summary.recent.length} recent commits.</p>}
+    </details>}
+  </>
 }
