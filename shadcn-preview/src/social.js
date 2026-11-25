@@ -107,11 +107,10 @@ export async function readGitFeed(signal, previous = { cursor: null, posts: [] }
       const push = await readLocalPost(post.parsed.announcement).catch(() => null)
       if (gitCardType(push?.parsed) === 'Git push' && post.parsed.repo?.format === 'anproto'
         && push.parsed.repoId === post.parsed.repo.id) {
-        const { commits, count } = post.parsed
+        const { commits } = post.parsed
         const recent = Array.isArray(commits) ? commits.slice(0, 20).filter(commit =>
           /^[a-f0-9]{40}$/.test(commit?.hash) && typeof commit?.subject === 'string') : []
-        const total = Number.isSafeInteger(count) && count >= recent.length ? count : recent.length
-        posts.set(push.id, { ...push, gitSummary: { recent, total } })
+        posts.set(push.id, { ...push, gitSummary: { recent } })
       }
     }
     cursor = page.nextSince

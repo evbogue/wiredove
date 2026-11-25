@@ -1,6 +1,6 @@
 import { human } from '../../client/ui/format.js'
 import { useEffect, useState } from 'react'
-import { readWorkspaceGit, workspaceGitHref } from '../../client/runtime/workspace-git.js'
+import { readWorkspaceGit } from '../../client/runtime/workspace-git.js'
 import { ChevronDown, ChevronRight, Ellipsis, MessageSquare } from 'lucide-react'
 import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
@@ -48,7 +48,7 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
       <CardContent>
         {concealed
           ? (blocked ? 'Author blocked.' : muted ? 'Author muted.' : 'Message hidden.')
-          : git ? <GitCardBody post={post} type={git} repoName={repoName} />
+          : git ? <GitCardBody post={post} repoName={repoName} />
             : <PostBody body={latest.parsed.body} attachment={post.parsed} />}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
@@ -104,14 +104,13 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
   )
 }
 
-function GitCardBody({ post, type, repoName }) {
+function GitCardBody({ post, repoName }) {
   const { id, repo, repository, revision } = gitCardLinks(post)
   const { commit, ref } = post.parsed
   return <div className="space-y-2">
-    <p className="text-sm font-medium text-muted-foreground">{type}</p>
     <p className="flex flex-wrap items-baseline gap-x-2">
       <a className="min-w-0 break-words font-semibold underline-offset-4 hover:underline focus-visible:underline"
-        href={repository} title={id}>{repoName || 'Repository ' + id.slice(0, 12)}</a>
+        href={repository} title={id}>{repoName || id.slice(0, 12)}</a>
       {revision && <span className="min-w-0 break-all text-sm text-muted-foreground">
         <span aria-hidden="true">· </span>{ref.slice('refs/heads/'.length)}
       </span>}
@@ -122,39 +121,29 @@ function GitCardBody({ post, type, repoName }) {
 }
 
 function GitCommitSummary({ repo, commit, revision, summary }) {
-  const [subject, setSubject] = useState('')
-  const head = summary?.recent.find(item => item.hash === commit)
+  const [message, setMessage] = useState('')
   useEffect(() => {
-    if (head) return
     const controller = new AbortController()
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])
     readWorkspaceGit({ repo, kind: 'commit', rev: commit }, { signal })
       .then(data => {
         if (signal.aborted || data.revision.commit !== commit) return
-        const message = data.details.message
-        if (typeof message === 'string') setSubject(message.trim().split(/\r?\n/, 1)[0].slice(0, 240))
+        if (typeof data.details.message === 'string') setMessage(data.details.message.trim())
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [repo, commit, head])
+  }, [repo, commit])
 
-  const count = summary?.total || 0
-  const otherCommits = summary?.recent.filter(item => item.hash !== commit) || []
+  const preview = message || summary?.recent.find(item => item.hash === commit)?.subject
+  const otherCommits = summary?.recent.filter(item => item.hash !== commit && item.subject).slice(0, 2) || []
   return <>
-    <a href={revision} title={commit} className="block break-words text-sm underline underline-offset-4">
-      {head?.subject || subject || commit.slice(0, 12)}
-    </a>
-    {count > 1 && <details className="text-sm">
-      <summary className="cursor-pointer text-muted-foreground">{count} commits</summary>
-      <ul className="mt-2 space-y-1">
-        {otherCommits.map(item => <li key={item.hash}>
-          <a className="break-words underline underline-offset-4" title={item.hash}
-            href={workspaceGitHref({ repo, kind: 'commit', rev: item.hash })}>
-            {item.subject || item.hash.slice(0, 12)}
-          </a>
-        </li>)}
-      </ul>
-      {count > summary.recent.length && <p className="text-muted-foreground">Showing {summary.recent.length} recent commits.</p>}
-    </details>}
+    {preview && <p className="whitespace-pre-wrap break-words">
+      {preview.length > 600 ? preview.slice(0, 600).trimEnd() + '…' : preview}
+    </p>}
+    {otherCommits.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm">
+      {otherCommits.map(item => <li key={item.hash} className="break-words">{item.subject}</li>)}
+    </ul>}
+    <a href={revision} title={commit} aria-label={'Open commit ' + commit}
+      className="font-mono text-xs text-muted-foreground underline underline-offset-4">{commit.slice(0, 12)}</a>
   </>
 }
