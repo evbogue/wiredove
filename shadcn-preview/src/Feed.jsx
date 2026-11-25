@@ -22,8 +22,7 @@ import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady
 
 const feedPollInterval = 10000
 
-export function Feed({ active, hash, name, identity, onIdentityChange }) {
-  const [draft, setDraft] = usePreference('draft', '')
+export function Feed({ active, hash, name, identity, onIdentityChange, draft, setDraft, composer }) {
   const [draftAttachments, setDraftAttachments] = useState([])
   const [actionAttachments, setActionAttachments] = useState([])
   const draftMediaInput = useRef(null)
@@ -349,7 +348,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange }) {
               <FieldLabel htmlFor={fieldId} className={context ? undefined : 'sr-only'}>
                 {editing ? 'Edit message' : context ? 'Replying to ' + authorName(context.post) : 'Message'}
               </FieldLabel>
-              <Textarea id={fieldId} className="bg-muted dark:bg-muted" ref={context ? actionField : null} value={body}
+              <Textarea id={fieldId} className="bg-muted dark:bg-muted" ref={context ? actionField : composer} value={body}
                 onChange={event => (context ? setActionBody : setDraft)(event.target.value)}
                 placeholder={context ? (editing ? 'Edit your message…' : 'Write a reply…') : 'Write a post…'} rows={3} maxLength={16000} disabled={sending} />
             </Field>

@@ -1,16 +1,17 @@
 import { birdPaths } from '../../client/ui/wiredove-bird.js'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, Radio, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
 import { socialTarget } from './messages'
 import { useHash, usePreference } from './hooks/use-preview-state'
-import { readPublicIdentity } from './social'
+import { readPublicIdentity, remotePreviewFeed } from './social'
 import { Profile } from './Profile'
 import { Repository } from './Workspace'
 
@@ -47,6 +48,27 @@ function WorkspaceSidebar({ repository, profile }) {
 export default function App() {
   const hash = useHash()
   const [mode, setMode] = usePreference('view', hash.startsWith('workspace/') ? 'workspace' : 'social')
+  const [draft, setDraft] = usePreference('draft', '')
+  const composer = useRef(null)
+  const focusDiscussion = useRef(false)
+  useEffect(() => {
+    if (!hash && focusDiscussion.current) {
+      focusDiscussion.current = false
+      composer.current?.focus()
+    }
+  }, [hash])
+
+  function discussCommit(url) {
+    const nextDraft = draft.trim() ? draft + '\n\n' + url : url
+    if (nextDraft.length > 16000) {
+      toast.error('There is no room in the draft. Use Copy commit link to save it.')
+      return
+    }
+    setDraft(nextDraft)
+    focusDiscussion.current = true
+    location.hash = '#'
+  }
+
   const [name, setName] = usePreference('name', '')
   const [theme, setTheme] = usePreference('theme', 'light')
   const repository = hash.startsWith('workspace/')
@@ -102,7 +124,8 @@ export default function App() {
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository || peers} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
-              <Feed active={!repository && !peers} hash={hash} name={name} identity={identity} onIdentityChange={setIdentity} />
+              <Feed active={!repository && !peers} hash={hash} name={name} identity={identity} onIdentityChange={setIdentity}
+                draft={draft} setDraft={setDraft} composer={composer} />
             </section>
             {peers && (
               <section className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
@@ -110,9 +133,9 @@ export default function App() {
               </section>
             )}
             {repository && (
-              <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-5xl space-y-4 p-4 sm:p-6">
+              <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-7xl space-y-4 p-4 sm:p-6">
                 {!workspace && <Button asChild variant="outline" size="sm"><a href="#"><MessagesSquare /> Feed</a></Button>}
-                <Repository hash={hash} />
+                <Repository hash={hash} onDiscuss={remotePreviewFeed ? undefined : discussCommit} />
               </section>
             )}
           </SidebarInset>

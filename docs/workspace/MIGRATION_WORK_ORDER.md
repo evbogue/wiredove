@@ -75,6 +75,18 @@ upload left the signed reply and its attachment manifest in browser
 storage. After reload, Retry delivery submitted the original signed bytes
 once and the archive contained one record with that ID.
 
+On 25 November 2026, the shadcn Repository page added paged history,
+branches and tags, commit details, file diffs and revision comparisons.
+File breadcrumbs and raw downloads use the selected commit. The commit
+discussion action appends a pinned link to the existing Social draft.
+Chromium at 390px and 1440px exercised the preview through Wiredove
+and a disposable ANBot publication. The test covered file reads, a
+binary file, keyboard navigation, Back, history paging, comparisons,
+composer focus and draft preservation. After a signed push, Refresh
+showed the new head and a fresh browser resolved the earlier pinned
+commit. The fixture published one branch and exercised the empty tag
+state. The Workspace sidebar was outside this change.
+
 The Social / Workspace toggle is a browser preference. Both layouts use
 the same feed and post URLs. The neutral Workspace sidebar
 stays available while reading posts, searching, opening conversations,
