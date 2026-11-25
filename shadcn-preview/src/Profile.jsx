@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpRight, UserRound } from 'lucide-react'
+import { ArrowUpRight, KeyRound, UserRound } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -9,10 +9,11 @@ import { Input } from '@/components/ui/input'
 import { SidebarMenuButton } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
 import { requestPreviewReset } from './reset-preview'
-import { socialHref } from './messages'
+import { AuthorAvatar } from './AuthorAvatar'
+import { shortPublicKey, socialHref } from './messages'
 import { createPreviewIdentity, downloadPreviewIdentity, importPreviewIdentity } from './social'
 
-export function Profile({ name, setName, theme, setTheme, identity, identityError, setIdentity, onNavigate, inSidebar = false }) {
+export function Profile({ name, setName, theme, setTheme, identity, identityError, setIdentity, onNavigate, inSidebar = false, publicProfile }) {
   const [open, setOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -20,6 +21,7 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState(null)
   const displayName = name.trim()
+  const profileName = publicProfile?.name || displayName || 'Profile'
   const ready = identity !== undefined
 
   function cancelImport() {
@@ -59,14 +61,33 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger asChild>
-        {inSidebar
-          ? <SidebarMenuButton size="lg" aria-label="Profile">{label}</SidebarMenuButton>
-          : <Button variant="ghost" aria-label="Profile" className="min-w-0 max-w-full px-1 sm:px-2">{label}</Button>}
-      </DialogTrigger>
+      {inSidebar ? (
+        <DialogTrigger asChild>
+          <SidebarMenuButton size="lg" aria-label="Profile">{label}</SidebarMenuButton>
+        </DialogTrigger>
+      ) : (
+        <div className="flex min-w-0 items-center">
+          {identity && (
+            <Button asChild variant="ghost" className="h-9 min-w-0 gap-1 px-1 sm:gap-2 sm:px-2">
+              <a href={socialHref(identity)} aria-label="View my profile" title="View my profile">
+                <AuthorAvatar name={profileName} image={publicProfile?.photo} className="size-5 sm:size-7" />
+                <span className="flex min-w-0 flex-col items-start leading-tight">
+                  <span className="hidden max-w-28 truncate sm:block">{profileName}</span>
+                  <code className="text-[10px] text-muted-foreground">{shortPublicKey(identity)}</code>
+                </span>
+              </a>
+            </Button>
+          )}
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Identity settings" title="Identity settings">
+              <KeyRound aria-hidden="true" />
+            </Button>
+          </DialogTrigger>
+        </div>
+      )}
       <DialogContent aria-describedby={undefined} showCloseButton={!busy}>
         <DialogHeader>
-          <DialogTitle>Profile settings</DialogTitle>
+          <DialogTitle>Identity settings</DialogTitle>
         </DialogHeader>
         {identity && (
           <Button asChild variant="outline" size="sm" className="justify-self-start">

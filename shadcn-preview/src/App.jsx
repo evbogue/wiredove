@@ -82,7 +82,9 @@ export default function App() {
       .catch(() => { if (active) setIdentityError(true) })
     return () => { active = false }
   }, [])
-  const profile = { name, setName, theme, setTheme, identity, identityError, setIdentity }
+  const [ownProfile, setOwnProfile] = useState(null)
+  const profile = { name, setName, theme, setTheme, identity, identityError, setIdentity,
+    publicProfile: ownProfile?.identity === identity ? ownProfile : null }
   useEffect(() => {
     void import('./peer-connections').then(({ startDefaultPeers }) => startDefaultPeers())
       .catch(error => console.warn('Default peer connections could not be loaded', error))
@@ -92,19 +94,19 @@ export default function App() {
   return (
     <TooltipProvider>
       <SidebarProvider className="flex-col">
-        <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-2 border-b bg-sidebar px-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <Button asChild variant="ghost" size="icon" className="size-10">
+        <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-1 border-b bg-sidebar px-2 sm:gap-2 sm:px-6">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
+            <Button asChild variant="ghost" size="icon" className="size-8 sm:size-10">
               <a href="#" aria-label="Home" title="Home"><Bird aria-hidden="true" /></a>
             </Button>
             {(socialTarget(hash) || peers) && (
-              <Button asChild variant="ghost" size="icon" className="size-10">
+              <Button asChild variant="ghost" size="icon" className="size-8 sm:size-10">
                 <a href="#" aria-label="Back to feed" title="Back to feed"><ArrowLeft aria-hidden="true" /></a>
               </Button>
             )}
             {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
           </div>
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <div className="flex shrink-0 items-center gap-1.5" title="Workspace view">
               <Label htmlFor="workspace-view" className="cursor-pointer">
                 <PanelsTopLeft aria-hidden="true" className="size-4" />
@@ -112,10 +114,10 @@ export default function App() {
               </Label>
               <Switch id="workspace-view" checked={workspace} onCheckedChange={checked => setMode(checked ? 'workspace' : 'social')} />
             </div>
-            <Button asChild variant="ghost" size="icon" className="size-10">
+            <Button asChild variant="ghost" size="icon" className="size-8 sm:size-10">
               <a href="#peers" aria-label="Peers" aria-current={peers ? 'page' : undefined} title="Peers"><Radio aria-hidden="true" /></a>
             </Button>
-            <div className="flex w-10 shrink-0 justify-end sm:w-28">
+            <div className="flex min-w-0 justify-end sm:w-48 sm:shrink-0">
               {!workspace && <Profile {...profile} />}
             </div>
           </div>
@@ -124,7 +126,7 @@ export default function App() {
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository || peers} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
-              <Feed active={!repository && !peers} hash={hash} name={name} identity={identity} onIdentityChange={setIdentity}
+              <Feed active={!repository && !peers} hash={hash} name={name} identity={identity} onIdentityChange={setIdentity} onOwnProfileChange={setOwnProfile}
                 draft={draft} setDraft={setDraft} composer={composer} />
             </section>
             {peers && (

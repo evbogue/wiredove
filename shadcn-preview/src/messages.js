@@ -1,5 +1,6 @@
 import { isMessageHash } from '../../client/protocol.js'
 
+export const shortPublicKey = key => key.slice(0, 8) + '…' + key.slice(-5)
 export const socialHref = id => '#' + id
 export const replyParentId = post => [post.parsed.replyHash, post.parsed.reply].find(isMessageHash)
 

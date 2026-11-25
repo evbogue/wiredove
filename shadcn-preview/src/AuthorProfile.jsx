@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { AuthorAvatar } from './AuthorAvatar'
 import { PostBody } from './PostBody'
+import { shortPublicKey } from './messages'
 import { ShareLink } from './ShareLink'
 
 export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage, messageDisabled }) {
@@ -25,7 +26,7 @@ export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage
           <div className="min-w-0 flex-1 space-y-1">
             <h1 className="break-words text-2xl font-semibold leading-tight">{name}</h1>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <code title={id}>{id.slice(0, 8)}…{id.slice(-5)}</code>
+              <code title={id}>{shortPublicKey(id)}</code>
               <Button variant="ghost" size="icon-xs" aria-label="Copy public key" title="Copy public key" onClick={copyKey}><Copy /></Button>
             </div>
           </div>

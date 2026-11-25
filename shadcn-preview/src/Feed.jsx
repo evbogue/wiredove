@@ -24,7 +24,7 @@ import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady
 
 const feedPollInterval = 10000
 
-export function Feed({ active, hash, name, identity, onIdentityChange, draft, setDraft, composer }) {
+export function Feed({ active, hash, name, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer }) {
   const [draftAttachments, setDraftAttachments] = useState([])
   const [actionAttachments, setActionAttachments] = useState([])
   const draftMediaInput = useRef(null)
@@ -82,6 +82,12 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
     if (localPost) mergeAuthorProfile(merged, localPost)
     return merged
   }, [feed.profiles, feed.posts, peerPosts, localPost])
+  const ownProfile = profiles.get(identity)
+  const ownPhoto = ownProfile?.image?.value
+  const ownName = ownProfile?.name?.value
+  useEffect(() => {
+    onOwnProfileChange({ identity, photo: ownPhoto, name: ownName })
+  }, [identity, ownPhoto, ownName, onOwnProfileChange])
   const route = socialRoute(hash, messages, authors, identity)
   const target = route?.kind === 'message' ? messages.byId.get(route.id) : null
   const parentId = target && replyParentId(target)
