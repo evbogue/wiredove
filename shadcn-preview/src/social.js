@@ -6,7 +6,7 @@ import { createBrowserStore } from '../../client/runtime/browser-store.js'
 import { createProtocol } from '../../client/protocol.js'
 import { an } from '../../vendor/anproto/an.js'
 import { yaml } from '../../vendor/apds/yaml.js'
-import { gitCardType } from './git-records'
+import { gitCardType, withGitActivity } from './git-records'
 import { mergeAuthorProfile } from './author-profiles'
 
 const databaseName = hosted => 'wiredove-shadcn-preview-' + (hosted ? 'hosted' : 'archive')
@@ -84,9 +84,9 @@ export async function readFeed(hosted, signal, previous) {
 
 // ANBot's opaque cursor includes Git receipts and updates. Its numeric
 // Wiredove-compatible Social poll includes the repository record only.
-export async function readGitFeed(signal, previous = { cursor: null, posts: [] }) {
+export async function readGitFeed(signal, previous = { cursor: null, records: new Map(), posts: [] }) {
   let cursor = previous.cursor
-  const posts = new Map(previous.posts.map(post => [post.id, post]))
+  const records = new Map(previous.records)
   while (true) {
     const url = new URL('/gossip/poll', endpoint)
     if (cursor) url.searchParams.set('since', cursor)
@@ -95,22 +95,23 @@ export async function readGitFeed(signal, previous = { cursor: null, posts: [] }
     if (!response.ok) throw new Error(`Git activity request failed (${response.status})`)
     const page = await response.json()
     if (!Array.isArray(page.records)) return previous
-    if (!page.records.length) return cursor === previous.cursor ? previous : { cursor, posts: [...posts.values()] }
+    if (!page.records.length) return cursor === previous.cursor ? previous : { cursor, records, posts: withGitActivity(records) }
     if (typeof page.nextSince !== 'string' || !page.nextSince || page.nextSince === cursor) {
       throw new Error('Invalid Git activity cursor')
     }
     for (const record of page.records) {
       signal.throwIfAborted()
       const post = await readLocalPost(record).catch(() => null)
-      if (gitCardType(post?.parsed)) posts.set(post.id, post)
-      if (post?.parsed.type !== 'git-push-receipt' || post.parsed.anbot !== 1) continue
+      if (post?.parsed.anbot !== 1) continue
+      if (gitCardType(post.parsed) || post.parsed.type === 'git-update') records.set(post.id, post)
+      if (post.parsed.type !== 'git-push-receipt') continue
       const push = await readLocalPost(post.parsed.announcement).catch(() => null)
       if (gitCardType(push?.parsed) === 'Git push' && post.parsed.repo?.format === 'anproto'
         && push.parsed.repoId === post.parsed.repo.id) {
         const { commits } = post.parsed
         const recent = Array.isArray(commits) ? commits.slice(0, 20).filter(commit =>
           /^[a-f0-9]{40}$/.test(commit?.hash) && typeof commit?.subject === 'string') : []
-        posts.set(push.id, { ...push, gitSummary: { recent } })
+        records.set(post.id, { ...post, push: { ...push, gitSummary: { recent } } })
       }
     }
     cursor = page.nextSince

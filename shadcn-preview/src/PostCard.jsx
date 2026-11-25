@@ -1,7 +1,7 @@
 import { human } from '../../client/ui/format.js'
 import { useEffect, useState } from 'react'
 import { readWorkspaceGit } from '../../client/runtime/workspace-git.js'
-import { ChevronDown, ChevronRight, Ellipsis, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight, Ellipsis, FolderGit2, MessageSquare } from 'lucide-react'
 import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -105,22 +105,26 @@ export function PostCard({ post, repoName, profile, replyContext, selected, vers
 }
 
 function GitCardBody({ post, repoName }) {
-  const { id, repo, repository, revision } = gitCardLinks(post)
-  const { commit, ref } = post.parsed
+  const { id, repo, repository, revision, comparison } = gitCardLinks(post)
+  const { commit, description } = post.parsed
+  const ref = revision ? post.parsed.ref : post.gitRef
+  const repoDescription = typeof description === 'string' ? description.trim().split(/\r?\n/, 1)[0] : ''
   return <div className="space-y-2">
     <p className="flex flex-wrap items-baseline gap-x-2">
+      {!revision && <FolderGit2 className="size-4 self-center" role="img" aria-label="Repository" />}
       <a className="min-w-0 break-words font-semibold underline-offset-4 hover:underline focus-visible:underline"
         href={repository} title={id}>{repoName || id.slice(0, 12)}</a>
-      {revision && <span className="min-w-0 break-all text-sm text-muted-foreground">
+      {ref && <span className="min-w-0 break-all text-sm text-muted-foreground">
         <span aria-hidden="true">· </span>{ref.slice('refs/heads/'.length)}
       </span>}
     </p>
-    {revision && <GitCommitSummary key={post.id} repo={repo} commit={commit} revision={revision}
+    {!revision && repoDescription && <p className="line-clamp-1 break-words text-sm">{repoDescription}</p>}
+    {revision && <GitCommitSummary key={post.id} repo={repo} commit={commit} revision={revision} comparison={comparison}
       summary={post.gitSummary} />}
   </div>
 }
 
-function GitCommitSummary({ repo, commit, revision, summary }) {
+function GitCommitSummary({ repo, commit, revision, comparison, summary }) {
   const [message, setMessage] = useState('')
   useEffect(() => {
     const controller = new AbortController()
@@ -135,15 +139,20 @@ function GitCommitSummary({ repo, commit, revision, summary }) {
   }, [repo, commit])
 
   const preview = message || summary?.recent.find(item => item.hash === commit)?.subject
+  const excerpt = preview?.length > 600 ? preview.slice(0, 600).trimEnd() + '…' : preview
+  const [subject, ...bodyLines] = excerpt?.split(/\r?\n/) || []
+  const body = bodyLines.join('\n').trim()
   const otherCommits = summary?.recent.filter(item => item.hash !== commit && item.subject).slice(0, 2) || []
   return <>
-    {preview && <p className="whitespace-pre-wrap break-words">
-      {preview.length > 600 ? preview.slice(0, 600).trimEnd() + '…' : preview}
-    </p>}
+    {subject && <p className="break-words font-semibold">{subject}</p>}
+    {body && <p className="whitespace-pre-wrap break-words text-sm">{body}</p>}
     {otherCommits.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm">
       {otherCommits.map(item => <li key={item.hash} className="break-words">{item.subject}</li>)}
     </ul>}
-    <a href={revision} title={commit} aria-label={'Open commit ' + commit}
-      className="font-mono text-xs text-muted-foreground underline underline-offset-4">{commit.slice(0, 12)}</a>
+    <div className="flex flex-wrap items-center gap-x-3">
+      <a href={revision} title={commit} aria-label={'Open commit ' + commit}
+        className="font-mono text-xs text-muted-foreground underline underline-offset-4">{commit.slice(0, 12)}</a>
+      <Button asChild variant="outline" size="sm"><a href={comparison || revision}>View changes</a></Button>
+    </div>
   </>
 }
