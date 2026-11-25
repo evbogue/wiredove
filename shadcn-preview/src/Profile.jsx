@@ -1,19 +1,17 @@
 import { useState } from 'react'
-import { ArrowUpRight, KeyRound, UserRound } from 'lucide-react'
+import { ArrowUpRight, KeyRound } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { SidebarMenuButton } from '@/components/ui/sidebar'
 import { Switch } from '@/components/ui/switch'
 import { requestPreviewReset } from './reset-preview'
 import { AuthorAvatar } from './AuthorAvatar'
 import { shortPublicKey, socialHref } from './messages'
 import { createPreviewIdentity, downloadPreviewIdentity, importPreviewIdentity } from './social'
 
-export function Profile({ name, setName, theme, setTheme, identity, identityError, setIdentity, onNavigate, inSidebar = false, publicProfile }) {
+export function Profile({ name, setName, theme, setTheme, identity, identityError, setIdentity, onNavigate, publicProfile }) {
   const [open, setOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -50,41 +48,26 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
     }
   }
 
-  const label = (
-    <>
-      <Avatar size="sm">
-        <AvatarFallback>{displayName ? Array.from(displayName).slice(0, 2).join('').toUpperCase() : <UserRound className="size-3.5" />}</AvatarFallback>
-      </Avatar>
-      <span className={inSidebar ? 'truncate' : 'hidden truncate sm:inline'}>{displayName || 'Profile'}</span>
-    </>
-  )
-
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      {inSidebar ? (
+      <div className="flex min-w-0 items-center">
+        {identity && (
+          <Button asChild variant="ghost" className="h-9 min-w-0 gap-1 px-1 sm:gap-2 sm:px-2">
+            <a href={socialHref(identity)} aria-label="View my profile" title="View my profile" onClick={onNavigate}>
+              <AuthorAvatar name={profileName} image={publicProfile?.photo} className="size-5 sm:size-7" />
+              <span className="flex min-w-0 flex-col items-start leading-tight">
+                <span className="hidden max-w-28 truncate sm:block">{profileName}</span>
+                <code className="text-[10px] text-muted-foreground">{shortPublicKey(identity)}</code>
+              </span>
+            </a>
+          </Button>
+        )}
         <DialogTrigger asChild>
-          <SidebarMenuButton size="lg" aria-label="Profile">{label}</SidebarMenuButton>
+          <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Identity settings" title="Identity settings">
+            <KeyRound aria-hidden="true" />
+          </Button>
         </DialogTrigger>
-      ) : (
-        <div className="flex min-w-0 items-center">
-          {identity && (
-            <Button asChild variant="ghost" className="h-9 min-w-0 gap-1 px-1 sm:gap-2 sm:px-2">
-              <a href={socialHref(identity)} aria-label="View my profile" title="View my profile">
-                <AuthorAvatar name={profileName} image={publicProfile?.photo} className="size-5 sm:size-7" />
-                <span className="flex min-w-0 flex-col items-start leading-tight">
-                  <span className="hidden max-w-28 truncate sm:block">{profileName}</span>
-                  <code className="text-[10px] text-muted-foreground">{shortPublicKey(identity)}</code>
-                </span>
-              </a>
-            </Button>
-          )}
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Identity settings" title="Identity settings">
-              <KeyRound aria-hidden="true" />
-            </Button>
-          </DialogTrigger>
-        </div>
-      )}
+      </div>
       <DialogContent aria-describedby={undefined} showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Identity settings</DialogTitle>

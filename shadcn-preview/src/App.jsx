@@ -38,7 +38,7 @@ function WorkspaceSidebar({ repository, profile }) {
       </SidebarContent>
       <SidebarFooter className="border-t">
         <SidebarMenu>
-          <SidebarMenuItem><Profile {...profile} inSidebar onNavigate={closeDrawer} /></SidebarMenuItem>
+          <SidebarMenuItem><Profile {...profile} onNavigate={closeDrawer} /></SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
