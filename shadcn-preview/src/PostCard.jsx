@@ -1,6 +1,6 @@
 import { human } from '../../client/ui/format.js'
 import { useEffect, useState } from 'react'
-import { readWorkspaceGit } from '../../client/runtime/workspace-git.js'
+import { readWorkspaceGit, workspaceGitHref } from '../../client/runtime/workspace-git.js'
 import { ChevronDown, ChevronRight, Ellipsis, FolderGit2, MessageSquare } from 'lucide-react'
 import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
@@ -142,17 +142,41 @@ function GitCommitSummary({ repo, commit, revision, comparison, summary }) {
   const excerpt = preview?.length > 600 ? preview.slice(0, 600).trimEnd() + '…' : preview
   const [subject, ...bodyLines] = excerpt?.split(/\r?\n/) || []
   const body = bodyLines.join('\n').trim()
-  const otherCommits = summary?.recent.filter(item => item.hash !== commit && item.subject).slice(0, 2) || []
+  const otherCommits = summary?.recent.filter(item => item.hash !== commit) || []
+  const remaining = otherCommits.slice(2)
+  const total = summary?.total || 0
   return <>
     {subject && <p className="break-words font-semibold">{subject}</p>}
     {body && <p className="whitespace-pre-wrap break-words text-sm">{body}</p>}
-    {otherCommits.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm">
-      {otherCommits.map(item => <li key={item.hash} className="break-words">{item.subject}</li>)}
-    </ul>}
+    {otherCommits.length > 0 && <div className="space-y-1.5 border-t pt-2">
+      <p className="text-xs font-medium text-muted-foreground">{total} commits</p>
+      <GitCommitRows repo={repo} commits={otherCommits.slice(0, 2)} />
+      {remaining.length > 0 && <details className="group text-sm">
+        <summary className="cursor-pointer py-1 text-muted-foreground hover:text-foreground">
+          <span className="group-open:hidden">Show {remaining.length} more {remaining.length === 1 ? 'commit' : 'commits'}</span>
+          <span className="hidden group-open:inline">Show fewer commits</span>
+        </summary>
+        <div className="max-h-64 overflow-y-auto">
+          <GitCommitRows repo={repo} commits={remaining} />
+        </div>
+      </details>}
+    </div>}
     <div className="flex flex-wrap items-center gap-x-3">
       <a href={revision} title={commit} aria-label={'Open commit ' + commit}
         className="font-mono text-xs text-muted-foreground underline underline-offset-4">{commit.slice(0, 12)}</a>
       <Button asChild variant="outline" size="sm"><a href={comparison || revision}>View changes</a></Button>
     </div>
   </>
+}
+
+function GitCommitRows({ repo, commits }) {
+  return <ul className="divide-y">
+    {commits.map(({ hash, subject }) => <li key={hash}>
+      <a href={workspaceGitHref({ repo, kind: 'commit', rev: hash })}
+        className="flex items-baseline justify-between gap-2 py-1.5 text-sm hover:underline focus-visible:underline">
+        <span className="min-w-0 truncate" title={subject || undefined}>{subject || '(No subject)'}</span>
+        <code className="shrink-0 text-xs text-muted-foreground">{hash.slice(0, 7)}</code>
+      </a>
+    </li>)}
+  </ul>
 }
