@@ -6,6 +6,7 @@ import { createBrowserStore } from '../../client/runtime/browser-store.js'
 import { createProtocol } from '../../client/protocol.js'
 import { an } from '../../vendor/anproto/an.js'
 import { yaml } from '../../vendor/apds/yaml.js'
+import { gitCardType } from './git-records'
 import { mergeAuthorProfile } from './author-profiles'
 
 const databaseName = hosted => 'wiredove-shadcn-preview-' + (hosted ? 'hosted' : 'archive')
@@ -21,8 +22,8 @@ async function readJSON(url, signal) {
 
 export const remotePreviewFeed = import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED
 
-// A new checkpoint replays verified history to index profile-only updates.
-const checkpointKey = 'checkpoint-with-profiles'
+// Replay verified history so earlier repository records can appear in Social.
+const checkpointKey = 'checkpoint-with-git-cards'
 const feedCache = createBrowserStore(databaseName(remotePreviewFeed || import.meta.env.VITE_WIREDOVE_HOSTED === '1') + ':feed')
 
 export async function readStoredFeed() {
@@ -30,7 +31,7 @@ export async function readStoredFeed() {
 }
 
 export function isFeedPost(parsed) {
-  return !String(parsed?.type || '').startsWith('git-')
+  return Boolean(gitCardType(parsed)) || !String(parsed?.type || '').startsWith('git-')
     && ((typeof parsed?.body === 'string' && Boolean(parsed.body.trim())) || isAndFSPlayableMedia(parsed))
 }
 
@@ -78,6 +79,36 @@ export async function readFeed(hosted, signal, previous) {
       return snapshot
     }
     cursor = next
+  }
+}
+
+// ANBot's opaque cursor includes Git receipts and updates. Its numeric
+// Wiredove-compatible Social poll includes the repository record only.
+export async function readGitFeed(signal, previous = { cursor: null, posts: [] }) {
+  let cursor = previous.cursor
+  const posts = new Map(previous.posts.map(post => [post.id, post]))
+  while (true) {
+    const url = new URL('/gossip/poll', endpoint)
+    if (cursor) url.searchParams.set('since', cursor)
+    const response = await fetch(url, { signal, cache: 'no-store' })
+    if (response.status === 404) return previous
+    if (!response.ok) throw new Error(`Git activity request failed (${response.status})`)
+    const page = await response.json()
+    if (!Array.isArray(page.records)) return previous
+    if (!page.records.length) return cursor === previous.cursor ? previous : { cursor, posts: [...posts.values()] }
+    if (typeof page.nextSince !== 'string' || !page.nextSince || page.nextSince === cursor) {
+      throw new Error('Invalid Git activity cursor')
+    }
+    for (const record of page.records) {
+      signal.throwIfAborted()
+      const post = await readLocalPost(record).catch(() => null)
+      if (gitCardType(post?.parsed)) posts.set(post.id, post)
+      if (post?.parsed.type !== 'git-push-receipt' || post.parsed.anbot !== 1) continue
+      const push = await readLocalPost(post.parsed.announcement).catch(() => null)
+      if (gitCardType(push?.parsed) === 'Git push' && post.parsed.repo?.format === 'anproto'
+        && push.parsed.repoId === post.parsed.repo.id) posts.set(push.id, push)
+    }
+    cursor = page.nextSince
   }
 }
 

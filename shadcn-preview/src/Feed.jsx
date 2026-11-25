@@ -10,7 +10,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePostPages } from './hooks/use-post-pages'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, readFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
+import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
@@ -28,6 +28,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
   const draftMediaInput = useRef(null)
   const actionMediaInput = useRef(null)
   const [feed, setFeed] = useState(() => ({ posts: [], authors: new Set() }))
+  const [gitPosts, setGitPosts] = useState([])
   const [busy, setBusy] = useState(null)
   const [pending, setPending] = useState(null)
   const [notice, setNotice] = useState(null)
@@ -58,17 +59,20 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
   }, [])
   const moderation = JSON.parse(policy)
   const messages = useMemo(() => {
-    const archived = new Set(feed.posts.map(post => post.id))
-    const synchronized = [...feed.posts, ...peerPosts.filter(post => !archived.has(post.id))
-      .filter(post => isFeedPost(post.parsed))]
+    const byId = new Map(feed.posts.map(post => [post.id, post]))
+    for (const post of gitPosts) byId.set(post.id, post)
+    for (const post of peerPosts) {
+      if (!byId.has(post.id) && isFeedPost(post.parsed)) byId.set(post.id, post)
+    }
+    const archived = new Set(byId.keys())
+    const synchronized = [...byId.values()]
       .sort((a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id))
-    synchronized.forEach(post => archived.add(post.id))
     const confirmed = sentReplies.filter(post => !archived.has(post.id)).reverse()
     const local = localPost && !archived.has(localPost.id) && !confirmed.some(post => post.id === localPost.id)
       ? [localPost] : []
     return indexMessages([...local, ...confirmed, ...synchronized])
-  }, [feed.posts, localPost, peerPosts, sentReplies])
-  const authors = useMemo(() => new Set([...feed.authors, ...peerPosts.map(post => post.author)]), [feed.authors, peerPosts])
+  }, [feed.posts, gitPosts, localPost, peerPosts, sentReplies])
+  const authors = useMemo(() => new Set([...feed.authors, ...gitPosts.map(post => post.author), ...peerPosts.map(post => post.author)]), [feed.authors, gitPosts, peerPosts])
   const profiles = useMemo(() => {
     const merged = new Map(feed.profiles)
     if (!feed.profiles) for (const post of feed.posts) mergeAuthorProfile(merged, post)
@@ -233,12 +237,25 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
     const controller = new AbortController()
     let timer
     let running = false
+    let gitCheckpoint
+
+    async function refreshGit(signal) {
+      try {
+        const value = await readGitFeed(signal, gitCheckpoint)
+        if (controller.signal.aborted || value === gitCheckpoint) return
+        gitCheckpoint = value
+        setGitPosts(value.posts)
+      } catch (error) {
+        if (!signal.aborted) console.warn('Could not refresh Git activity', error)
+      }
+    }
 
     async function refresh() {
       if (controller.signal.aborted || document.hidden || running) return
       running = true
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
+      const gitRefresh = refreshGit(signal)
       try {
-        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
         if (!feedCheckpoint.current) {
           const cached = await readStoredFeed().catch(() => null)
           if (cached && !controller.signal.aborted) {
@@ -258,9 +275,10 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
       } catch (error) {
         if (!controller.signal.aborted) setFeedError(error.message)
       } finally {
+        if (!controller.signal.aborted) setLoaded(true)
+        await gitRefresh
         running = false
         if (!controller.signal.aborted) {
-          setLoaded(true)
           if (!document.hidden) timer = setTimeout(refresh, feedPollInterval)
         }
       }

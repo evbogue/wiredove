@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { authorName, socialHref } from './messages'
+import { gitCardLinks, gitCardType } from './git-records'
 import { PostBody } from './PostBody'
 import { ShareLink } from './ShareLink'
 
@@ -17,6 +18,7 @@ export function PostCard({ post, profile, replyContext, selected, versions, repl
   const [dialog, setDialog] = useState(null)
   const author = profile?.name?.value || authorName(post)
   const latest = versions[0] || post
+  const git = gitCardType(post.parsed)
   const concealed = blocked || muted || hidden
   return (
     <Card size="sm" className={selected ? "min-w-0 gap-2 ring-muted-foreground/40" : "min-w-0 gap-2"}>
@@ -45,7 +47,8 @@ export function PostCard({ post, profile, replyContext, selected, versions, repl
       <CardContent>
         {concealed
           ? (blocked ? 'Author blocked.' : muted ? 'Author muted.' : 'Message hidden.')
-          : <PostBody body={latest.parsed.body} attachment={post.parsed} />}
+          : git ? <GitCardBody post={post} type={git} />
+            : <PostBody body={latest.parsed.body} attachment={post.parsed} />}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
         {!concealed && (
@@ -67,7 +70,7 @@ export function PostCard({ post, profile, replyContext, selected, versions, repl
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" className={actionClass + ' ml-auto'} aria-label="More message actions"><Ellipsis /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {own && !concealed && !readOnly && <DropdownMenuItem disabled={composeDisabled} onSelect={() => onCompose('edit', post, latest.parsed.body)}>Edit</DropdownMenuItem>}
+            {own && !git && !concealed && !readOnly && <DropdownMenuItem disabled={composeDisabled} onSelect={() => onCompose('edit', post, latest.parsed.body)}>Edit</DropdownMenuItem>}
             {!concealed && versions.length > 0 && <DropdownMenuItem onSelect={() => setDialog('history')}>Edit history</DropdownMenuItem>}
             {!concealed && <DropdownMenuItem onSelect={() => setDialog('raw')}>View signed data</DropdownMenuItem>}
             {!concealed && <DropdownMenuSeparator />}
@@ -98,4 +101,18 @@ export function PostCard({ post, profile, replyContext, selected, versions, repl
       </Dialog>
     </Card>
   )
+}
+
+function GitCardBody({ post, type }) {
+  const { id, repository, revision } = gitCardLinks(post)
+  const { name, commit, ref } = post.parsed
+  return <div className="space-y-2">
+    <p className="text-sm font-medium text-muted-foreground">{type}</p>
+    <a className="block break-all font-semibold underline-offset-4 hover:underline focus-visible:underline"
+      href={repository} title={id}>{type === 'Repository' ? name : 'Repository ' + id.slice(0, 12)}</a>
+    {revision && <p className="flex flex-wrap items-baseline gap-x-3 text-sm">
+      <span className="break-all text-muted-foreground">{ref.slice('refs/heads/'.length)}</span>
+      <a href={revision} title={commit} className="font-mono underline underline-offset-4">{commit.slice(0, 12)}</a>
+    </p>}
+  </div>
 }

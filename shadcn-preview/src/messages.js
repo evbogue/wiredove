@@ -25,7 +25,8 @@ export function socialRoute(hash, messages, authors, identity) {
 }
 
 export function authorName(post) {
-  return (typeof post.parsed.name === 'string' && post.parsed.name.trim()) || post.author.slice(0, 12)
+  const name = post.parsed.type !== 'git-repo' && typeof post.parsed.name === 'string' && post.parsed.name.trim()
+  return name || post.author.slice(0, 12)
 }
 
 export function indexMessages(records) {
