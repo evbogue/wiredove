@@ -4,14 +4,15 @@ import { isMessageHash } from '../../client/protocol.js'
 import { createBrowserStore } from '../../client/runtime/browser-store.js'
 import { an } from '../../vendor/anproto/an.js'
 import { hostedPreview, isFeedPost, openIdentity, protocol, remotePreviewFeed } from './social'
+import { fetchLegacyPeerImage, legacyImage, maxLegacyImageBytes } from './peer-media'
 
 const maxRecordBytes = 2 * 1024 * 1024
 const maxPending = 1800
 const historyDepth = 32
 const day = 24 * 60 * 60 * 1000
 const recentLimit = 50
-const legacyImage = /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);base64,/i
 const wantedImages = new Map()
+const imageFetches = new Map()
 let recentReady = false
 let publishedRecentReady = false
 let recentFloor = 0
@@ -103,6 +104,7 @@ export function primePeerFeed(relay) {
 export async function acceptPeerBlob(blob) {
   if (typeof blob !== 'string') return false
   if (!/^data:(?:image|audio|video)\//i.test(blob)) return true
+  if (blob.length > maxLegacyImageBytes || !legacyImage.test(blob)) return false
   return (wantedImages.get(await an.hash(blob)) || 0) > Date.now()
 }
 
@@ -162,8 +164,15 @@ async function accept(apds, signature, proof, { cached, retry = false } = {}) {
 }
 
 async function received(apds, blob) {
-  if (typeof blob !== 'string' || blob.length > maxRecordBytes) return
+  if (typeof blob !== 'string') return
+  const image = legacyImage.test(blob)
+  if (!image && blob.length > maxRecordBytes) return
   const id = await an.hash(blob)
+  if (image) {
+    wantedImages.delete(id)
+    completeHashRequest(id)
+    return
+  }
   const waiting = signaturesByBody.get(id)
   if (waiting) {
     signaturesByBody.delete(id)
@@ -174,10 +183,6 @@ async function received(apds, blob) {
   }
   const proof = await protocol.open(blob).catch(() => null)
   if (proof) await accept(apds, blob, proof)
-  if (legacyImage.test(blob)) {
-    wantedImages.delete(id)
-    completeHashRequest(id)
-  }
 }
 
 export function startPeerSync() {
@@ -241,12 +246,22 @@ export function subscribePeerRequest(id, listener) {
 }
 
 export async function resolvePeerImage(id, { retry } = {}) {
+  if (!isMessageHash(id)) return null
   const apds = await startPeerSync()
   const value = await apds.get(id)
   if (typeof value === 'string' && legacyImage.test(value)
       && await an.hash(value) === id) return value
   remember(wantedImages, id, Date.now() + 60000)
   queueSend(id, { priority: 'normal', retry })
+  if (!imageFetches.has(id)) {
+    const lookup = fetchLegacyPeerImage(id).then(async image => {
+      if (!image) return
+      await apds.make(image)
+      wantedImages.delete(id)
+      completeHashRequest(id)
+    }).catch(() => {}).finally(() => imageFetches.delete(id))
+    imageFetches.set(id, lookup)
+  }
   return null
 }
 resolvePeerImage.subscribe = subscribeHashRequest

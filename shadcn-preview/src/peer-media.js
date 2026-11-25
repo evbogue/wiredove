@@ -1,6 +1,10 @@
 import { hash, MAX_MANIFEST, validHash } from '../../vendor/andfs/andfs.js'
+import { an } from '../../vendor/anproto/an.js'
 import { previewMediaStore } from './social'
 
+const wiredoveMediaOrigin = 'https://wiredove.net'
+export const maxLegacyImageBytes = 32 * 1024 * 1024
+export const legacyImage = /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);base64,/i
 const relayOrigins = new Map()
 let roomTransport
 const slots = 8
@@ -70,7 +74,7 @@ export function attachMediaRoom(room, peers) {
   }
 }
 
-async function verifiedResponse(url, id, signal) {
+async function readResponse(url, signal, maxBytes) {
   const response = await fetch(url, { signal, redirect: 'error' })
   if (!response.ok || !response.body) {
     await response.body?.cancel()
@@ -84,7 +88,7 @@ async function verifiedResponse(url, id, signal) {
       const { value, done } = await reader.read()
       if (done) break
       size += value.length
-      if (size > MAX_MANIFEST) return
+      if (size > maxBytes) return
       chunks.push(value)
     }
   } finally {
@@ -97,7 +101,26 @@ async function verifiedResponse(url, id, signal) {
     bytes.set(chunk, offset)
     offset += chunk.length
   }
-  if (await hash(bytes) === id) return bytes
+  return bytes
+}
+
+export async function fetchLegacyPeerImage(id) {
+  const controller = new AbortController()
+  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)])
+  try {
+    return await Promise.any([...new Set(relayOrigins.values())].map(async origin => {
+      // Older APDS relays serve the original hashed data URL under the raw hash,
+      // including any slash characters in its standard base64 encoding.
+      const bytes = await readResponse(origin + '/' + id, signal, maxLegacyImageBytes)
+      const value = bytes && new TextDecoder().decode(bytes)
+      if (!value || !legacyImage.test(value) || await an.hash(value) !== id) throw new Error('Image unavailable')
+      return value
+    }))
+  } catch {
+    return null
+  } finally {
+    controller.abort()
+  }
 }
 
 export async function fetchPeerMedia(url, { signal } = {}) {
@@ -105,9 +128,13 @@ export async function fetchPeerMedia(url, { signal } = {}) {
   const id = primary.pathname.split('/').at(-1)
   if (!validHash(id)) return new Response(null, { status: 404 })
   const candidates = new Set([primary.href, ...[...relayOrigins.values()].map(origin => origin + '/blobs/' + id)])
+  if (primary.origin === location.origin) candidates.add(wiredoveMediaOrigin + '/blobs/' + id)
   const controller = new AbortController()
   const scoped = AbortSignal.any([controller.signal, AbortSignal.timeout(5000), ...(signal ? [signal] : [])])
-  const sources = [...candidates].map(candidate => verifiedResponse(candidate, id, scoped))
+  const sources = [...candidates].map(async candidate => {
+    const bytes = await readResponse(candidate, scoped, MAX_MANIFEST)
+    if (bytes && await hash(bytes) === id) return bytes
+  })
   if (roomTransport) sources.push(roomTransport.get(id))
   try {
     const bytes = await Promise.any(sources.map(async source => {
