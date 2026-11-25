@@ -1,7 +1,7 @@
 import { human } from '../../client/ui/format.js'
 import { useEffect, useState } from 'react'
 import { readWorkspaceGit, workspaceGitHref } from '../../client/runtime/workspace-git.js'
-import { ChevronDown, ChevronRight, Ellipsis, FolderGit2, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight, Ellipsis, FolderGit2, GitCommitHorizontal, MessageSquare } from 'lucide-react'
 import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -119,63 +119,55 @@ function GitCardBody({ post, repoName }) {
       </span>}
     </p>
     {!revision && repoDescription && <p className="line-clamp-1 break-words text-sm">{repoDescription}</p>}
-    {revision && <GitCommitSummary key={post.id} repo={repo} commit={commit} revision={revision} comparison={comparison}
+    {revision && <GitCommitList key={post.id} repo={repo} commit={commit} revision={revision} comparison={comparison}
       summary={post.gitSummary} />}
   </div>
 }
 
-function GitCommitSummary({ repo, commit, revision, comparison, summary }) {
-  const [message, setMessage] = useState('')
+function GitCommitList({ repo, commit, revision, comparison, summary }) {
+  const [subject, setSubject] = useState('')
+  const signedSubject = summary?.recent.find(item => item.hash === commit)?.subject
   useEffect(() => {
+    if (signedSubject) return
     const controller = new AbortController()
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])
     readWorkspaceGit({ repo, kind: 'commit', rev: commit }, { signal })
       .then(data => {
         if (signal.aborted || data.revision.commit !== commit) return
-        if (typeof data.details.message === 'string') setMessage(data.details.message.trim())
+        if (typeof data.details.message === 'string') setSubject(data.details.message.trim().split(/\r?\n/, 1)[0])
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [repo, commit])
+  }, [repo, commit, signedSubject])
 
-  const preview = message || summary?.recent.find(item => item.hash === commit)?.subject
-  const excerpt = preview?.length > 600 ? preview.slice(0, 600).trimEnd() + '…' : preview
-  const [subject, ...bodyLines] = excerpt?.split(/\r?\n/) || []
-  const body = bodyLines.join('\n').trim()
-  const otherCommits = summary?.recent.filter(item => item.hash !== commit) || []
-  const remaining = otherCommits.slice(2)
-  const total = summary?.total || 0
+  const commits = [
+    { hash: commit, subject: signedSubject || subject },
+    ...(summary?.recent.filter(item => item.hash !== commit) || []),
+  ]
+  const remaining = commits.slice(3)
   return <>
-    {subject && <p className="break-words font-semibold">{subject}</p>}
-    {body && <p className="whitespace-pre-wrap break-words text-sm">{body}</p>}
-    {otherCommits.length > 0 && <div className="space-y-1.5 border-t pt-2">
-      <p className="text-xs font-medium text-muted-foreground">{total} commits</p>
-      <GitCommitRows repo={repo} commits={otherCommits.slice(0, 2)} />
-      {remaining.length > 0 && <details className="group text-sm">
-        <summary className="cursor-pointer py-1 text-muted-foreground hover:text-foreground">
-          <span className="group-open:hidden">Show {remaining.length} more {remaining.length === 1 ? 'commit' : 'commits'}</span>
-          <span className="hidden group-open:inline">Show fewer commits</span>
-        </summary>
-        <div className="max-h-64 overflow-y-auto">
-          <GitCommitRows repo={repo} commits={remaining} />
-        </div>
-      </details>}
-    </div>}
-    <div className="flex flex-wrap items-center gap-x-3">
-      <a href={revision} title={commit} aria-label={'Open commit ' + commit}
-        className="font-mono text-xs text-muted-foreground underline underline-offset-4">{commit.slice(0, 12)}</a>
-      <Button asChild variant="outline" size="sm"><a href={comparison || revision}>View changes</a></Button>
-    </div>
+    <GitCommitRows repo={repo} commits={commits.slice(0, 3)} />
+    {remaining.length > 0 && <details className="group text-sm">
+      <summary className="cursor-pointer py-1 text-muted-foreground hover:text-foreground">
+        <span className="group-open:hidden">Show {remaining.length} more {remaining.length === 1 ? 'commit' : 'commits'}</span>
+        <span className="hidden group-open:inline">Show fewer commits</span>
+      </summary>
+      <div className="max-h-64 overflow-y-auto">
+        <GitCommitRows repo={repo} commits={remaining} />
+      </div>
+    </details>}
+    <Button asChild variant="outline" size="sm"><a href={comparison || revision}>View changes</a></Button>
   </>
 }
 
 function GitCommitRows({ repo, commits }) {
   return <ul className="divide-y">
-    {commits.map(({ hash, subject }) => <li key={hash}>
-      <a href={workspaceGitHref({ repo, kind: 'commit', rev: hash })}
-        className="flex items-baseline justify-between gap-2 py-1.5 text-sm hover:underline focus-visible:underline">
-        <span className="min-w-0 truncate" title={subject || undefined}>{subject || '(No subject)'}</span>
-        <code className="shrink-0 text-xs text-muted-foreground">{hash.slice(0, 7)}</code>
+    {commits.map(({ hash, subject }) => <li key={hash} className="flex items-center gap-2 py-1.5 text-sm">
+      <GitCommitHorizontal aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate" title={subject || undefined}>{subject || '(No subject)'}</span>
+      <a href={workspaceGitHref({ repo, kind: 'commit', rev: hash })} title={hash}
+        aria-label={'Open commit ' + hash} className="shrink-0 font-mono text-xs underline underline-offset-4">
+        {hash.slice(0, 7)}
       </a>
     </li>)}
   </ul>
