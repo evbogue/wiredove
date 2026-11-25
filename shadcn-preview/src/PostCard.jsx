@@ -14,7 +14,7 @@ import { ShareLink } from './ShareLink'
 const actionClass = 'max-sm:px-1.5 text-muted-foreground hover:bg-accent focus-visible:bg-accent dark:hover:bg-accent'
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export function PostCard({ post, profile, replyContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
+export function PostCard({ post, repoName, profile, replyContext, selected, versions, replyCount, branchExpanded, onToggleBranch, own, hidden, muted, blocked, onCompose, onModerate, composeDisabled, readOnly }) {
   const [dialog, setDialog] = useState(null)
   const author = profile?.name?.value || authorName(post)
   const latest = versions[0] || post
@@ -47,7 +47,7 @@ export function PostCard({ post, profile, replyContext, selected, versions, repl
       <CardContent>
         {concealed
           ? (blocked ? 'Author blocked.' : muted ? 'Author muted.' : 'Message hidden.')
-          : git ? <GitCardBody post={post} type={git} />
+          : git ? <GitCardBody post={post} type={git} repoName={repoName} />
             : <PostBody body={latest.parsed.body} attachment={post.parsed} />}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-0.5 bg-transparent px-2 py-0.5">
@@ -103,16 +103,19 @@ export function PostCard({ post, profile, replyContext, selected, versions, repl
   )
 }
 
-function GitCardBody({ post, type }) {
+function GitCardBody({ post, type, repoName }) {
   const { id, repository, revision } = gitCardLinks(post)
-  const { name, commit, ref } = post.parsed
+  const { commit, ref } = post.parsed
   return <div className="space-y-2">
     <p className="text-sm font-medium text-muted-foreground">{type}</p>
-    <a className="block break-all font-semibold underline-offset-4 hover:underline focus-visible:underline"
-      href={repository} title={id}>{type === 'Repository' ? name : 'Repository ' + id.slice(0, 12)}</a>
-    {revision && <p className="flex flex-wrap items-baseline gap-x-3 text-sm">
-      <span className="break-all text-muted-foreground">{ref.slice('refs/heads/'.length)}</span>
-      <a href={revision} title={commit} className="font-mono underline underline-offset-4">{commit.slice(0, 12)}</a>
-    </p>}
+    <p className="flex flex-wrap items-baseline gap-x-2">
+      <a className="min-w-0 break-words font-semibold underline-offset-4 hover:underline focus-visible:underline"
+        href={repository} title={id}>{repoName || 'Repository ' + id.slice(0, 12)}</a>
+      {revision && <span className="min-w-0 break-all text-sm text-muted-foreground">
+        <span aria-hidden="true">· </span>{ref.slice('refs/heads/'.length)}
+      </span>}
+    </p>
+    {revision && <a href={revision} title={commit}
+      className="font-mono text-sm underline underline-offset-4">{commit.slice(0, 12)}</a>}
   </div>
 }

@@ -12,9 +12,18 @@ export function gitCardType(parsed) {
   return push ? 'Git push' : 'Published revision'
 }
 
+export function gitRepositoryId({ id, parsed }) {
+  switch (parsed.type) {
+    case 'git-repo': return id
+    case 'git-push': return parsed.repoId
+    case 'git-update': return parsed.repo?.id
+    default: return undefined
+  }
+}
+
 export function gitCardLinks(post) {
   const { parsed } = post
-  const id = parsed.type === 'git-repo' ? post.id : parsed.repoId ?? parsed.repo.id
+  const id = gitRepositoryId(post)
   const repo = id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   return {
     id,

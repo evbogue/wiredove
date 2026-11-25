@@ -15,6 +15,7 @@ import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, readFeed
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostCard } from './PostCard'
+import { gitCardType, gitRepositoryId } from './git-records'
 import { AuthorProfile } from './AuthorProfile'
 import { mergeAuthorProfile } from './author-profiles'
 import { getQueueStatusSnapshot, subscribeQueueStatus } from '../../network_queue.js'
@@ -197,6 +198,8 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
   }
 
   function renderPost(post, { showParent = true, selected = false } = {}) {
+    const repository = messages.byId.get(gitRepositoryId(post))
+    const repoName = gitCardType(repository?.parsed) === 'Repository' ? repository.parsed.name.trim() : undefined
     const id = showParent && replyParentId(post)
     const parentPost = messages.byId.get(id)
     const parentHidden = parentPost && (blocked(parentPost.author) || moderation.muted?.includes(parentPost.author)
@@ -204,7 +207,7 @@ export function Feed({ active, hash, name, identity, onIdentityChange, draft, se
     const replyContext = id && { id, author: parentPost && !parentHidden ? authorName(parentPost) : null }
     return (
       <Fragment key={post.id}>
-        <PostCard post={post} profile={profiles.get(post.author)} replyContext={replyContext} selected={selected} own={post.author === identity}
+        <PostCard post={post} repoName={repoName} profile={profiles.get(post.author)} replyContext={replyContext} selected={selected} own={post.author === identity}
           versions={messages.edits.get(post.id) || []}
           replyCount={visibleReplies(post).length}
           branchExpanded={expandedBranches.has(post.id)}
