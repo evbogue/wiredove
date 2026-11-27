@@ -48,6 +48,35 @@ For media:
 
 The broader project direction is sustainable, portable internet fame rather than protocol completeness for its own sake.
 
+## Teaching ANProto in Wiredove
+
+When the shadcn preview replaces anproto.com, teach people how ANProto works
+through the screens they already use. Explain a concept where it affects what
+someone can see or do. Reuse headers, toolbars, and menus to keep the default
+interface free of repeated help labels.
+
+- **Optional explanations.** Use at most one question-mark button in the existing
+  header or toolbar of a screen that needs help. Show just the icon and provide
+  a specific accessible name, such as “About peers.” Open a shadcn popover on
+  click, tap, or keyboard activation. Keep each explanation to one or two sentences.
+- **Tooltips.** Use them to name icon-only controls or clarify their actions.
+  Provide accessible names and show tooltips on hover and keyboard focus.
+- **Inline guidance.** Place information needed for a decision or recovery beside
+  the relevant action. Show the private-key warning beside Download backup and
+  Retry lookup beside a failed lookup.
+- **Identity and peers.** In Identity settings, explain that the public key lets
+  Wiredove verify signatures and the private key signs posts and profile updates.
+  In Peers, explain that relays and direct peers can carry the same signed post.
+  Wiredove checks the signature and content whichever route the post took.
+- **Posts and repositories.** Put Signature and data in the existing post menu.
+  Show the author key, content ID, and what Wiredove actually verified. In
+  Workspace repository help, explain that a pinned commit link opens the same
+  revision after the branch moves.
+- **Technical reference.** Keep protocol formats, algorithms, and implementation
+  examples in ANProto Git repositories. Readers can open the reference in
+  Workspace at a pinned revision. Give people enough guidance in the app to
+  complete everyday tasks there.
+
 ## Preserve legacy blobs — compatibility requirement
 
 Ev explicitly confirmed on 2026-10-21 that legacy blob support must remain for
