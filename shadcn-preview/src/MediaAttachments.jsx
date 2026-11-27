@@ -94,7 +94,7 @@ export function MediaAttachments({ attachments, onChange, input, disabled }) {
                 {Icon ? <Icon aria-hidden="true" className="mx-4 size-6 shrink-0" /> : <Thumbnail file={attachment.file} />}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{attachment.file.name}</p>
-                  {isPhoto(attachment.file) && <Input value={attachment.alt} placeholder="Alt text" aria-label={`Alt text for photo ${photos.indexOf(attachment) + 1}`} maxLength={300}
+                  {isPhoto(attachment.file) && <Input value={attachment.alt} placeholder="Describe this photo…" aria-label={`Alt text for photo ${photos.indexOf(attachment) + 1}`} maxLength={300}
                     disabled={disabled} onChange={event => onChange(attachments.map(item =>
                       item.id === attachment.id ? { ...item, alt: event.target.value } : item))} />}
                 </div>
