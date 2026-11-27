@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
-import { ArrowLeft, Eye, KeyRound, LoaderCircle, MessagesSquare, Send, Trash2, X } from 'lucide-react'
+import { ArrowLeft, KeyRound, MessagesSquare, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -34,7 +34,7 @@ function ComposerAction({ label, icon: Icon, ...props }) {
     <Tooltip>
       <TooltipTrigger asChild>
         <Button type="button" variant="ghost" size="icon" aria-label={label} {...props}>
-          <Icon aria-hidden="true" className={Icon === LoaderCircle ? 'animate-spin' : undefined} />
+          <Icon aria-hidden="true" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
@@ -544,8 +544,9 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
               <HelpPopover label="About publishing">
                 Signed posts can be copied by other peers, so they can’t be recalled after publishing.
               </HelpPopover>
-              <ComposerAction label={sending ? 'Publishing…' : 'Publish'} icon={sending ? LoaderCircle : Send}
-                variant="default" className="ml-auto" disabled={publicationDisabled} onClick={() => submit(context)} />
+              <Button type="button" className="ml-auto" disabled={publicationDisabled} onClick={() => submit(context)}>
+                {sending ? 'Publishing…' : 'Publish'}
+              </Button>
             </div>
           </section>
         ) : <form className="space-y-3" onSubmit={event => {
@@ -569,7 +570,7 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
                   }
                   onChooseKey()
                 }} />
-              : <ComposerAction label="Preview" icon={Eye} type="submit" variant="default" disabled={publicationDisabled} />}
+              : <Button type="submit" disabled={publicationDisabled}>Preview</Button>}
             {context && <ComposerAction label="Close" icon={X} disabled={Boolean(busy)} onClick={cancelComposition} />}
             {context?.revision && <ComposerAction label="Discard draft" icon={Trash2}
               disabled={Boolean(busy)} onClick={() => discardComposition(context)} />}
