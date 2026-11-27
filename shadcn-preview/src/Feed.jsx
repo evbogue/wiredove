@@ -16,6 +16,7 @@ import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, p
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { DraftAttachmentsPreview, MediaAttachments, MediaPicker } from './MediaAttachments'
 import { HelpPopover } from './HelpPopover'
+import { MessageAuthorHeader } from './MessageAuthorHeader'
 import { PostBody } from './PostBody'
 import { PostCard } from './PostCard'
 import { gitCardType, gitRepositoryId } from './git-records'
@@ -527,7 +528,10 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
     const placeholder = editing ? 'Edit your message…' : context?.recipient ? label + '…'
       : context ? 'Reply to ' + authorName(context.post) + '…' : 'Write a post…'
     return (
-      <>
+      <div className="space-y-3">
+        <MessageAuthorHeader name={ownName || name.trim() || identity?.slice(0, 12) || 'You'} image={ownPhoto} className="px-0">
+          <span>Now</span>
+        </MessageAuthorHeader>
         {reviewing ? (
           <section className="space-y-3" aria-label={`Preview · ${label}`}>
             <h2 ref={reviewHeading} tabIndex={-1} className="sr-only">
@@ -576,7 +580,7 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
               disabled={Boolean(busy)} onClick={() => discardComposition(context)} />}
           </div>
         </form>}
-      </>
+      </div>
     )
   }
 
