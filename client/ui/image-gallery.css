@@ -44,9 +44,9 @@ wiredove-image-gallery.image-gallery-card {
 wiredove-image-gallery.image-gallery-card[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
 .image-gallery-card .image-gallery-cell,
 .image-gallery-card .image-gallery-cell.image-pending {
-  display: block; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 8px;
+  display: block; width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 8px;
 }
-.image-gallery-card[data-count="1"] .image-gallery-cell { max-height: min(480px, 65vh); }
+.image-gallery-card[data-count="1"] .image-gallery-cell { aspect-ratio: 4 / 3; max-height: min(480px, 65vh); }
 .image-gallery-card[data-count="1"] .image-gallery-tile img { object-fit: contain; }
 .image-gallery-card[data-count="1"] .image-gallery-portrait { width: min(100%, 480px, 65vh); }
 .image-gallery-card[data-count="1"] .image-gallery-portrait img { object-fit: cover; }
