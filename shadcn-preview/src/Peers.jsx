@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { HelpPopover } from './HelpPopover'
 import { defaultRelay, setRelayEnabled, setRoomEnabled } from './peer-connections'
 import { usePreference } from './hooks/use-preview-state'
 
@@ -66,7 +67,12 @@ export default function Peers() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold">Peers</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-xl font-semibold">Peers</h1>
+          <HelpPopover label="About peers and decentralization">
+            The same signed post can reach you through different relays or directly from another peer. Wiredove checks who signed it and whether its contents match what they signed, without asking a central server.
+          </HelpPopover>
+        </div>
         <p className="text-sm text-muted-foreground">
           {snapshot.queue.total} queued · {snapshot.queue.high} high · {snapshot.queue.normal} normal · {snapshot.queue.low} low
         </p>
