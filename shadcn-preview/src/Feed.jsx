@@ -450,7 +450,6 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
     const mediaInput = context ? actionMediaInput : draftMediaInput
     const sending = busy === (context ? 'inline' : 'post')
     const attachmentsDisabled = Boolean(busy) || context?.loading
-    const action = editing ? 'Save edit' : context?.post ? 'Send reply' : 'Publish'
     return (
       <Card className={context ? 'mt-2 py-3' : 'py-4'}>
         <CardContent>
@@ -469,7 +468,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
             <div className="flex flex-wrap items-center gap-2">
               {!editing && <MediaPicker input={mediaInput} disabled={attachmentsDisabled} />}
               <Button type="submit" disabled={(!body.trim() && !attachments.length) || attachmentsDisabled || pending !== false}>
-                {sending ? 'Publishing…' : action}
+                {sending ? 'Publishing…' : 'Publish'}
               </Button>
               {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Close</Button>}
               {context?.revision && <Button type="button" variant="ghost" size="icon"
