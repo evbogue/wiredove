@@ -13,7 +13,8 @@ import { usePreference } from './hooks/use-preview-state'
 import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readComposerDraft, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost, saveComposerDraft } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
-import { MediaAttachments, MediaPicker } from './MediaAttachments'
+import { DraftAttachmentPreview, MediaAttachments, MediaPicker } from './MediaAttachments'
+import { PostBody } from './PostBody'
 import { PostCard } from './PostCard'
 import { gitCardType, gitRepositoryId } from './git-records'
 import { EditAuthorProfile } from './EditAuthorProfile'
@@ -42,6 +43,8 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [profileEdit, setProfileEdit] = useState(null)
+  const [review, setReview] = useState(null)
+  const reviewHeading = useRef(null)
   const [openComposition, setComposition] = useState(null)
   const composition = openComposition?.identity === identity ? openComposition : null
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
@@ -384,11 +387,15 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
     }
   }
 
-  async function submit(event, context = null, retry = false) {
-    event?.preventDefault()
+  function isReviewing(context, body, attachments) {
+    return review?.hash === hash && review.identity === identity && review.token === context?.token
+      && review.body === body && review.attachments === attachments
+  }
+
+  async function submit(context = null, retry = false) {
     const body = context ? context.body : draft
     const attachments = context ? context.attachments : draftAttachments
-    if (remotePreviewFeed || busy || context?.loading || (!retry && ((!body.trim() && !attachments.length) || pending !== false))) return
+    if (remotePreviewFeed || busy || (!retry && (!isReviewing(context, body, attachments) || pending !== false))) return
     setBusy(retry ? 'retry' : context ? 'inline' : 'post')
     setNotice(null)
     try {
@@ -400,6 +407,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
         ? await retryPost(hosted)
         : await publishPost(hosted, body.trim(), name.trim(), metadata, editing ? post.author : undefined, attachments)
       if (!retry) {
+        setReview(null)
         if (context) {
           setComposition(null)
           if (context.revision) {
@@ -450,14 +458,40 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
     const mediaInput = context ? actionMediaInput : draftMediaInput
     const sending = busy === (context ? 'inline' : 'post')
     const attachmentsDisabled = Boolean(busy) || context?.loading
+    const reviewing = isReviewing(context, body, attachments)
+    const publicationDisabled = (!body.trim() && !attachments.length) || attachmentsDisabled || pending !== false
+    const label = editing ? 'Edit message' : context?.recipient ? 'Public message to ' + profileName
+      : context ? 'Replying to ' + authorName(context.post) : 'Message'
     return (
       <Card className={context ? 'mt-2 py-3' : 'py-4'}>
         <CardContent>
-          <form className="space-y-3" onSubmit={event => submit(event, context)}>
+          {reviewing ? (
+            <section className="space-y-3" aria-label={`Preview · ${label}`}>
+              <h2 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
+                {context ? `Preview · ${label}` : 'Preview'}
+              </h2>
+              <PostBody body={body.trim()} attachment={editing ? context.post.parsed : undefined} />
+              {attachments.map(attachment => <DraftAttachmentPreview key={attachment.id} attachment={attachment} />)}
+              <p className="text-sm text-muted-foreground">Once published, this message can’t be recalled from the network.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" disabled={publicationDisabled} onClick={() => submit(context)}>
+                  {sending ? 'Publishing…' : 'Publish'}
+                </Button>
+                <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => {
+                  flushSync(() => setReview(null))
+                  const field = context ? actionField : composer
+                  field.current?.focus({ preventScroll: true })
+                }}>Back to editing</Button>
+              </div>
+            </section>
+          ) : <form className="space-y-3" onSubmit={event => {
+            event.preventDefault()
+            if (publicationDisabled) return
+            flushSync(() => setReview({ hash, identity, token: context?.token, body, attachments }))
+            reviewHeading.current?.focus({ preventScroll: true })
+          }}>
             <Field>
-              <FieldLabel htmlFor={fieldId} className={context ? undefined : 'sr-only'}>
-                {editing ? 'Edit message' : context?.recipient ? 'Public message to ' + profileName : context ? 'Replying to ' + authorName(context.post) : 'Message'}
-              </FieldLabel>
+              <FieldLabel htmlFor={fieldId} className={context ? undefined : 'sr-only'}>{label}</FieldLabel>
               <Textarea id={fieldId} className="bg-muted dark:bg-muted" ref={context ? actionField : composer} value={body}
                 onChange={event => context ? updateComposition(context, { body: event.target.value }) : setDraft(event.target.value)}
                 readOnly={context?.loading}
@@ -467,15 +501,13 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
             {!editing && <MediaAttachments key={context?.key || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={attachmentsDisabled} />}
             <div className="flex flex-wrap items-center gap-2">
               {!editing && <MediaPicker input={mediaInput} disabled={attachmentsDisabled} />}
-              <Button type="submit" disabled={(!body.trim() && !attachments.length) || attachmentsDisabled || pending !== false}>
-                {sending ? 'Publishing…' : 'Publish'}
-              </Button>
+              <Button type="submit" disabled={publicationDisabled}>Preview</Button>
               {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Close</Button>}
               {context?.revision && <Button type="button" variant="ghost" size="icon"
                 aria-label="Discard draft" title="Discard draft" disabled={Boolean(busy)}
                 onClick={() => discardComposition(context)}><Trash2 aria-hidden="true" /></Button>}
             </div>
-          </form>
+          </form>}
         </CardContent>
       </Card>
     )
@@ -488,7 +520,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
           <Alert role="status">
             <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
               <span>Saved on this device. Delivery pending.</span>
-              <Button type="button" size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => submit(null, null, true)}>
+              <Button type="button" size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => submit(null, true)}>
                 {busy === 'retry' ? 'Retrying…' : 'Retry delivery'}
               </Button>
             </AlertDescription>

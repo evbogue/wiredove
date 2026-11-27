@@ -17,6 +17,19 @@ function Thumbnail({ file }) {
   return <img ref={image} alt="" className="size-14 shrink-0 rounded-md bg-muted object-cover" />
 }
 
+export function DraftAttachmentPreview({ attachment: { file, alt } }) {
+  const media = useRef(null)
+  useEffect(() => {
+    const url = URL.createObjectURL(file)
+    media.current.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  if (isPhoto(file)) return <img ref={media} alt={alt.trim()} className="max-h-96 max-w-full rounded-md object-contain" />
+  if (file.type.startsWith('audio/')) return <audio ref={media} controls preload="metadata" className="max-w-full" />
+  return <video ref={media} controls playsInline preload="metadata" className="max-h-96 max-w-full rounded-md" />
+}
+
 export function MediaPicker({ input, disabled }) {
   return (
     <Button type="button" variant="ghost" size="icon" aria-label="Attach media" title="Attach media"
