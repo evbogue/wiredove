@@ -8,7 +8,15 @@ async function registerSubscription(subscription, enabled) {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify(enabled ? subscription : { endpoint: subscription.endpoint }),
   })
-  if (!response.ok) throw Error('Could not update notifications. Try again.')
+  if (response.ok) return
+  if (response.status === 404 || response.status === 405) {
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+    throw Error(local
+      ? 'This local backend does not serve notification subscriptions. Restart the Wiredove backend with the current code, then try again.'
+      : 'This server does not serve notification subscriptions. Contact the site operator.')
+  }
+  const action = enabled ? 'enable' : 'disable'
+  throw Error(`Could not ${action} notifications on this device (server returned HTTP ${response.status}). Try again.`)
 }
 
 export function PostNotifications() {
