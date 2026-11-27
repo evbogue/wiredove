@@ -100,7 +100,9 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         symbol.classList.remove('image-gallery-spinning');
         tile.setAttribute('aria-label', viewLabel); tile.title = viewLabel;
         if (cardLayout && this.items.length === 1 && image.naturalWidth && image.naturalHeight) {
-          cell.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+          const portrait = image.naturalHeight > image.naturalWidth;
+          cell.classList.toggle('image-gallery-portrait', portrait);
+          cell.style.aspectRatio = portrait ? '1' : `${image.naturalWidth} / ${image.naturalHeight}`;
         }
         tile.removeAttribute('aria-busy');
         tile.classList.remove('image-unavailable');
