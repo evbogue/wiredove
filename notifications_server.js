@@ -266,7 +266,7 @@ export async function createNotificationsService({ webpush = defaultWebpush, ...
     await writeJsonFile(settings.stateFile, state)
   }
 
-  async function sendPayloadToSubscriptions(payload) {
+  async function sendPayloadToSubscriptions(payload, preview = false, expiresAt = null) {
     const subs = await loadSubscriptions()
     if (subs.length === 0) {
       return { sent: false, reason: 'no subscriptions' }
@@ -276,6 +276,10 @@ export async function createNotificationsService({ webpush = defaultWebpush, ...
     const nextSubs = []
 
     for (const sub of subs) {
+      if (Boolean(sub.preview) !== preview || (expiresAt && expiresAt <= Date.now())) {
+        nextSubs.push(sub)
+        continue
+      }
       try {
         await webpush.sendNotification(
           {
@@ -283,6 +287,7 @@ export async function createNotificationsService({ webpush = defaultWebpush, ...
             keys: sub.keys,
           },
           payload,
+          expiresAt ? { TTL: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)) } : undefined,
         )
         nextSubs.push({ ...sub, lastNotifiedAt: now })
       } catch (err) {
@@ -307,7 +312,7 @@ export async function createNotificationsService({ webpush = defaultWebpush, ...
       return Response.json({ key: config.vapidPublicKey })
     }
 
-    if (req.method === 'POST' && url.pathname === '/subscribe') {
+    if (req.method === 'POST' && ['/subscribe', '/api/notifications/subscribe'].includes(url.pathname)) {
       const body = await req.json().catch(() => null)
       if (!body || typeof body !== 'object') {
         return Response.json({ error: 'invalid subscription' }, { status: 400 })
@@ -324,17 +329,22 @@ export async function createNotificationsService({ webpush = defaultWebpush, ...
       if (!existing) {
         subs.push({
           id,
+          ...(url.pathname.startsWith('/api/') ? { preview: true } : {}),
           endpoint: sub.endpoint,
           keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
           createdAt: new Date().toISOString(),
         })
+        await saveSubscriptions(subs)
+      } else {
+        existing.keys = { p256dh: sub.keys.p256dh, auth: sub.keys.auth }
+        existing.preview = url.pathname.startsWith('/api/')
         await saveSubscriptions(subs)
       }
 
       return new Response('ok', { status: 200 })
     }
 
-    if (req.method === 'POST' && url.pathname === '/unsubscribe') {
+    if (req.method === 'POST' && ['/unsubscribe', '/api/notifications/unsubscribe'].includes(url.pathname)) {
       const body = await req.json().catch(() => null)
       const endpoint = body?.endpoint
       if (!endpoint) {
@@ -445,13 +455,43 @@ export async function createNotificationsService({ webpush = defaultWebpush, ...
   // Keep read/modify/write operations ordered within one server process. Run
   // only one runtime against these files at a time; this is not a process lock.
   let writes = Promise.resolve()
+  function serialize(operation) {
+    const result = writes.then(operation)
+    writes = result.catch(() => {})
+    return result
+  }
+
+  async function confirmPost({ id, signature, content }) {
+    const opened = await apds.open(signature)
+    if (!/^\d{13}/.test(opened) || opened.slice(13) !== await apds.hash(content) || id !== await apds.hash(signature)) return
+    const timestamp = Number(opened.slice(0, 13))
+    const expiresAt = timestamp + 300000
+    const post = await apds.parseYaml(content)
+    if (post?.edit || (!post?.body?.trim() && !post?.media_url)) return
+    return serialize(async () => {
+      const now = Date.now()
+      if (timestamp > now || expiresAt <= now) return
+      const file = settings.dataDir + '/preview-notified.json'
+      let entries
+      try { entries = JSON.parse(await fs.readFile(file, 'utf8')) }
+      catch (error) { if (error.code !== 'ENOENT') throw error; entries = {} }
+      if (entries[id]) return
+      entries = Object.fromEntries(Object.entries(entries).filter(([, expiry]) => expiry > now))
+      entries[id] = expiresAt
+      await writeJsonFile(file, entries)
+      const payload = JSON.stringify({
+        hash: id, expiresAt,
+        title: summarizeText(typeof post.name === 'string' ? post.name : '', 60) || signature.slice(0, 10),
+        body: summarizeText(post.body, 120) || 'Shared media',
+      })
+      await sendPayloadToSubscriptions(payload, true, expiresAt)
+    })
+  }
   return {
-    config,
+    config, confirmPost,
     handleRequest(request) {
       if (request.method !== 'POST') return handleRequest(request)
-      const result = writes.then(() => handleRequest(request))
-      writes = result.catch(() => {})
-      return result
+      return serialize(() => handleRequest(request))
     },
   }
 }

@@ -1,3 +1,4 @@
+import { PostNotifications } from './PostNotifications'
 import { useState } from 'react'
 import { Settings as SettingsIcon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -46,6 +47,7 @@ export function Settings({ theme, setTheme }) {
           <Switch id="dark-mode" checked={theme === 'dark'} onCheckedChange={value => setTheme(value ? 'dark' : 'light')} />
           <FieldLabel htmlFor="dark-mode">Dark mode</FieldLabel>
         </Field>
+        <PostNotifications />
         <div className="space-y-3 border-t pt-4">
           <div className="flex items-center gap-1">
             <Button variant="outline" size="sm" disabled={confirming} onClick={() => setConfirming(true)}>Delete local data</Button>

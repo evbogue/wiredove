@@ -80,7 +80,7 @@ export default defineConfig(({ mode }) => {
     throw new Error('WIREDOVE_PREVIEW_SOURCE_REPO must be a full ANProto repository hash in URL-safe Base64.')
   }
   const proxy = Object.fromEntries(
-    ['/api/application', '/sync/status', '/gossip/poll', '/posts', '/wiredove/image']
+    ['/api/notifications', '/vapid-public-key', '/api/application', '/sync/status', '/gossip/poll', '/posts', '/wiredove/image']
       .map(path => [path, { target: backend, changeOrigin: true }]),
   )
   proxy['/api/git'] = { target: gitBackend, changeOrigin: true }

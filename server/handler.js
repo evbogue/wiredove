@@ -145,12 +145,25 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
   const blobDir = resolve(root, env.BLOB_DIR || `${dataDir}/blobs`)
   const mediaDir = resolve(root, env.MEDIA_DATA_DIR || dataDir)
   const configFile = resolve(root, env.VAPID_CONFIG_PATH || './config.json')
-  const application = await createApplicationBackend({ dataDir: applicationDir })
   const notifications = await createNotificationsService({
     dataDir, subsFile: `${dataDir}/subscriptions.json`, stateFile: `${dataDir}/state.json`, configFile,
     vapidSubject: env.VAPID_SUBJECT, pushIconUrl: env.PUSH_ICON_URL, feedRowsUpstream: env.FEED_ROWS_UPSTREAM,
     ...notificationsOptions,
   })
+  const onSaved = record => {
+    notifications.confirmPost(record).catch(error => console.warn('Post notification failed', error.message))
+  }
+  const application = await createApplicationBackend({ dataDir: applicationDir, onSaved })
+  async function notifyHostedPost(response) {
+    const receipt = await response.json()
+    if (receipt.status !== 'published' || receipt.relayed === false || !/^[A-Za-z0-9+/]{43}=$/.test(receipt.id)) return
+    const url = new URL('/raw', env.WORKSPACE_GIT_UPSTREAM)
+    url.searchParams.set('post', receipt.id)
+    const raw = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(10000) })
+    if (!raw.ok) throw Error('Confirmed post could not be retrieved')
+    const record = await raw.json()
+    if (record.id === receipt.id) await notifications.confirmPost(record)
+  }
   const media = await createAndFsMediaService({ dataDir: mediaDir,
     maxMediaBytes: Number(env.MEDIA_MAX_BYTES || 32 * 1024 * 1024),
     quotaBytes: Number(env.MEDIA_QUOTA_BYTES || 1024 * 1024 * 1024) })
@@ -192,7 +205,12 @@ export async function createWiredoveHandler({ env = processEnv, root = cwd(), no
     if (/^\/(?:data(?:\/|$)|config\.json$|\.git(?:\/|$))/.test(pathname)) return new Response(null, { status: 404 })
     const blockRoute = /^\/blobs\/[A-Za-z0-9_-]{43}$/.test(pathname) && ['GET', 'HEAD'].includes(request.method)
     const git = !blockRoute && await workspaceGit?.(request)
-    if (git) return git
+    if (git) {
+      if (git.ok && pathname === '/posts' && request.method === 'POST') {
+        notifyHostedPost(git.clone()).catch(error => console.warn('Hosted post notification failed', error.message))
+      }
+      return git
+    }
     for (const service of [application.handleRequest, media.handleRequest, legacyBlob, notifications.handleRequest]) {
       const response = await service(request)
       if (response) {

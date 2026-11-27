@@ -3,7 +3,7 @@ import { an } from './vendor/anproto/an.js'
 
 // Append-only verified artifact archive. Scope is this backend's stored records,
 // not the public network. Sequence cursors do not depend on author timestamps.
-export const createApplicationBackend = async ({ dataDir = './data/application' } = {}) => {
+export const createApplicationBackend = async ({ dataDir = './data/application', onSaved = () => {} } = {}) => {
   await fs.mkdir(dataDir, { recursive: true })
   let queue = Promise.resolve()
   const serial = fn => { const result = queue.then(fn); queue = result.catch(() => {}); return result }
@@ -54,6 +54,7 @@ export const createApplicationBackend = async ({ dataDir = './data/application' 
           await fs.writeFile(temporary, JSON.stringify(next))
           await fs.rename(temporary, file)
           records = next
+          onSaved({ id, signature, content })
         }
         return json({ id, saved: true })
       })

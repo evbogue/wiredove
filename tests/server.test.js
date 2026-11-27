@@ -228,3 +228,87 @@ test('push payload and expired subscription pruning use injected delivery only',
     assert.equal(await fs.readFile(f.env.VAPID_CONFIG_PATH, 'utf8'), '{invalid')
   } finally { await f.close() }
 })
+
+test('preview alerts include fresh replies and media, suppress old posts and replays across restarts', async () => {
+  const f = await fixture()
+  const sent = []
+  const options = {
+    dataDir: f.data, subsFile: join(f.data, 'subscriptions.json'), configFile: f.env.VAPID_CONFIG_PATH,
+    webpush: {
+      generateVAPIDKeys: () => ({ publicKey: 'fixture', privateKey: 'fixture' }), setVapidDetails() {},
+      async sendNotification(sub, bytes, options) { sent.push({ post: JSON.parse(bytes), ttl: options.TTL, endpoint: sub.endpoint }) },
+    },
+  }
+  try {
+    const service = await createNotificationsService(options)
+    const register = path => service.handleRequest(new Request('https://local' + path, {
+      method: 'POST', body: JSON.stringify({ endpoint: 'https://example.invalid' + path, keys: { auth: 'fixture', p256dh: 'fixture' } }),
+    }))
+    await register('/subscribe')
+    await register('/api/notifications/subscribe')
+    const key = await an.gen()
+    async function sign(metadata, body, age) {
+      const content = await yaml.create(metadata, body)
+      const message = String(Date.now() - age) + await an.hash(content)
+      const signed = nacl.sign(new TextEncoder().encode(message), Buffer.from(key.slice(44), 'base64'))
+      const signature = key.slice(0, 44) + Buffer.from(signed).toString('base64')
+      return { id: await an.hash(signature), signature, content }
+    }
+    const reply = await sign({ reply: 'parent' }, 'A reply', 1000)
+    const media = await sign({ media_url: '/#fixture' }, '', 1000)
+    await service.confirmPost(await sign({}, 'Late arrival', 300001))
+    await service.confirmPost(await sign({}, 'Future timestamp', -60000))
+    await service.confirmPost({ ...reply, content: 'changed' })
+    await Promise.all([service.confirmPost(reply), service.confirmPost(media), service.confirmPost(reply)])
+    await (await createNotificationsService(options)).confirmPost(reply)
+    assert.deepEqual(sent.map(item => item.post.hash).sort(), [reply.id, media.id].sort())
+    assert.ok(sent.every(item => item.ttl <= 300 && item.ttl > 0 && item.endpoint.endsWith('/api/notifications/subscribe')))
+  } finally { await f.close() }
+})
+
+test('archive and hosted gateway receipts trigger preview delivery for the exact post', async () => {
+  const { createWiredoveHandler } = await import('../server/handler.js')
+  const f = await fixture()
+  const records = new Map()
+  const upstream = createServer(async (request, response) => {
+    response.setHeader('content-type', 'application/json')
+    if (request.url === '/posts') {
+      let text = ''
+      for await (const chunk of request) text += chunk
+      const record = JSON.parse(text)
+      records.set(record.id, record)
+      response.end(JSON.stringify({ id: record.id, status: 'published' }))
+    } else {
+      const id = new URL(request.url, 'http://fixture').searchParams.get('post')
+      response.end(JSON.stringify(records.get(id)))
+    }
+  })
+  try {
+    upstream.listen(0, '127.0.0.1')
+    await once(upstream, 'listening')
+    const messages = []
+    const handler = await createWiredoveHandler({
+      root: f.root, env: { ...f.env, WORKSPACE_GIT_UPSTREAM: 'http://127.0.0.1:' + upstream.address().port },
+      notificationsOptions: { webpush: {
+        generateVAPIDKeys: () => ({ publicKey: 'fixture', privateKey: 'fixture' }), setVapidDetails() {},
+        async sendNotification(sub, payload) { messages.push(JSON.parse(payload).hash) },
+      } },
+    })
+    const post = (path, value) => handler(new Request('http://fixture' + path, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value),
+    }))
+    await post('/api/notifications/subscribe', { endpoint: 'https://example.invalid/device', keys: { auth: 'fixture', p256dh: 'fixture' } })
+    const key = await an.gen()
+    for (const path of ['/api/application', '/posts']) {
+      const content = await yaml.create({}, 'Published via ' + path)
+      const signature = await an.sign(await an.hash(content), key)
+      const record = { id: await an.hash(signature), content, signature }
+      assert.ok((await post(path, record)).ok)
+      for (let attempt = 0; attempt < 100 && !messages.includes(record.id); attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      assert.ok(messages.includes(record.id), path)
+    }
+    assert.equal(messages.length, 2)
+  } finally { await new Promise(resolve => upstream.close(resolve)); await f.close() }
+})
