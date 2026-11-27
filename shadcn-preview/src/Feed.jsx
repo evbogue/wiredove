@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { MessagesSquare, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -44,6 +44,16 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [profileEdit, setProfileEdit] = useState(null)
+  const profileDrafts = useRef(new Map())
+  const [profileSaveStatus, setProfileSaveStatus] = useState(null)
+  const storeProfileDraft = useCallback((author, draft) => {
+    profileDrafts.current.set(author, draft)
+  }, [])
+  useEffect(() => {
+    if (!profileSaveStatus) return
+    const timer = setTimeout(() => setProfileSaveStatus(null), 6000)
+    return () => clearTimeout(timer)
+  }, [profileSaveStatus])
   const [openedProfileSetup, setOpenedProfileSetup] = useState(null)
   const [review, setReview] = useState(null)
   const reviewHeading = useRef(null)
@@ -363,7 +373,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
     }
   }, [attempt])
 
-  function openProfileEditor() {
+  function openProfileEditor(draft) {
     setProfileEdit({
       id: identity,
       name: profile?.name?.value || name.trim(),
@@ -371,12 +381,20 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       links: profile?.links?.value || [],
       image: profile?.image?.value,
       photoState: profile?.photoState,
+      draft,
     })
   }
+
+  if (profileEdit && !ownProfilePage) setProfileEdit(null)
 
   if (ownProfilePage && profileSetup === identity && openedProfileSetup !== profileSetup) {
     setOpenedProfileSetup(profileSetup)
     openProfileEditor()
+  }
+
+  function discardProfileDraft(author) {
+    profileDrafts.current.delete(author)
+    setProfileEdit(null)
   }
 
   function restoreProfileIdentity(key) {
@@ -400,8 +418,8 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       }
       if (remotePreviewFeed) {
         setLocalProfile(await saveLocalProfile(profileEdit.id, metadata, photo))
-        setProfileEdit(null)
-        toast.success('Profile saved in this browser')
+        discardProfileDraft(profileEdit.id)
+        setProfileSaveStatus({ id: profileEdit.id, message: 'Saved in this browser' })
         return
       }
       const result = await publishProfile(hosted, profileEdit.id, metadata, photo)
@@ -409,11 +427,11 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       setPending(waiting ? { postId: null } : false)
       onNameChange(metadata.name)
       setLocalPost(await readLocalPost(result))
-      setProfileEdit(null)
+      discardProfileDraft(profileEdit.id)
+      setProfileSaveStatus(waiting ? null : { id: profileEdit.id, message: 'Profile published' })
       setAttempt(n => n + 1)
       if (!waiting) {
         if (online) announcePeerPost(result)
-        toast.success('Profile saved')
       }
     } finally {
       setBusy(null)
@@ -467,7 +485,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
         const target = result.target || (editing ? post.id : result.id)
         if (!waiting) {
           if (online) announcePeerPost(result)
-          if (isProfileUpdate(local?.parsed)) toast.success('Profile saved')
+          if (isProfileUpdate(local?.parsed)) setProfileSaveStatus({ id: local.author, message: 'Profile published' })
           else toast.success('Published', {
             action: { label: 'View post', onClick: () => { location.hash = socialHref(target) } },
           })
@@ -582,9 +600,11 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
         ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)} name={profileName}
             onMessage={!remotePreviewFeed && route.id !== identity
               ? event => beginComposition('message', null, '', event, route.id) : undefined}
+            saveStatus={profileSaveStatus?.id === route.id && ownProfilePage ? profileSaveStatus.message : ''}
             profileEditControl={ownProfilePage && (
               <ProfileEditorPopover open={editingProfile} saving={busy === 'profile'} identity={identity} initial={profileEdit}
-                onOpen={openProfileEditor} onClose={() => setProfileEdit(null)} onSave={saveProfile}
+                onOpen={() => openProfileEditor(profileDrafts.current.get(identity))} onClose={() => setProfileEdit(null)}
+                onCancel={() => discardProfileDraft(identity)} onDraft={storeProfileDraft} onSave={saveProfile}
                 onRestore={restoreProfileIdentity} busy={Boolean(busy)} canSave={remotePreviewFeed || pending === false}
                 localOnly={Boolean(remotePreviewFeed)} />
             )}

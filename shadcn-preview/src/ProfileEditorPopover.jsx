@@ -6,7 +6,7 @@ import { EditAuthorProfile } from './EditAuthorProfile'
 import { HelpPopover } from './HelpPopover'
 import { ProfileKeys } from './ProfileKeys'
 
-export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, onClose, onSave, onRestore, busy, canSave, localOnly }) {
+export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, onClose, onCancel, onDraft, onSave, onRestore, busy, canSave, localOnly }) {
   return (
     <Popover.Root open={open} onOpenChange={next => {
       if (next) onOpen()
@@ -21,7 +21,8 @@ export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, 
         <TooltipContent>Edit profile</TooltipContent>
       </Tooltip>
       <Popover.Portal>
-        <Popover.Content align="end" sideOffset={8} collisionPadding={12} aria-label="Edit profile"
+        <Popover.Content align="end" sideOffset={8} collisionPadding={12} aria-label="Edit profile" data-profile-editor-popover
+          onOpenAutoFocus={event => event.preventDefault()}
           onInteractOutside={event => {
             if (event.target.closest?.('.photo-crop-dialog') || saving) event.preventDefault()
           }}
@@ -42,7 +43,7 @@ export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, 
             </Popover.Close>
           </div>
           {initial && <EditAuthorProfile key={identity} initial={initial} disabled={busy || !canSave} localOnly={localOnly}
-            onSave={onSave} onCancel={onClose}>
+            onSave={onSave} onCancel={onCancel} onDraft={onDraft}>
             <ProfileKeys identity={identity} onRestore={onRestore} disabled={busy} />
           </EditAuthorProfile>}
         </Popover.Content>

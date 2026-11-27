@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { createProfileEditor } from '../../client/ui/profile-editor.js'
 import { resolveImageSource } from '../../client/ui/image-source.js'
@@ -9,33 +9,53 @@ import './profile-editor.css'
 
 const mediaOptions = { store: previewMediaStore, fetchImpl: fetchPeerMedia }
 
-export function EditAuthorProfile({ initial, onSave, onCancel, disabled, localOnly, children }) {
+export function EditAuthorProfile({ initial, onSave, onCancel, onDraft, disabled, localOnly, children }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const formId = useId()
   const mount = useRef(null)
   const editor = useRef(null)
-  const photo = useRef(null)
+  const photo = useRef(initial.draft?.photo || null)
 
-  useEffect(() => {
+  const captureDraft = useCallback(() => {
+    const widget = editor.current
+    onDraft(initial.id, {
+      name: widget.nameInput.value,
+      bio: widget.bioInput.value,
+      links: widget.linksEditor.getDraftLinks(),
+      photo: photo.current,
+    })
+  }, [initial.id, onDraft])
+
+  useLayoutEffect(() => {
     const controller = new AbortController()
     const widget = createProfileEditor({
-      ...initial, mediaOptions, helpOnDemand: true,
-      onImageChange(_data, file, { original, crop }) {
-        photo.current = { file, original, crop }
+      ...initial, ...initial.draft, draftPhoto: photo.current, mediaOptions, helpOnDemand: true,
+      onLinkRowsChange: captureDraft,
+      onImageChange(data, file, { original, crop }) {
+        photo.current = { data, file, original, crop }
+        captureDraft()
       },
     })
+    if (initial.draft) widget.linksEditor.setDraftLinks(initial.draft.links)
     editor.current = widget
     mount.current.replaceChildren(widget.photo, widget.fields)
-    widget.nameInput.focus()
-    if (initial.image) {
+    widget.nameInput.focus({ preventScroll: true })
+    function keepNameVisible() {
+      if (document.activeElement === widget.nameInput) widget.nameInput.scrollIntoView({ block: 'nearest' })
+    }
+    window.visualViewport?.addEventListener('resize', keepNameVisible)
+    if (initial.image && !photo.current) {
       void resolveImageSource({ src: initial.image }, resolvePeerImage, controller.signal, false, mediaOptions)
         .then(src => {
           if (src && !controller.signal.aborted && !photo.current) widget.image.src = src
         }).catch(() => {})
     }
-    return () => controller.abort()
-  }, [initial])
+    return () => {
+      controller.abort()
+      window.visualViewport?.removeEventListener('resize', keepNameVisible)
+    }
+  }, [initial, captureDraft])
 
   async function save(event) {
     event.preventDefault()
@@ -69,7 +89,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel, disabled, localOn
   return (
     <>
       <div className="min-h-0 space-y-4 overflow-y-auto px-4 pb-4">
-        <form id={formId} className="preview-profile-editor space-y-4" noValidate onSubmit={save}>
+        <form id={formId} className="preview-profile-editor space-y-4" noValidate onInput={captureDraft} onSubmit={save}>
           <div ref={mount} className="space-y-4" />
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </form>

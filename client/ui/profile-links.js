@@ -40,7 +40,7 @@ export function renderProfileLinks(container, links) {
   }
 }
 
-export function createProfileLinksEditor({ showHint = true, compact = false } = {}) {
+export function createProfileLinksEditor({ showHint = true, compact = false, onRowsChange } = {}) {
   const element = document.createElement('fieldset');
   element.className = 'profile-links-editor profile-edit-only';
   const legend = document.createElement('legend');
@@ -96,7 +96,7 @@ export function createProfileLinksEditor({ showHint = true, compact = false } = 
         button.textContent = text;
         button.setAttribute('aria-label', `${text} link ${index + 1}`);
         button.disabled = disabled;
-        button.onclick = () => { action(); draw(); };
+        button.onclick = () => { action(); draw(); onRowsChange?.(); };
         controls.append(button);
       };
       if (drafts.length > 1) control('Move up', () => { [drafts[index - 1], drafts[index]] = [drafts[index], drafts[index - 1]]; }, index === 0);
@@ -105,13 +105,15 @@ export function createProfileLinksEditor({ showHint = true, compact = false } = 
       rows.append(row);
     });
   };
-  add.onclick = () => { drafts.push({ label: '', url: '' }); draw(); rows.lastElementChild?.querySelector('input')?.focus(); };
+  add.onclick = () => { drafts.push({ label: '', url: '' }); draw(); onRowsChange?.(); rows.lastElementChild?.querySelector('input')?.focus(); };
   element.append(legend);
   if (showHint) element.append(hint);
   element.append(rows, add);
   return {
     element,
     setLinks(links) { drafts = normalizeProfileLinks(links).map(link => ({ ...link })); draw(); },
+    getDraftLinks() { return drafts.map(link => ({ ...link })); },
+    setDraftLinks(links) { drafts = links.map(link => ({ ...link })); draw(); },
     getLinks() { return normalizeProfileLinks(drafts, { strict: true }); },
     showLinkError(error) {
       const url = rows.children[error.linkIndex]?.querySelector('input[type="url"]');

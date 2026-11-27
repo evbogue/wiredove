@@ -209,3 +209,16 @@
   bottom: auto;
   translate: 0 -100%;
 }
+
+@media (max-width: 639px) {
+  [data-radix-popper-content-wrapper]:has(> [data-profile-editor-popover]) {
+    top: calc(var(--preview-viewport-top, 0px) + var(--preview-viewport-height, 100dvh) / 2) !important;
+    left: var(--preview-viewport-center-x, 50%) !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  [data-profile-editor-popover] {
+    max-width: calc(var(--preview-viewport-width, 100vw) - 1.5rem);
+    max-height: calc(var(--preview-viewport-height, 100dvh) - 1.5rem);
+  }
+}

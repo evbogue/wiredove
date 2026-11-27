@@ -11,7 +11,7 @@ const el = (tag, className, text) => {
 };
 
 // UI only: the consuming frame owns identity, storage and publication.
-export function createProfileEditor({ name = '', bio = '', links = [], imageSrc = '', photoState = null, onImageChange, onBusy, mediaOptions, helpOnDemand = false }) {
+export function createProfileEditor({ name = '', bio = '', links = [], imageSrc = '', photoState = null, draftPhoto, onImageChange, onLinkRowsChange, onBusy, mediaOptions, helpOnDemand = false }) {
   const fields = el('div', 'profile-fields profile-edit-only');
   const field = (title, control) => {
     const label = el('label', 'profile-field');
@@ -28,12 +28,12 @@ export function createProfileEditor({ name = '', bio = '', links = [], imageSrc 
   bioInput.rows = 4;
   bioInput.placeholder = 'Tell people a little about yourself';
   bioInput.value = bio;
-  const linksEditor = createProfileLinksEditor({ showHint: !helpOnDemand, compact: helpOnDemand });
+  const linksEditor = createProfileLinksEditor({ showHint: !helpOnDemand, compact: helpOnDemand, onRowsChange: onLinkRowsChange });
   linksEditor.setLinks(links);
   fields.append(linksEditor.element);
   const photo = el('div', 'profile-photo-editor profile-edit-only');
   const image = el('img', 'profile-avatar');
-  image.src = imageSrc;
+  image.src = draftPhoto?.data || imageSrc;
   image.alt = 'Profile photo preview';
   const choose = el('button', '', 'Change photo');
   choose.type = 'button';
@@ -46,7 +46,7 @@ export function createProfileEditor({ name = '', bio = '', links = [], imageSrc 
   photo.append(image, choose, upload, photoStatus);
   const adjust = el('button', '', 'Adjust crop'); adjust.type = 'button';
   photo.insertBefore(adjust, upload);
-  let originalFile = null, state = photoState;
+  let originalFile = draftPhoto?.original || null, state = draftPhoto || photoState;
   const updateAdjust = () => { adjust.hidden = !originalFile && !state?.original; };
   updateAdjust();
   choose.onclick = () => upload.click();

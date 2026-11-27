@@ -7,7 +7,7 @@ import { PostBody } from './PostBody'
 import { shortPublicKey } from './messages'
 import { ShareLink } from './ShareLink'
 
-export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage, profileEditControl, messageDisabled }) {
+export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage, profileEditControl, messageDisabled, saveStatus }) {
   const links = profile?.links?.value || []
   async function copyKey() {
     try {
@@ -39,6 +39,7 @@ export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage
                 <ShareLink key={id} id={id} label="Share profile" variant="outline" iconOnly />
               </div>}
         </div>
+        <div role="status" className={saveStatus ? 'text-sm text-muted-foreground' : 'sr-only'}>{saveStatus}</div>
         {!blocked && profile?.bio?.value && <div className="text-sm"><PostBody body={profile.bio.value} /></div>}
         {!blocked && links.length > 0 && (
           <ul aria-label="Profile links" className="flex flex-wrap gap-2">
