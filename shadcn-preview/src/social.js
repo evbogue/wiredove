@@ -1,3 +1,4 @@
+import { imageMime } from '../../client/ui/image-source.js'
 import { createAndFSMediaClient, isAndFSPlayableMedia } from '../../client/andfs.js'
 import { apdsAndFS, MAX_MANIFEST } from '../../vendor/andfs/andfs.js'
 import { saveIdentityBackupFile, validateIdentityBackup } from '../../client/core/identity-backup.js'
@@ -24,9 +25,13 @@ export const remotePreviewFeed = import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED
 
 // Replay verified history so earlier repository records can appear in Social.
 const checkpointKey = 'checkpoint-with-git-cards'
-const feedCache = createBrowserStore(databaseName(remotePreviewFeed || import.meta.env.VITE_WIREDOVE_HOSTED === '1') + ':feed')
+export const hostedPreview = import.meta.env.VITE_WIREDOVE_HOSTED === '1'
+const writableFeedCache = createBrowserStore(databaseName(hostedPreview)
+  + (remotePreviewFeed && hostedPreview ? ':gateway-feed' : ':feed'))
+const browseFeedCache = createBrowserStore(databaseName(true) + ':feed')
 
-export async function readStoredFeed() {
+export async function readStoredFeed(browsing) {
+  const feedCache = browsing ? browseFeedCache : writableFeedCache
   return await feedCache.get(checkpointKey) || await feedCache.get('checkpoint')
 }
 
@@ -35,13 +40,14 @@ export function isFeedPost(parsed) {
     && ((typeof parsed?.body === 'string' && Boolean(parsed.body.trim())) || isAndFSPlayableMedia(parsed))
 }
 
-export async function readFeed(hosted, signal, previous) {
+export async function readFeed(hosted, signal, previous, browsing) {
+  const feedCache = browsing ? browseFeedCache : writableFeedCache
   if (previous?.version !== 2) previous = undefined
-  const polls = hosted || remotePreviewFeed
+  const polls = hosted || browsing
   const posts = new Map(previous?.posts.map(post => [post.id, post]))
   const authors = new Set(previous?.authors)
   const profiles = new Map(previous?.profiles)
-  const path = remotePreviewFeed ? '/api/preview-feed' : hosted ? '/gossip/poll' : '/api/application'
+  const path = browsing ? '/api/preview-feed' : hosted ? '/gossip/poll' : '/api/application'
   let cursor = previous?.cursor ?? 0
   while (true) {
     const url = new URL(path, endpoint)
@@ -131,7 +137,6 @@ export async function readPendingPublication(hosted) {
 
 const newestFirst = (a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id)
 
-export const hostedPreview = import.meta.env.VITE_WIREDOVE_HOSTED === '1'
 let storage
 export function openIdentity(hosted) {
   storage ||= (async () => {
@@ -278,7 +283,7 @@ async function stageMedia(file, files, store, author) {
     type: file.type.split('/')[0], andfs: manifestHash, mime: file.type,
     media_name: file.name, media_size: file.size, media_url: '/#' + manifestHash,
   }
-  if (store) await store.set(mediaKey(author, manifestHash), media)
+  await store.set(mediaKey(author, manifestHash), media)
   return media
 }
 
@@ -299,18 +304,6 @@ export async function readLocalProfile(author) {
   return profile.author === author ? profile : null
 }
 
-export async function saveLocalProfile(author, metadata, photo) {
-  return navigator.locks.request(databaseName(hostedPreview), async () => {
-    const apds = await openIdentity(hostedPreview)
-    const keypair = await apds.keypair()
-    if (!keypair || keypair.slice(0, 44) !== author) throw Error('This identity cannot edit the profile.')
-    const record = await protocol.compose(keypair, '', await withProfilePhoto(metadata, photo))
-    const { id, signature, content } = record
-    await identityStore(hostedPreview).set(localProfileKey(author), { id, signature, content })
-    return record
-  })
-}
-
 export async function publishProfile(hosted, author, metadata, photo) {
   return navigator.locks.request(databaseName(hosted), async () => {
     const { apds, session, store } = await openWriter(hosted)
@@ -319,6 +312,16 @@ export async function publishProfile(hosted, author, metadata, photo) {
     if (await store.get('identity-needs-pull') === author) {
       await session.pull()
       await store.delete('identity-needs-pull')
+    }
+    if (!photo) {
+      const local = await readLocalProfile(author)
+      for (const field of ['image', 'image_original']) {
+        const reference = metadata[field]
+        if (!/^\/#[-_A-Za-z0-9]{43}$/.test(reference) || reference !== local?.parsed[field]) continue
+        const files = await openLocalFiles()
+        const bytes = await files.get(reference.slice(2))
+        await stageMedia(new File([bytes], 'profile-photo', { type: imageMime(bytes) }), files, store, author)
+      }
     }
     return session.publish('', await withProfilePhoto(metadata, photo, store, author))
   })

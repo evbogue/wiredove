@@ -10,7 +10,7 @@ import './profile-editor.css'
 
 const mediaOptions = { store: previewMediaStore, fetchImpl: fetchPeerMedia }
 
-export function EditAuthorProfile({ initial, onSave, onCancel, onDraft, disabled, localOnly, children }) {
+export function EditAuthorProfile({ initial, onSave, onCancel, onDraft, disabled, children }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const formId = useId()
@@ -97,7 +97,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel, onDraft, disabled
         {children}
       </div>
       <div className="flex shrink-0 gap-2 border-t px-4 py-3">
-        <Button type="submit" form={formId} disabled={busy || disabled}>{busy ? 'Saving…' : localOnly ? 'Save locally' : 'Save profile'}</Button>
+        <Button type="submit" form={formId} disabled={busy || disabled}>{busy ? 'Saving…' : 'Save profile'}</Button>
         <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
       </div>
     </>

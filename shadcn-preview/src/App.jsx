@@ -77,6 +77,7 @@ export default function App() {
   const peers = hash === 'peers'
   const workspace = mode === 'workspace'
   const [identity, setIdentity] = useState(undefined)
+  const readOnly = remotePreviewFeed && !identity
   const [identityError, setIdentityError] = useState(false)
   const [choosingKey, setChoosingKey] = useState(false)
   const [profileSetup, setProfileSetup] = useState(null)
@@ -145,7 +146,8 @@ export default function App() {
           {workspace && <WorkspaceSidebar repository={repository} profile={profile} />}
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository || peers} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
-              <Feed active={!repository && !peers} hash={hash} name={name} onNameChange={setName} identity={identity} onIdentityChange={setIdentity} onOwnProfileChange={setOwnProfile}
+              <Feed key={String(readOnly)} readOnly={readOnly} waitingForIdentity={remotePreviewFeed && identity === undefined && !identityError}
+                active={!repository && !peers} hash={hash} name={name} onNameChange={setName} identity={identity} onIdentityChange={setIdentity} onOwnProfileChange={setOwnProfile}
                 draft={draft} setDraft={setDraft} composer={composer} profileSetup={profileSetup}
                 onChooseKey={identity === undefined && !identityError ? undefined : () => setChoosingKey(true)} />
             </section>
@@ -157,7 +159,7 @@ export default function App() {
             {repository && (
               <section aria-label="Repository" className="mx-auto w-full min-w-0 max-w-7xl space-y-4 p-4 sm:p-6">
                 {!workspace && <Button asChild variant="outline" size="sm"><a href="#"><MessagesSquare /> Feed</a></Button>}
-                <Repository hash={hash} onDiscuss={remotePreviewFeed ? undefined : discussCommit} />
+                <Repository hash={hash} onDiscuss={readOnly ? undefined : discussCommit} />
               </section>
             )}
           </SidebarInset>

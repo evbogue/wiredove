@@ -3,7 +3,7 @@ import { subscribeRenderer } from '../../client/runtime/render-delivery.js'
 import { isMessageHash } from '../../client/protocol.js'
 import { createBrowserStore } from '../../client/runtime/browser-store.js'
 import { an } from '../../vendor/anproto/an.js'
-import { hostedPreview, isFeedPost, openIdentity, protocol, remotePreviewFeed } from './social'
+import { hostedPreview, isFeedPost, openIdentity, protocol } from './social'
 import { fetchLegacyPeerImage, legacyImage, maxLegacyImageBytes } from './peer-media'
 
 const maxRecordBytes = 2 * 1024 * 1024
@@ -267,7 +267,6 @@ export async function resolvePeerImage(id, { retry } = {}) {
 resolvePeerImage.subscribe = subscribeHashRequest
 
 export function announcePeerPost(record) {
-  if (remotePreviewFeed) return
   queueSend(record.content, { priority: 'normal' })
   queueSend(record.signature, { priority: 'normal' })
 }

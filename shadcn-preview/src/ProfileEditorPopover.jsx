@@ -6,7 +6,7 @@ import { EditAuthorProfile } from './EditAuthorProfile'
 import { HelpPopover } from './HelpPopover'
 import { ProfileKeys } from './ProfileKeys'
 
-export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, onClose, onCancel, onDraft, onSave, onRestore, busy, canSave, localOnly }) {
+export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, onClose, onCancel, onDraft, onSave, onRestore, busy, canSave }) {
   return (
     <Popover.Root open={open} onOpenChange={next => {
       if (next) onOpen()
@@ -36,13 +36,12 @@ export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, 
             <h2 className="font-heading text-base font-medium">Edit profile</h2>
             <HelpPopover label="About your profile and identity">
               <p>Your public key identifies your profile and lets others verify your posts. The private key stays in this browser and signs what you publish.</p>
-              {localOnly && <p>This preview saves profile changes in this browser.</p>}
             </HelpPopover>
             <Popover.Close asChild>
               <Button variant="ghost" size="icon-sm" className="ml-auto" disabled={saving} aria-label="Close profile editor"><X aria-hidden="true" /></Button>
             </Popover.Close>
           </div>
-          {initial && <EditAuthorProfile key={identity} initial={initial} disabled={busy || !canSave} localOnly={localOnly}
+          {initial && <EditAuthorProfile key={identity} initial={initial} disabled={busy || !canSave}
             onSave={onSave} onCancel={onCancel} onDraft={onDraft}>
             <ProfileKeys identity={identity} onRestore={onRestore} disabled={busy} />
           </EditAuthorProfile>}

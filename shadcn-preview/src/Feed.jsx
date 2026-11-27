@@ -10,7 +10,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePostPages } from './hooks/use-post-pages'
 import { usePreference } from './hooks/use-preview-state'
-import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readComposerDraft, readFeed, readGitFeed, readLocalPost, readLocalProfile, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost, saveComposerDraft, saveLocalProfile } from './social'
+import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readComposerDraft, readFeed, readGitFeed, readLocalPost, readLocalProfile, readPendingPublication, readStoredFeed, retryPost, saveComposerDraft } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { DraftAttachmentsPreview, MediaAttachments, MediaPicker } from './MediaAttachments'
@@ -27,7 +27,7 @@ import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady
 
 const feedPollInterval = 10000
 
-export function Feed({ active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer, profileSetup, onChooseKey }) {
+export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer, profileSetup, onChooseKey }) {
   const [draftAttachments, setDraftAttachments] = useState([])
   const draftMediaInput = useRef(null)
   const actionMediaInput = useRef(null)
@@ -181,7 +181,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }, [latestReply])
 
   function beginComposition(kind, post, value, event, recipient) {
-    if (remotePreviewFeed || busy || pending !== false || identity === undefined) return
+    if (readOnly || busy || pending !== false || identity === undefined) return
     replyTrigger.current = event?.currentTarget || null
     const key = `composer-draft:${identity || 'anonymous'}:${kind}:${post?.id || recipient}`
     if (composition?.key !== key) {
@@ -276,8 +276,8 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
           onToggleBranch={threadIds.has(post.id) ? () => toggleBranch(post.id) : undefined}
           hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
           blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
-          composeDisabled={Boolean(busy) || pending !== false || identity === undefined} readOnly={remotePreviewFeed} />
-        {!remotePreviewFeed && composition?.post?.id === post.id && renderComposer(composition)}
+          composeDisabled={Boolean(busy) || pending !== false || identity === undefined} readOnly={readOnly} />
+        {!readOnly && composition?.post?.id === post.id && renderComposer(composition)}
         {inlineStatus && post.id === statusTarget && <div className="mt-2 space-y-2">{renderDeliveryStatus()}</div>}
         {repliesByParent.get(post.id)?.map(reply => (
           <div key={reply.id} ref={reply.id === latestReply?.id ? sentReply : null} className="mt-2 scroll-mt-14">
@@ -289,7 +289,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }
 
   useEffect(() => {
-    if (!remotePreviewFeed || !identity) return
+    if (!identity) return
     let active = true
     readLocalProfile(identity).then(record => {
       if (!active) return
@@ -300,16 +300,17 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }, [identity])
 
   useEffect(() => {
-    if (remotePreviewFeed) return
+    if (readOnly) return
     let active = true
     readPendingPublication(hosted).then(post => { if (active) setLocalPost(post) }).catch(() => {})
     pendingPost(hosted).then(value => { if (active) setPending(value) }).catch(error => {
       if (active) setNotice({ message: error.message })
     })
     return () => { active = false }
-  }, [])
+  }, [readOnly])
 
   useEffect(() => {
+    if (waitingForIdentity) return
     const controller = new AbortController()
     let timer
     let running = false
@@ -333,7 +334,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       const gitRefresh = refreshGit(signal)
       try {
         if (!feedCheckpoint.current) {
-          const cached = await readStoredFeed().catch(() => null)
+          const cached = await readStoredFeed(readOnly).catch(() => null)
           if (cached && !controller.signal.aborted) {
             feedCheckpoint.current = cached
             setFeed(cached)
@@ -341,7 +342,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
             setLoaded(true)
           }
         }
-        const value = await readFeed(hosted, signal, feedCheckpoint.current)
+        const value = await readFeed(hosted, signal, feedCheckpoint.current, readOnly)
         if (!controller.signal.aborted) {
           feedCheckpoint.current = value
           setFeed(value)
@@ -371,7 +372,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       clearTimeout(timer)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [attempt])
+  }, [attempt, readOnly, waitingForIdentity])
 
   function openProfileEditor(draft) {
     setProfileEdit({
@@ -406,7 +407,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }
 
   async function saveProfile(metadata, photo) {
-    if (!editingProfile || busy || (!remotePreviewFeed && pending !== false)) {
+    if (readOnly || !editingProfile || busy || pending !== false) {
       throw Error('Profile editing is unavailable.')
     }
     setBusy('profile')
@@ -415,12 +416,6 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       const { image, photoState } = profileEdit
       if (!photo && image) {
         metadata = { ...metadata, image, image_original: photoState?.original || '', image_crop: photoState?.crop || null }
-      }
-      if (remotePreviewFeed) {
-        setLocalProfile(await saveLocalProfile(profileEdit.id, metadata, photo))
-        discardProfileDraft(profileEdit.id)
-        setProfileSaveStatus({ id: profileEdit.id, message: 'Saved in this browser' })
-        return
       }
       const result = await publishProfile(hosted, profileEdit.id, metadata, photo)
       const waiting = result.relayed === false
@@ -446,7 +441,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   async function submit(context = null, retry = false) {
     const body = context ? context.body : draft
     const attachments = context ? context.attachments : draftAttachments
-    if (remotePreviewFeed || busy || (!retry && (!identity || !isReviewing(context, body, attachments) || pending !== false))) return
+    if (readOnly || busy || (!retry && (!identity || !isReviewing(context, body, attachments) || pending !== false))) return
     setBusy(retry ? 'retry' : context ? 'inline' : 'post')
     setNotice(null)
     try {
@@ -594,24 +589,23 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
           </Button>
         </div>
       )}
-      {!remotePreviewFeed && !route && renderComposer()}
-      {!remotePreviewFeed && !inlineStatus && renderDeliveryStatus()}
+      {!readOnly && !route && renderComposer()}
+      {!readOnly && !inlineStatus && renderDeliveryStatus()}
       {route?.kind === 'author'
         ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)} name={profileName}
-            onMessage={!remotePreviewFeed && route.id !== identity
+            onMessage={!readOnly && route.id !== identity
               ? event => beginComposition('message', null, '', event, route.id) : undefined}
             saveStatus={profileSaveStatus?.id === route.id && ownProfilePage ? profileSaveStatus.message : ''}
             profileEditControl={ownProfilePage && (
               <ProfileEditorPopover open={editingProfile} saving={busy === 'profile'} identity={identity} initial={profileEdit}
                 onOpen={() => openProfileEditor(profileDrafts.current.get(identity))} onClose={() => setProfileEdit(null)}
                 onCancel={() => discardProfileDraft(identity)} onDraft={storeProfileDraft} onSave={saveProfile}
-                onRestore={restoreProfileIdentity} busy={Boolean(busy)} canSave={remotePreviewFeed || pending === false}
-                localOnly={Boolean(remotePreviewFeed)} />
+                onRestore={restoreProfileIdentity} busy={Boolean(busy)} canSave={!readOnly && pending === false} />
             )}
             messageDisabled={Boolean(busy) || pending !== false}
             onUnblock={() => toggleModeration('blocked', route.id)} />
         : <h2 className={route ? 'font-semibold' : 'sr-only'}>{route?.kind === 'message' ? 'Thread' : route ? 'Lookup' : 'Feed'}</h2>}
-      {!remotePreviewFeed && profileMessage && renderComposer(composition)}
+      {!readOnly && profileMessage && renderComposer(composition)}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && (
         <Alert variant="destructive">

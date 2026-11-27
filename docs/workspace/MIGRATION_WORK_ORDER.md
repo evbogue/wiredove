@@ -49,7 +49,11 @@ before an author has posted. Feed and profile avatars load when visible and
 use the preview's verified AndFS and historical APDS image readers.
 The preview can read the hosted Wiredove poll through a GET-only proxy.
 The browser polls automatically while the tab is visible, resumes from
-the last verified cursor, and deduplicates by message ID. Hosted feed review keeps publishing disabled. Preview post and
+the last verified cursor, and deduplicates by message ID. With a hosted browse feed configured, anonymous
+visitors browse read-only until they save or restore a key. The preview then
+uses the configured writable backend and enables posting. A disposable Chromium
+check covered switching after key creation, publishing a signed post, and
+reloading directly into writable mode. Preview post and
 edit-history bodies use the shared Markdown renderer for text and links.
 Local publishing confirms success with a short toast and keeps pending
 delivery visible beside the composer across reload. Reply cards link to their
