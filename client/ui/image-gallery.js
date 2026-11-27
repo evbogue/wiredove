@@ -32,15 +32,20 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
     this.replaceChildren();
     this.className = 'image-gallery';
     this.dataset.count = String(this.items.length);
+    const cardLayout = this._options.layout === 'card';
+    this.classList.toggle('image-gallery-card', cardLayout);
     this.setAttribute('role', 'group');
     this.setAttribute('aria-label', `${this.items.length} image${this.items.length === 1 ? '' : 's'}`);
     this._controller = new AbortController();
-    this.items.forEach((item, index) => {
+    const visible = cardLayout ? this.items.slice(0, 4) : this.items;
+    visible.forEach((item, index) => {
+      const remaining = index === visible.length - 1 ? this.items.length - visible.length : 0;
       const tile = this.ownerDocument.createElement('button');
       tile.type = 'button';
       tile.className = 'image-gallery-tile';
       const openLabel = `Open image ${index + 1} of ${this.items.length}: ${item.alt || 'Post image'}`;
-      tile.setAttribute('aria-label', openLabel);
+      const viewLabel = remaining ? `${openLabel} and ${remaining} more` : openLabel;
+      tile.setAttribute('aria-label', viewLabel);
       const image = this.ownerDocument.createElement('img');
       image.alt = item.alt || 'Post image';
       // The gallery observer defers assigning src; pending images are hidden.
@@ -77,7 +82,7 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         symbol.textContent = busy ? 'progress_activity' : 'image';
         symbol.classList.toggle('image-gallery-spinning', busy);
         tile.title = busy ? label : label + ' — Retry image';
-        tile.setAttribute('aria-label', tile.title);
+        tile.setAttribute('aria-label', remaining ? viewLabel : tile.title);
         tile.setAttribute('aria-busy', String(busy));
       };
       showStatus('Loading image…', true);
@@ -93,7 +98,10 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
         fallback.hidden = true;
         cell.classList.remove('image-pending');
         symbol.classList.remove('image-gallery-spinning');
-        tile.setAttribute('aria-label', openLabel); tile.title = openLabel;
+        tile.setAttribute('aria-label', viewLabel); tile.title = viewLabel;
+        if (cardLayout && this.items.length === 1 && image.naturalWidth && image.naturalHeight) {
+          cell.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+        }
         tile.removeAttribute('aria-busy');
         tile.classList.remove('image-unavailable');
         tile.classList.add('image-loaded');
@@ -130,13 +138,23 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
       tile.addEventListener('click', event => {
         event.preventDefault();
         event.stopPropagation();
-        if (!tile.classList.contains('image-loaded')) { void tile._load(true); return; }
+        if (!remaining && !tile.classList.contains('image-loaded')) { void tile._load(true); return; }
         const request = { images: this.items, index, trigger: tile, owner: this,
           resolveImage: this._options.resolveImage, mediaOptions: this._options.mediaOptions };
         this._stopViewer = (this._options.onOpen || openImageGallery)(request);
       });
       tile.append(image, status);
-      cell.append(tile, fallback, retry);
+      if (remaining) {
+        const count = this.ownerDocument.createElement('span');
+        count.className = 'image-gallery-overflow';
+        count.setAttribute('aria-hidden', 'true');
+        count.textContent = '+' + remaining;
+        tile.append(count);
+      }
+      if (cardLayout) {
+        status.append(fallback);
+        cell.append(tile, retry);
+      } else cell.append(tile, fallback, retry);
       this.append(cell);
     });
     if (this.isConnected) this.observe();
@@ -165,10 +183,10 @@ class WiredoveImageGallery extends (globalThis.HTMLElement || class {}) {
   }
 }
 
-export function createImageGallery({ images, resolveImage, onOpen, mediaOptions, showUnavailableAlt, document: doc = globalThis.document }) {
+export function createImageGallery({ images, resolveImage, onOpen, mediaOptions, showUnavailableAlt, layout, document: doc = globalThis.document }) {
   const registry = doc.defaultView.customElements;
   if (!registry.get('wiredove-image-gallery')) registry.define('wiredove-image-gallery', WiredoveImageGallery);
   const gallery = doc.createElement('wiredove-image-gallery');
-  gallery.options = { images, resolveImage, onOpen, mediaOptions, showUnavailableAlt };
+  gallery.options = { images, resolveImage, onOpen, mediaOptions, showUnavailableAlt, layout };
   return gallery;
 }

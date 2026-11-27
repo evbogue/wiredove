@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Film, Paperclip, X } from 'lucide-react'
+import { createImageGallery } from '../../client/ui/image-gallery.js'
 import { DEFAULT_MEDIA_MIME } from '../../client/andfs.js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,17 +18,38 @@ function Thumbnail({ file }) {
   return <img ref={image} alt="" className="size-14 shrink-0 rounded-md bg-muted object-cover" />
 }
 
-export function DraftAttachmentPreview({ attachment: { file, alt } }) {
-  const media = useRef(null)
+export function DraftAttachmentsPreview({ attachments }) {
+  const photos = useRef(null)
+  const playable = useRef(null)
+  const media = attachments.find(({ file }) => !isPhoto(file))
   useEffect(() => {
-    const url = URL.createObjectURL(file)
-    media.current.src = url
+    const target = photos.current
+    const images = attachments.filter(({ file }) => isPhoto(file))
+      .map(({ file, alt }) => ({ src: URL.createObjectURL(file), alt: alt.trim() }))
+    if (!images.length) return
+    const sources = new Set(images.map(image => image.src))
+    const gallery = createImageGallery({
+      images, layout: 'card', document: target.ownerDocument,
+      mediaOptions: { resolveLocalBlob: src => sources.has(src) ? src : null },
+    })
+    target.append(gallery)
+    return () => {
+      gallery.remove()
+      for (const src of sources) URL.revokeObjectURL(src)
+    }
+  }, [attachments])
+  useEffect(() => {
+    if (!media) return
+    const url = URL.createObjectURL(media.file)
+    playable.current.src = url
     return () => URL.revokeObjectURL(url)
-  }, [file])
+  }, [media])
 
-  if (isPhoto(file)) return <img ref={media} alt={alt.trim()} className="max-h-96 max-w-full rounded-md object-contain" />
-  if (file.type.startsWith('audio/')) return <audio ref={media} controls preload="metadata" className="max-w-full" />
-  return <video ref={media} controls playsInline preload="metadata" className="max-h-96 max-w-full rounded-md" />
+  return <>
+    <div ref={photos} className="empty:hidden" />
+    {media?.file.type.startsWith('audio/') && <audio ref={playable} controls preload="metadata" className="max-w-full" />}
+    {media?.file.type.startsWith('video/') && <video ref={playable} controls playsInline preload="metadata" className="max-h-96 max-w-full rounded-md" />}
+  </>
 }
 
 export function MediaPicker({ input, disabled }) {

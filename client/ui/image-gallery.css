@@ -38,6 +38,28 @@ wiredove-image-gallery.image-gallery {
 .image-gallery .image-gallery-retry:hover { background: var(--wiredove-control-hover, #ddd); }
 .image-gallery .image-pending img { display: none; }
 .image-gallery .image-pending .image-gallery-status { position: static; padding: 0; }
+wiredove-image-gallery.image-gallery-card {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px;
+}
+wiredove-image-gallery.image-gallery-card[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
+.image-gallery-card .image-gallery-cell,
+.image-gallery-card .image-gallery-cell.image-pending {
+  display: block; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 8px;
+}
+.image-gallery-card[data-count="1"] .image-gallery-cell { max-height: min(480px, 65vh); }
+.image-gallery-card[data-count="1"] .image-gallery-tile img { object-fit: contain; }
+.image-gallery-card .image-gallery-cell .image-gallery-tile {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 0;
+  background: var(--wiredove-surface, #eee);
+}
+.image-gallery-card .image-gallery-cell .image-gallery-status { position: absolute; padding: 8px; }
+.image-gallery-card .image-gallery-retry {
+  position: absolute; bottom: 4px; right: 4px; background: var(--wiredove-surface, #eee);
+}
+.image-gallery-card .image-gallery-overflow {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: #0009; color: white; font-size: clamp(1.125rem, 4vw, 2rem); font-weight: 600;
+}
 .image-gallery .image-gallery-symbol {
   font-family: 'Wiredove Symbols', 'Material Symbols Outlined'; font-size: 20px;
   font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal;

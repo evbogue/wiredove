@@ -88,6 +88,7 @@ export function PostBody({ body, attachment }) {
     appendFormattedText(fragment, playable ? attachmentDisplayBody({ ...playable, body }) : body, {
       resolveLink: resolvePostLink,
       hashtags: false,
+      layout: 'card',
       acceptMarkdownImage: src => Boolean(andfsImageMetadata(src) || localBlobURL(src) || isMessageHash(src)),
       resolveImage: resolvePeerImage,
       showUnavailableAlt: true,

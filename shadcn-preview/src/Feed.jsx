@@ -13,7 +13,7 @@ import { usePreference } from './hooks/use-preview-state'
 import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readComposerDraft, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost, saveComposerDraft } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
-import { DraftAttachmentPreview, MediaAttachments, MediaPicker } from './MediaAttachments'
+import { DraftAttachmentsPreview, MediaAttachments, MediaPicker } from './MediaAttachments'
 import { PostBody } from './PostBody'
 import { PostCard } from './PostCard'
 import { gitCardType, gitRepositoryId } from './git-records'
@@ -471,7 +471,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
                 {context ? `Preview · ${label}` : 'Preview'}
               </h2>
               <PostBody body={body.trim()} attachment={editing ? context.post.parsed : undefined} />
-              {attachments.map(attachment => <DraftAttachmentPreview key={attachment.id} attachment={attachment} />)}
+              {attachments.length > 0 && <DraftAttachmentsPreview attachments={attachments} />}
               <p className="text-sm text-muted-foreground">Once published, this message can’t be recalled from the network.</p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button type="button" disabled={publicationDisabled} onClick={() => submit(context)}>
