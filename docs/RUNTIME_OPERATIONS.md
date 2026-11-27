@@ -179,3 +179,39 @@ port 8793. The reverse proxy handles public HTTPS. On update, install the
 new source and build under `/opt/shadcn-wiredove-releases/`, then point
 the unit at that release while retaining `/var/lib/shadcn-wiredove`.
 For rollback, restore the previous unit and restart the preview service.
+
+### Production ANBot source for the preview
+
+The dedicated shadcn-wiredove-anbot.service serves Wiredove master on production
+loopback port 18794. Its publication and signing state live in
+/var/lib/shadcn-wiredove-anbot. Retain that directory across releases.
+The public clone URL is
+`https://shadcn.anproto.com/git/QpmtWUndAG3fwbTFwAPtU1OxHsQZh7IN2dJ4aBK78AI.git`.
+Keep the existing local ANBot publication as a separate mirror.
+
+For each change, fetch production master, reconcile before pushing, then use
+the signed ANBot CLI through SSH. The forwarded port matches the server's
+authentication origin. Run the tunnel in a separate terminal for the push.
+
+```sh
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:18794:127.0.0.1:18794 root@evbogue.com
+```
+
+```sh
+repo=QpmtWUndAG3fwbTFwAPtU1OxHsQZh7IN2dJ4aBK78AI
+git fetch "https://shadcn.anproto.com/git/$repo.git" master
+git merge-base --is-ancestor FETCH_HEAD HEAD
+node ../anbot/anbot.mjs push --branch master --data "$HOME/.anbot" --url "http://127.0.0.1:18794/git/$repo.git"
+git ls-remote "https://shadcn.anproto.com/git/$repo.git" refs/heads/master
+```
+
+For an authorized deployment, clone master from the production loopback ANBot
+URL into a fresh release checkout. Compare HEAD to the reviewed commit before
+installing dependencies or building. Export WIREDOVE_PREVIEW_SOURCE_REPO with
+the production repository hash for the build and service, and keep
+WIREDOVE_PREVIEW_SHARE_BACKEND=https://shadcn.anproto.com for the build.
+Set WIREDOVE_SOURCE_GIT_UPSTREAM=http://127.0.0.1:18794 in the preview unit.
+The separate WORKSPACE_GIT_UPSTREAM continues serving other workspace records.
+Retain the previous unit and release, switch WorkingDirectory, then verify the
+live bundle, repository overview and a fresh public clone against the reviewed
+commit. Pushing source and switching the running release are separate operations.

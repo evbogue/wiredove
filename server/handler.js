@@ -39,7 +39,7 @@ function workspaceGitPage(url) {
   return 'workspace/git/' + repo + view + (query.size ? '?' + query : '')
 }
 
-function createWorkspaceGitGateway(value) {
+export function createWorkspaceGitGateway(value) {
   if (!value) return null
   const upstream = new URL(value)
   if (!['http:', 'https:'].includes(upstream.protocol) || upstream.href !== upstream.origin + '/') {

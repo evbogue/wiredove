@@ -740,3 +740,7 @@ Ev explicitly requested on 1 November 2026 that all projects also be pushed to g
 ## Local ANBot source synchronization
 
 Ev requested that completed Wiredove changes also reach the ANBot publication used by the shadcn preview. In this workspace the existing publication is served from ~/.anbot-wiredove-git on 127.0.0.1:8793. If stopped, run `node ../anbot/anbot.mjs serve --data ~/.anbot-wiredove-git --host 127.0.0.1 --port 8793 --enable-push` from Wiredove. Fetch the anbot remote and reconcile master before pushing. From the checkout, run `node ../anbot/anbot.mjs push --branch master --data ~/.anbot --url "$(git remote get-url anbot)"`. Verify refs/heads/master with a fresh git ls-remote against anbot alongside origin and ssb.
+
+## Production preview source and deployment
+
+Always sync Wiredove master to the production ANBot publication as well as local ANBot, GitHub and git-ssb. Use ANBot to obtain production release source. See the standalone preview section of docs/RUNTIME_OPERATIONS.md for the signed push, pull, build and verification commands. Deploy only when authorized.

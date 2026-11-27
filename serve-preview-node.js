@@ -1,7 +1,7 @@
 import { access } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createWiredoveHandler } from './server/handler.js'
+import { createWiredoveHandler, createWorkspaceGitGateway } from './server/handler.js'
 import { createNodeServer } from './server/node-http.js'
 import { createStaticHandler } from './server/static.js'
 
@@ -22,9 +22,20 @@ const notificationWrites = new Set(['/api/notifications/subscribe', '/api/notifi
 const previewFiles = new Set(['/', '/index.html', '/post-notifications.js', '/vapid-public-key', '/manifest.webmanifest', '/dove512x512.png'])
 const readPaths = /^(?:\/(?:blobs|media)\/.+|\/api\/(?:public-record|git\/.+)|\/sync\/status|\/[A-Za-z0-9_-]{8,43})$/
 
+const sourceRepo = process.env.WIREDOVE_PREVIEW_SOURCE_REPO
+const sourceGateway = createWorkspaceGitGateway(process.env.WIREDOVE_SOURCE_GIT_UPSTREAM)
+if (sourceGateway && !/^[A-Za-z0-9_-]{43}$/.test(sourceRepo || '')) throw Error('Set a valid WIREDOVE_PREVIEW_SOURCE_REPO for the source gateway')
+
 const server = createNodeServer(async request => {
-  const { pathname } = new URL(request.url)
+  const { pathname, search } = new URL(request.url)
   const read = request.method === 'GET' || request.method === 'HEAD'
+  if (sourceGateway) {
+    const transport = '/git/' + sourceRepo + '.git/'
+    const advertise = request.method === 'GET' && pathname === transport + 'info/refs' && search === '?service=git-upload-pack'
+    const fetchPack = request.method === 'POST' && pathname === transport + 'git-upload-pack' && !search
+    const browse = read && (pathname.startsWith('/api/git/' + sourceRepo + '/') || pathname.startsWith('/git/' + sourceRepo + '/'))
+    if (advertise || fetchPack || browse) return await sourceGateway(request) || new Response(null, { status: 404 })
+  }
   if (shareAssetPaths.has(pathname)) return shareAssets(request)
   if ((request.method === 'POST' && notificationWrites.has(pathname)) || apiPaths.has(pathname) || (read && readPaths.test(pathname))
       || (read && (previewFiles.has(pathname) || pathname.startsWith('/assets/')))) {
