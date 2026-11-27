@@ -18,14 +18,16 @@ const backend = await createWiredoveHandler({
 const shareAssets = createStaticHandler({ root: project })
 const shareAssetPaths = new Set(['/public-share.css', '/wiredove-share-bird.png'])
 const apiPaths = new Set(['/api/application', '/api/media', '/api/share'])
+const notificationWrites = new Set(['/api/notifications/subscribe', '/api/notifications/unsubscribe'])
+const previewFiles = new Set(['/', '/index.html', '/post-notifications.js', '/vapid-public-key', '/manifest.webmanifest', '/dove512x512.png'])
 const readPaths = /^(?:\/(?:blobs|media)\/.+|\/api\/(?:public-record|git\/.+)|\/sync\/status|\/[A-Za-z0-9_-]{8,43})$/
 
 const server = createNodeServer(async request => {
   const { pathname } = new URL(request.url)
   const read = request.method === 'GET' || request.method === 'HEAD'
   if (shareAssetPaths.has(pathname)) return shareAssets(request)
-  if (apiPaths.has(pathname) || (read && readPaths.test(pathname))
-      || (read && (pathname === '/' || pathname === '/index.html' || pathname.startsWith('/assets/')))) {
+  if ((request.method === 'POST' && notificationWrites.has(pathname)) || apiPaths.has(pathname) || (read && readPaths.test(pathname))
+      || (read && (previewFiles.has(pathname) || pathname.startsWith('/assets/')))) {
     return backend(request)
   }
   return new Response(null, { status: 404 })

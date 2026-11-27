@@ -1,0 +1,8 @@
+{
+  "name": "Wiredove",
+  "short_name": "Wiredove",
+  "id": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "icons": [{ "src": "/dove512x512.png", "sizes": "512x512", "type": "image/png" }]
+}
