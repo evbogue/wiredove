@@ -2,7 +2,7 @@ import { workspaceGitHref } from '../../client/runtime/workspace-git.js'
 import { birdPaths } from '../../client/ui/wiredove-bird.js'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { ArrowLeft, CodeXml, createLucideIcon, MessagesSquare, PanelsTopLeft, Radio, SquarePen, X } from 'lucide-react'
+import { ArrowLeft, FolderGit2, createLucideIcon, MessagesSquare, PanelsTopLeft, Radio, SquarePen, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
@@ -144,7 +144,7 @@ export default function App() {
                 <TooltipTrigger asChild>
                   <Button asChild variant="ghost" size="icon" className="size-8 shrink-0 sm:size-10">
                     <a href={sourceHref} aria-label="Wiredove shadcn preview source code" aria-current={hash === sourceHref.slice(1) ? 'page' : undefined}>
-                      <CodeXml aria-hidden="true" />
+                      <FolderGit2 aria-hidden="true" />
                     </a>
                   </Button>
                 </TooltipTrigger>
