@@ -148,7 +148,7 @@ export default function App() {
                     </a>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Wiredove shadcn preview source code</TooltipContent>
+                <TooltipContent>Source code</TooltipContent>
               </Tooltip>
             )}
             <Settings theme={theme} setTheme={setTheme} />
