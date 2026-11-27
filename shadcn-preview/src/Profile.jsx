@@ -75,7 +75,7 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
           <TooltipContent>{identity ? 'Identity settings' : 'Set up identity'}</TooltipContent>
         </Tooltip>
       </div>
-      <DialogContent showCloseButton={!busy} className="gap-5 p-5 sm:max-w-md">
+      <DialogContent {...(ready && { 'aria-describedby': undefined })} showCloseButton={!busy} className="gap-5 p-5 sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-1 pr-8">
             <DialogTitle className="text-lg">{identity || !ready ? 'Identity settings' : 'Set up your identity'}</DialogTitle>
@@ -88,17 +88,16 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
               <Popover.Portal>
                 <Popover.Content align="center" sideOffset={6} collisionPadding={16} aria-label="How your identity works"
                   className="z-[60] w-72 max-w-[var(--radix-popover-content-available-width)] rounded-lg bg-popover p-3 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
-                  Your public key identifies your profile and lets others verify your posts. Wiredove keeps the private key in this browser and uses it to sign what you publish.
+                  Your public key identifies your profile and lets others verify your posts. Wiredove keeps the private key in this browser and uses it to sign posts and profile updates.
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
           </div>
-          <DialogDescription>
-            {identity ? 'Manage the identity you use to publish from this browser.'
-              : !ready && identityError ? 'Wiredove couldn’t load the identity stored in this browser.'
-              : !ready ? 'Loading identity…'
-              : 'Create an identity to sign posts and publish a profile from this browser.'}
-          </DialogDescription>
+          {!ready && (
+            <DialogDescription>
+              {identityError ? 'Wiredove couldn’t load the identity stored in this browser.' : 'Loading identity…'}
+            </DialogDescription>
+          )}
         </DialogHeader>
         {!ready && identityError && (
           <Button size="sm" className="justify-self-start" disabled={busy} onClick={() => run(async () => {
