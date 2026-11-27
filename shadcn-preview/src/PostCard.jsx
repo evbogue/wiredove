@@ -1,7 +1,7 @@
 import { human } from '../../client/ui/format.js'
 import { useEffect, useState } from 'react'
 import { readWorkspaceGit, workspaceGitHref } from '../../client/runtime/workspace-git.js'
-import { ChevronDown, ChevronRight, CircleCheck, Ellipsis, FolderGit2, GitCommitHorizontal, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight, CircleCheck, Ellipsis, FolderGit2, GitCommitHorizontal, MessageSquare, ShieldCheck } from 'lucide-react'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
@@ -81,7 +81,12 @@ export function PostCard({ post, repoName, profile, replyContext, recipientConte
             {own && !git && !concealed && !readOnly && <DropdownMenuItem disabled={composeDisabled} onSelect={() => onCompose('edit', post, latest.parsed.body)}>Edit</DropdownMenuItem>}
             {!concealed && versions.length > 0 && <DropdownMenuItem onSelect={() => setDialog('history')}>Edit history</DropdownMenuItem>}
             {!concealed && comparePush && <DropdownMenuItem asChild><a href={comparePush}>Compare push</a></DropdownMenuItem>}
-            {!concealed && <DropdownMenuItem onSelect={() => setDialog('signature')}>Signature and data</DropdownMenuItem>}
+            {!concealed && (
+              <DropdownMenuItem onSelect={() => setDialog('signature')}>
+                <ShieldCheck aria-hidden="true" />
+                Signature and data
+              </DropdownMenuItem>
+            )}
             {!concealed && <DropdownMenuSeparator />}
             {!blocked && !muted && <DropdownMenuItem onSelect={() => onModerate('hidden', post.id)}>{hidden ? 'Unhide message' : 'Hide message'}</DropdownMenuItem>}
             {!own && !blocked && <DropdownMenuItem onSelect={() => onModerate('muted', post.author)}>{muted ? 'Unmute author' : 'Mute author'}</DropdownMenuItem>}
