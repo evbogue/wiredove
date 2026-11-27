@@ -155,9 +155,7 @@ export default function App() {
             {!identity && (identity !== undefined || identityError) &&
               <ChoosePublicKey open={choosingKey} setOpen={setChoosingKey} unavailable={identityError && identity === undefined}
                 onReady={setIdentity} onChoose={finishKeySetup} onRestore={openIdentityProfile} />}
-            <div className="flex min-w-0 justify-end sm:w-48 sm:shrink-0">
-              {!workspace && <Profile {...profile} />}
-            </div>
+            {!workspace && <Profile {...profile} />}
           </div>
         </header>
         <div className="flex min-h-[calc(100svh-3rem)] w-full">
