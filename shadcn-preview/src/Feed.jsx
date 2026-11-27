@@ -10,7 +10,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePostPages } from './hooks/use-post-pages'
 import { usePreference } from './hooks/use-preview-state'
-import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readComposerDraft, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost, saveComposerDraft } from './social'
+import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readComposerDraft, readFeed, readGitFeed, readLocalPost, readLocalProfile, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost, saveComposerDraft, saveLocalProfile } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { DraftAttachmentsPreview, MediaAttachments, MediaPicker } from './MediaAttachments'
@@ -38,6 +38,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   const [notice, setNotice] = useState(null)
   const [expandedBranches, setExpandedBranches] = useState(() => new Set())
   const [localPost, setLocalPost] = useState(null)
+  const [localProfile, setLocalProfile] = useState(null)
   const [sentReplies, setSentReplies] = useState([])
   const [feedError, setFeedError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -86,8 +87,9 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
     if (!feed.profiles) for (const post of feed.posts) mergeAuthorProfile(merged, post)
     for (const post of peerPosts) mergeAuthorProfile(merged, post)
     if (localPost) mergeAuthorProfile(merged, localPost)
+    if (identity && localProfile?.author === identity) mergeAuthorProfile(merged, localProfile)
     return merged
-  }, [feed.profiles, feed.posts, peerPosts, localPost])
+  }, [feed.profiles, feed.posts, peerPosts, localPost, localProfile, identity])
   const ownProfile = profiles.get(identity)
   const ownPhoto = ownProfile?.image?.value
   const ownName = ownProfile?.name?.value
@@ -277,6 +279,17 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }
 
   useEffect(() => {
+    if (!remotePreviewFeed || !identity) return
+    let active = true
+    readLocalProfile(identity).then(record => {
+      if (!active) return
+      setLocalProfile(current => current?.author === identity && (!record || current.timestamp >= record.timestamp)
+        ? current : record)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [identity])
+
+  useEffect(() => {
     if (remotePreviewFeed) return
     let active = true
     readPendingPublication(hosted).then(post => { if (active) setLocalPost(post) }).catch(() => {})
@@ -375,7 +388,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }
 
   async function saveProfile(metadata, photo) {
-    if (!editingProfile || remotePreviewFeed || busy || pending !== false) {
+    if (!editingProfile || busy || (!remotePreviewFeed && pending !== false)) {
       throw Error('Profile editing is unavailable.')
     }
     setBusy('profile')
@@ -384,6 +397,12 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       const { image, photoState } = profileEdit
       if (!photo && image) {
         metadata = { ...metadata, image, image_original: photoState?.original || '', image_crop: photoState?.crop || null }
+      }
+      if (remotePreviewFeed) {
+        setLocalProfile(await saveLocalProfile(profileEdit.id, metadata, photo))
+        setProfileEdit(null)
+        toast.success('Profile saved in this browser')
+        return
       }
       const result = await publishProfile(hosted, profileEdit.id, metadata, photo)
       const waiting = result.relayed === false
@@ -566,8 +585,8 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
             profileEditControl={ownProfilePage && (
               <ProfileEditorPopover open={editingProfile} saving={busy === 'profile'} identity={identity} initial={profileEdit}
                 onOpen={openProfileEditor} onClose={() => setProfileEdit(null)} onSave={saveProfile}
-                onRestore={restoreProfileIdentity} busy={Boolean(busy)} canPublish={pending === false}
-                readOnly={Boolean(remotePreviewFeed)} />
+                onRestore={restoreProfileIdentity} busy={Boolean(busy)} canSave={remotePreviewFeed || pending === false}
+                localOnly={Boolean(remotePreviewFeed)} />
             )}
             messageDisabled={Boolean(busy) || pending !== false}
             onUnblock={() => toggleModeration('blocked', route.id)} />

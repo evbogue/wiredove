@@ -44,3 +44,9 @@
 .photo-crop-dialog input { @apply w-full; }
 .photo-crop-dialog .profile-actions { @apply mt-2 flex flex-wrap gap-2; }
 .photo-crop-dialog .photo-crop-confirm { @apply sticky bottom-0 bg-background py-2; }
+
+.photo-crop-header { @apply flex items-center gap-2; }
+.photo-crop-help { @apply relative; }
+.photo-crop-help summary { @apply grid size-7 cursor-pointer list-none place-items-center rounded-full border border-input font-medium; }
+.photo-crop-help summary::-webkit-details-marker { display: none; }
+.photo-crop-help p { @apply absolute top-full right-0 z-10 mt-1 w-40 rounded-md border border-input bg-popover p-2 shadow-md; }

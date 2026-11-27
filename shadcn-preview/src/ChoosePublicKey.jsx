@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { HelpPopover } from './HelpPopover'
 import { createPreviewIdentity, readPublicIdentity } from './social'
 
 export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose }) {
@@ -16,6 +17,8 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose 
   const [error, setError] = useState('')
   const worker = useRef(null)
   const validPrefix = /^[A-Za-z0-9+/]{2}$/.test(prefix)
+
+  const invalidPrefix = prefix.length === 2 && !validPrefix
 
   function stopSearch() {
     worker.current?.terminate()
@@ -82,7 +85,13 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose 
       </Tooltip>
       <DialogContent aria-describedby={undefined} showCloseButton={!busy} className="gap-5 p-5 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg">Choose your public key</DialogTitle>
+          <div className="flex items-center gap-1 pr-8">
+            <DialogTitle className="text-lg">Choose your public key</DialogTitle>
+            <HelpPopover label="About choosing a public key">
+              <p>Your public key identifies your profile. Wiredove saves your choice when you select Use this key.</p>
+              <p>For a matching prefix, use two case-sensitive letters, digits, or the characters + and /.</p>
+            </HelpPopover>
+          </div>
         </DialogHeader>
         {unavailable ? (
           <div className="space-y-3">
@@ -104,13 +113,13 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose 
                 <FieldLabel htmlFor="vanity-prefix">Two-character prefix</FieldLabel>
                 <div className="flex flex-wrap items-center gap-2">
                   <Input id="vanity-prefix" className="w-20 font-mono" value={prefix} maxLength={2} autoCapitalize="none"
-                    spellCheck={false} autoComplete="off" placeholder="Ab" aria-describedby="vanity-characters" disabled={searching || busy}
+                    spellCheck={false} autoComplete="off" placeholder="Ab" aria-invalid={invalidPrefix} aria-describedby={invalidPrefix ? 'vanity-error' : undefined} disabled={searching || busy}
                     onChange={event => setPrefix(event.target.value)} />
                   {searching
                     ? <Button type="button" variant="outline" onClick={stopSearch}>Cancel search</Button>
                     : <Button type="submit" variant="outline" disabled={!validPrefix || busy}>Find a matching key</Button>}
                 </div>
-                <p id="vanity-characters" className="text-xs text-muted-foreground">Case-sensitive. Use letters, digits, + or /.</p>
+                {invalidPrefix && <p id="vanity-error" role="alert" className="text-sm text-destructive">Use letters, digits, + or /.</p>}
               </Field>
               {searching && <p role="status" className="text-sm text-muted-foreground">Searching for a matching key…</p>}
             </form>

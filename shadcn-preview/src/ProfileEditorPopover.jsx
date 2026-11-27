@@ -1,11 +1,12 @@
-import { CircleHelp, Pencil, X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { Popover } from 'radix-ui'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EditAuthorProfile } from './EditAuthorProfile'
+import { HelpPopover } from './HelpPopover'
 import { ProfileKeys } from './ProfileKeys'
 
-export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, onClose, onSave, onRestore, busy, canPublish, readOnly }) {
+export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, onClose, onSave, onRestore, busy, canSave, localOnly }) {
   return (
     <Popover.Root open={open} onOpenChange={next => {
       if (next) onOpen()
@@ -32,24 +33,16 @@ export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, 
           className="z-50 grid w-[28rem] max-w-[var(--radix-popover-content-available-width)] max-h-[var(--radix-popover-content-available-height)] gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
           <div className="flex items-center gap-1">
             <h2 className="font-heading text-base font-medium">Edit profile</h2>
-            <Popover.Root>
-              <Popover.Trigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="How does my identity work?">
-                  <CircleHelp aria-hidden="true" />
-                </Button>
-              </Popover.Trigger>
-              <Popover.Portal>
-                <Popover.Content sideOffset={6} collisionPadding={12} aria-label="How your identity works"
-                  className="z-[60] w-72 max-w-[var(--radix-popover-content-available-width)] rounded-lg bg-popover p-3 shadow-md ring-1 ring-foreground/10">
-                  Your public key identifies your profile and lets others verify your posts. The private key stays in this browser and signs what you publish.
-                </Popover.Content>
-              </Popover.Portal>
-            </Popover.Root>
+            <HelpPopover label="About your profile and identity">
+              <p>Your public key identifies your profile and lets others verify your posts. The private key stays in this browser and signs what you publish.</p>
+              <p>For profile links, use full addresses that start with https:// or http://.</p>
+              {localOnly && <p>This preview saves profile changes in this browser.</p>}
+            </HelpPopover>
             <Popover.Close asChild>
               <Button variant="ghost" size="icon-sm" className="ml-auto" disabled={saving} aria-label="Close profile editor"><X aria-hidden="true" /></Button>
             </Popover.Close>
           </div>
-          {!readOnly && initial && <EditAuthorProfile key={identity} initial={initial} disabled={busy || !canPublish}
+          {initial && <EditAuthorProfile key={identity} initial={initial} disabled={busy || !canSave} localOnly={localOnly}
             onSave={onSave} onCancel={onClose} />}
           <ProfileKeys identity={identity} onRestore={onRestore} disabled={busy} />
         </Popover.Content>

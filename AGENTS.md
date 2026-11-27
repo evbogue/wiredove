@@ -55,8 +55,9 @@ through the screens they already use. Explain a concept where it affects what
 someone can see or do. Reuse headers, toolbars, and menus to keep the default
 interface free of repeated help labels.
 
-- **Optional explanations.** Use at most one question-mark button in the existing
-  header or toolbar of a screen that needs help. Show just the icon and provide
+- **Optional explanations.** Place explanatory copy behind one question-mark
+  button per screen that needs help. Use the existing header or toolbar, or
+  place the button beside the relevant action. Show just the icon and provide
   a specific accessible name, such as “About peers.” Open a shadcn popover on
   click, tap, or keyboard activation. Keep each explanation to one or two sentences.
 - **Tooltips.** Use them to name icon-only controls or clarify their actions.

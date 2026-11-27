@@ -11,7 +11,7 @@ const el = (tag, className, text) => {
 };
 
 // UI only: the consuming frame owns identity, storage and publication.
-export function createProfileEditor({ name = '', bio = '', links = [], imageSrc = '', photoState = null, onImageChange, onBusy, mediaOptions }) {
+export function createProfileEditor({ name = '', bio = '', links = [], imageSrc = '', photoState = null, onImageChange, onBusy, mediaOptions, helpOnDemand = false }) {
   const fields = el('div', 'profile-fields profile-edit-only');
   const field = (title, control) => {
     const label = el('label', 'profile-field');
@@ -28,7 +28,7 @@ export function createProfileEditor({ name = '', bio = '', links = [], imageSrc 
   bioInput.rows = 4;
   bioInput.placeholder = 'Tell people a little about yourself';
   bioInput.value = bio;
-  const linksEditor = createProfileLinksEditor();
+  const linksEditor = createProfileLinksEditor({ showHint: !helpOnDemand });
   linksEditor.setLinks(links);
   fields.append(linksEditor.element);
   const photo = el('div', 'profile-photo-editor profile-edit-only');
@@ -80,7 +80,19 @@ export function createProfileEditor({ name = '', bio = '', links = [], imageSrc 
       const apply = el('button', 'primary-action', 'Use photo'), cancel = el('button', '', 'Cancel crop');
       apply.type = cancel.type = 'button'; apply.disabled = true; actions.append(apply, cancel);
       const cropStatus = el('p', 'profile-help'); cropStatus.setAttribute('role', 'status');
-      dialog.append(heading, el('p', 'profile-help', 'Drag or pinch to frame your photo. Adjust the angle to straighten it.'), stage, preview, controls, turns, size, actions, cropStatus);
+      const instructions = el('p', 'profile-help', 'Drag or pinch to frame your photo. Adjust the angle to straighten it.');
+      if (helpOnDemand) {
+        const header = el('div', 'photo-crop-header');
+        const help = el('details', 'photo-crop-help');
+        const trigger = el('summary', '', '?');
+        trigger.setAttribute('aria-label', 'About framing your photo');
+        help.append(trigger, instructions);
+        header.append(heading, help);
+        dialog.append(header);
+      } else {
+        dialog.append(heading, instructions);
+      }
+      dialog.append(stage, preview, controls, turns, size, actions, cropStatus);
       let applying = false;
       dialog.addEventListener('cancel', event => { if (applying) event.preventDefault(); });
       dialog.addEventListener('close', () => { closed = true; controller?.destroy(); URL.revokeObjectURL(url); dialog.remove(); }, { once: true });

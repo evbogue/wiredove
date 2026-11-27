@@ -9,7 +9,7 @@ import './profile-editor.css'
 
 const mediaOptions = { store: previewMediaStore, fetchImpl: fetchPeerMedia }
 
-export function EditAuthorProfile({ initial, onSave, onCancel, disabled }) {
+export function EditAuthorProfile({ initial, onSave, onCancel, disabled, localOnly }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const mount = useRef(null)
@@ -19,7 +19,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel, disabled }) {
   useEffect(() => {
     const controller = new AbortController()
     const widget = createProfileEditor({
-      ...initial, mediaOptions,
+      ...initial, mediaOptions, helpOnDemand: true,
       onImageChange(_data, file, { original, crop }) {
         photo.current = { file, original, crop }
       },
@@ -61,7 +61,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel, disabled }) {
       <div ref={mount} className="space-y-4" />
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
-        <Button type="submit" disabled={busy || disabled}>{busy ? 'Saving…' : 'Save profile'}</Button>
+        <Button type="submit" disabled={busy || disabled}>{busy ? 'Saving…' : localOnly ? 'Save locally' : 'Save profile'}</Button>
         <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
       </div>
     </form>

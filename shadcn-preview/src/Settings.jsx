@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { HelpPopover } from './HelpPopover'
 import { requestPreviewReset } from './reset-preview'
 
 export function Settings({ theme, setTheme }) {
@@ -46,20 +47,21 @@ export function Settings({ theme, setTheme }) {
           <FieldLabel htmlFor="dark-mode">Dark mode</FieldLabel>
         </Field>
         <div className="space-y-3 border-t pt-4">
-          <p id="local-data-explanation" className="text-sm text-muted-foreground">
-            Deleting local data clears your identity, drafts, pending posts, preferences, and cached posts and media from this browser. Published posts stay on the servers and peers that have them.
-          </p>
-          {confirming ? (
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" disabled={confirming} onClick={() => setConfirming(true)}>Delete local data</Button>
+            <HelpPopover label="About deleting local data">
+              <p>Deleting local data clears your identity, drafts, pending posts, preferences, and cached posts and media from this browser. Published posts stay on the servers and peers that have them.</p>
+            </HelpPopover>
+          </div>
+          {confirming && (
             <div className="space-y-2 rounded-md border p-3">
-              <p id="local-data-backup">Download a backup from your profile editor first if you want to keep your identity.</p>
+              <p id="local-data-warning">This permanently removes your local identity, drafts, and pending posts. Download an identity backup from your profile editor before continuing.</p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="destructive" size="sm" aria-describedby="local-data-explanation local-data-backup" onClick={deleteLocalData}>Confirm deletion</Button>
+                <Button variant="destructive" size="sm" aria-describedby="local-data-warning" onClick={deleteLocalData}>Confirm deletion</Button>
                 <Button variant="outline" size="sm" onClick={cancelDelete}>Cancel</Button>
               </div>
               {error && <Alert role="alert" variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
             </div>
-          ) : (
-            <Button variant="outline" size="sm" aria-describedby="local-data-explanation" onClick={() => setConfirming(true)}>Delete local data</Button>
           )}
         </div>
       </DialogContent>

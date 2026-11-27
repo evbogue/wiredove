@@ -278,8 +278,37 @@ async function stageMedia(file, files, store, author) {
     type: file.type.split('/')[0], andfs: manifestHash, mime: file.type,
     media_name: file.name, media_size: file.size, media_url: '/#' + manifestHash,
   }
-  await store.set(mediaKey(author, manifestHash), media)
+  if (store) await store.set(mediaKey(author, manifestHash), media)
   return media
+}
+
+async function withProfilePhoto(metadata, photo, store, author) {
+  if (!photo) return metadata
+  const files = await openLocalFiles()
+  const original = await stageMedia(photo.original, files, store, author)
+  const crop = await stageMedia(photo.file, files, store, author)
+  return { ...metadata, image: crop.media_url, image_original: original.media_url, image_crop: photo.crop }
+}
+
+const localProfileKey = author => 'local-profile:' + author
+
+export async function readLocalProfile(author) {
+  const record = await identityStore(hostedPreview).get(localProfileKey(author))
+  if (!record) return null
+  const profile = await readLocalPost(record)
+  return profile.author === author ? profile : null
+}
+
+export async function saveLocalProfile(author, metadata, photo) {
+  return navigator.locks.request(databaseName(hostedPreview), async () => {
+    const apds = await openIdentity(hostedPreview)
+    const keypair = await apds.keypair()
+    if (!keypair || keypair.slice(0, 44) !== author) throw Error('This identity cannot edit the profile.')
+    const record = await protocol.compose(keypair, '', await withProfilePhoto(metadata, photo))
+    const { id, signature, content } = record
+    await identityStore(hostedPreview).set(localProfileKey(author), { id, signature, content })
+    return record
+  })
 }
 
 export async function publishProfile(hosted, author, metadata, photo) {
@@ -291,13 +320,7 @@ export async function publishProfile(hosted, author, metadata, photo) {
       await session.pull()
       await store.delete('identity-needs-pull')
     }
-    if (photo) {
-      const files = await openLocalFiles()
-      const original = await stageMedia(photo.original, files, store, author)
-      const crop = await stageMedia(photo.file, files, store, author)
-      metadata = { ...metadata, image: crop.media_url, image_original: original.media_url, image_crop: photo.crop }
-    }
-    return session.publish('', metadata)
+    return session.publish('', await withProfilePhoto(metadata, photo, store, author))
   })
 }
 

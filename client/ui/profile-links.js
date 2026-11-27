@@ -40,7 +40,7 @@ export function renderProfileLinks(container, links) {
   }
 }
 
-export function createProfileLinksEditor() {
+export function createProfileLinksEditor({ showHint = true } = {}) {
   const element = document.createElement('fieldset');
   element.className = 'profile-links-editor profile-edit-only';
   const legend = document.createElement('legend');
@@ -94,7 +94,9 @@ export function createProfileLinksEditor() {
     });
   };
   add.onclick = () => { drafts.push({ label: '', url: '' }); draw(); rows.lastElementChild?.querySelector('input')?.focus(); };
-  element.append(legend, hint, rows, add);
+  element.append(legend);
+  if (showHint) element.append(hint);
+  element.append(rows, add);
   return {
     element,
     setLinks(links) { drafts = normalizeProfileLinks(links).map(link => ({ ...link })); draw(); },
