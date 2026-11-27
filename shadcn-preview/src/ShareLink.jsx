@@ -1,6 +1,7 @@
 import { publicPathID, reservePublicShare } from '../../client/share-link.js'
 import { useEffect, useState } from 'react'
 import { Link2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -56,7 +57,10 @@ export function ShareLink({ id, label = 'Share', className, variant = 'ghost', i
             <Input readOnly value={link || ''} onFocus={event => event.target.select()} />
           </FieldLabel>
           <Button onClick={copy} disabled={!link}>Copy link</Button>
-          <p role="status">{status || (shareOrigin && result?.id !== id ? 'Preparing link…' : '')}</p>
+          <div role="status" aria-atomic="true" className={status || (shareOrigin && result?.id !== id) ? undefined : 'sr-only'}>
+            {status ? <Alert role={undefined}><AlertDescription>{status}</AlertDescription></Alert>
+              : shareOrigin && result?.id !== id ? 'Preparing link…' : ''}
+          </div>
         </Field>
       </DialogContent>
     </Dialog>

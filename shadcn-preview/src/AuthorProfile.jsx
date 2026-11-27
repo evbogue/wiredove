@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
-import { ArrowUpRight, Copy, MessageSquare } from 'lucide-react'
+import { ArrowUpRight, CircleCheck, Copy, MessageSquare } from 'lucide-react'
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { AuthorAvatar } from './AuthorAvatar'
@@ -39,7 +40,9 @@ export function AuthorProfile({ id, name, profile, blocked, onUnblock, onMessage
                 <ShareLink key={id} id={id} label="Share profile" variant="outline" iconOnly />
               </div>}
         </div>
-        <div role="status" className={saveStatus ? 'text-sm text-muted-foreground' : 'sr-only'}>{saveStatus}</div>
+        <Alert role="status" aria-atomic="true" className={saveStatus ? undefined : 'sr-only'}>
+          {saveStatus && <><CircleCheck aria-hidden="true" /><AlertTitle>{saveStatus}</AlertTitle></>}
+        </Alert>
         {!blocked && profile?.bio?.value && <div className="text-sm"><PostBody body={profile.bio.value} /></div>}
         {!blocked && links.length > 0 && (
           <ul aria-label="Profile links" className="flex flex-wrap gap-2">

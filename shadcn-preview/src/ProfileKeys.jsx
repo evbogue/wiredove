@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -51,7 +52,9 @@ export function ProfileKeys({ identity, onRestore, disabled }) {
             <Button type="submit" size="sm" variant="outline" disabled={busy || disabled}>Replace identity</Button>
           </>}
         </form>
-        {notice && <p role={notice.error ? 'alert' : 'status'} className={notice.error ? 'text-destructive' : 'text-muted-foreground'}>{notice.message}</p>}
+        {notice && <Alert role={notice.error ? 'alert' : 'status'} variant={notice.error ? 'destructive' : 'default'}>
+          <AlertDescription>{notice.message}</AlertDescription>
+        </Alert>}
       </div>
     </details>
   )

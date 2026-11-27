@@ -1,4 +1,5 @@
 import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { createProfileEditor } from '../../client/ui/profile-editor.js'
 import { resolveImageSource } from '../../client/ui/image-source.js'
@@ -91,7 +92,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel, onDraft, disabled
       <div className="min-h-0 space-y-4 overflow-y-auto px-4 pb-4">
         <form id={formId} className="preview-profile-editor space-y-4" noValidate onInput={captureDraft} onSubmit={save}>
           <div ref={mount} className="space-y-4" />
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         </form>
         {children}
       </div>

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { KeyRound } from 'lucide-react'
 import { an } from '../../vendor/anproto/an.js'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { HelpPopover } from './HelpPopover'
@@ -99,7 +100,7 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose,
         </DialogHeader>
         {unavailable ? (
           <div className="space-y-3">
-            <p role="status">Wiredove couldn’t load the identity stored in this browser.</p>
+            <Alert variant="destructive"><AlertDescription>Wiredove couldn’t load the identity stored in this browser.</AlertDescription></Alert>
             <Button disabled={busy} onClick={() => run(async () => onReady(await readPublicIdentity() || null))}>Retry loading identity</Button>
           </div>
         ) : restoring ? (
@@ -142,7 +143,7 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose,
                     ? <Button type="button" variant="outline" onClick={stopSearch}>Cancel search</Button>
                     : <Button type="submit" variant="outline" disabled={!validPrefix || busy}>Find a matching key</Button>}
                 </div>
-                {invalidPrefix && <p id="vanity-error" role="alert" className="text-sm text-destructive">Use letters, digits, + or /.</p>}
+                {invalidPrefix && <FieldError id="vanity-error">Use letters, digits, + or /.</FieldError>}
               </Field>
               {searching && <p role="status" className="text-sm text-muted-foreground">Searching for a matching key…</p>}
             </form>
@@ -153,7 +154,7 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose,
             }}>Restore backup</Button>
           </>
         )}
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       </DialogContent>
     </Dialog>
   )

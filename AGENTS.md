@@ -65,6 +65,10 @@ interface free of repeated help labels.
 - **Inline guidance.** Place information needed for a decision or recovery beside
   the relevant action. Show the private-key warning beside Download backup and
   Retry lookup beside a failed lookup.
+- **State announcements.** Use shadcn Alert for operation outcomes shown in the
+  current screen, with a polite status role for routine confirmations. Use
+  FieldError for field validation and Sonner for transient feedback outside
+  the current screen.
 - **Identity and peers.** In the profile editor, explain that the public key lets
   Wiredove verify signatures and the private key signs posts and profile updates.
   In Peers, explain that relays and direct peers can carry the same signed post.
