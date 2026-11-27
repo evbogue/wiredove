@@ -1,6 +1,7 @@
 import { human } from '../../client/ui/format.js'
 import { useEffect, useState } from 'react'
-import { readWorkspaceGit, workspaceGitHref } from '../../client/runtime/workspace-git.js'
+import { readWorkspaceGit } from '../../client/runtime/workspace-git.js'
+import { gitHref } from './git-route.js'
 import { ChevronDown, ChevronRight, Ellipsis, FolderGit2, GitCommitHorizontal, MessageSquare, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
@@ -170,7 +171,7 @@ function GitCommitRows({ repo, commits }) {
     {commits.map(({ hash, subject }) => <li key={hash} className="flex items-center gap-2 py-1.5 text-sm">
       <GitCommitHorizontal aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate" title={subject || undefined}>{subject || '(No subject)'}</span>
-      <a href={workspaceGitHref({ repo, kind: 'commit', rev: hash })} title={hash}
+      <a href={gitHref({ repo, kind: 'commit', rev: hash })} title={hash}
         aria-label={'Open commit ' + hash} className="shrink-0 font-mono text-xs underline underline-offset-4">
         {hash.slice(0, 7)}
       </a>

@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { parseWorkspaceGitRoute, readWorkspaceGit, readWorkspaceSelection, workspaceGitHref } from '../../client/runtime/workspace-git.js'
+import { readWorkspaceGit, readWorkspaceSelection } from '../../client/runtime/workspace-git.js'
+import { gitHref, parseGitRoute } from './git-route.js'
 
 export function Repository({ hash, onDiscuss }) {
   const [attempt, setAttempt] = useState(0)
@@ -17,8 +18,8 @@ export function Repository({ hash, onDiscuss }) {
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)])
     async function load() {
       try {
-        let request = parseWorkspaceGitRoute(hash)
-        if (hash !== 'workspace/' && !request) {
+        let request = parseGitRoute(hash)
+        if (hash !== 'git' && !request) {
           setResult({ hash, attempt, error: 'This repository link is invalid.' })
           return
         }
@@ -49,7 +50,7 @@ export function Repository({ hash, onDiscuss }) {
   const loading = current?.attempt !== attempt
   const { data, request } = current || {}
   const revision = data?.revision.commit
-  const href = (kind, options = {}) => workspaceGitHref({ repo: request.repo, kind, ...options })
+  const href = (kind, options = {}) => gitHref({ repo: request.repo, kind, ...options })
   const pinned = (kind, path = '') => href(kind, { rev: revision, path })
   const pinnedView = () => request.kind === 'compare'
     ? href('compare', { base: data.base.commit, head: revision, path: data.path })

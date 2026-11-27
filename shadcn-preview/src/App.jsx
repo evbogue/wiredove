@@ -1,4 +1,4 @@
-import { workspaceGitHref } from '../../client/runtime/workspace-git.js'
+import { gitHref } from './git-route.js'
 import { birdPaths } from '../../client/ui/wiredove-bird.js'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
@@ -20,7 +20,7 @@ import { Settings } from './Settings'
 import { Repository } from './Workspace'
 
 const sourceRepo = import.meta.env.WIREDOVE_PREVIEW_SOURCE_REPO
-const sourceHref = sourceRepo && workspaceGitHref({ repo: sourceRepo, kind: 'tree', path: 'shadcn-preview' })
+const sourceHref = sourceRepo && gitHref({ repo: sourceRepo, kind: 'tree', path: 'shadcn-preview' })
 
 const Peers = lazy(() => import('./Peers'))
 
@@ -53,7 +53,7 @@ function WorkspaceSidebar({ repository, profile }) {
 
 export default function App() {
   const hash = useHash()
-  const [mode, setMode] = usePreference('view', hash.startsWith('workspace/') ? 'workspace' : 'social')
+  const [mode, setMode] = usePreference('view', 'social')
   const [draft, setDraft] = usePreference('draft', '')
   const composer = useRef(null)
   const [composerOpen, setComposerOpen] = useState(false)
@@ -79,7 +79,7 @@ export default function App() {
 
   const [name, setName] = usePreference('name', '')
   const [theme, setTheme] = usePreference('theme', 'light')
-  const repository = hash.startsWith('workspace/')
+  const repository = hash === 'git' || hash.startsWith('git/')
   const peers = hash === 'peers'
   const workspace = mode === 'workspace'
   const [identity, setIdentity] = useState(undefined)

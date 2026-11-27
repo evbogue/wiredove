@@ -1,5 +1,5 @@
 import { isMessageHash } from '../../client/protocol.js'
-import { workspaceGitHref } from '../../client/runtime/workspace-git.js'
+import { gitHref } from './git-route.js'
 
 export function gitCardType(parsed) {
   if (parsed?.anbot !== 1) return null
@@ -30,9 +30,9 @@ export function gitCardLinks(post) {
   return {
     id,
     repo,
-    repository: workspaceGitHref({ repo, kind: 'overview' }),
-    revision: commit && workspaceGitHref({ repo, kind: 'commit', rev: commit }),
-    comparison: post.gitBase && workspaceGitHref({ repo, kind: 'compare', base: post.gitBase, head: commit }),
+    repository: gitHref({ repo, kind: 'overview' }),
+    revision: commit && gitHref({ repo, kind: 'commit', rev: commit }),
+    comparison: post.gitBase && gitHref({ repo, kind: 'compare', base: post.gitBase, head: commit }),
   }
 }
 

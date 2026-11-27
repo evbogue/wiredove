@@ -11,10 +11,12 @@ export function useHash() {
   const [hash, setHash] = useState(() => location.hash.slice(1))
   useEffect(() => {
     const update = () => {
-      if (location.hash === '#feed') history.replaceState(history.state, '', '#')
+      const hash = location.hash
+      if (hash === '#feed' || hash === '#workspace/') history.replaceState(history.state, '', '#')
+      else if (hash.startsWith('#workspace/git/')) history.replaceState(history.state, '', '#' + hash.slice(11))
       setHash(location.hash.slice(1))
     }
-    if (location.hash === '#feed') update()
+    update()
     window.addEventListener('hashchange', update)
     return () => window.removeEventListener('hashchange', update)
   }, [])
