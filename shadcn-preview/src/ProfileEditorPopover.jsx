@@ -35,7 +35,6 @@ export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, 
             <h2 className="font-heading text-base font-medium">Edit profile</h2>
             <HelpPopover label="About your profile and identity">
               <p>Your public key identifies your profile and lets others verify your posts. The private key stays in this browser and signs what you publish.</p>
-              <p>For profile links, use full addresses that start with https:// or http://.</p>
               {localOnly && <p>This preview saves profile changes in this browser.</p>}
             </HelpPopover>
             <Popover.Close asChild>

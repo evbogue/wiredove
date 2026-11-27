@@ -57,7 +57,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel, disabled, localOn
   }
 
   return (
-    <form className="preview-profile-editor space-y-4" onSubmit={save}>
+    <form className="preview-profile-editor space-y-4" noValidate onSubmit={save}>
       <div ref={mount} className="space-y-4" />
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
