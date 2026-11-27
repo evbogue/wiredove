@@ -40,7 +40,7 @@ export function renderProfileLinks(container, links) {
   }
 }
 
-export function createProfileLinksEditor({ showHint = true } = {}) {
+export function createProfileLinksEditor({ showHint = true, compact = false } = {}) {
   const element = document.createElement('fieldset');
   element.className = 'profile-links-editor profile-edit-only';
   const legend = document.createElement('legend');
@@ -54,6 +54,12 @@ export function createProfileLinksEditor({ showHint = true } = {}) {
   let drafts = [];
   const draw = () => {
     rows.replaceChildren();
+    if (compact) {
+      const empty = drafts.length === 0;
+      element.toggleAttribute('data-empty', empty);
+      legend.hidden = empty;
+      rows.hidden = empty;
+    }
     drafts.forEach((draft, index) => {
       const row = document.createElement('div');
       row.className = 'profile-link-row';
@@ -68,7 +74,13 @@ export function createProfileLinksEditor({ showHint = true } = {}) {
       url.setAttribute('aria-label', `Link ${index + 1} URL`);
       url.placeholder = 'https://example.com';
       url.value = draft.url;
-      url.oninput = () => { draft.url = url.value; icon.replaceChildren(...createProfileLinkIcon(draft.url).childNodes); };
+      url.oninput = () => {
+        draft.url = url.value;
+        icon.replaceChildren(...createProfileLinkIcon(draft.url).childNodes);
+        url.removeAttribute('aria-invalid');
+        url.removeAttribute('aria-describedby');
+        urlField.querySelector('.profile-link-error')?.remove();
+      };
       const labelField = document.createElement('label');
       labelField.className = 'profile-field';
       labelField.append('Label (optional)', label);
@@ -101,6 +113,24 @@ export function createProfileLinksEditor({ showHint = true } = {}) {
     element,
     setLinks(links) { drafts = normalizeProfileLinks(links).map(link => ({ ...link })); draw(); },
     getLinks() { return normalizeProfileLinks(drafts, { strict: true }); },
+    showLinkError(error) {
+      const url = rows.children[error.linkIndex]?.querySelector('input[type="url"]');
+      if (!url) return false;
+      const field = url.parentElement;
+      let message = field.querySelector('.profile-link-error');
+      if (!message) {
+        message = document.createElement('span');
+        message.className = 'profile-link-error';
+        message.id = 'profile-link-error-' + crypto.randomUUID();
+        message.setAttribute('role', 'alert');
+        field.append(message);
+      }
+      message.textContent = error.message;
+      url.setAttribute('aria-invalid', 'true');
+      url.setAttribute('aria-describedby', message.id);
+      url.focus();
+      return true;
+    },
     set disabled(value) { for (const control of element.querySelectorAll('input, button')) control.disabled = value; if (!value) draw(); },
   };
 }

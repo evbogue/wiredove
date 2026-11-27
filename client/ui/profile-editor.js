@@ -28,7 +28,7 @@ export function createProfileEditor({ name = '', bio = '', links = [], imageSrc 
   bioInput.rows = 4;
   bioInput.placeholder = 'Tell people a little about yourself';
   bioInput.value = bio;
-  const linksEditor = createProfileLinksEditor({ showHint: !helpOnDemand });
+  const linksEditor = createProfileLinksEditor({ showHint: !helpOnDemand, compact: helpOnDemand });
   linksEditor.setLinks(links);
   fields.append(linksEditor.element);
   const photo = el('div', 'profile-photo-editor profile-edit-only');

@@ -95,11 +95,15 @@ export default function App() {
   }, [])
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark') }, [theme])
 
-  function finishKeySetup(key) {
+  function openIdentityProfile(key) {
     setIdentity(key)
     setChoosingKey(false)
-    setProfileSetup(key)
     location.hash = socialHref(key)
+  }
+
+  function finishKeySetup(key) {
+    setProfileSetup(key)
+    openIdentityProfile(key)
   }
 
   return (
@@ -131,7 +135,7 @@ export default function App() {
             <Settings theme={theme} setTheme={setTheme} />
             {!identity && (identity !== undefined || identityError) &&
               <ChoosePublicKey open={choosingKey} setOpen={setChoosingKey} unavailable={identityError && identity === undefined}
-                onReady={setIdentity} onChoose={finishKeySetup} />}
+                onReady={setIdentity} onChoose={finishKeySetup} onRestore={openIdentityProfile} />}
             <div className="flex min-w-0 justify-end sm:w-48 sm:shrink-0">
               {!workspace && <Profile {...profile} />}
             </div>

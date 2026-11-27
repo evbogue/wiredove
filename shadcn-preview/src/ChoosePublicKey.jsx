@@ -7,14 +7,16 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { HelpPopover } from './HelpPopover'
-import { createPreviewIdentity, readPublicIdentity } from './social'
+import { createPreviewIdentity, importPreviewIdentity, readPublicIdentity } from './social'
 
-export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose }) {
+export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose, onRestore }) {
   const [candidate, setCandidate] = useState('')
   const [prefix, setPrefix] = useState('')
   const [searching, setSearching] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [restoring, setRestoring] = useState(false)
+  const [backup, setBackup] = useState(null)
   const worker = useRef(null)
   const validPrefix = /^[A-Za-z0-9+/]{2}$/.test(prefix)
 
@@ -34,6 +36,8 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose 
       stopSearch()
       setCandidate('')
       setPrefix('')
+      setRestoring(false)
+      setBackup(null)
       setError('')
     }
     setOpen(value)
@@ -86,11 +90,11 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose 
       <DialogContent aria-describedby={undefined} showCloseButton={!busy} className="gap-5 p-5 sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-1 pr-8">
-            <DialogTitle className="text-lg">Choose your public key</DialogTitle>
-            <HelpPopover label="About choosing a public key">
+            <DialogTitle className="text-lg">{restoring ? 'Restore backup' : 'Choose your public key'}</DialogTitle>
+            {!restoring && <HelpPopover label="About choosing a public key">
               <p>Your public key identifies your profile. Wiredove saves your choice when you select Use this key.</p>
               <p>For a matching prefix, use two case-sensitive letters, digits, or the characters + and /.</p>
-            </HelpPopover>
+            </HelpPopover>}
           </div>
         </DialogHeader>
         {unavailable ? (
@@ -98,6 +102,25 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose 
             <p role="status">Wiredove couldn’t load the identity stored in this browser.</p>
             <Button disabled={busy} onClick={() => run(async () => onReady(await readPublicIdentity() || null))}>Retry loading identity</Button>
           </div>
+        ) : restoring ? (
+          <form className="space-y-4" onSubmit={event => {
+            event.preventDefault()
+            if (backup && !busy) void run(async () => onRestore(await importPreviewIdentity(backup, null)))
+          }}>
+            <Field>
+              <FieldLabel htmlFor="restore-key-backup">Wiredove backup file</FieldLabel>
+              <Input id="restore-key-backup" type="file" accept=".txt,.json,text/plain,application/json" disabled={busy}
+                onChange={event => { setBackup(event.target.files[0] || null); setError('') }} />
+            </Field>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={!backup || busy}>{busy ? 'Restoring…' : 'Restore identity'}</Button>
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => {
+                setRestoring(false)
+                setBackup(null)
+                setError('')
+              }}>Back</Button>
+            </div>
+          </form>
         ) : (
           <>
             <div className="space-y-3">
@@ -123,6 +146,11 @@ export function ChoosePublicKey({ open, setOpen, unavailable, onReady, onChoose 
               </Field>
               {searching && <p role="status" className="text-sm text-muted-foreground">Searching for a matching key…</p>}
             </form>
+            <Button variant="ghost" className="justify-self-start" disabled={busy} onClick={() => {
+              stopSearch()
+              setError('')
+              setRestoring(true)
+            }}>Restore backup</Button>
           </>
         )}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

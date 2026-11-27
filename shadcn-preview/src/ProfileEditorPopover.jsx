@@ -30,8 +30,8 @@ export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, 
             if (crop || saving) event.preventDefault()
             if (crop?.dispatchEvent(new Event('cancel', { cancelable: true }))) crop.close()
           }}
-          className="z-50 grid w-[28rem] max-w-[var(--radix-popover-content-available-width)] max-h-[var(--radix-popover-content-available-height)] gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
-          <div className="flex items-center gap-1">
+          className="z-50 flex w-[28rem] flex-col max-w-[var(--radix-popover-content-available-width)] max-h-[var(--radix-popover-content-available-height)] overflow-hidden rounded-xl bg-popover text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
+          <div className="flex shrink-0 items-center gap-1 px-4 pt-4 pb-3">
             <h2 className="font-heading text-base font-medium">Edit profile</h2>
             <HelpPopover label="About your profile and identity">
               <p>Your public key identifies your profile and lets others verify your posts. The private key stays in this browser and signs what you publish.</p>
@@ -42,8 +42,9 @@ export function ProfileEditorPopover({ open, saving, identity, initial, onOpen, 
             </Popover.Close>
           </div>
           {initial && <EditAuthorProfile key={identity} initial={initial} disabled={busy || !canSave} localOnly={localOnly}
-            onSave={onSave} onCancel={onClose} />}
-          <ProfileKeys identity={identity} onRestore={onRestore} disabled={busy} />
+            onSave={onSave} onCancel={onClose}>
+            <ProfileKeys identity={identity} onRestore={onRestore} disabled={busy} />
+          </EditAuthorProfile>}
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

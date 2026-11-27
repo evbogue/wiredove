@@ -12,7 +12,11 @@ export function normalizeProfileLinks(value, { strict = false } = {}) {
       const label = typeof entry.label === 'string' ? entry.label.trim() : '';
       return [{ label: label || url.hostname, url: url.href }];
     } catch {
-      if (strict) throw new Error(`Link ${index + 1}: enter a full http:// or https:// URL without a username or password.`);
+      if (strict) {
+        const error = new Error(`Link ${index + 1}: enter a full http:// or https:// URL without a username or password.`);
+        error.linkIndex = index;
+        throw error;
+      }
       return [];
     }
   });

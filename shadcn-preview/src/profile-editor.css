@@ -23,6 +23,11 @@
   @apply my-2 sm:grid-cols-[auto_1fr_1fr];
 }
 
+.preview-profile-editor .profile-links-editor[data-empty] { @apply border-0 p-0; }
+.preview-profile-editor .profile-links-editor[data-empty] > button { @apply justify-self-start; }
+.preview-profile-editor .profile-link-error { @apply text-sm text-destructive; }
+.preview-profile-editor input[aria-invalid="true"] { @apply border-destructive; }
+
 .preview-profile-editor .profile-link-icon { @apply size-4; }
 .preview-profile-editor .profile-link-controls { @apply flex flex-wrap gap-2 sm:col-span-full; }
 .preview-profile-editor .profile-photo-editor { @apply flex flex-wrap items-center gap-2; }
