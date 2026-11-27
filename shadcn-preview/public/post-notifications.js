@@ -2,6 +2,7 @@ self.addEventListener('push', event => {
   const post = event.data?.json()
   if (!/^[A-Za-z0-9+/]{43}=$/.test(post?.hash) || !(post.expiresAt > Date.now())) return
   event.waitUntil(self.registration.showNotification(post.title, {
+    vibrate: [200],
     body: post.body, tag: post.hash, data: { hash: post.hash },
   }))
 })
