@@ -1,7 +1,8 @@
+import { workspaceGitHref } from '../../client/runtime/workspace-git.js'
 import { birdPaths } from '../../client/ui/wiredove-bird.js'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { ArrowLeft, createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, Radio, SquarePen, X } from 'lucide-react'
+import { ArrowLeft, CodeXml, createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, Radio, SquarePen, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
@@ -17,6 +18,9 @@ import { Profile } from './Profile'
 import { ChoosePublicKey } from './ChoosePublicKey'
 import { Settings } from './Settings'
 import { Repository } from './Workspace'
+
+const sourceRepo = import.meta.env.WIREDOVE_PREVIEW_SOURCE_REPO
+const sourceHref = sourceRepo && workspaceGitHref({ repo: sourceRepo, kind: 'overview' })
 
 const Peers = lazy(() => import('./Peers'))
 
@@ -124,6 +128,18 @@ export default function App() {
               </Button>
             )}
             {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
+            {sourceHref && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="ghost" size="icon" className="size-8 shrink-0 sm:size-10">
+                    <a href={sourceHref} aria-label="Wiredove source code" aria-current={hash === sourceHref.slice(1) ? 'page' : undefined}>
+                      <CodeXml aria-hidden="true" />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Wiredove source code</TooltipContent>
+              </Tooltip>
+            )}
           </div>
           <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <div className="flex shrink-0 items-center gap-1.5" title="Workspace view">

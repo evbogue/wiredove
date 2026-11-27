@@ -74,10 +74,17 @@ export default defineConfig(({ mode }) => {
   const backend = env.WIREDOVE_PREVIEW_BACKEND || 'http://127.0.0.1:8000'
   const feedBackend = env.WIREDOVE_PREVIEW_FEED_BACKEND
   const shareBackend = env.WIREDOVE_PREVIEW_SHARE_BACKEND
+  const gitBackend = env.WIREDOVE_PREVIEW_GIT_BACKEND || backend
+  const sourceRepo = env.WIREDOVE_PREVIEW_SOURCE_REPO?.trim() || ''
+  if (sourceRepo && !/^[A-Za-z0-9_-]{43}$/.test(sourceRepo)) {
+    throw new Error('WIREDOVE_PREVIEW_SOURCE_REPO must be a full ANProto repository hash in URL-safe Base64.')
+  }
   const proxy = Object.fromEntries(
-    ['/api/application', '/api/git', '/sync/status', '/gossip/poll', '/posts', '/wiredove/image', '/git/']
+    ['/api/application', '/sync/status', '/gossip/poll', '/posts', '/wiredove/image']
       .map(path => [path, { target: backend, changeOrigin: true }]),
   )
+  proxy['/api/git'] = { target: gitBackend, changeOrigin: true }
+  proxy['/git/'] = { target: gitBackend, changeOrigin: true }
   proxy['^/media/[A-Za-z0-9_-]{43}$'] = { target: backend, changeOrigin: true }
 
   proxy['/api/media'] = { target: backend, changeOrigin: true }
@@ -97,6 +104,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), feedBackend && browseFeedProxy(feedBackend, backend)],
     define: {
+      'import.meta.env.WIREDOVE_PREVIEW_SOURCE_REPO': JSON.stringify(sourceRepo),
       'import.meta.env.WIREDOVE_PREVIEW_REMOTE_FEED': JSON.stringify(Boolean(feedBackend)),
       'import.meta.env.WIREDOVE_PREVIEW_SHARE_ORIGIN': JSON.stringify(shareBackend ? new URL(shareBackend).origin : null),
     },
