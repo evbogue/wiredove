@@ -10,7 +10,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { usePostPages } from './hooks/use-post-pages'
 import { usePreference } from './hooks/use-preview-state'
-import { hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost } from './social'
+import { clearComposerDraft, hostedPreview as hosted, isFeedPost, pendingPost, publishPost, publishProfile, readComposerDraft, readFeed, readGitFeed, readLocalPost, readPendingPublication, readStoredFeed, remotePreviewFeed, retryPost, saveComposerDraft } from './social'
 
 import { authorName, collectThreadRows, indexMessages, replyParentId, socialHref, socialRoute } from './messages'
 import { MediaAttachments, MediaPicker } from './MediaAttachments'
@@ -28,7 +28,6 @@ const feedPollInterval = 10000
 
 export function Feed({ active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer }) {
   const [draftAttachments, setDraftAttachments] = useState([])
-  const [actionAttachments, setActionAttachments] = useState([])
   const draftMediaInput = useRef(null)
   const actionMediaInput = useRef(null)
   const [feed, setFeed] = useState(() => ({ posts: [], authors: new Set() }))
@@ -43,8 +42,8 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [profileEdit, setProfileEdit] = useState(null)
-  const [composition, setComposition] = useState(null)
-  const [actionBody, setActionBody] = useState('')
+  const [openComposition, setComposition] = useState(null)
+  const composition = openComposition?.identity === identity ? openComposition : null
   const [policy, setPolicy] = usePreference('message-moderation', '{}')
   const actionField = useRef(null)
   const replyTrigger = useRef(null)
@@ -166,26 +165,53 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }, [latestReply])
 
   function beginComposition(kind, post, value, event, recipient) {
-    if (remotePreviewFeed || busy || pending !== false) return
+    if (remotePreviewFeed || busy || pending !== false || identity === undefined) return
     replyTrigger.current = event?.currentTarget || null
-    if (composition?.kind !== kind || composition.post?.id !== post?.id || composition.recipient !== recipient) {
+    const key = `composer-draft:${identity || 'anonymous'}:${kind}:${post?.id || recipient}`
+    if (composition?.key !== key) {
+      const token = Symbol()
       // Mount the field during the tap so mobile browsers can open the keyboard.
       flushSync(() => {
-        setActionBody(value)
-        setActionAttachments([])
-        setComposition({ kind, post, recipient })
+        setComposition({ key, token, identity, kind, post, recipient, body: value, attachments: [], loading: true })
         setNotice(null)
+      })
+      readComposerDraft(key).then(saved => {
+        setComposition(current => current?.token === token ? { ...current, ...saved, loading: false } : current)
+      }).catch(() => {
+        setComposition(current => current?.token === token
+          ? { ...current, loading: false, draftError: 'Could not restore this draft.' } : current)
       })
     }
     actionField.current?.focus({ preventScroll: true })
     actionField.current?.scrollIntoView({ block: 'nearest' })
   }
 
+  function updateComposition(context, changes) {
+    const { body, attachments } = { ...context, ...changes }
+    const revision = crypto.randomUUID()
+    setComposition({ ...context, body, attachments, revision, draftError: null })
+    saveComposerDraft(context.key, { body, attachments, revision }).catch(() => {
+      setComposition(current => current?.revision === revision
+        ? { ...current, draftError: 'Could not save this draft on this device.' } : current)
+    })
+  }
+
   function cancelComposition() {
-    setActionAttachments([])
     setComposition(null)
     setNotice(null)
     replyTrigger.current?.focus({ preventScroll: true })
+  }
+
+  async function discardComposition(context) {
+    try {
+      await clearComposerDraft(context.key, context.revision)
+      setComposition(current => current?.revision === context.revision &&
+        current?.token === context.token ? null : current)
+      replyTrigger.current?.focus({ preventScroll: true })
+    } catch {
+      setComposition(current => current?.token === context.token
+        ? { ...current, draftError: 'Could not discard this draft.' } : current)
+    }
   }
 
   function toggleModeration(kind, key) {
@@ -234,7 +260,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
           onToggleBranch={threadIds.has(post.id) ? () => toggleBranch(post.id) : undefined}
           hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
           blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
-          composeDisabled={Boolean(busy) || pending !== false} readOnly={remotePreviewFeed} />
+          composeDisabled={Boolean(busy) || pending !== false || identity === undefined} readOnly={remotePreviewFeed} />
         {!remotePreviewFeed && composition?.post?.id === post.id && renderComposer(composition)}
         {inlineStatus && post.id === statusTarget && <div className="mt-2 space-y-2">{renderDeliveryStatus()}</div>}
         {repliesByParent.get(post.id)?.map(reply => (
@@ -360,9 +386,9 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
 
   async function submit(event, context = null, retry = false) {
     event?.preventDefault()
-    const body = context ? actionBody : draft
-    const attachments = context ? actionAttachments : draftAttachments
-    if (remotePreviewFeed || busy || (!retry && ((!body.trim() && !attachments.length) || pending !== false))) return
+    const body = context ? context.body : draft
+    const attachments = context ? context.attachments : draftAttachments
+    if (remotePreviewFeed || busy || context?.loading || (!retry && ((!body.trim() && !attachments.length) || pending !== false))) return
     setBusy(retry ? 'retry' : context ? 'inline' : 'post')
     setNotice(null)
     try {
@@ -376,7 +402,10 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
       if (!retry) {
         if (context) {
           setComposition(null)
-          setActionAttachments([])
+          if (context.revision) {
+            await clearComposerDraft(context.key, context.revision)
+              .catch(() => toast.error('Published draft could not be cleared from this device.'))
+          }
         } else {
           setDraft('')
           setDraftAttachments([])
@@ -413,13 +442,14 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   }
 
   function renderComposer(context = null) {
-    const body = context ? actionBody : draft
+    const body = context ? context.body : draft
     const fieldId = context ? 'action-body' : 'post-body'
     const editing = context?.kind === 'edit'
-    const attachments = context ? actionAttachments : draftAttachments
-    const setAttachments = context ? setActionAttachments : setDraftAttachments
+    const attachments = context ? context.attachments : draftAttachments
+    const setAttachments = context ? attachments => updateComposition(context, { attachments }) : setDraftAttachments
     const mediaInput = context ? actionMediaInput : draftMediaInput
     const sending = busy === (context ? 'inline' : 'post')
+    const attachmentsDisabled = Boolean(busy) || context?.loading
     const action = editing ? 'Save edit' : context?.post ? 'Send reply' : 'Publish'
     return (
       <Card className={context ? 'mt-2 py-3' : 'py-4'}>
@@ -430,16 +460,20 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
                 {editing ? 'Edit message' : context?.recipient ? 'Public message to ' + profileName : context ? 'Replying to ' + authorName(context.post) : 'Message'}
               </FieldLabel>
               <Textarea id={fieldId} className="bg-muted dark:bg-muted" ref={context ? actionField : composer} value={body}
-                onChange={event => (context ? setActionBody : setDraft)(event.target.value)}
+                onChange={event => context ? updateComposition(context, { body: event.target.value }) : setDraft(event.target.value)}
+                readOnly={context?.loading}
                 placeholder={editing ? 'Edit your message…' : context?.post ? 'Write a reply…' : 'Write a post…'} rows={3} maxLength={16000} disabled={sending} />
             </Field>
-            {!editing && <MediaAttachments key={context?.post?.id || context?.recipient || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={Boolean(busy)} />}
+            {context?.draftError && <p role="alert" className="text-sm text-destructive">{context.draftError}</p>}
+            {!editing && <MediaAttachments key={context?.key || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={attachmentsDisabled} />}
             <div className="flex flex-wrap items-center gap-2">
-              {!editing && <MediaPicker input={mediaInput} disabled={Boolean(busy)} />}
-              <Button type="submit" disabled={(!body.trim() && !attachments.length) || Boolean(busy) || pending !== false}>
+              {!editing && <MediaPicker input={mediaInput} disabled={attachmentsDisabled} />}
+              <Button type="submit" disabled={(!body.trim() && !attachments.length) || attachmentsDisabled || pending !== false}>
                 {sending ? 'Publishing…' : action}
               </Button>
-              {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Cancel</Button>}
+              {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Close</Button>}
+              {context?.revision && <Button type="button" variant="ghost" disabled={Boolean(busy)}
+                onClick={() => discardComposition(context)}>Discard draft</Button>}
             </div>
           </form>
         </CardContent>

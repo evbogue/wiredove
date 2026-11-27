@@ -151,6 +151,22 @@ function identityStore(hosted) {
   return createBrowserStore(databaseName(hosted) + ':application')
 }
 
+const composerDrafts = identityStore(hostedPreview)
+
+export function readComposerDraft(key) {
+  return navigator.locks.request(key, () => composerDrafts.get(key))
+}
+
+export function saveComposerDraft(key, draft) {
+  return navigator.locks.request(key, () => composerDrafts.set(key, draft))
+}
+
+export function clearComposerDraft(key, revision) {
+  return navigator.locks.request(key, async () => {
+    if ((await composerDrafts.get(key))?.revision === revision) await composerDrafts.delete(key)
+  })
+}
+
 async function ensureIdentity(apds) {
   if (!await apds.pubkey()) await apds.put('keypair', await apds.generate())
   return apds.pubkey()
