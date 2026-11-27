@@ -13,6 +13,7 @@ import { socialTarget } from './messages'
 import { useHash, usePreference } from './hooks/use-preview-state'
 import { readPublicIdentity, remotePreviewFeed } from './social'
 import { Profile } from './Profile'
+import { Settings } from './Settings'
 import { Repository } from './Workspace'
 
 const Peers = lazy(() => import('./Peers'))
@@ -83,7 +84,7 @@ export default function App() {
     return () => { active = false }
   }, [])
   const [ownProfile, setOwnProfile] = useState(null)
-  const profile = { name, setName, theme, setTheme, identity, identityError, setIdentity,
+  const profile = { name, setName, identity, identityError, setIdentity,
     publicProfile: ownProfile?.identity === identity ? ownProfile : null }
   useEffect(() => {
     void import('./peer-connections').then(({ startDefaultPeers }) => startDefaultPeers())
@@ -117,6 +118,7 @@ export default function App() {
             <Button asChild variant="ghost" size="icon" className="size-8 sm:size-10">
               <a href="#peers" aria-label="Peers" aria-current={peers ? 'page' : undefined} title="Peers"><Radio aria-hidden="true" /></a>
             </Button>
+            <Settings theme={theme} setTheme={setTheme} />
             <div className="flex min-w-0 justify-end sm:w-48 sm:shrink-0">
               {!workspace && <Profile {...profile} />}
             </div>

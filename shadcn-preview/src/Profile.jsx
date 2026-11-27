@@ -6,16 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { requestPreviewReset } from './reset-preview'
 import { AuthorAvatar } from './AuthorAvatar'
 import { shortPublicKey, socialHref } from './messages'
 import { createPreviewIdentity, downloadPreviewIdentity, importPreviewIdentity, readPublicIdentity } from './social'
 
-export function Profile({ name, setName, theme, setTheme, identity, identityError, setIdentity, onNavigate, publicProfile }) {
+export function Profile({ name, setName, identity, identityError, setIdentity, onNavigate, publicProfile }) {
   const [open, setOpen] = useState(false)
-  const [confirmReset, setConfirmReset] = useState(false)
   const [importing, setImporting] = useState(false)
   const [file, setFile] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -32,7 +29,6 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
   function changeOpen(value) {
     if (busy) return
     cancelImport()
-    setConfirmReset(false)
     setNotice(null)
     setOpen(value)
   }
@@ -154,25 +150,10 @@ export function Profile({ name, setName, theme, setTheme, identity, identityErro
           </form>
         )}
         {notice && <Alert role={notice.error ? 'alert' : 'status'} variant={notice.error ? 'destructive' : 'default'}><AlertDescription>{notice.message}</AlertDescription></Alert>}
-        <div className="grid gap-3 border-t pt-4">
-          <Field>
-            <FieldLabel htmlFor="display-name">Display name for new posts</FieldLabel>
-            <Input id="display-name" autoComplete="nickname" value={name} maxLength={80} onChange={event => setName(event.target.value)} />
-          </Field>
-          <Field orientation="horizontal">
-            <Switch id="dark-mode" checked={theme === 'dark'} onCheckedChange={value => setTheme(value ? 'dark' : 'light')} />
-            <FieldLabel htmlFor="dark-mode">Dark mode</FieldLabel>
-          </Field>
-          {confirmReset ? (
-            <div className="space-y-2 rounded-md border p-3 text-sm">
-              <p>This clears the preview’s identity, drafts, pending posts, preferences, and cached posts and media on this browser. Download your identity backup first if you want to keep it. Posts already shared stay available on the server and peers.</p>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="destructive" size="sm" disabled={busy} onClick={() => run(requestPreviewReset, 'Resetting local data…')}>Delete local data</Button>
-                <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirmReset(false)}>Cancel</Button>
-              </div>
-            </div>
-          ) : <Button variant="ghost" size="sm" className="-ml-2 justify-self-start text-muted-foreground" disabled={busy} onClick={() => setConfirmReset(true)}>Reset local data</Button>}
-        </div>
+        <Field className="border-t pt-4">
+          <FieldLabel htmlFor="display-name">Display name for new posts</FieldLabel>
+          <Input id="display-name" autoComplete="nickname" value={name} maxLength={80} onChange={event => setName(event.target.value)} />
+        </Field>
       </DialogContent>
     </Dialog>
   )
