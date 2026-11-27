@@ -1,8 +1,7 @@
 import { human } from '../../client/ui/format.js'
 import { useEffect, useState } from 'react'
 import { readWorkspaceGit, workspaceGitHref } from '../../client/runtime/workspace-git.js'
-import { ChevronDown, ChevronRight, CircleCheck, Ellipsis, FolderGit2, GitCommitHorizontal, MessageSquare, ShieldCheck } from 'lucide-react'
-import { Alert, AlertTitle } from '@/components/ui/alert'
+import { ChevronDown, ChevronRight, Ellipsis, FolderGit2, GitCommitHorizontal, MessageSquare, ShieldCheck } from 'lucide-react'
 import { AuthorAvatar } from './AuthorAvatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { authorName, socialHref } from './messages'
 import { gitCardLinks, gitCardType } from './git-records'
-import { HelpPopover } from './HelpPopover'
 import { PostBody } from './PostBody'
 import { ShareLink } from './ShareLink'
 
@@ -82,9 +80,9 @@ export function PostCard({ post, repoName, profile, replyContext, recipientConte
             {!concealed && versions.length > 0 && <DropdownMenuItem onSelect={() => setDialog('history')}>Edit history</DropdownMenuItem>}
             {!concealed && comparePush && <DropdownMenuItem asChild><a href={comparePush}>Compare push</a></DropdownMenuItem>}
             {!concealed && (
-              <DropdownMenuItem onSelect={() => setDialog('signature')}>
+              <DropdownMenuItem onSelect={() => setDialog('raw')}>
                 <ShieldCheck aria-hidden="true" />
-                Signature and data
+                Raw
               </DropdownMenuItem>
             )}
             {!concealed && <DropdownMenuSeparator />}
@@ -95,22 +93,10 @@ export function PostCard({ post, repoName, profile, replyContext, recipientConte
         </DropdownMenu>
       </CardFooter>
       <Dialog open={dialog !== null} onOpenChange={open => { if (!open) setDialog(null) }}>
-        <DialogContent className="min-w-0" {...(dialog === 'signature' && { 'aria-describedby': undefined })}>
+        <DialogContent className="min-w-0" {...(dialog === 'raw' && { 'aria-describedby': undefined })}>
           <DialogHeader>
-            {dialog === 'signature' ? (
-              <div className="flex items-center gap-1 pr-8">
-                <DialogTitle>Signature and data</DialogTitle>
-                <HelpPopover label="About post verification and decentralization">
-                  <p>Wiredove uses the author’s public key to check that they signed this post and that its contents match what they signed.</p>
-                  <p>Anproto is decentralized because any server or peer can pass along the signed post, and Wiredove can check it without asking a central server.</p>
-                </HelpPopover>
-              </div>
-            ) : (
-              <>
-                <DialogTitle>Edit history</DialogTitle>
-                <DialogDescription>Signed versions from the original author.</DialogDescription>
-              </>
-            )}
+            <DialogTitle>{dialog === 'raw' ? 'Raw' : 'Edit history'}</DialogTitle>
+            {dialog === 'history' && <DialogDescription>Signed versions from the original author.</DialogDescription>}
           </DialogHeader>
           {dialog === 'history' && (
             <ol className="max-h-[60vh] space-y-4 overflow-auto">
@@ -122,38 +108,12 @@ export function PostCard({ post, repoName, profile, replyContext, recipientConte
               ))}
             </ol>
           )}
-          {dialog === 'signature' && (
-            <div className="min-w-0 space-y-3">
-              <Alert role={undefined}>
-                <CircleCheck aria-hidden="true" />
-                <AlertTitle>Signature and content verified</AlertTitle>
-              </Alert>
-              <dl className="space-y-2">
-                <div className="space-y-1">
-                  <dt className="font-medium">Author’s public key</dt>
-                  <dd><code className="select-all break-all">{latest.author}</code></dd>
-                </div>
-                <div className="space-y-1">
-                  <dt className="font-medium">Content ID</dt>
-                  <dd><code className="select-all break-all">{latest.contentHash}</code></dd>
-                </div>
-              </dl>
-              <SignedRecord post={latest} label={versions.length ? 'Edited signed data' : 'Signed data'} />
-              {versions.length > 0 && <SignedRecord post={post} label="Original signed data" />}
-            </div>
+          {dialog === 'raw' && (
+            <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-3 text-xs">{latest.signature}{'\n\n'}{latest.content}</pre>
           )}
         </DialogContent>
       </Dialog>
     </Card>
-  )
-}
-
-function SignedRecord({ post, label }) {
-  return (
-    <details className="space-y-2 border-t pt-2">
-      <summary className="cursor-pointer font-medium">{label}</summary>
-      <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-xs">{post.signature}{'\n\n'}{post.content}</pre>
-    </details>
   )
 }
 

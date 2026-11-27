@@ -73,8 +73,8 @@ interface free of repeated help labels.
   Wiredove verify signatures and the private key signs posts and profile updates.
   In Peers, explain that relays and direct peers can carry the same signed post.
   Wiredove checks the signature and content whichever route the post took.
-- **Posts and repositories.** Put Signature and data in the existing post menu.
-  Show the author key, content ID, and what Wiredove actually verified. In
+- **Posts and repositories.** Use Raw in the existing post menu to show the
+  displayed version’s signature and content directly. In
   Workspace repository help, explain that a pinned commit link opens the same
   revision after the branch moves.
 - **Technical reference.** Keep protocol formats, algorithms, and implementation
