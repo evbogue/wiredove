@@ -17,7 +17,7 @@ import { DraftAttachmentsPreview, MediaAttachments, MediaPicker } from './MediaA
 import { PostBody } from './PostBody'
 import { PostCard } from './PostCard'
 import { gitCardType, gitRepositoryId } from './git-records'
-import { EditAuthorProfile } from './EditAuthorProfile'
+import { ProfileEditorPopover } from './ProfileEditorPopover'
 import { AuthorProfile } from './AuthorProfile'
 import { isProfileUpdate } from '../../client/ui/profile-update.js'
 import { isMessageHash } from '../../client/protocol.js'
@@ -27,7 +27,7 @@ import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady
 
 const feedPollInterval = 10000
 
-export function Feed({ active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer }) {
+export function Feed({ active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer, profileSetup, onChooseKey }) {
   const [draftAttachments, setDraftAttachments] = useState([])
   const draftMediaInput = useRef(null)
   const actionMediaInput = useRef(null)
@@ -43,6 +43,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [profileEdit, setProfileEdit] = useState(null)
+  const [openedProfileSetup, setOpenedProfileSetup] = useState(null)
   const [review, setReview] = useState(null)
   const reviewHeading = useRef(null)
   const [openComposition, setComposition] = useState(null)
@@ -360,6 +361,19 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
     })
   }
 
+  if (ownProfilePage && profileSetup === identity && openedProfileSetup !== profileSetup) {
+    setOpenedProfileSetup(profileSetup)
+    openProfileEditor()
+  }
+
+  function restoreProfileIdentity(key) {
+    if (key === identity) return
+    onIdentityChange(key)
+    onNameChange('')
+    setProfileEdit(null)
+    location.hash = socialHref(key)
+  }
+
   async function saveProfile(metadata, photo) {
     if (!editingProfile || remotePreviewFeed || busy || pending !== false) {
       throw Error('Profile editing is unavailable.')
@@ -395,7 +409,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
   async function submit(context = null, retry = false) {
     const body = context ? context.body : draft
     const attachments = context ? context.attachments : draftAttachments
-    if (remotePreviewFeed || busy || (!retry && (!isReviewing(context, body, attachments) || pending !== false))) return
+    if (remotePreviewFeed || busy || (!retry && (!identity || !isReviewing(context, body, attachments) || pending !== false))) return
     setBusy(retry ? 'retry' : context ? 'inline' : 'post')
     setNotice(null)
     try {
@@ -405,7 +419,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
         : context?.recipient ? { replyto: context.recipient } : {}
       const result = retry
         ? await retryPost(hosted)
-        : await publishPost(hosted, body.trim(), name.trim(), metadata, editing ? post.author : undefined, attachments)
+        : await publishPost(hosted, identity, body.trim(), name.trim(), metadata, editing ? post.author : undefined, attachments)
       if (!retry) {
         setReview(null)
         if (context) {
@@ -459,7 +473,7 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
     const sending = busy === (context ? 'inline' : 'post')
     const attachmentsDisabled = Boolean(busy) || context?.loading
     const reviewing = isReviewing(context, body, attachments)
-    const publicationDisabled = (!body.trim() && !attachments.length) || attachmentsDisabled || pending !== false
+    const publicationDisabled = !identity || (!body.trim() && !attachments.length) || attachmentsDisabled || pending !== false
     const label = editing ? 'Edit message' : context?.recipient ? 'Public message to ' + profileName
       : context ? 'Replying to ' + authorName(context.post) : 'Message'
     return (
@@ -501,7 +515,9 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
             {!editing && <MediaAttachments key={context?.key || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={attachmentsDisabled} />}
             <div className="flex flex-wrap items-center gap-2">
               {!editing && <MediaPicker input={mediaInput} disabled={attachmentsDisabled} />}
-              <Button type="submit" disabled={publicationDisabled}>Preview</Button>
+              {!identity && onChooseKey
+                ? <Button type="button" onClick={onChooseKey}>Choose a public key</Button>
+                : <Button type="submit" disabled={publicationDisabled}>Preview</Button>}
               {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Close</Button>}
               {context?.revision && <Button type="button" variant="ghost" size="icon"
                 aria-label="Discard draft" title="Discard draft" disabled={Boolean(busy)}
@@ -547,9 +563,12 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
         ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)} name={profileName}
             onMessage={!remotePreviewFeed && route.id !== identity
               ? event => beginComposition('message', null, '', event, route.id) : undefined}
-            onEdit={!remotePreviewFeed && ownProfilePage ? openProfileEditor : undefined}
-            editor={!remotePreviewFeed && editingProfile ? <EditAuthorProfile key={identity} initial={profileEdit}
-              onSave={saveProfile} onCancel={() => setProfileEdit(null)} /> : null}
+            profileEditControl={ownProfilePage && (
+              <ProfileEditorPopover open={editingProfile} saving={busy === 'profile'} identity={identity} initial={profileEdit}
+                onOpen={openProfileEditor} onClose={() => setProfileEdit(null)} onSave={saveProfile}
+                onRestore={restoreProfileIdentity} busy={Boolean(busy)} canPublish={pending === false}
+                readOnly={Boolean(remotePreviewFeed)} />
+            )}
             messageDisabled={Boolean(busy) || pending !== false}
             onUnblock={() => toggleModeration('blocked', route.id)} />
         : <h2 className={route ? 'font-semibold' : 'sr-only'}>{route?.kind === 'message' ? 'Thread' : route ? 'Lookup' : 'Feed'}</h2>}

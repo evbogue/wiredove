@@ -178,6 +178,10 @@
   }
 }
 
+.toaster[data-sonner-toaster] {
+  z-index: 40;
+}
+
 [data-slot="dialog-content"] {
   top: calc(var(--preview-viewport-top, 0px) + var(--preview-viewport-height, 100dvh) / 2);
   left: var(--preview-viewport-center-x, 50%);

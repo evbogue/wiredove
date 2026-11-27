@@ -9,7 +9,7 @@ import './profile-editor.css'
 
 const mediaOptions = { store: previewMediaStore, fetchImpl: fetchPeerMedia }
 
-export function EditAuthorProfile({ initial, onSave, onCancel }) {
+export function EditAuthorProfile({ initial, onSave, onCancel, disabled }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const mount = useRef(null)
@@ -38,7 +38,7 @@ export function EditAuthorProfile({ initial, onSave, onCancel }) {
 
   async function save(event) {
     event.preventDefault()
-    if (busy) return
+    if (busy || disabled) return
     const widget = editor.current
     const name = widget.nameInput.value.trim()
     setError('')
@@ -58,11 +58,10 @@ export function EditAuthorProfile({ initial, onSave, onCancel }) {
 
   return (
     <form className="preview-profile-editor space-y-4" onSubmit={save}>
-      <h1 className="text-2xl font-semibold leading-tight">Edit profile</h1>
       <div ref={mount} className="space-y-4" />
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
-        <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</Button>
+        <Button type="submit" disabled={busy || disabled}>{busy ? 'Saving…' : 'Save profile'}</Button>
         <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
       </div>
     </form>

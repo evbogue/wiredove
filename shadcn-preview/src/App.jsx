@@ -9,10 +9,11 @@ import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
-import { socialTarget } from './messages'
+import { socialHref, socialTarget } from './messages'
 import { useHash, usePreference } from './hooks/use-preview-state'
 import { readPublicIdentity, remotePreviewFeed } from './social'
 import { Profile } from './Profile'
+import { ChoosePublicKey } from './ChoosePublicKey'
 import { Settings } from './Settings'
 import { Repository } from './Workspace'
 
@@ -77,6 +78,8 @@ export default function App() {
   const workspace = mode === 'workspace'
   const [identity, setIdentity] = useState(undefined)
   const [identityError, setIdentityError] = useState(false)
+  const [choosingKey, setChoosingKey] = useState(false)
+  const [profileSetup, setProfileSetup] = useState(null)
   useEffect(() => {
     let active = true
     readPublicIdentity().then(key => { if (active) setIdentity(key || null) })
@@ -84,13 +87,20 @@ export default function App() {
     return () => { active = false }
   }, [])
   const [ownProfile, setOwnProfile] = useState(null)
-  const profile = { name, setName, identity, identityError, setIdentity,
+  const profile = { name, identity,
     publicProfile: ownProfile?.identity === identity ? ownProfile : null }
   useEffect(() => {
     void import('./peer-connections').then(({ startDefaultPeers }) => startDefaultPeers())
       .catch(error => console.warn('Default peer connections could not be loaded', error))
   }, [])
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark') }, [theme])
+
+  function finishKeySetup(key) {
+    setIdentity(key)
+    setChoosingKey(false)
+    setProfileSetup(key)
+    location.hash = socialHref(key)
+  }
 
   return (
     <TooltipProvider>
@@ -119,6 +129,9 @@ export default function App() {
               <a href="#peers" aria-label="Peers" aria-current={peers ? 'page' : undefined} title="Peers"><Radio aria-hidden="true" /></a>
             </Button>
             <Settings theme={theme} setTheme={setTheme} />
+            {!identity && (identity !== undefined || identityError) &&
+              <ChoosePublicKey open={choosingKey} setOpen={setChoosingKey} unavailable={identityError && identity === undefined}
+                onReady={setIdentity} onChoose={finishKeySetup} />}
             <div className="flex min-w-0 justify-end sm:w-48 sm:shrink-0">
               {!workspace && <Profile {...profile} />}
             </div>
@@ -129,7 +142,8 @@ export default function App() {
           <SidebarInset className="min-w-0">
             <section aria-label="Social feed" hidden={repository || peers} className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
               <Feed active={!repository && !peers} hash={hash} name={name} onNameChange={setName} identity={identity} onIdentityChange={setIdentity} onOwnProfileChange={setOwnProfile}
-                draft={draft} setDraft={setDraft} composer={composer} />
+                draft={draft} setDraft={setDraft} composer={composer} profileSetup={profileSetup}
+                onChooseKey={identity === undefined && !identityError ? undefined : () => setChoosingKey(true)} />
             </section>
             {peers && (
               <section className="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">

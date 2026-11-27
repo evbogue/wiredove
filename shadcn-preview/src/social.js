@@ -167,15 +167,12 @@ export function clearComposerDraft(key, revision) {
   })
 }
 
-async function ensureIdentity(apds) {
-  if (!await apds.pubkey()) await apds.put('keypair', await apds.generate())
-  return apds.pubkey()
-}
-
-export async function createPreviewIdentity() {
+export async function createPreviewIdentity(candidate) {
   return navigator.locks.request(databaseName(hostedPreview), async () => {
     const apds = await openIdentity(hostedPreview)
-    return ensureIdentity(apds)
+    if (await apds.pubkey()) throw new Error('An identity was saved in another tab. Reload to open its profile.')
+    await apds.put('keypair', candidate)
+    return apds.pubkey()
   })
 }
 
@@ -197,10 +194,11 @@ export async function importPreviewIdentity(file, expectedKey) {
   })
 }
 
-export async function downloadPreviewIdentity() {
+export async function downloadPreviewIdentity(expectedKey) {
   const apds = await openIdentity(hostedPreview)
   const keypair = await apds.keypair()
   if (!keypair) throw new Error('Create or import an identity first.')
+  if (keypair.slice(0, 44) !== expectedKey) throw new Error('The identity changed. Reload to open its profile.')
   saveIdentityBackupFile(keypair)
 }
 
@@ -324,12 +322,13 @@ async function saveAttachments(attachments, store, author) {
   return { images: images.join('\n'), playable }
 }
 
-export async function publishPost(hosted, body, name, metadata = {}, editAuthor, attachments = []) {
+export async function publishPost(hosted, expectedKey, body, name, metadata = {}, editAuthor, attachments = []) {
   return navigator.locks.request(databaseName(hosted), async () => {
     const { apds, session, store } = await openWriter(hosted)
-    let author = await apds.pubkey()
+    const author = await apds.pubkey()
     if (metadata.edit && (!author || author !== editAuthor)) throw new Error('Only the original author can edit this message.')
-    if (!author) author = await ensureIdentity(apds)
+    if (!author) throw new Error('Choose a public key before publishing.')
+    if (author !== expectedKey) throw new Error('The identity changed. Reload before publishing.')
     if (author && await store.get('identity-needs-pull') === author) {
       await session.pull()
       await store.delete('identity-needs-pull')

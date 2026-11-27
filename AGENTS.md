@@ -64,7 +64,7 @@ interface free of repeated help labels.
 - **Inline guidance.** Place information needed for a decision or recovery beside
   the relevant action. Show the private-key warning beside Download backup and
   Retry lookup beside a failed lookup.
-- **Identity and peers.** In Identity settings, explain that the public key lets
+- **Identity and peers.** In the profile editor, explain that the public key lets
   Wiredove verify signatures and the private key signs posts and profile updates.
   In Peers, explain that relays and direct peers can carry the same signed post.
   Wiredove checks the signature and content whichever route the post took.

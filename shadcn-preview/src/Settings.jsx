@@ -51,7 +51,7 @@ export function Settings({ theme, setTheme }) {
           </p>
           {confirming ? (
             <div className="space-y-2 rounded-md border p-3">
-              <p id="local-data-backup">Download a backup in Identity settings first if you want to keep your identity.</p>
+              <p id="local-data-backup">Download a backup from your profile editor first if you want to keep your identity.</p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="destructive" size="sm" aria-describedby="local-data-explanation local-data-backup" onClick={deleteLocalData}>Confirm deletion</Button>
                 <Button variant="outline" size="sm" onClick={cancelDelete}>Cancel</Button>
