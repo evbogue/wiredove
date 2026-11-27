@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
-import { MessagesSquare } from 'lucide-react'
+import { MessagesSquare, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -472,8 +472,9 @@ export function Feed({ active, hash, name, onNameChange, identity, onIdentityCha
                 {sending ? 'Publishing…' : action}
               </Button>
               {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Close</Button>}
-              {context?.revision && <Button type="button" variant="ghost" disabled={Boolean(busy)}
-                onClick={() => discardComposition(context)}>Discard draft</Button>}
+              {context?.revision && <Button type="button" variant="ghost" size="icon"
+                aria-label="Discard draft" title="Discard draft" disabled={Boolean(busy)}
+                onClick={() => discardComposition(context)}><Trash2 aria-hidden="true" /></Button>}
             </div>
           </form>
         </CardContent>
