@@ -1,13 +1,14 @@
 import { birdPaths } from '../../client/ui/wiredove-bird.js'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, Radio, X } from 'lucide-react'
+import { flushSync } from 'react-dom'
+import { ArrowLeft, createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, Radio, SquarePen, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
 import { Switch } from '@/components/ui/switch'
-import { TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Feed } from './Feed'
 import { socialHref, socialTarget } from './messages'
 import { useHash, usePreference } from './hooks/use-preview-state'
@@ -52,23 +53,25 @@ export default function App() {
   const [mode, setMode] = usePreference('view', hash.startsWith('workspace/') ? 'workspace' : 'social')
   const [draft, setDraft] = usePreference('draft', '')
   const composer = useRef(null)
-  const focusDiscussion = useRef(false)
-  useEffect(() => {
-    if (!hash && focusDiscussion.current) {
-      focusDiscussion.current = false
-      composer.current?.focus()
-    }
-  }, [hash])
+  const [composerOpen, setComposerOpen] = useState(false)
+  const composeTrigger = useRef(null)
 
-  function discussCommit(url) {
+  function openComposer(trigger, nextDraft = draft) {
+    composeTrigger.current = trigger
+    flushSync(() => {
+      setDraft(nextDraft)
+      setComposerOpen(true)
+    })
+    composer.current?.focus({ preventScroll: true })
+  }
+
+  function discussCommit(url, trigger) {
     const nextDraft = draft.trim() ? draft + '\n\n' + url : url
     if (nextDraft.length > 16000) {
       toast.error('There is no room in the draft. Use Copy commit link to save it.')
       return
     }
-    setDraft(nextDraft)
-    focusDiscussion.current = true
-    location.hash = '#'
+    openComposer(trigger, nextDraft)
   }
 
   const [name, setName] = usePreference('name', '')
@@ -149,6 +152,7 @@ export default function App() {
               <Feed key={String(readOnly)} readOnly={readOnly} waitingForIdentity={remotePreviewFeed && identity === undefined && !identityError}
                 active={!repository && !peers} hash={hash} name={name} onNameChange={setName} identity={identity} onIdentityChange={setIdentity} onOwnProfileChange={setOwnProfile}
                 draft={draft} setDraft={setDraft} composer={composer} profileSetup={profileSetup}
+                composerOpen={composerOpen} setComposerOpen={setComposerOpen} composeTrigger={composeTrigger}
                 onChooseKey={identity === undefined && !identityError ? undefined : () => setChoosingKey(true)} />
             </section>
             {peers && (
@@ -164,6 +168,16 @@ export default function App() {
             )}
           </SidebarInset>
         </div>
+        {!readOnly && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" aria-label="New post" aria-haspopup="dialog"
+                className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 size-12 rounded-full shadow-md sm:right-6 sm:bottom-6"
+                onClick={event => openComposer(event.currentTarget)}><SquarePen aria-hidden="true" /></Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">New post</TooltipContent>
+          </Tooltip>
+        )}
       </SidebarProvider>
       <Toaster theme={theme} position="bottom-center" visibleToasts={1} duration={4000} />
     </TooltipProvider>

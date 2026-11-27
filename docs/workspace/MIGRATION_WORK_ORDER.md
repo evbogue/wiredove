@@ -123,7 +123,9 @@ original commit. The shared-shell browser check covers keyboard entry,
 alternate views, Back, reload, and a retained Social panel at phone width.
 The next slice adds branches and tags available in the verified publication,
 paged history, full commit messages, per-file diffs and revision comparisons.
-Commit pages can open the existing Social composer with a pinned link.
+Commit pages open the popup composer with a pinned link. The floating **New post**
+button opens the same draft from any writable screen, and the inline composer
+remains above the main feed.
 ANBot commit `009559f` supplies the extended reads.
 Set `WORKSPACE_GIT_UPSTREAM` to the ANBot HTTP(S) origin to run the same-origin
 gateway in Wiredove. Workspace now discovers the selected repository,

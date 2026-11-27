@@ -317,7 +317,7 @@ function RevisionView({ data, request, href, pinned, commitUrl, onDiscuss }) {
           <p className="break-words text-sm text-muted-foreground">{[details.author, details.date].filter(Boolean).join(' · ')}</p>
           <p className="whitespace-pre-wrap break-words rounded-md bg-muted p-4">{details.message || '(No commit message)'}</p>
           <div className="flex flex-wrap gap-2">
-            {onDiscuss && <Button onClick={() => onDiscuss(commitUrl)}>Discuss this commit</Button>}
+            {onDiscuss && <Button onClick={event => onDiscuss(commitUrl, event.currentTarget)}>Discuss this commit</Button>}
             <CopyValue label="Copy commit link" value={commitUrl} />
             <RepoLink href={pinned('overview')}>Browse at this commit</RepoLink>
             {details.parents.map(parent => <RepoLink key={parent} href={href('commit', { rev: parent })}>Parent {parent.slice(0, 12)}</RepoLink>)}

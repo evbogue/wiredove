@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
@@ -27,7 +28,7 @@ import { announcePeerPost, mirrorArchive, peerPostsSnapshot, recentPeerFeedReady
 
 const feedPollInterval = 10000
 
-export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer, profileSetup, onChooseKey }) {
+export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameChange, identity, onIdentityChange, onOwnProfileChange, draft, setDraft, composer, profileSetup, onChooseKey, composerOpen, setComposerOpen, composeTrigger }) {
   const [draftAttachments, setDraftAttachments] = useState([])
   const draftMediaInput = useRef(null)
   const actionMediaInput = useRef(null)
@@ -277,7 +278,7 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
           hidden={moderation.hidden?.includes(post.id)} muted={moderation.muted?.includes(post.author)}
           blocked={blocked(post.author)} onCompose={beginComposition} onModerate={toggleModeration}
           composeDisabled={Boolean(busy) || pending !== false || identity === undefined} readOnly={readOnly} />
-        {!readOnly && composition?.post?.id === post.id && renderComposer(composition)}
+        {!readOnly && composition?.post?.id === post.id && renderInlineComposer(composition)}
         {inlineStatus && post.id === statusTarget && <div className="mt-2 space-y-2">{renderDeliveryStatus()}</div>}
         {repliesByParent.get(post.id)?.map(reply => (
           <div key={reply.id} ref={reply.id === latestReply?.id ? sentReply : null} className="mt-2 scroll-mt-14">
@@ -468,6 +469,7 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
       }
       const waiting = result?.relayed === false
       setPending(waiting ? { postId: post?.id || null } : false)
+      if (!context && !waiting) setComposerOpen(false)
       setAttempt(n => n + 1)
       if (result) {
         const local = await readLocalPost(result).catch(() => null)
@@ -496,6 +498,7 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
   }
 
   function renderComposer(context = null) {
+    const popup = !context && composerOpen
     const body = context ? context.body : draft
     const fieldId = context ? 'action-body' : 'post-body'
     const editing = context?.kind === 'edit'
@@ -509,56 +512,66 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
     const label = editing ? 'Edit message' : context?.recipient ? 'Public message to ' + profileName
       : context ? 'Replying to ' + authorName(context.post) : 'Message'
     return (
-      <Card className={context ? 'mt-2 py-3' : 'py-4'}>
-        <CardContent>
-          {reviewing ? (
-            <section className="space-y-3" aria-label={`Preview · ${label}`}>
-              <h2 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
-                {context ? `Preview · ${label}` : 'Preview'}
-              </h2>
-              <PostBody body={body.trim()} attachment={editing ? context.post.parsed : undefined} />
-              {attachments.length > 0 && <DraftAttachmentsPreview attachments={attachments} />}
-              <p className="text-sm text-muted-foreground">Once published, this message can’t be recalled from the network.</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" disabled={publicationDisabled} onClick={() => submit(context)}>
-                  {sending ? 'Publishing…' : 'Publish'}
-                </Button>
-                <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => {
-                  flushSync(() => setReview(null))
-                  const field = context ? actionField : composer
-                  field.current?.focus({ preventScroll: true })
-                }}>Back to editing</Button>
-              </div>
-            </section>
-          ) : <form className="space-y-3" onSubmit={event => {
-            event.preventDefault()
-            if (publicationDisabled) return
-            flushSync(() => setReview({ hash, identity, token: context?.token, body, attachments }))
-            reviewHeading.current?.focus({ preventScroll: true })
-          }}>
-            <Field>
-              <FieldLabel htmlFor={fieldId} className={context ? undefined : 'sr-only'}>{label}</FieldLabel>
-              <Textarea id={fieldId} className="bg-muted dark:bg-muted" ref={context ? actionField : composer} value={body}
-                onChange={event => context ? updateComposition(context, { body: event.target.value }) : setDraft(event.target.value)}
-                readOnly={context?.loading}
-                placeholder={editing ? 'Edit your message…' : context?.post ? 'Write a reply…' : 'Write a post…'} rows={3} maxLength={16000} disabled={sending} />
-            </Field>
-            {context?.draftError && <p role="alert" className="text-sm text-destructive">{context.draftError}</p>}
-            {!editing && <MediaAttachments key={context?.key || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={attachmentsDisabled} />}
+      <>
+        {reviewing ? (
+          <section className="space-y-3" aria-label={`Preview · ${label}`}>
+            <h2 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
+              {context ? `Preview · ${label}` : 'Preview'}
+            </h2>
+            <PostBody body={body.trim()} attachment={editing ? context.post.parsed : undefined} />
+            {attachments.length > 0 && <DraftAttachmentsPreview attachments={attachments} />}
+            <p className="text-sm text-muted-foreground">Once published, this message can’t be recalled from the network.</p>
             <div className="flex flex-wrap items-center gap-2">
-              {!editing && <MediaPicker input={mediaInput} disabled={attachmentsDisabled} />}
-              {!identity && onChooseKey
-                ? <Button type="button" onClick={onChooseKey}>Choose a public key</Button>
-                : <Button type="submit" disabled={publicationDisabled}>Preview</Button>}
-              {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Close</Button>}
-              {context?.revision && <Button type="button" variant="ghost" size="icon"
-                aria-label="Discard draft" title="Discard draft" disabled={Boolean(busy)}
-                onClick={() => discardComposition(context)}><Trash2 aria-hidden="true" /></Button>}
+              <Button type="button" disabled={publicationDisabled} onClick={() => submit(context)}>
+                {sending ? 'Publishing…' : 'Publish'}
+              </Button>
+              <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => {
+                flushSync(() => setReview(null))
+                const field = context ? actionField : composer
+                field.current?.focus({ preventScroll: true })
+              }}>Back to editing</Button>
             </div>
-          </form>}
-        </CardContent>
-      </Card>
+          </section>
+        ) : <form className="space-y-3" onSubmit={event => {
+          event.preventDefault()
+          if (publicationDisabled) return
+          flushSync(() => setReview({ hash, identity, token: context?.token, body, attachments }))
+          reviewHeading.current?.focus({ preventScroll: true })
+        }}>
+          <Field>
+            <FieldLabel htmlFor={fieldId} className={context ? undefined : 'sr-only'}>{label}</FieldLabel>
+            <Textarea id={fieldId} className="bg-muted dark:bg-muted" ref={context ? actionField : composer} value={body}
+              onChange={event => context ? updateComposition(context, { body: event.target.value }) : setDraft(event.target.value)}
+              readOnly={context?.loading}
+              placeholder={editing ? 'Edit your message…' : context?.post ? 'Write a reply…' : 'Write a post…'} rows={3} maxLength={16000} disabled={sending} />
+          </Field>
+          {context?.draftError && <p role="alert" className="text-sm text-destructive">{context.draftError}</p>}
+          {!editing && <MediaAttachments key={context?.key || 'draft'} attachments={attachments} onChange={setAttachments} input={mediaInput} disabled={attachmentsDisabled} />}
+          <div className="flex flex-wrap items-center gap-2">
+            {!editing && <MediaPicker input={mediaInput} disabled={attachmentsDisabled} />}
+            {!identity && onChooseKey
+              ? <Button type="button" onClick={() => {
+                  if (popup) {
+                    composeTrigger.current = null
+                    setComposerOpen(false)
+                  }
+                  onChooseKey()
+                }}>Choose a public key</Button>
+              : <Button type="submit" disabled={publicationDisabled}>Preview</Button>}
+            {context && <Button type="button" variant="ghost" disabled={Boolean(busy)} onClick={cancelComposition}>Close</Button>}
+            {context?.revision && <Button type="button" variant="ghost" size="icon"
+              aria-label="Discard draft" title="Discard draft" disabled={Boolean(busy)}
+              onClick={() => discardComposition(context)}><Trash2 aria-hidden="true" /></Button>}
+          </div>
+        </form>}
+      </>
     )
+  }
+
+  function renderInlineComposer(context = null) {
+    return <Card className={context ? 'mt-2 py-3' : 'py-4'}>
+      <CardContent>{renderComposer(context)}</CardContent>
+    </Card>
   }
 
   function renderDeliveryStatus() {
@@ -589,8 +602,31 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
           </Button>
         </div>
       )}
-      {!readOnly && !route && renderComposer()}
-      {!readOnly && !inlineStatus && renderDeliveryStatus()}
+      {!readOnly && !route && !composerOpen && renderInlineComposer()}
+      {!readOnly && !inlineStatus && !composerOpen && renderDeliveryStatus()}
+      {!readOnly && (
+        <Dialog open={composerOpen} onOpenChange={open => { if (!busy) setComposerOpen(open) }}>
+          <DialogContent aria-describedby={undefined} showCloseButton={!busy}
+            className="flex min-h-0 flex-col overflow-hidden sm:max-w-xl"
+            onOpenAutoFocus={event => {
+              const field = composer.current || reviewHeading.current
+              if (field) {
+                event.preventDefault()
+                field.focus({ preventScroll: true })
+              }
+            }}
+            onCloseAutoFocus={event => {
+              event.preventDefault()
+              composeTrigger.current?.focus({ preventScroll: true })
+            }}>
+            <DialogTitle className="pr-8">New post</DialogTitle>
+            <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain px-1 pb-1">
+              {composerOpen && renderComposer()}
+              {renderDeliveryStatus()}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
       {route?.kind === 'author'
         ? <AuthorProfile id={route.id} profile={profile} blocked={blocked(route.id)} name={profileName}
             onMessage={!readOnly && route.id !== identity
@@ -605,7 +641,7 @@ export function Feed({ readOnly, waitingForIdentity, active, hash, name, onNameC
             messageDisabled={Boolean(busy) || pending !== false}
             onUnblock={() => toggleModeration('blocked', route.id)} />
         : <h2 className={route ? 'font-semibold' : 'sr-only'}>{route?.kind === 'message' ? 'Thread' : route ? 'Lookup' : 'Feed'}</h2>}
-      {!readOnly && profileMessage && renderComposer(composition)}
+      {!readOnly && profileMessage && renderInlineComposer(composition)}
       {loading && <p role="status" className="text-muted-foreground">Loading feed…</p>}
       {feedError && (
         <Alert variant="destructive">
