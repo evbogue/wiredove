@@ -2,7 +2,7 @@ import { workspaceGitHref } from '../../client/runtime/workspace-git.js'
 import { birdPaths } from '../../client/ui/wiredove-bird.js'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { ArrowLeft, CodeXml, createLucideIcon, FolderGit2, MessagesSquare, PanelsTopLeft, Radio, SquarePen, X } from 'lucide-react'
+import { ArrowLeft, CodeXml, createLucideIcon, MessagesSquare, PanelsTopLeft, Radio, SquarePen, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
@@ -20,7 +20,7 @@ import { Settings } from './Settings'
 import { Repository } from './Workspace'
 
 const sourceRepo = import.meta.env.WIREDOVE_PREVIEW_SOURCE_REPO
-const sourceHref = sourceRepo && workspaceGitHref({ repo: sourceRepo, kind: 'overview' })
+const sourceHref = sourceRepo && workspaceGitHref({ repo: sourceRepo, kind: 'tree', path: 'shadcn-preview' })
 
 const Peers = lazy(() => import('./Peers'))
 
@@ -39,7 +39,6 @@ function WorkspaceSidebar({ repository, profile }) {
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem><SidebarMenuButton asChild isActive={!repository}><a href="#" onClick={closeDrawer}><MessagesSquare /> Feed</a></SidebarMenuButton></SidebarMenuItem>
-            <SidebarMenuItem><SidebarMenuButton asChild isActive={repository}><a href="#workspace/" onClick={closeDrawer}><FolderGit2 /> Repository</a></SidebarMenuButton></SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
@@ -128,18 +127,6 @@ export default function App() {
               </Button>
             )}
             {workspace && <SidebarTrigger className="size-10 md:hidden" aria-label="Open Workspace navigation" />}
-            {sourceHref && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button asChild variant="ghost" size="icon" className="size-8 shrink-0 sm:size-10">
-                    <a href={sourceHref} aria-label="Wiredove source code" aria-current={hash === sourceHref.slice(1) ? 'page' : undefined}>
-                      <CodeXml aria-hidden="true" />
-                    </a>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Wiredove source code</TooltipContent>
-              </Tooltip>
-            )}
           </div>
           <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <div className="flex shrink-0 items-center gap-1.5" title="Workspace view">
@@ -152,6 +139,18 @@ export default function App() {
             <Button asChild variant="ghost" size="icon" className="size-8 sm:size-10">
               <a href="#peers" aria-label="Peers" aria-current={peers ? 'page' : undefined} title="Peers"><Radio aria-hidden="true" /></a>
             </Button>
+            {sourceHref && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="ghost" size="icon" className="size-8 shrink-0 sm:size-10">
+                    <a href={sourceHref} aria-label="Wiredove shadcn preview source code" aria-current={hash === sourceHref.slice(1) ? 'page' : undefined}>
+                      <CodeXml aria-hidden="true" />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Wiredove shadcn preview source code</TooltipContent>
+              </Tooltip>
+            )}
             <Settings theme={theme} setTheme={setTheme} />
             {!identity && (identity !== undefined || identityError) &&
               <ChoosePublicKey open={choosingKey} setOpen={setChoosingKey} unavailable={identityError && identity === undefined}
